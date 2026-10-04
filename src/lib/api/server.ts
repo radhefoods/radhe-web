@@ -1,3 +1,5 @@
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { connection } from "next/server";
 import { env } from "@/config/env";
 import { createRequester } from "./http";
 import { createStoreApi } from "./store-api";
@@ -30,3 +32,14 @@ export const TAGS = {
   settings: "settings",
   legal: "legal",
 } as const;
+
+/**
+ * The build must not depend on the API. A page that is built ahead of time
+ * and cannot load its content calls this before it gives up: during the
+ * build, the page is then left out and rendered at its first visit instead
+ * of stopping the whole build. On a running shop this does nothing, and the
+ * error goes on to the error page.
+ */
+export async function leaveToFirstVisitWhileBuilding(): Promise<void> {
+  if (process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD) await connection();
+}

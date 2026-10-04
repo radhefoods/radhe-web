@@ -3,7 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { Locale } from "@/i18n/routing";
 import { hasErrorCode } from "@/lib/api/errors";
-import { REVALIDATE, TAGS, serverApi } from "@/lib/api/server";
+import {
+  REVALIDATE,
+  TAGS,
+  leaveToFirstVisitWhileBuilding,
+  serverApi,
+} from "@/lib/api/server";
 import type { LegalDocument, LegalType } from "@/lib/api/types";
 import { formatDate } from "@/lib/format/dates";
 import { alternates, sameHref } from "@/lib/seo/alternates";
@@ -30,6 +35,7 @@ async function loadDocument(
     return document;
   } catch (error) {
     if (hasErrorCode(error, "LEGAL_DOCUMENT_NOT_FOUND")) return null;
+    await leaveToFirstVisitWhileBuilding();
     throw error;
   }
 }
