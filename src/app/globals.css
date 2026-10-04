@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens of the Radhe Foods shop (approved 2026-10-04).
+ *
+ * Colours come from the logo: the blue of the wordmark, one step lighter,
+ * and the gold, teal and cyan of the peacock feather. Pages are white so
+ * that food photography carries the colour. The shop is light-only.
+ *
+ * The default Tailwind palette is switched off: only these tokens exist,
+ * so a colour that is not part of the system cannot slip in.
+ */
+@theme {
+  --color-*: initial;
+
+  --color-white: #ffffff;
+  --color-mist: #f5f7fb;
+  --color-cloud: #eceff6;
+  --color-line: #dfe4ee;
+  --color-line-strong: #c3cada;
+  --color-ink: #0a1233;
+  --color-ink-muted: #545d7a;
+  --color-ink-subtle: #8088a1;
+
+  /* 600 is the action colour, 900 the dark bands. */
+  --color-blue-50: #f2f5fe;
+  --color-blue-100: #e1e8fc;
+  --color-blue-200: #c5d2f8;
+  --color-blue-300: #9bb0f1;
+  --color-blue-400: #6686e6;
+  --color-blue-500: #3c62db;
+  --color-blue-600: #1a45cc;
+  --color-blue-700: #1437a8;
+  --color-blue-800: #0f2a80;
+  --color-blue-900: #0a1d5c;
+
+  /* Time and deadlines. 700 and 800 are the only golds used for text. */
+  --color-gold-100: #fcf1d9;
+  --color-gold-200: #f6dca6;
+  --color-gold-300: #f0bc6b;
+  --color-gold-400: #dda13d;
+  --color-gold-500: #bb7620;
+  --color-gold-700: #855008;
+  --color-gold-800: #6c4310;
+
+  /* Good news: paid, delivered, nothing to pay today. */
+  --color-teal-50: #e3f4f3;
+  --color-teal-100: #c4e7e5;
+  --color-teal-600: #017779;
+  --color-teal-700: #025c5f;
+
+  /* Ornament only (the eye of the feather), never text on white. */
+  --color-cyan-300: #01ecfe;
+  --color-cyan-500: #05bac2;
+
+  /* Reduced prices; errors and overdue payments. */
+  --color-chili: #b3321b;
+  --color-red-50: #fdecea;
+  --color-red-200: #f6c9c3;
+  --color-red-600: #b42318;
+  --color-red-800: #7a1a12;
+
+  --font-sans:
+    var(--font-instrument-sans), "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display:
+    var(--font-instrument-serif), "Iowan Old Style", "Palatino Linotype",
+    Georgia, serif;
+
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-card:
+    0 1px 2px rgb(10 29 92 / 0.06), 0 4px 14px rgb(10 29 92 / 0.06);
+  --shadow-float: 0 18px 40px rgb(10 29 92 / 0.16);
+
+  --breakpoint-xs: 26rem;
+}
+
+@layer base {
+  html {
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-white);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* One visible focus style everywhere, for keyboard users. */
+  :focus-visible {
+    outline: 2px solid var(--color-blue-600);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-blue-100);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* The cookie notice was read before: never drawn again (see the component).
+   Outside the layers on purpose: a rule in a layer would lose against the
+   utility class that lays the notice out. */
+[data-cookie-notice="read"] .cookie-notice {
+  display: none;
+}
+
+/* Headlines in the serif of the system. Long German words may break. */
+@utility font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  hyphens: auto;
+  text-wrap: balance;
+}
+
+/* The narrow cut of the sans, for long German labels on small screens. */
+@utility font-narrow {
+  font-stretch: 85%;
+}
+
+/* The width and side gutter of every page section. */
+@utility container-page {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+
+/* The eye of the peacock feather: the one ornament of the system. */
+@utility feather-eye {
+  background: radial-gradient(
+    circle at 50% 52%,
+    var(--color-blue-900) 0 20%,
+    var(--color-cyan-500) 21% 38%,
+    var(--color-teal-600) 39% 62%,
+    var(--color-gold-400) 63% 100%
+  );
+}
+
+@utility hero-band {
+  background:
+    radial-gradient(
+      90% 130% at 88% -10%,
+      var(--color-blue-600) 0,
+      rgb(26 69 204 / 0) 62%
+    ),
+    var(--color-blue-900);
+}
+
+/* The line at the top while the next page loads. It waits a moment, then
+   grows quickly and ever more slowly: it never claims to be finished. */
+@keyframes nav-progress {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(0.92);
+  }
+}
+
+@utility nav-progress {
+  transform-origin: left;
+  animation: nav-progress 8s cubic-bezier(0.1, 0.8, 0.2, 1) 150ms both;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
