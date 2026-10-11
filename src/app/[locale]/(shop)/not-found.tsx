@@ -9,7 +9,7 @@ export default function NotFound() {
       <p className="text-ink-muted text-sm font-bold tracking-wider uppercase">
         404
       </p>
-      <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+      <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
         {t("title")}
       </h1>
       <p className="text-ink-muted max-w-md">{t("text")}</p>

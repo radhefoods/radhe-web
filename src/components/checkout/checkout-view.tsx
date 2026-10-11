@@ -156,8 +156,8 @@ export function CheckoutView() {
 
   if (bill.lines.length === 0) {
     return (
-      <div className="bg-mist flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center">
-        <h2 className="font-display text-3xl text-blue-900">
+      <div className="border-line flex flex-col items-center gap-4 rounded-xl border bg-white px-6 py-16 text-center">
+        <h2 className="font-display text-xl text-blue-900">
           {t("emptyTitle")}
         </h2>
         <p className="text-ink-muted">{t("emptyText")}</p>
@@ -256,13 +256,16 @@ export function CheckoutView() {
     }
   }
 
-  const sectionTitle = "font-display text-3xl text-blue-900";
+  const sectionTitle = "font-display text-xl text-blue-900";
   const link = "font-semibold text-blue-700 underline underline-offset-4";
 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[1fr_25rem] lg:gap-12">
-      <div className="flex flex-col gap-10">
-        <section aria-labelledby="checkout-address" className="space-y-4">
+      <div className="flex flex-col gap-5">
+        <section
+          aria-labelledby="checkout-address"
+          className="border-line space-y-4 rounded-xl border bg-white p-5 sm:p-6"
+        >
           <div>
             <h2 id="checkout-address" className={sectionTitle}>
               {t("addressTitle")}
@@ -282,7 +285,7 @@ export function CheckoutView() {
                         "flex h-full cursor-pointer gap-3 rounded-md border-[1.5px] p-4 pr-20",
                         checked
                           ? "border-blue-600 bg-blue-50"
-                          : "border-line-strong hover:border-ink-subtle",
+                          : "border-line-strong hover:border-ink-subtle bg-white",
                       )}
                     >
                       <input
@@ -342,7 +345,10 @@ export function CheckoutView() {
           )}
         </section>
 
-        <section aria-labelledby="checkout-note" className="space-y-2">
+        <section
+          aria-labelledby="checkout-note"
+          className="border-line space-y-2 rounded-xl border bg-white p-5 sm:p-6"
+        >
           <label
             id="checkout-note"
             htmlFor="checkout-note-field"
@@ -364,7 +370,10 @@ export function CheckoutView() {
           </p>
         </section>
 
-        <section aria-labelledby="checkout-consent" className="space-y-3">
+        <section
+          aria-labelledby="checkout-consent"
+          className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
+        >
           <h2 id="checkout-consent" className={sectionTitle}>
             {t("consentTitle")}
           </h2>
@@ -469,7 +478,7 @@ export function CheckoutView() {
           <BillTotals totals={bill.totals} />
         </div>
 
-        <p className="rounded-md border border-teal-100 bg-teal-50 px-3.5 py-3 text-sm text-teal-700">
+        <p className="rounded-md border border-green-100 bg-green-50 px-3.5 py-3 text-sm text-green-700">
           <span className="font-bold">{tCargo("payLaterTitle")}</span>{" "}
           {t("payLater")}
         </p>
@@ -540,7 +549,6 @@ export function CheckoutView() {
         <Button
           size="lg"
           block
-          className="font-narrow"
           loading={placing}
           disabled={!canPlace}
           onClick={() => void place()}

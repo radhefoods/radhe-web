@@ -68,11 +68,11 @@ export function ConfirmationView({ orderNumber }: { orderNumber: string }) {
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
-        <p className="flex items-center gap-2 font-bold text-teal-700">
+        <p className="flex items-center gap-2 font-bold text-green-700">
           <CircleCheck aria-hidden="true" className="size-6" />
           {t("eyebrow")}
         </p>
-        <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
           {t("title")}
         </h1>
         {session.customer && (
@@ -82,7 +82,7 @@ export function ConfirmationView({ orderNumber }: { orderNumber: string }) {
         )}
       </header>
 
-      <dl className="bg-mist grid gap-5 rounded-xl p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-4">
+      <dl className="border-line grid gap-5 rounded-xl border bg-white p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-4">
         <div className={fact}>
           <dt className={label}>{t("orderNumber")}</dt>
           <dd className="text-xl font-bold">{order.orderNumber}</dd>
@@ -95,7 +95,7 @@ export function ConfirmationView({ orderNumber }: { orderNumber: string }) {
         </div>
         <div className={fact}>
           <dt className={label}>{t("paidNow")}</dt>
-          <dd className="text-xl font-bold text-teal-700 tabular-nums">
+          <dd className="text-xl font-bold text-green-700 tabular-nums">
             {formatMoney(0, locale)}
           </dd>
         </div>
@@ -115,7 +115,7 @@ export function ConfirmationView({ orderNumber }: { orderNumber: string }) {
         <section aria-labelledby="confirmation-next" className="space-y-3">
           <h2
             id="confirmation-next"
-            className="font-display text-3xl text-blue-900"
+            className="font-display text-xl text-blue-900"
           >
             {t("nextTitle")}
           </h2>
@@ -124,7 +124,7 @@ export function ConfirmationView({ orderNumber }: { orderNumber: string }) {
               <li key={step} className="flex gap-3">
                 <span
                   aria-hidden="true"
-                  className="font-display text-3xl leading-none text-blue-600"
+                  className="font-display text-2xl leading-none text-blue-600"
                 >
                   {index + 1}
                 </span>
@@ -150,11 +150,11 @@ export function ConfirmationView({ orderNumber }: { orderNumber: string }) {
 
         <section
           aria-labelledby="confirmation-items"
-          className="border-line flex flex-col gap-4 rounded-xl border p-5"
+          className="border-line flex flex-col gap-4 rounded-xl border bg-white p-5"
         >
           <h2
             id="confirmation-items"
-            className="font-display text-3xl text-blue-900"
+            className="font-display text-xl text-blue-900"
           >
             {t("items")}
           </h2>

@@ -31,7 +31,7 @@ export function BillTotals({
       <div className={row}>
         <dt>{t("delivery")}</dt>
         <dd
-          className={cn(totals.deliveryFee === 0 && "font-bold text-teal-700")}
+          className={cn(totals.deliveryFee === 0 && "font-bold text-green-700")}
         >
           {totals.deliveryFee === 0
             ? t("deliveryFree")
@@ -43,7 +43,7 @@ export function BillTotals({
           <span className="text-lg font-bold">{t("total")}</span>
           <span className="text-ink-muted text-sm">{t("totalNote")}</span>
         </dt>
-        <dd className="text-xl font-bold">
+        <dd className="font-display text-xl">
           {formatMoney(totals.total, locale)}
         </dd>
       </div>
@@ -58,7 +58,7 @@ export function BillTotals({
         </div>
       ))}
       {showDueToday && (
-        <div className={cn(row, "font-bold text-teal-700")}>
+        <div className={cn(row, "font-bold text-green-700")}>
           <dt>{t("dueToday")}</dt>
           <dd>{formatMoney(0, locale)}</dd>
         </div>
@@ -90,7 +90,7 @@ export function FreeDeliveryProgress({
   const percent = Math.min(100, Math.round((subtotal / freeFrom) * 100));
   return (
     <div className={cn("flex flex-col gap-1.5 text-sm", className)}>
-      <p className={reached ? "font-bold text-teal-700" : "text-ink-muted"}>
+      <p className={reached ? "font-bold text-green-700" : "text-ink-muted"}>
         {reached
           ? t("freeReached")
           : t("freeMissing", { amount: formatMoney(missingForFree, locale) })}
@@ -102,7 +102,7 @@ export function FreeDeliveryProgress({
         <div
           className={cn(
             "h-full rounded-full transition-[width] duration-300",
-            reached ? "bg-teal-600" : "bg-gold-400",
+            reached ? "bg-green-600" : "bg-saffron-500",
           )}
           style={{ width: `${percent}%` }}
         />

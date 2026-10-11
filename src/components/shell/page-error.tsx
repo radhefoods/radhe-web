@@ -19,7 +19,7 @@ export function PageError({
   const tErrors = useTranslations("errors");
   return (
     <div className="container-page flex flex-col items-center gap-4 py-20 text-center">
-      <h1 className="font-display text-4xl text-blue-900">{t("errorTitle")}</h1>
+      <h1 className="font-display text-3xl text-blue-900">{t("errorTitle")}</h1>
       <p className="text-ink-muted max-w-md">{t("errorText")}</p>
       <Button onClick={reset}>
         <RotateCw aria-hidden="true" className="size-4" />

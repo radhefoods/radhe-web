@@ -75,7 +75,7 @@ export function AddToCart({
       <Button
         size={size}
         block
-        className={cn("font-narrow", className)}
+        className={className}
         aria-label={t("addNamed", { name })}
         onClick={() =>
           cart.setQuantity(productId, clampToOrdering(min, ordering))

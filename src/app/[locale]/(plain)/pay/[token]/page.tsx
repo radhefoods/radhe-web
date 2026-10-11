@@ -57,7 +57,7 @@ export default async function PayPage({ params }: Props) {
 
   return (
     <div className="container-page max-w-xl space-y-6 py-10 sm:py-14">
-      <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+      <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
         {payLink ? t("title") : t("invalidTitle")}
       </h1>
       {payLink ? (

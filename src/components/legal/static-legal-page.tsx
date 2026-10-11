@@ -55,16 +55,18 @@ export async function StaticLegalPage({
     loadText(name, locale),
   ]);
   return (
-    <article className="container-page max-w-3xl space-y-6 py-8 sm:py-12">
-      <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
-        {t(name)}
-      </h1>
-      {PLACEHOLDER.test(text) && (
-        <Alert tone="warn" title={t("templateTitle")}>
-          {t("templateText")}
-        </Alert>
-      )}
-      <LegalText tableLabel={tLegal("table")}>{text}</LegalText>
+    <article className="container-page max-w-3xl py-6 sm:py-10">
+      <div className="border-line space-y-6 rounded-xl border bg-white p-5 sm:p-8">
+        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+          {t(name)}
+        </h1>
+        {PLACEHOLDER.test(text) && (
+          <Alert tone="warn" title={t("templateTitle")}>
+            {t("templateText")}
+          </Alert>
+        )}
+        <LegalText tableLabel={tLegal("table")}>{text}</LegalText>
+      </div>
     </article>
   );
 }

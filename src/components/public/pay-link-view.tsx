@@ -117,7 +117,7 @@ export function PayLinkView({
           {error !== null && <ErrorAlert error={error} />}
         </div>
       ) : payment.status === "paid" ? (
-        <p className="flex items-center gap-2 rounded-xl bg-teal-50 p-5 font-bold text-teal-700">
+        <p className="flex items-center gap-2 rounded-xl bg-green-50 p-5 font-bold text-green-700">
           <Check aria-hidden="true" className="size-5" strokeWidth={3} />
           {t("paid")}
         </p>

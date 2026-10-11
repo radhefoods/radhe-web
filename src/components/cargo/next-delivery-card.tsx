@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { Chip } from "@/components/ui/chip";
 import { useCargo, useSecondsUntilClose } from "@/features/cargo/cargo";
 import type { Locale } from "@/i18n/routing";
 import {
@@ -12,19 +13,22 @@ import {
 
 function Tile({ value, label }: { value: string; label: string }) {
   return (
-    <div className="bg-mist flex flex-col items-center gap-0.5 rounded-md px-1.5 py-3">
-      <span className="text-3xl leading-none font-bold text-blue-900 tabular-nums">
+    <div className="bg-mist flex flex-col items-center gap-1 rounded-md px-1.5 py-3">
+      <span className="font-display text-[1.75rem] leading-none text-blue-900 tabular-nums">
         {value}
       </span>
-      <span className="text-ink-muted text-xs font-semibold">{label}</span>
+      <span className="text-ink-subtle text-xs font-semibold">{label}</span>
     </div>
   );
 }
 
+const card =
+  "border-line flex flex-col gap-4 rounded-xl border bg-white p-5 shadow-card";
+
 /**
- * The card in the hero of the home page: the time left to order, the order
- * deadline, the delivery days, and that nothing is paid today. The numbers
- * show a dash until the browser has a fresh answer of the API.
+ * The card next to the banner of the home page: the time left to order,
+ * the order deadline, the delivery days, and that nothing is paid today.
+ * The numbers show a dash until the browser has a fresh answer of the API.
  */
 export function NextDeliveryCard() {
   const t = useTranslations("cargo");
@@ -36,12 +40,10 @@ export function NextDeliveryCard() {
 
   if (!cargo.current) {
     return (
-      <div className="text-ink shadow-float flex flex-col gap-2 rounded-xl bg-white p-6">
-        <h2 className="text-ink-muted text-xs font-bold tracking-wider uppercase">
-          {t("nextDelivery")}
-        </h2>
-        <p className="font-display text-3xl text-blue-900">{t("closed")}</p>
-        <p className="text-ink-muted">
+      <div className={card}>
+        <h2 className="font-display text-lg">{t("nextDelivery")}</h2>
+        <p className="text-ink font-semibold">{t("closed")}</p>
+        <p className="text-ink-muted text-[0.9375rem]">
           {cargo.next
             ? t("nextOpens", {
                 date: formatDeadline(cargo.next.orderOpenAt, locale),
@@ -57,10 +59,11 @@ export function NextDeliveryCard() {
   const { orderCloseAt, delivery } = cargo.current;
 
   return (
-    <div className="text-ink shadow-float flex flex-col gap-4 rounded-xl bg-white p-5 sm:p-6">
-      <h2 className="text-ink-muted text-xs font-bold tracking-wider uppercase">
-        {t("nextDelivery")}
-      </h2>
+    <div className={card}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg">{t("nextDelivery")}</h2>
+        <Chip tone="green">{t("open")}</Chip>
+      </div>
       <div role="timer" className="grid grid-cols-3 gap-2">
         <Tile
           value={parts ? String(parts.days) : "–"}
@@ -86,7 +89,7 @@ export function NextDeliveryCard() {
           </dd>
         </div>
       </dl>
-      <p className="flex items-center gap-2 rounded-sm bg-teal-50 px-3 py-2.5 text-sm font-semibold text-teal-700">
+      <p className="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2.5 text-sm font-semibold text-green-700">
         <Check
           aria-hidden="true"
           className="size-4.5 shrink-0"

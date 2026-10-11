@@ -15,13 +15,15 @@ function Column({
 }) {
   return (
     <nav aria-label={title}>
-      <h2 className="text-sm font-bold tracking-wide uppercase">{title}</h2>
+      <h2 className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
+        {title}
+      </h2>
       <ul className="mt-4 flex flex-col gap-2.5 text-[0.9375rem]">
         {links.map((link) => (
           <li key={link.key}>
             <Link
               href={link.href}
-              className="text-ink-muted hover:text-ink rounded-sm hover:underline"
+              className="text-ink-muted rounded-sm font-medium hover:text-blue-700 hover:underline"
             >
               {link.label}
             </Link>
@@ -42,7 +44,7 @@ export async function Footer({ categories }: { categories: Category[] }) {
   const tNav = await getTranslations("nav");
 
   return (
-    <footer className="border-line bg-mist mt-16 border-t pb-36 md:pb-0">
+    <footer className="border-line mt-16 border-t bg-white pb-36 md:pb-0">
       <div className="container-page grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr]">
         <div className="space-y-4">
           <Logo className="h-12" />
@@ -105,7 +107,7 @@ export async function Footer({ categories }: { categories: Category[] }) {
         />
       </div>
       <div className="border-line border-t">
-        <div className="container-page text-ink-muted flex flex-wrap justify-between gap-x-6 gap-y-1 py-5 text-sm">
+        <div className="container-page text-ink-subtle flex flex-wrap justify-between gap-x-6 gap-y-1 py-5 text-sm">
           <p>{t("rights", { year: new Date().getFullYear() })}</p>
           <p>{t("priceNote")}</p>
         </div>

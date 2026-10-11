@@ -16,7 +16,7 @@ import type { Customer } from "@/lib/api/types";
 import { SignOutButton } from "./sign-out";
 
 const PHONE = /^\+[1-9]\d{6,14}$/;
-const sectionTitle = "font-display text-3xl text-blue-900";
+const sectionTitle = "font-display text-xl text-blue-900";
 const panel = "border-line flex flex-col gap-4 rounded-xl border bg-white p-5";
 
 /** Name, phone and the language of emails (`PATCH /v1/store/me`). */
@@ -146,7 +146,7 @@ function DetailsForm({ customer }: { customer: Customer }) {
         <Button type="submit" loading={busy}>
           {t("save")}
         </Button>
-        <p role="status" className="font-semibold text-teal-700">
+        <p role="status" className="font-semibold text-green-700">
           {saved ? t("saved") : ""}
         </p>
       </div>
@@ -276,7 +276,7 @@ function CommunicationForm({ customer }: { customer: Customer }) {
       )}
 
       {error !== null && <ErrorAlert error={error} />}
-      <p role="status" className="font-semibold text-teal-700">
+      <p role="status" className="font-semibold text-green-700">
         {saved ? t("saved") : ""}
       </p>
     </section>
@@ -291,7 +291,7 @@ export function ProfileView() {
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+      <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
         {t("title")}
       </h1>
       {/* The forms start from the stored profile; a new language reloads them. */}

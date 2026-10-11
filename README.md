@@ -18,6 +18,7 @@ Built so far:
 - **Phase 5, public pages and SEO:** the payment link and the unsubscribe link from emails, "How pre-ordering works", "Delivery and payment", legal notice, right of withdrawal and cookie page as editable files, the cookie notice, footer links; sitemap, robots, web manifest, social picture, canonical and language links on every public page.
 
 - **Phase 6, polish:** an automatic accessibility check of every kind of page (axe, WCAG 2.2 AA) and keyboard tests; lighter pages (fewer preloaded fonts, smaller icon and logo files, translations sent per area, the menu panel loaded on demand); the cookie notice painted with the page; a line at the top while the next page loads; a message where a product could not be added; the signed-in dot in the phone tab bar; a last-resort error page.
+- **Redesign (2026-10-11):** the visual system was replaced at the owner's request, with every function and rule kept: Plus Jakarta Sans and DM Sans, a grey canvas with white cards, royal blue actions with saffron, green and red signals, a three-tier store header with a large search and the cart total, a home page that opens with the store (banner, next delivery, categories, offers, popular products), filter column and four-card grid on the lists, a buy box on the product page. The decisions and their reasons are in `DECISIONS.md`, "Design".
 
 All six phases of the plan are built. What is left is listed under "Before launch" and in the open items of `DECISIONS.md`.
 
@@ -32,8 +33,8 @@ All six phases of the plan are built. What is left is listed under "Before launc
 
 ## Requirements
 
-- Node.js 22.18 or newer (the mock API runs TypeScript directly with Node). The shop itself needs Node.js 20.9 or newer.
-- npm
+- Node.js 24 (the current LTS). `.nvmrc` names it, so `nvm use` or `fnm use` picks it, and `engines` in `package.json` tells npm and Vercel the same. Next.js itself accepts 20.9 or newer and the mock API needs 22.18 or newer (it runs TypeScript directly with Node), but 24 is the version everything is tested with.
+- npm (the one that comes with Node)
 
 ## Setup
 
@@ -158,7 +159,7 @@ Add the key to `messages/en.json` **and** `messages/de.json`. A test fails when 
 The build is standard Next.js with no platform-specific service, so it runs on Vercel and on a Node.js host (Hostinger) alike.
 
 1. Set the environment variables of the table above. On Vercel: Project → Settings → Environment Variables, before the build, because the `NEXT_PUBLIC_` values are built into the scripts. Without `NEXT_PUBLIC_API_URL` the shop looks for the API on `localhost:3000`, which does not exist there.
-2. `npm ci && npm run build`, then `npm run start` (or let Vercel do both). The build does not need the API: pages that cannot load their content while building are rendered at their first visit. The running shop does need it; without an API the catalogue is empty and pages with content show the error page.
+2. `npm ci && npm run build`, then `npm run start` (or let Vercel do both). Both run on Node.js 24; Vercel takes the version from `engines` in `package.json`, so there is nothing to set in the project settings. The build does not need the API: pages that cannot load their content while building are rendered at their first visit. The running shop does need it; without an API the catalogue is empty and pages with content show the error page.
 3. The shop and the API must share a parent domain (`radhefoods.de` and `api.radhefoods.de`): the session cookies are set for `.radhefoods.de`. The API's `CORS_ORIGINS` must contain the shop's address, and its `SHOP_URL` must be the shop's address.
 
 Sign-in does not work on addresses outside that domain (for example Vercel preview addresses), because the cookies do not travel there.

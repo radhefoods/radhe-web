@@ -14,7 +14,7 @@ import { Providers } from "@/features/providers";
 import { clientMessages } from "@/i18n/client-messages";
 import { localeOf } from "@/i18n/locale";
 import { routing } from "@/i18n/routing";
-import { instrumentSans, instrumentSerif } from "../fonts";
+import { dmSans, plusJakartaSans } from "../fonts";
 import "../globals.css";
 
 /** The logo on white, for links shared in chats and social networks. */
@@ -73,7 +73,7 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${instrumentSans.variable} ${instrumentSerif.variable}`}
+      className={`${dmSans.variable} ${plusJakartaSans.variable}`}
       // The script below marks <html> before React takes over the page.
       suppressHydrationWarning
     >

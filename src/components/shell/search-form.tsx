@@ -46,7 +46,7 @@ export async function SearchForm({
         enterKeyHint="search"
         autoComplete="off"
         placeholder={t("searchPlaceholder")}
-        className="border-line bg-mist placeholder:text-ink-subtle hover:border-line-strong h-12 w-full rounded-md border-[1.5px] pr-4 pl-11 text-base focus-visible:border-blue-600 focus-visible:bg-white focus-visible:outline-offset-1"
+        className="border-line-strong placeholder:text-ink-subtle hover:border-ink-subtle h-11 w-full rounded-md border-[1.5px] bg-white pr-4 pl-11 text-base focus-visible:border-blue-600 focus-visible:outline-offset-1 lg:h-12"
       />
     </form>
   );

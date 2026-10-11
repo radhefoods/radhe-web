@@ -25,7 +25,8 @@ export const metadata: Metadata = {
 const COLOURS: { group: string; items: [name: string, className: string][] }[] =
   [
     {
-      group: "Blue (wordmark, one step lighter): 600 actions, 900 dark bands",
+      group:
+        "Blue: 600 for every action, 800 and 900 for headlines and dark bands",
       items: [
         ["50", "bg-blue-50"],
         ["100", "bg-blue-100"],
@@ -40,8 +41,9 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
       ],
     },
     {
-      group: "Neutrals",
+      group: "Neutrals: the canvas is the page, white is a card",
       items: [
+        ["canvas", "bg-canvas"],
         ["white", "bg-white"],
         ["mist", "bg-mist"],
         ["cloud", "bg-cloud"],
@@ -53,25 +55,27 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
       ],
     },
     {
-      group: "Feather: gold for time, teal for good news, cyan as ornament",
+      group: "Saffron for offers and deadlines, green for in stock and paid",
       items: [
-        ["gold-100", "bg-gold-100"],
-        ["gold-300", "bg-gold-300"],
-        ["gold-400", "bg-gold-400"],
-        ["gold-500", "bg-gold-500"],
-        ["gold-700", "bg-gold-700"],
-        ["teal-50", "bg-teal-50"],
-        ["teal-600", "bg-teal-600"],
-        ["teal-700", "bg-teal-700"],
-        ["cyan-500", "bg-cyan-500"],
+        ["saffron-100", "bg-saffron-100"],
+        ["saffron-200", "bg-saffron-200"],
+        ["saffron-300", "bg-saffron-300"],
+        ["saffron-400", "bg-saffron-400"],
+        ["saffron-500", "bg-saffron-500"],
+        ["saffron-800", "bg-saffron-800"],
+        ["green-50", "bg-green-50"],
+        ["green-100", "bg-green-100"],
+        ["green-600", "bg-green-600"],
+        ["green-700", "bg-green-700"],
       ],
     },
     {
-      group: "Signals: reduced prices, errors",
+      group: "Red: reduced prices, errors, overdue",
       items: [
-        ["chili", "bg-chili"],
         ["red-50", "bg-red-50"],
+        ["red-200", "bg-red-200"],
         ["red-600", "bg-red-600"],
+        ["red-800", "bg-red-800"],
       ],
     },
   ];
@@ -79,7 +83,7 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="border-line space-y-5 border-t pt-8">
-      <h2 className="font-display text-3xl text-blue-900">{title}</h2>
+      <h2 className="font-display text-2xl text-blue-900">{title}</h2>
       {children}
     </section>
   );
@@ -111,7 +115,7 @@ export default async function StyleguidePage({
     <main id="main" className="container-page space-y-10 py-10">
       <header className="space-y-4">
         <Logo className="h-14" />
-        <h1 className="font-display text-5xl text-blue-900">Design system</h1>
+        <h1 className="font-display text-4xl text-blue-900">Design system</h1>
         <p className="text-ink-muted max-w-2xl">
           Tokens and components of the Radhe Foods shop. The tokens live in{" "}
           <code>src/app/globals.css</code>, the components in{" "}
@@ -138,20 +142,32 @@ export default async function StyleguidePage({
       </Section>
 
       <Section title="Type">
-        <p className="font-display text-6xl text-blue-900">
-          Pre-order today, <em className="text-blue-600 italic">pay later.</em>
+        <p className="font-display text-5xl text-blue-900">
+          Indian groceries, delivered to your door
         </p>
-        <p className="font-display text-4xl text-blue-900">
+        <p className="font-display text-3xl text-blue-900">
           Reis, Mehl und Hülsenfrüchte
         </p>
-        <p className="text-lg font-bold">Instrument Sans, bold 18</p>
+        <p className="font-display text-xl">
+          Section title, Plus Jakarta Sans 800, 20 px
+        </p>
+        <p className="text-[0.9375rem] font-semibold">
+          Product title, DM Sans 600, 15 px: India Gate Basmati-Reis, Classic, 5
+          kg
+        </p>
         <p className="max-w-prose">
           Body text, 16 px. Gereifter Langkornreis aus Indien. Bestellen Sie bis
           Freitag, wir liefern zwischen dem 19. und 21. Oktober.
         </p>
         <p className="text-ink-muted text-sm">Small and muted, 14 px.</p>
-        <p className="font-narrow font-bold">
-          Narrow cut for long German labels: Zahlungspflichtig vorbestellen
+        <p className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
+          Label, 12 px, spaced caps
+        </p>
+        <p className="font-display text-[2rem] tabular-nums">
+          <span className="text-red-600">19,99 €</span>{" "}
+          <s className="text-ink-subtle font-sans text-base font-medium">
+            24,99 €
+          </s>
         </p>
       </Section>
 
@@ -168,28 +184,28 @@ export default async function StyleguidePage({
         <div className="flex flex-wrap items-center gap-3">
           <Button size="sm">Small, 44 px</Button>
           <Button size="md">Medium, 48 px</Button>
-          <Button size="lg">Large, 56 px</Button>
+          <Button size="lg">Large, 52 px</Button>
         </div>
         <div className="hero-band flex flex-wrap gap-3 rounded-lg p-4">
-          <Button variant="gold">Gold, on dark bands</Button>
-          <Button variant="ghost">Ghost, on dark bands</Button>
+          <Button variant="saffron">Saffron, on the dark band</Button>
+          <Button variant="ghost">Ghost, on the dark band</Button>
         </div>
       </Section>
 
       <Section title="Status chips">
         <div className="flex flex-wrap gap-2">
           <Chip tone="blue">Confirmed</Chip>
-          <Chip tone="gold">Preparing</Chip>
+          <Chip tone="saffron">Preparing</Chip>
           <Chip tone="navy">On its way</Chip>
-          <Chip tone="teal">Delivered</Chip>
+          <Chip tone="green">Delivered</Chip>
           <Chip tone="red">Delivery failed</Chip>
           <Chip tone="mute">Cancelled</Chip>
         </div>
         <div className="flex flex-wrap gap-2">
           <Chip tone="mute">Pay after delivery</Chip>
-          <Chip tone="gold">Payment due</Chip>
+          <Chip tone="saffron">Payment due</Chip>
           <Chip tone="red">Overdue</Chip>
-          <Chip tone="teal">Paid</Chip>
+          <Chip tone="green">Paid</Chip>
         </div>
       </Section>
 
@@ -228,7 +244,7 @@ export default async function StyleguidePage({
           />
           <TextField id="sg-disabled" label="Disabled" disabled value="DE" />
           <div className="space-y-1.5">
-            <p className="text-sm font-bold">Quantity stepper</p>
+            <p className="text-sm font-semibold">Quantity stepper</p>
             <StepperDemo />
           </div>
         </div>

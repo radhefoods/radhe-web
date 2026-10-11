@@ -42,7 +42,9 @@ export function QuantityStepper({
   const removes = atMin && removeAtMin;
   const button = cn(
     "grid shrink-0 place-items-center rounded-sm text-blue-800 hover:bg-blue-100 disabled:text-ink-subtle disabled:hover:bg-transparent",
-    size === "sm" ? "size-9" : "size-11",
+    // Inside the border of the group, not over it.
+    "m-px",
+    size === "sm" ? "size-9" : "size-10",
   );
   return (
     <div

@@ -30,7 +30,7 @@ export function AccountOverview() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+          <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
             {customer?.firstName
               ? t("greeting", { name: customer.firstName })
               : t("greetingPlain")}
@@ -47,9 +47,12 @@ export function AccountOverview() {
       {toPay.length > 0 && (
         <section
           aria-labelledby="account-to-pay"
-          className="border-gold-200 bg-gold-100 rounded-xl border p-5"
+          className="border-saffron-200 bg-saffron-100 rounded-xl border p-5"
         >
-          <h2 id="account-to-pay" className="text-gold-800 text-lg font-bold">
+          <h2
+            id="account-to-pay"
+            className="text-saffron-800 text-lg font-bold"
+          >
             {t("toPayTitle")}
           </h2>
           <ul className="mt-2 flex flex-col gap-1">
@@ -60,7 +63,7 @@ export function AccountOverview() {
                     pathname: "/account/orders/[orderNumber]",
                     params: { orderNumber: order.orderNumber },
                   }}
-                  className="text-gold-800 flex min-h-11 items-center rounded-xs font-semibold underline underline-offset-4"
+                  className="text-saffron-800 flex min-h-11 items-center rounded-xs font-semibold underline underline-offset-4"
                 >
                   {t("toPayItem", {
                     orderNumber: order.orderNumber,
@@ -92,7 +95,7 @@ export function AccountOverview() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <h2
                 id="account-recent"
-                className="font-display text-3xl text-blue-900"
+                className="font-display text-xl text-blue-900"
               >
                 {t("recentOrders")}
               </h2>

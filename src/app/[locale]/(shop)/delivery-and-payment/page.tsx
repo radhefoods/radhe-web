@@ -49,25 +49,31 @@ export default async function DeliveryPage({ params }: Props) {
     });
   };
   const returnDays = settings?.returns.windowDays ?? 0;
-  const title = "font-display text-3xl text-blue-900";
+  const title = "font-display text-xl text-blue-900";
 
   return (
-    <article className="container-page max-w-3xl space-y-10 py-8 sm:py-12">
+    <article className="container-page max-w-3xl space-y-6 py-6 sm:py-10">
       <header className="space-y-3">
-        <h1 className="font-display text-4xl text-blue-900 sm:text-6xl">
+        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
           {t("title")}
         </h1>
         <p className="text-lg">{t("intro")}</p>
       </header>
 
-      <section aria-labelledby="delivery-area" className="space-y-3">
+      <section
+        aria-labelledby="delivery-area"
+        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
+      >
         <h2 id="delivery-area" className={title}>
           {t("areaTitle")}
         </h2>
         <p>{t("areaText")}</p>
       </section>
 
-      <section aria-labelledby="delivery-fee" className="space-y-3">
+      <section
+        aria-labelledby="delivery-fee"
+        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
+      >
         <h2 id="delivery-fee" className={title}>
           {t("feeTitle")}
         </h2>
@@ -96,7 +102,7 @@ export default async function DeliveryPage({ params }: Props) {
                   <td
                     className={
                       tier.fee === 0
-                        ? "py-2.5 text-right font-bold text-teal-700"
+                        ? "py-2.5 text-right font-bold text-green-700"
                         : "py-2.5 text-right"
                     }
                   >
@@ -113,7 +119,10 @@ export default async function DeliveryPage({ params }: Props) {
         )}
       </section>
 
-      <section aria-labelledby="delivery-days" className="space-y-3">
+      <section
+        aria-labelledby="delivery-days"
+        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
+      >
         <h2 id="delivery-days" className={title}>
           {t("daysTitle")}
         </h2>
@@ -132,7 +141,10 @@ export default async function DeliveryPage({ params }: Props) {
         <p className="text-ink-muted">{t("daysNote")}</p>
       </section>
 
-      <section aria-labelledby="delivery-pay" className="space-y-3">
+      <section
+        aria-labelledby="delivery-pay"
+        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
+      >
         <h2 id="delivery-pay" className={title}>
           {t("payTitle")}
         </h2>
@@ -145,7 +157,10 @@ export default async function DeliveryPage({ params }: Props) {
         <PayLaterNote />
       </section>
 
-      <section aria-labelledby="delivery-returns" className="space-y-3">
+      <section
+        aria-labelledby="delivery-returns"
+        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
+      >
         <h2 id="delivery-returns" className={title}>
           {t("returnsTitle")}
         </h2>

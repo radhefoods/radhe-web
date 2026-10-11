@@ -131,7 +131,7 @@ test.describe("on a phone", () => {
   }) => {
     test.skip(!isMobile, "The tab bar exists on small screens only.");
     const bar = page.getByRole("navigation", { name: "Quick navigation" });
-    const dot = bar.locator("span.bg-teal-600");
+    const dot = bar.locator("span.bg-green-600");
 
     await page.goto("/en");
     await expect(bar).toBeVisible();

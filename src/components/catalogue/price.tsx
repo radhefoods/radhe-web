@@ -7,7 +7,8 @@ import { formatBasePrice, formatMoney } from "@/lib/format/money";
 /**
  * The price of a product: what it costs, the crossed-out regular price when
  * reduced, and the price per kilogram, litre or piece, which German law
- * asks for next to every price.
+ * asks for next to every price. The price is set in the display cut, like
+ * a headline: it is what the eye looks for on a card.
  */
 export function Price({
   pricing,
@@ -21,16 +22,16 @@ export function Price({
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
   return (
-    <div className={cn("flex flex-col", className)}>
+    <div className={cn("flex flex-col gap-0.5", className)}>
       <p className="flex flex-wrap items-baseline gap-x-2 tabular-nums">
         {pricing.onSale && (
           <span className="sr-only">{t("currentPrice")}:</span>
         )}
         <span
           className={cn(
-            "leading-tight font-bold",
-            size === "lg" ? "text-3xl" : "text-xl",
-            pricing.onSale && "text-chili",
+            "font-display leading-none",
+            size === "lg" ? "text-[2rem]" : "text-xl",
+            pricing.onSale && "text-red-600",
           )}
         >
           {formatMoney(pricing.price, locale)}
@@ -40,8 +41,8 @@ export function Price({
             <span className="sr-only">{t("regularPrice")}:</span>
             <s
               className={cn(
-                "text-ink-muted font-medium",
-                size === "lg" ? "text-lg" : "text-sm",
+                "text-ink-subtle font-medium",
+                size === "lg" ? "text-base" : "text-[0.8125rem]",
               )}
             >
               {formatMoney(pricing.regularPrice, locale)}
@@ -51,8 +52,8 @@ export function Price({
       </p>
       <p
         className={cn(
-          "text-ink-muted tabular-nums",
-          size === "lg" ? "text-sm" : "text-[0.8125rem]",
+          "text-ink-subtle tabular-nums",
+          size === "lg" ? "text-sm" : "text-xs",
         )}
       >
         {formatBasePrice(pricing.basePrice, locale)}

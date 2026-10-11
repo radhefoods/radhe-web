@@ -9,7 +9,8 @@
 // orders, payments (with a stand-in payment page), invoices and credit notes
 // with PDF, and returns. `demo@radhefoods.de` gets a filled demo account.
 //
-// Run with Node 22.18 or newer (it reads TypeScript directly); no build step.
+// Runs on the project's Node (24, see .nvmrc) and needs at least 22.18, which
+// reads TypeScript directly; no build step.
 
 import { randomBytes, randomUUID } from "node:crypto";
 import {

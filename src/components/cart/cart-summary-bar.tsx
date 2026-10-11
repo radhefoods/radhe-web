@@ -36,7 +36,7 @@ export function CartSummaryBar() {
     <aside aria-label={t("title")} className="md:hidden">
       <Link
         href="/cart"
-        className="shadow-float fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex min-h-12 items-center justify-between gap-3 rounded-md bg-blue-600 px-4 text-[0.9375rem] font-bold text-white"
+        className="shadow-float fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex min-h-12 items-center justify-between gap-3 rounded-lg bg-blue-900 px-4 text-[0.9375rem] font-bold text-white"
       >
         <span className="tabular-nums">
           {t("barItems", { count: cart.units })}

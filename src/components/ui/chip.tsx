@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export type ChipTone = "blue" | "navy" | "gold" | "teal" | "red" | "mute";
+export type ChipTone = "blue" | "navy" | "saffron" | "green" | "red" | "mute";
 
 const TONES: Record<ChipTone, string> = {
-  blue: "bg-blue-100 text-blue-800",
+  blue: "bg-blue-50 text-blue-800",
   navy: "bg-blue-900 text-white",
-  gold: "bg-gold-100 text-gold-800",
-  teal: "bg-teal-50 text-teal-700",
-  red: "bg-red-50 text-red-600",
+  saffron: "bg-saffron-100 text-saffron-800",
+  green: "bg-green-50 text-green-700",
+  red: "bg-red-50 text-red-800",
   mute: "bg-cloud text-ink-muted",
 };
 
@@ -37,7 +37,7 @@ export function Chip({
           aria-hidden="true"
           className={cn(
             "size-1.5 rounded-full",
-            tone === "navy" ? "bg-cyan-300" : "bg-current",
+            tone === "navy" ? "bg-saffron-400" : "bg-current",
           )}
         />
       )}

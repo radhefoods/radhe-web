@@ -85,6 +85,28 @@ export function MobileMenuPanel({
               )}
             </li>
           ))}
+          <li className="border-line mt-2 border-t pt-2">
+            <Link
+              href={{ pathname: "/products", query: { onSale: "1" } }}
+              onClick={close}
+              className={row}
+            >
+              <span className="text-red-600">{t("offers")}</span>
+              <ChevronRight
+                aria-hidden="true"
+                className="text-ink-subtle size-5"
+              />
+            </Link>
+          </li>
+          <li>
+            <Link href="/how-it-works" onClick={close} className={row}>
+              {t("howItWorks")}
+              <ChevronRight
+                aria-hidden="true"
+                className="text-ink-subtle size-5"
+              />
+            </Link>
+          </li>
         </ul>
       </nav>
     </Sheet>

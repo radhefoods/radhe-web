@@ -39,7 +39,7 @@ export default async function HowItWorksPage({ params }: Props) {
   }));
 
   return (
-    <article className="container-page max-w-4xl space-y-10 py-8 sm:py-12">
+    <article className="container-page max-w-4xl space-y-8 py-6 sm:py-10">
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -52,7 +52,7 @@ export default async function HowItWorksPage({ params }: Props) {
         }}
       />
       <header className="space-y-3">
-        <h1 className="font-display text-4xl text-blue-900 sm:text-6xl">
+        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
           {t("title")}
         </h1>
         <p className="max-w-2xl text-lg">{t("intro")}</p>
@@ -62,15 +62,15 @@ export default async function HowItWorksPage({ params }: Props) {
         {steps.map((step, index) => (
           <li
             key={step.title}
-            className="bg-mist flex flex-col gap-2 rounded-lg p-5 sm:p-6"
+            className="border-line flex flex-col gap-2 rounded-lg border bg-white p-5"
           >
             <span
               aria-hidden="true"
-              className="font-display text-5xl leading-none text-blue-600"
+              className="font-display grid size-9 place-items-center rounded-md bg-blue-50 text-lg text-blue-600"
             >
               {index + 1}
             </span>
-            <h2 className="text-lg font-bold">{step.title}</h2>
+            <h2 className="font-display mt-1 text-lg">{step.title}</h2>
             <p className="text-ink-muted text-[0.9375rem]">{step.text}</p>
           </li>
         ))}
@@ -81,14 +81,14 @@ export default async function HowItWorksPage({ params }: Props) {
       <section aria-labelledby="how-faq" className="space-y-4">
         <h2
           id="how-faq"
-          className="font-display text-3xl text-blue-900 sm:text-4xl"
+          className="font-display text-2xl text-blue-900 sm:text-3xl"
         >
           {t("faqTitle")}
         </h2>
-        <dl className="divide-line border-line divide-y border-y">
+        <dl className="divide-line border-line divide-y rounded-xl border bg-white px-5 sm:px-6">
           {faq.map(({ question, answer }) => (
             <div key={question} className="py-5">
-              <dt className="text-lg font-bold">{question}</dt>
+              <dt className="font-display text-lg">{question}</dt>
               <dd className="text-ink-muted mt-1.5 max-w-prose">{answer}</dd>
             </div>
           ))}

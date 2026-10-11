@@ -54,17 +54,30 @@ export function LocaleAlternates({ hrefs }: { hrefs: Alternates }) {
   return null;
 }
 
-export function LocaleSwitcher({ className }: { className?: string }) {
+export function LocaleSwitcher({
+  tone = "light",
+  className,
+}: {
+  /** `dark`: on the dark strip at the top of the page. */
+  tone?: "light" | "dark";
+  className?: string;
+}) {
   const t = useTranslations("language");
   const tNav = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname();
   const params = useParams();
   const { alternates } = useContext(AlternatesContext);
+  const dark = tone === "dark";
 
   return (
     <nav aria-label={tNav("switchTo")} className={className}>
-      <ul className="border-line flex items-center gap-0.5 rounded-md border p-0.5 text-sm font-bold">
+      <ul
+        className={cn(
+          "flex items-center gap-0.5 rounded-md border p-0.5 text-sm font-bold",
+          dark ? "border-white/25" : "border-line",
+        )}
+      >
         {locales.map((other) => {
           const active = other === locale;
           const href =
@@ -82,10 +95,16 @@ export function LocaleSwitcher({ className }: { className?: string }) {
                 aria-current={active ? "true" : undefined}
                 aria-label={t(other)}
                 className={cn(
-                  "grid h-8 min-w-9 place-items-center rounded-[9px] px-2 uppercase",
-                  active
-                    ? "bg-blue-900 text-white"
-                    : "text-ink-muted hover:bg-mist hover:text-ink",
+                  "grid place-items-center rounded-[7px] px-2 uppercase",
+                  dark ? "h-6 min-w-8 text-xs" : "h-8 min-w-9",
+                  active &&
+                    (dark
+                      ? "bg-white text-blue-900"
+                      : "bg-blue-900 text-white"),
+                  !active &&
+                    (dark
+                      ? "text-blue-100 hover:bg-white/10 hover:text-white"
+                      : "text-ink-muted hover:bg-mist hover:text-ink"),
                 )}
               >
                 {other}

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ProductListing } from "@/components/catalogue/product-listing";
-import { SearchForm } from "@/components/shell/search-form";
 import {
   isFiltered,
   parseListingState,
@@ -45,22 +44,15 @@ export default async function ProductsPage({
   const state = parseListingState(await searchParams);
 
   return (
-    <div className="container-page space-y-6 py-8 sm:py-10">
-      <header className="space-y-2">
-        <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+    <div className="container-page space-y-5 py-6 sm:py-8">
+      <header className="space-y-1.5">
+        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
           {state.q ? t("searchTitle", { query: state.q }) : t("allTitle")}
         </h1>
         {!state.q && (
           <p className="text-ink-muted max-w-2xl">{t("allIntro")}</p>
         )}
       </header>
-      {/* On wide screens the search sits in the header. */}
-      <SearchForm
-        locale={locale}
-        id="list-search"
-        defaultValue={state.q}
-        className="md:hidden"
-      />
       <ProductListing
         locale={locale}
         base="/products"

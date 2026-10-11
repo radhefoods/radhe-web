@@ -67,7 +67,7 @@ export function ProductPurchase({
         <p className="flex items-start gap-2.5 text-[0.9375rem]">
           <CalendarClock
             aria-hidden="true"
-            className="text-gold-500 mt-0.5 size-5 shrink-0"
+            className="text-saffron-500 mt-0.5 size-5 shrink-0"
           />
           {tCargo("promise", {
             deadline: formatDeadline(cargo.current.orderCloseAt, locale),
@@ -88,7 +88,7 @@ export function ProductPurchase({
       />
 
       {hints.length > 0 && (
-        <ul className="text-gold-700 flex flex-col gap-0.5 text-sm font-semibold">
+        <ul className="text-saffron-800 flex flex-col gap-0.5 text-sm font-semibold">
           {hints.map((hint) => (
             <li key={hint}>{hint}</li>
           ))}

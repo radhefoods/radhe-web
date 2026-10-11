@@ -50,7 +50,8 @@ export function ProductCard({
     params: { slug: current.slug },
   };
   const fullName = `${product.name}, ${current.packSize.label}`;
-  const soldOut = orderingReason(current.ordering, open) === "sold_out";
+  const reason = orderingReason(current.ordering, open);
+  const soldOut = reason === "sold_out";
   const Heading = headingLevel;
 
   return (
@@ -59,7 +60,7 @@ export function ProductCard({
         href={href}
         tabIndex={-1}
         aria-hidden="true"
-        className="bg-mist relative block aspect-square"
+        className="bg-mist relative block aspect-square p-3"
       >
         <ProductImage
           image={current.image ?? product.image}
@@ -67,22 +68,22 @@ export function ProductCard({
           sizes={imageSizes}
           priority={priority}
           fallbackLabel={t("noPicture")}
-          className={cn(soldOut && "opacity-60")}
+          className={cn(soldOut && "opacity-50")}
         />
-        <span className="absolute top-2 left-2 flex flex-col items-start gap-1">
+        <span className="absolute top-2.5 left-2.5 flex flex-col items-start gap-1">
           {soldOut ? (
             <span className="bg-ink rounded-xs px-2 py-0.5 text-xs font-bold text-white">
               {t("badge.sold_out")}
             </span>
           ) : (
             current.pricing.onSale && (
-              <span className="bg-chili rounded-xs px-2 py-0.5 text-xs font-bold text-white tabular-nums">
+              <span className="rounded-xs bg-red-600 px-2 py-0.5 text-xs font-bold text-white tabular-nums">
                 {formatDiscount(current.pricing.discountPercent, locale)}
               </span>
             )
           )}
           {product.storageType !== "ambient" && (
-            <span className="rounded-xs bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-800">
+            <span className="rounded-xs bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-800">
               {t(`badge.${product.storageType}`)}
             </span>
           )}
@@ -91,15 +92,12 @@ export function ProductCard({
 
       <div className="flex flex-1 flex-col gap-2 p-3 sm:p-3.5">
         {product.brand && (
-          <p className="text-ink-muted text-[0.6875rem] font-bold tracking-wider uppercase">
+          <p className="text-ink-subtle text-[0.6875rem] font-bold tracking-wider uppercase">
             {product.brand}
           </p>
         )}
-        <Heading className="text-[0.9375rem] leading-snug font-bold sm:text-base">
-          <Link
-            href={href}
-            className="rounded-xs hover:text-blue-700 hover:underline"
-          >
+        <Heading className="line-clamp-2 text-[0.9375rem] leading-snug font-semibold">
+          <Link href={href} className="rounded-xs hover:text-blue-700">
             {product.name}
           </Link>
         </Heading>
@@ -135,6 +133,15 @@ export function ProductCard({
         )}
 
         <Price pricing={current.pricing} className="mt-auto pt-1" />
+        {reason === null && (
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-green-700">
+            <span
+              aria-hidden="true"
+              className="size-1.5 shrink-0 rounded-full bg-green-600"
+            />
+            {t("inStock")}
+          </p>
+        )}
         <AddToCart
           productId={current.id}
           name={fullName}

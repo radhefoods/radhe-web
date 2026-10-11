@@ -51,7 +51,7 @@ export function Sheet({
           )}
         >
           <div className="border-line flex items-center justify-between gap-4 border-b px-5 py-4">
-            <Dialog.Title className="font-display text-2xl text-blue-900">
+            <Dialog.Title className="font-display text-xl text-blue-900">
               {title}
             </Dialog.Title>
             <Dialog.Close

@@ -43,6 +43,8 @@ const hrefsOf = (slugs: LocalizedSlugs) => ({
   de: productHref(slugs.de),
 });
 
+const panel = "border-line rounded-xl border bg-white";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await localeOf(params);
   const { slug } = await params;
@@ -128,7 +130,7 @@ export default async function ProductPage({ params }: Props) {
   ];
 
   return (
-    <div className="container-page space-y-8 py-6 sm:py-8">
+    <div className="container-page space-y-6 py-5 sm:py-6 lg:space-y-8">
       <LocaleAlternates hrefs={hrefsOf(product.slugs)} />
       <JsonLd
         data={[
@@ -141,14 +143,17 @@ export default async function ProductPage({ params }: Props) {
       />
       <Breadcrumbs categories={product.breadcrumbs} current={product.name} />
 
-      <div className="grid gap-8 md:grid-cols-2 lg:gap-14">
+      <div className="grid gap-6 md:grid-cols-[1.1fr_1fr] lg:gap-10">
         {/* Pictures: swipe on phones; the first one is the page's main picture. */}
         <ul className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto md:sticky md:top-36 md:self-start">
           {(product.images.length ? product.images : [null]).map(
             (image, index) => (
               <li
                 key={image?.id ?? "none"}
-                className="bg-mist relative aspect-square w-full shrink-0 snap-center overflow-hidden rounded-xl"
+                className={cn(
+                  panel,
+                  "relative aspect-square w-full shrink-0 snap-center overflow-hidden p-4 sm:p-8",
+                )}
               >
                 <ProductImage
                   image={image}
@@ -157,7 +162,7 @@ export default async function ProductPage({ params }: Props) {
                   fallbackLabel={t("noPicture")}
                 />
                 {index === 0 && product.pricing.onSale && (
-                  <span className="bg-chili absolute top-3 left-3 rounded-xs px-2.5 py-1 text-sm font-bold text-white tabular-nums">
+                  <span className="absolute top-3 left-3 rounded-xs bg-red-600 px-2.5 py-1 text-sm font-bold text-white tabular-nums">
                     {formatDiscount(product.pricing.discountPercent, locale)}
                   </span>
                 )}
@@ -169,76 +174,81 @@ export default async function ProductPage({ params }: Props) {
         <div className="flex flex-col gap-5">
           <header className="flex flex-col gap-1.5">
             {product.brand && (
-              <p className="text-ink-muted text-xs font-bold tracking-wider uppercase">
+              <p className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
                 {product.brand}
               </p>
             )}
-            <h1 className="font-display text-4xl leading-[1.05] text-blue-900 sm:text-5xl">
+            <h1 className="font-display text-[1.75rem] leading-[1.15] text-blue-900 sm:text-[2rem]">
               {product.name}
             </h1>
             {(product.subtitle ?? product.shortDescription) && (
-              <p className="text-ink-muted text-lg">
+              <p className="text-ink-muted text-[1.0625rem]">
                 {product.subtitle ?? product.shortDescription}
               </p>
             )}
           </header>
 
-          {/* Every pack size is a product of its own, with its own page. */}
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-bold">{t("packSize")}</p>
-            <ul className="flex flex-wrap gap-2">
-              {product.packSizes.map((size) => (
-                <li key={size.id}>
-                  <Link
-                    href={productHref(size.slug)}
-                    aria-current={size.isSelected ? "page" : undefined}
-                    className={cn(
-                      "flex min-h-11 items-center rounded-sm border-[1.5px] px-4 font-semibold",
-                      size.isSelected
-                        ? "border-blue-600 bg-blue-50 text-blue-800"
-                        : "border-line-strong hover:border-ink-subtle",
-                    )}
-                  >
-                    {size.packSize.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          {/* The buy box: everything a decision needs, in one card. */}
+          <div className={cn(panel, "shadow-card flex flex-col gap-5 p-5")}>
+            <div>
+              <Price pricing={product.pricing} size="lg" />
+              <p className="text-ink-muted mt-1.5 text-sm">
+                <Link
+                  href="/delivery-and-payment"
+                  className="hover:text-ink rounded-xs underline underline-offset-4"
+                >
+                  {tCommon("priceNote")}
+                </Link>
+              </p>
+            </div>
+
+            {/* Every pack size is a product of its own, with its own page. */}
+            <div className="flex flex-col gap-2">
+              <p className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
+                {t("packSize")}
+              </p>
+              <ul className="flex flex-wrap gap-2">
+                {product.packSizes.map((size) => (
+                  <li key={size.id}>
+                    <Link
+                      href={productHref(size.slug)}
+                      aria-current={size.isSelected ? "page" : undefined}
+                      className={cn(
+                        "flex min-h-11 items-center rounded-md border-[1.5px] px-4 text-[0.9375rem] font-semibold",
+                        size.isSelected
+                          ? "border-blue-600 bg-blue-50 text-blue-800 ring-1 ring-blue-600"
+                          : "border-line-strong hover:border-ink-subtle bg-white",
+                      )}
+                    >
+                      {size.packSize.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <ProductPurchase
+              productId={product.id}
+              slug={product.slug}
+              name={fullName}
+              pricing={product.pricing}
+              ordering={product.ordering}
+            />
+
+            <PayLaterNote />
           </div>
-
-          <div>
-            <Price pricing={product.pricing} size="lg" />
-            <p className="text-ink-muted mt-1 text-sm">
-              <Link
-                href="/delivery-and-payment"
-                className="hover:text-ink rounded-xs underline underline-offset-4"
-              >
-                {tCommon("priceNote")}
-              </Link>
-            </p>
-          </div>
-
-          <ProductPurchase
-            productId={product.id}
-            slug={product.slug}
-            name={fullName}
-            pricing={product.pricing}
-            ordering={product.ordering}
-          />
-
-          <PayLaterNote />
 
           {product.highlights.length > 0 && (
             <section aria-labelledby="product-highlights">
               <h2 id="product-highlights" className="sr-only">
                 {t("highlights")}
               </h2>
-              <ul className="flex flex-col gap-1.5">
+              <ul className="flex flex-col gap-1.5 text-[0.9375rem]">
                 {product.highlights.map((highlight) => (
                   <li key={highlight} className="flex items-start gap-2.5">
                     <Check
                       aria-hidden="true"
-                      className="mt-1 size-4 shrink-0 text-teal-600"
+                      className="mt-1 size-4 shrink-0 text-green-600"
                       strokeWidth={3}
                     />
                     {highlight}
@@ -250,24 +260,27 @@ export default async function ProductPage({ params }: Props) {
         </div>
       </div>
 
-      <div className="border-line grid gap-8 border-t pt-8 md:grid-cols-2 lg:gap-14">
-        <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
+        <div className={cn(panel, "space-y-6 p-5 sm:p-6")}>
           {product.description && (
             <section aria-labelledby="product-description">
               <h2
                 id="product-description"
-                className="font-display text-3xl text-blue-900"
+                className="font-display text-xl text-blue-900"
               >
                 {t("description")}
               </h2>
-              <p className="mt-3 max-w-prose whitespace-pre-line">
+              <p className="text-ink-muted mt-3 max-w-prose whitespace-pre-line">
                 {product.description}
               </p>
             </section>
           )}
           {product.uses.length > 0 && (
             <section aria-labelledby="product-uses">
-              <h2 id="product-uses" className="text-sm font-bold">
+              <h2
+                id="product-uses"
+                className="text-ink-subtle text-xs font-bold tracking-wider uppercase"
+              >
                 {t("uses")}
               </h2>
               <ul className="mt-2 flex flex-wrap gap-2">
@@ -283,22 +296,25 @@ export default async function ProductPage({ params }: Props) {
             </section>
           )}
         </div>
-        <section aria-labelledby="product-details">
+        <section
+          aria-labelledby="product-details"
+          className={cn(panel, "p-5 sm:p-6")}
+        >
           <h2
             id="product-details"
-            className="font-display text-3xl text-blue-900"
+            className="font-display text-xl text-blue-900"
           >
             {t("details")}
           </h2>
-          <dl className="divide-line border-line mt-3 divide-y border-y text-[0.9375rem]">
+          <dl className="divide-line mt-3 divide-y text-[0.9375rem]">
             {facts.map(
               ([label, value]) =>
                 value && (
                   <div
                     key={label}
-                    className="grid gap-1 py-3 sm:grid-cols-[11rem_1fr] sm:gap-4"
+                    className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4"
                   >
-                    <dt className="font-bold">{label}</dt>
+                    <dt className="font-semibold">{label}</dt>
                     <dd className="text-ink-muted whitespace-pre-line">
                       {value}
                     </dd>
@@ -310,13 +326,10 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
       {related && (
-        <section
-          aria-labelledby="product-related"
-          className="border-line border-t pt-8"
-        >
+        <section aria-labelledby="product-related">
           <h2
             id="product-related"
-            className="font-display text-3xl text-blue-900 sm:text-4xl"
+            className="font-display text-2xl text-blue-900 sm:text-3xl"
           >
             {t("related", { category: related.name })}
           </h2>

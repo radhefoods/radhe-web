@@ -32,7 +32,11 @@
     "cartWithCount": "Warenkorb, {count, plural, =0 {leer} one {# Artikel} other {# Artikel}}",
     "logoHome": "Radhe Foods, zur Startseite",
     "switchTo": "Sprache wechseln",
-    "howItWorks": "So funktioniert’s"
+    "howItWorks": "So funktioniert’s",
+    "allCategories": "Alle Kategorien",
+    "offers": "Angebote",
+    "signIn": "Anmelden",
+    "items": "{count, plural, =0 {Leer} one {# Artikel} other {# Artikel}}"
   },
   "cargo": {
     "label": "Aktuelle Vorbestellung",
@@ -79,6 +83,7 @@
     "maxPerOrder": "Höchstens {count} pro Bestellung",
     "minPerOrder": "Mindestbestellmenge: {count}",
     "noPicture": "Bild folgt",
+    "inStock": "Für diese Lieferung verfügbar",
     "cartFull": "Ihr Warenkorb ist voll. Entfernen Sie ein Produkt, um ein weiteres hinzuzufügen.",
     "highlights": "Auf einen Blick",
     "description": "Über dieses Produkt",
@@ -111,6 +116,7 @@
       "name": "Name A–Z"
     },
     "filters": "Filtern und sortieren",
+    "filtersTitle": "Filter",
     "onSale": "Nur reduzierte",
     "orderable": "Jetzt bestellbar",
     "apply": "Anwenden",
@@ -148,6 +154,8 @@
     "categoriesTitle": "Nach Kategorie einkaufen",
     "featuredTitle": "Gerade beliebt",
     "featuredAll": "Alle Produkte ansehen",
+    "offersTitle": "Angebote dieser Lieferung",
+    "offersAll": "Alle Angebote",
     "productCount": "{count, plural, one {# Produkt} other {# Produkte}}",
     "newsTitle": "Als Erste von der nächsten Lieferung erfahren",
     "newsText": "Schalten Sie in Ihrem Konto die Neuigkeiten ein. Wir schreiben, wenn eine neue Vorbestellung öffnet, und nicht öfter.",

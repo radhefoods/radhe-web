@@ -1,5 +1,6 @@
 "use client";
 
+import { Clock } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useCargo } from "@/features/cargo/cargo";
 import type { Locale } from "@/i18n/routing";
@@ -9,7 +10,9 @@ import { CountdownText } from "./countdown-text";
 /**
  * The state of the pre-order under the header of every shop page: the
  * order deadline, the delivery days and the time left; or, when ordering
- * is closed, when it opens again. Customer words, never "cargo".
+ * is closed, when it opens again. Customer words, never "cargo". Saffron,
+ * the colour of time in the shop, so it reads as a deadline and not as an
+ * error.
  *
  * Phones get two short lines (deadline; delivery and time left), wide
  * screens one.
@@ -25,26 +28,30 @@ export function CargoStrip() {
   if (cargo.current) {
     const { orderCloseAt, delivery } = cargo.current;
     return (
-      <section aria-label={t("label")} className="bg-blue-900 text-white">
-        <div className="container-page grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 py-2 text-sm sm:flex sm:gap-x-3 sm:py-2.5 sm:text-[0.9375rem]">
-          <p className="col-span-2 flex items-center gap-2.5">
-            <span
-              aria-hidden="true"
-              className="bg-gold-300 ring-gold-300/25 size-2 shrink-0 rounded-full ring-4"
-            />
+      <section
+        aria-label={t("label")}
+        className="border-saffron-200 bg-saffron-100 text-saffron-800 border-b"
+      >
+        <div className="container-page grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 py-2 text-sm font-medium sm:flex sm:gap-x-3 sm:text-[0.9375rem]">
+          <p className="col-span-2 flex items-center gap-2">
+            <Clock aria-hidden="true" className="size-4 shrink-0" />
             <span>
               <span className="font-bold">{t("orderBy")}</span>{" "}
-              {formatDeadline(orderCloseAt, locale)}
+              <span className="text-ink">
+                {formatDeadline(orderCloseAt, locale)}
+              </span>
             </span>
           </p>
-          <span aria-hidden="true" className="hidden text-white/40 sm:inline">
+          <span aria-hidden="true" className="hidden opacity-40 sm:inline">
             |
           </span>
-          <p className="pl-[1.125rem] sm:pl-0">
+          <p className="pl-6 sm:pl-0">
             <span className="font-bold">{t("delivery")}</span>{" "}
-            {formatDayRange(delivery.start, delivery.end, locale)}
+            <span className="text-ink">
+              {formatDayRange(delivery.start, delivery.end, locale)}
+            </span>
           </p>
-          <CountdownText className="text-gold-300 justify-self-end font-bold whitespace-nowrap tabular-nums sm:ml-auto" />
+          <CountdownText className="justify-self-end font-bold whitespace-nowrap tabular-nums sm:ml-auto" />
         </div>
       </section>
     );
@@ -53,9 +60,9 @@ export function CargoStrip() {
   return (
     <section
       aria-label={t("label")}
-      className="border-line bg-mist text-ink border-b"
+      className="border-line bg-cloud text-ink border-b"
     >
-      <p className="container-page py-2.5 text-sm sm:text-[0.9375rem]">
+      <p className="container-page py-2 text-sm font-medium sm:text-[0.9375rem]">
         <span className="font-bold">{t("closed")}</span>{" "}
         {cargo.next
           ? t("nextOpens", {

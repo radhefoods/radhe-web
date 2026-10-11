@@ -63,19 +63,21 @@ export async function LegalDocumentPage({
   const t = await getTranslations("legal");
 
   return (
-    <article className="container-page max-w-3xl space-y-6 py-8 sm:py-12">
-      <header className="space-y-2">
-        <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
-          {document.title}
-        </h1>
-        <p className="text-ink-muted text-sm">
-          {t("version", {
-            version: document.version,
-            date: formatDate(document.publishedAt, locale),
-          })}
-        </p>
-      </header>
-      <LegalText tableLabel={t("table")}>{document.content}</LegalText>
+    <article className="container-page max-w-3xl py-6 sm:py-10">
+      <div className="border-line space-y-6 rounded-xl border bg-white p-5 sm:p-8">
+        <header className="space-y-2">
+          <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+            {document.title}
+          </h1>
+          <p className="text-ink-muted text-sm">
+            {t("version", {
+              version: document.version,
+              date: formatDate(document.publishedAt, locale),
+            })}
+          </p>
+        </header>
+        <LegalText tableLabel={t("table")}>{document.content}</LegalText>
+      </div>
     </article>
   );
 }

@@ -1,11 +1,13 @@
 @import "tailwindcss";
 
 /*
- * Design tokens of the Radhe Foods shop (approved 2026-10-04).
+ * Design tokens of the Radhe Foods shop (redesign approved 2026-10-11).
  *
- * Colours come from the logo: the blue of the wordmark, one step lighter,
- * and the gold, teal and cyan of the peacock feather. Pages are white so
- * that food photography carries the colour. The shop is light-only.
+ * A grey canvas with white cards, so the pages read as shelves. The deep
+ * blue of the wordmark for headlines and dark bands, one bright royal blue
+ * for every action, and three signal colours that each mean one thing:
+ * saffron for offers and deadlines, green for in stock and paid, red for
+ * reduced prices and errors. The shop is light-only.
  *
  * The default Tailwind palette is switched off: only these tokens exist,
  * so a colour that is not part of the system cannot slip in.
@@ -14,83 +16,84 @@
   --color-*: initial;
 
   --color-white: #ffffff;
-  --color-mist: #f5f7fb;
-  --color-cloud: #eceff6;
-  --color-line: #dfe4ee;
-  --color-line-strong: #c3cada;
-  --color-ink: #0a1233;
-  --color-ink-muted: #545d7a;
-  --color-ink-subtle: #8088a1;
+  /* The page. */
+  --color-canvas: #f3f4f7;
+  /* Quiet surfaces inside a card: photo tiles, countdown tiles. */
+  --color-mist: #f7f8fa;
+  /* Disabled controls, skeletons. */
+  --color-cloud: #eef0f4;
+  --color-line: #e4e6ec;
+  --color-line-strong: #c9cdd8;
+  --color-ink: #121a3b;
+  --color-ink-muted: #4a5273;
+  /* Dark enough for small text on mist and cloud as well (4.5:1). */
+  --color-ink-subtle: #646c88;
 
-  /* 600 is the action colour, 900 the dark bands. */
-  --color-blue-50: #f2f5fe;
-  --color-blue-100: #e1e8fc;
-  --color-blue-200: #c5d2f8;
-  --color-blue-300: #9bb0f1;
-  --color-blue-400: #6686e6;
-  --color-blue-500: #3c62db;
-  --color-blue-600: #1a45cc;
-  --color-blue-700: #1437a8;
-  --color-blue-800: #0f2a80;
-  --color-blue-900: #0a1d5c;
+  /* 600 is the action colour, 800 and 900 the headlines and dark bands. */
+  --color-blue-50: #eaf0ff;
+  --color-blue-100: #d6e0ff;
+  --color-blue-200: #b4c5ff;
+  --color-blue-300: #86a1f5;
+  --color-blue-400: #5377eb;
+  --color-blue-500: #3360e6;
+  --color-blue-600: #1f4fe0;
+  --color-blue-700: #1941bd;
+  --color-blue-800: #162b7a;
+  --color-blue-900: #0e1f5b;
 
-  /* Time and deadlines. 700 and 800 are the only golds used for text. */
-  --color-gold-100: #fcf1d9;
-  --color-gold-200: #f6dca6;
-  --color-gold-300: #f0bc6b;
-  --color-gold-400: #dda13d;
-  --color-gold-500: #bb7620;
-  --color-gold-700: #855008;
-  --color-gold-800: #6c4310;
+  /* Offers, deadlines, the pre-order moment. 800 is the only saffron for text on the tint. */
+  --color-saffron-100: #fff4df;
+  --color-saffron-200: #f7dfae;
+  --color-saffron-300: #f6c56a;
+  --color-saffron-400: #f2a325;
+  --color-saffron-500: #d98a12;
+  --color-saffron-800: #8a5209;
 
-  /* Good news: paid, delivered, nothing to pay today. */
-  --color-teal-50: #e3f4f3;
-  --color-teal-100: #c4e7e5;
-  --color-teal-600: #017779;
-  --color-teal-700: #025c5f;
-
-  /* Ornament only (the eye of the feather), never text on white. */
-  --color-cyan-300: #01ecfe;
-  --color-cyan-500: #05bac2;
+  /* In stock, free delivery reached, paid, delivered. */
+  --color-green-50: #e6f6ec;
+  --color-green-100: #c5ead3;
+  /* 600 for dots, icons and bars; 700 and 800 wherever white text sits on green. */
+  --color-green-600: #1e8e4e;
+  --color-green-700: #176b3b;
+  --color-green-800: #125530;
 
   /* Reduced prices; errors and overdue payments. */
-  --color-chili: #b3321b;
-  --color-red-50: #fdecea;
-  --color-red-200: #f6c9c3;
-  --color-red-600: #b42318;
-  --color-red-800: #7a1a12;
+  --color-red-50: #fdecef;
+  --color-red-200: #f5c2ca;
+  --color-red-600: #d7263d;
+  --color-red-800: #a61b2e;
 
   --font-sans:
-    var(--font-instrument-sans), "Segoe UI", system-ui, -apple-system,
-    "Helvetica Neue", Arial, sans-serif;
+    var(--font-dm-sans), "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+    Arial, sans-serif;
   --font-display:
-    var(--font-instrument-serif), "Iowan Old Style", "Palatino Linotype",
-    Georgia, serif;
+    var(--font-plus-jakarta-sans), "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
 
-  --radius-xs: 8px;
-  --radius-sm: 10px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 
-  --shadow-card:
-    0 1px 2px rgb(10 29 92 / 0.06), 0 4px 14px rgb(10 29 92 / 0.06);
-  --shadow-float: 0 18px 40px rgb(10 29 92 / 0.16);
+  --shadow-card: 0 1px 2px rgb(18 26 59 / 0.05), 0 2px 8px rgb(18 26 59 / 0.05);
+  --shadow-float: 0 12px 32px rgb(18 26 59 / 0.14);
 
   --breakpoint-xs: 26rem;
 }
 
 @layer base {
   html {
-    scroll-padding-top: 6rem;
+    scroll-padding-top: 7rem;
     -webkit-text-size-adjust: 100%;
   }
 
   body {
-    background: var(--color-white);
+    background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    line-height: 1.55;
+    font-optical-sizing: auto;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -124,18 +127,14 @@
   display: none;
 }
 
-/* Headlines in the serif of the system. Long German words may break. */
+/* Headlines, prices and big numbers: the heavy cut, set tight. Long German
+   words may break. */
 @utility font-display {
   font-family: var(--font-display);
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-weight: 800;
+  letter-spacing: -0.025em;
   hyphens: auto;
   text-wrap: balance;
-}
-
-/* The narrow cut of the sans, for long German labels on small screens. */
-@utility font-narrow {
-  font-stretch: 85%;
 }
 
 /* The width and side gutter of every page section. */
@@ -154,25 +153,16 @@
   }
 }
 
-/* The eye of the peacock feather: the one ornament of the system. */
-@utility feather-eye {
-  background: radial-gradient(
-    circle at 50% 52%,
-    var(--color-blue-900) 0 20%,
-    var(--color-cyan-500) 21% 38%,
-    var(--color-teal-600) 39% 62%,
-    var(--color-gold-400) 63% 100%
-  );
-}
-
+/* The dark band of the home banner: the deep blue of the wordmark, lit from
+   the right, with a warm saffron glow in the corner. */
 @utility hero-band {
   background:
     radial-gradient(
-      90% 130% at 88% -10%,
-      var(--color-blue-600) 0,
-      rgb(26 69 204 / 0) 62%
+      circle at 100% 0%,
+      rgb(242 163 37 / 0.5) 0,
+      rgb(242 163 37 / 0) 34%
     ),
-    var(--color-blue-900);
+    linear-gradient(115deg, var(--color-blue-900) 0%, #1a3aa3 55%, #2e62f0 100%);
 }
 
 /* The line at the top while the next page loads. It waits a moment, then

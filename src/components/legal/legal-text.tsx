@@ -38,7 +38,7 @@ export function LegalText({
           ),
           code: ({ children: text }) =>
             PLACEHOLDER.test(String(text)) ? (
-              <mark className="bg-gold-100 text-gold-800 rounded-xs px-1 font-semibold">
+              <mark className="bg-saffron-100 text-saffron-800 rounded-xs px-1 font-semibold">
                 {String(text)}
               </mark>
             ) : (

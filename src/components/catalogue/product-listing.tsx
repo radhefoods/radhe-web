@@ -24,11 +24,15 @@ type BaseHref =
   "/products" | { pathname: "/category/[slug]"; params: { slug: string } };
 
 const toggle =
-  "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border-[1.5px] border-line-strong bg-white px-3.5 text-[0.9375rem] font-semibold select-none hover:border-ink-subtle has-checked:border-blue-600 has-checked:bg-blue-50 has-checked:text-blue-800 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600";
+  "flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md border-[1.5px] border-line-strong bg-white px-3 text-[0.9375rem] font-semibold select-none hover:border-ink-subtle has-checked:border-blue-600 has-checked:bg-blue-50 has-checked:text-blue-800 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600";
 
 /**
  * A list of products with sorting, filters and pages: the body of "All
  * products", of a search and of a category. Its state is the address.
+ *
+ * On wide screens the filters stand in a column on the left, like the
+ * catalogue of a store, and the sorting above the products; on phones the
+ * same filters are a row of toggles above the list.
  */
 export async function ProductListing({
   locale,
@@ -60,7 +64,11 @@ export async function ProductListing({
     }) as Href;
 
   return (
-    <section aria-label={listName} className="space-y-5">
+    <section
+      aria-label={listName}
+      className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8"
+    >
+      {/* `contents`: the column and the toolbar are laid out by the grid. */}
       <FilterForm
         action={getPathname({ href: base, locale })}
         values={{
@@ -68,155 +76,173 @@ export async function ProductListing({
           onSale: state.onSale,
           orderable: state.orderable,
         }}
-        className="flex flex-wrap items-center gap-2.5"
+        className="contents"
       >
         {state.q && <input type="hidden" name="q" value={state.q} />}
-        <label className={toggle}>
-          <input
-            type="checkbox"
-            name="orderable"
-            value="1"
-            defaultChecked={state.orderable}
-            className="size-4 accent-blue-600"
-          />
-          {t("orderable")}
-        </label>
-        <label className={toggle}>
-          <input
-            type="checkbox"
-            name="onSale"
-            value="1"
-            defaultChecked={state.onSale}
-            className="size-4 accent-blue-600"
-          />
-          {t("onSale")}
-        </label>
-        <label className="ml-auto flex items-center gap-2 text-[0.9375rem]">
-          <span className="font-semibold whitespace-nowrap max-sm:sr-only">
-            {t("sortLabel")}
-          </span>
-          <select
-            name="sort"
-            defaultValue={state.sort}
-            className={cn(controlStyles, "min-h-11 w-auto pr-8 font-semibold")}
-          >
-            {SORTS.map((sort) => (
-              <option key={sort} value={sort}>
-                {t(`sort.${sort}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {/* Only needed without scripts; with scripts changes apply at once. */}
-        <noscript>
-          <button type="submit" className={buttonStyles({ size: "sm" })}>
-            {t("apply")}
-          </button>
-        </noscript>
+        <aside
+          aria-label={t("filters")}
+          className="border-line mb-4 rounded-xl border bg-white p-4 lg:sticky lg:top-36 lg:row-span-2 lg:mb-0"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-base">{t("filtersTitle")}</h2>
+            {filtered && !state.q && (
+              <Link
+                href={hrefFor({
+                  sort: "recommended",
+                  onSale: false,
+                  orderable: false,
+                  page: 1,
+                })}
+                className="rounded-xs text-sm font-semibold text-blue-700 hover:underline"
+              >
+                {t("reset")}
+              </Link>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2 lg:flex-col">
+            <label className={toggle}>
+              <input
+                type="checkbox"
+                name="orderable"
+                value="1"
+                defaultChecked={state.orderable}
+                className="size-4 accent-blue-600"
+              />
+              {t("orderable")}
+            </label>
+            <label className={toggle}>
+              <input
+                type="checkbox"
+                name="onSale"
+                value="1"
+                defaultChecked={state.onSale}
+                className="size-4 accent-blue-600"
+              />
+              {t("onSale")}
+            </label>
+          </div>
+          {/* Only needed without scripts; with scripts changes apply at once. */}
+          <noscript>
+            <button
+              type="submit"
+              className={buttonStyles({ size: "sm", className: "mt-3" })}
+            >
+              {t("apply")}
+            </button>
+          </noscript>
+        </aside>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 lg:col-start-2">
+          <p className="text-ink-muted text-[0.9375rem]" role="status">
+            {t("resultCount", { count: page.total })}
+          </p>
+          <label className="flex items-center gap-2 text-[0.9375rem]">
+            <span className="text-ink-muted font-medium whitespace-nowrap max-sm:sr-only">
+              {t("sortLabel")}
+            </span>
+            <select
+              name="sort"
+              defaultValue={state.sort}
+              className={cn(
+                controlStyles,
+                "min-h-11 w-auto pr-8 font-semibold",
+              )}
+            >
+              {SORTS.map((sort) => (
+                <option key={sort} value={sort}>
+                  {t(`sort.${sort}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </FilterForm>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-ink-muted text-[0.9375rem]" role="status">
-          {t("resultCount", { count: page.total })}
-        </p>
-        {filtered && !state.q && (
-          <Link
-            href={hrefFor({
-              sort: "recommended",
-              onSale: false,
-              orderable: false,
-              page: 1,
-            })}
-            className="rounded-xs text-[0.9375rem] font-semibold text-blue-700 underline underline-offset-4"
+      <div className="mt-4 lg:col-start-2 lg:mt-0">
+        {page.items.length === 0 ? (
+          <div className="border-line flex flex-col items-center gap-3 rounded-xl border bg-white px-6 py-14 text-center">
+            <SearchX aria-hidden="true" className="text-ink-subtle size-10" />
+            <h2 className="font-display text-2xl text-blue-900">
+              {t("emptyTitle")}
+            </h2>
+            <p className="text-ink-muted max-w-md">
+              {state.q
+                ? t("emptySearchText", { query: state.q })
+                : filtered
+                  ? t("emptyText")
+                  : emptyText}
+            </p>
+            {(filtered || category) && (
+              <Link
+                href="/products"
+                className={buttonStyles({ variant: "secondary", size: "sm" })}
+              >
+                {t("showAll")}
+              </Link>
+            )}
+          </div>
+        ) : (
+          <>
+            <ProductGrid products={page.items} headingLevel="h2" />
+            <JsonLd data={itemListJsonLd(listName, page.items, locale)} />
+          </>
+        )}
+
+        {page.totalPages > 1 && (
+          <nav
+            aria-label={t("pagination")}
+            className="flex items-center justify-center gap-1.5 pt-8"
           >
-            {t("reset")}
-          </Link>
+            <PageLink
+              href={page.page > 1 ? hrefFor({ page: page.page - 1 }) : null}
+              label={t("previous")}
+              rel="prev"
+            >
+              <ChevronLeft aria-hidden="true" className="size-5" />
+            </PageLink>
+            {pageWindow(page.page, page.totalPages).map((number, index) =>
+              number === null ? (
+                <span
+                  key={`gap-${index}`}
+                  aria-hidden="true"
+                  className="text-ink-subtle px-1"
+                >
+                  …
+                </span>
+              ) : (
+                <Link
+                  key={number}
+                  href={hrefFor({ page: number })}
+                  aria-current={number === page.page ? "page" : undefined}
+                  aria-label={t("pageOf", {
+                    page: number,
+                    total: page.totalPages,
+                  })}
+                  className={cn(
+                    "grid size-11 place-items-center rounded-md text-[0.9375rem] font-bold tabular-nums",
+                    number === page.page
+                      ? "bg-blue-900 text-white"
+                      : "border-line border bg-white hover:border-blue-600",
+                  )}
+                >
+                  {number}
+                </Link>
+              ),
+            )}
+            <PageLink
+              href={
+                page.page < page.totalPages
+                  ? hrefFor({ page: page.page + 1 })
+                  : null
+              }
+              label={t("next")}
+              rel="next"
+            >
+              <ChevronRight aria-hidden="true" className="size-5" />
+            </PageLink>
+          </nav>
         )}
       </div>
-
-      {page.items.length === 0 ? (
-        <div className="bg-mist flex flex-col items-center gap-3 rounded-xl px-6 py-14 text-center">
-          <SearchX aria-hidden="true" className="text-ink-subtle size-10" />
-          <h2 className="font-display text-3xl text-blue-900">
-            {t("emptyTitle")}
-          </h2>
-          <p className="text-ink-muted max-w-md">
-            {state.q
-              ? t("emptySearchText", { query: state.q })
-              : filtered
-                ? t("emptyText")
-                : emptyText}
-          </p>
-          {(filtered || category) && (
-            <Link
-              href="/products"
-              className={buttonStyles({ variant: "secondary", size: "sm" })}
-            >
-              {t("showAll")}
-            </Link>
-          )}
-        </div>
-      ) : (
-        <>
-          <ProductGrid products={page.items} headingLevel="h2" wide />
-          <JsonLd data={itemListJsonLd(listName, page.items, locale)} />
-        </>
-      )}
-
-      {page.totalPages > 1 && (
-        <nav
-          aria-label={t("pagination")}
-          className="flex items-center justify-center gap-1.5 pt-4"
-        >
-          <PageLink
-            href={page.page > 1 ? hrefFor({ page: page.page - 1 }) : null}
-            label={t("previous")}
-            rel="prev"
-          >
-            <ChevronLeft aria-hidden="true" className="size-5" />
-          </PageLink>
-          {pageWindow(page.page, page.totalPages).map((number, index) =>
-            number === null ? (
-              <span
-                key={`gap-${index}`}
-                aria-hidden="true"
-                className="text-ink-subtle px-1"
-              >
-                …
-              </span>
-            ) : (
-              <Link
-                key={number}
-                href={hrefFor({ page: number })}
-                aria-current={number === page.page ? "page" : undefined}
-                aria-label={t("pageOf", {
-                  page: number,
-                  total: page.totalPages,
-                })}
-                className={cn(
-                  "grid size-11 place-items-center rounded-md text-[0.9375rem] font-bold tabular-nums",
-                  number === page.page
-                    ? "bg-blue-900 text-white"
-                    : "hover:bg-mist",
-                )}
-              >
-                {number}
-              </Link>
-            ),
-          )}
-          <PageLink
-            href={
-              page.page < page.totalPages
-                ? hrefFor({ page: page.page + 1 })
-                : null
-            }
-            label={t("next")}
-            rel="next"
-          >
-            <ChevronRight aria-hidden="true" className="size-5" />
-          </PageLink>
-        </nav>
-      )}
     </section>
   );
 }
@@ -245,7 +271,10 @@ function PageLink({
       href={href}
       rel={rel}
       aria-label={label}
-      className={cn(className, "hover:bg-mist")}
+      className={cn(
+        className,
+        "border-line border bg-white hover:border-blue-600",
+      )}
     >
       {children}
     </Link>

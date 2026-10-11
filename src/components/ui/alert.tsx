@@ -4,9 +4,9 @@ import { cn } from "@/lib/cn";
 export type AlertTone = "info" | "good" | "warn" | "bad";
 
 const TONES: Record<AlertTone, string> = {
-  info: "border-blue-200 bg-blue-50 text-blue-800",
-  good: "border-teal-100 bg-teal-50 text-teal-700",
-  warn: "border-gold-200 bg-gold-100 text-gold-800",
+  info: "border-blue-100 bg-blue-50 text-blue-800",
+  good: "border-green-100 bg-green-50 text-green-700",
+  warn: "border-saffron-200 bg-saffron-100 text-saffron-800",
   bad: "border-red-200 bg-red-50 text-red-800",
 };
 

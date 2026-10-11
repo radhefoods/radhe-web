@@ -21,9 +21,9 @@ export const INVOICES_QUERY_KEY = ["invoices"] as const;
 
 export const ORDER_STATUS_TONE: Record<OrderStatus, ChipTone> = {
   confirmed: "blue",
-  preparing: "gold",
+  preparing: "saffron",
   dispatched: "navy",
-  delivered: "teal",
+  delivered: "green",
   delivery_failed: "red",
   returned: "mute",
   cancelled: "mute",
@@ -31,18 +31,18 @@ export const ORDER_STATUS_TONE: Record<OrderStatus, ChipTone> = {
 
 export const PAYMENT_STATUS_TONE: Record<PaymentStatus, ChipTone> = {
   not_enabled: "mute",
-  due: "gold",
+  due: "saffron",
   overdue: "red",
-  paid: "teal",
+  paid: "green",
   waived: "mute",
   refunded: "mute",
 };
 
 export const RETURN_STATUS_TONE: Record<ReturnStatus, ChipTone> = {
-  requested: "gold",
+  requested: "saffron",
   approved: "blue",
   rejected: "red",
-  completed: "teal",
+  completed: "green",
   cancelled: "mute",
 };
 
@@ -58,7 +58,7 @@ export type TimelineStepKey =
 
 export interface TimelineStep {
   key: TimelineStepKey;
-  /** `current` wears the eye of the feather; `problem` is shown in red. */
+  /** `current` wears the halo; `problem` is shown in red. */
   state: "done" | "current" | "todo" | "problem";
   /** When it happened, where the API tells. */
   at: string | null;

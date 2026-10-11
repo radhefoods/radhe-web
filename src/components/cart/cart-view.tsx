@@ -39,7 +39,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="border-line grid grid-cols-[5rem_1fr] gap-x-4 gap-y-3 border-b py-5 first:pt-0 sm:grid-cols-[6.5rem_1fr]">
+    <li className="grid grid-cols-[5rem_1fr] gap-x-4 gap-y-3 py-5 sm:grid-cols-[6.5rem_1fr]">
       <div className="bg-mist row-span-2 aspect-square self-start overflow-hidden rounded-md">
         <ProductImage
           image={product?.image ?? null}
@@ -106,7 +106,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           <p
             aria-label={t("lineTotal", { name })}
             className={cn(
-              "text-lg font-bold tabular-nums transition-opacity",
+              "font-display text-lg tabular-nums transition-opacity",
               updating && "opacity-50",
             )}
           >
@@ -178,9 +178,9 @@ export function CartView() {
 
   if (cart.ready && cart.items.length === 0) {
     return (
-      <div className="bg-mist flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center">
+      <div className="border-line flex flex-col items-center gap-4 rounded-xl border bg-white px-6 py-16 text-center">
         <ShoppingBag aria-hidden="true" className="text-ink-subtle size-10" />
-        <h2 className="font-display text-3xl text-blue-900">
+        <h2 className="font-display text-xl text-blue-900">
           {t("emptyTitle")}
         </h2>
         <p className="text-ink-muted max-w-md">{t("emptyText")}</p>
@@ -215,7 +215,7 @@ export function CartView() {
           ) : (
             <ErrorAlert error={cart.problem} />
           ))}
-        <ul>
+        <ul className="border-line divide-line divide-y rounded-xl border bg-white px-4 sm:px-5">
           {lines.map((line) => (
             <CartLine key={line.productId} line={line} updating={updating} />
           ))}
@@ -226,7 +226,7 @@ export function CartView() {
         aria-label={t("summary")}
         className="border-line shadow-card flex flex-col gap-4 rounded-xl border bg-white p-5 lg:sticky lg:top-44"
       >
-        <h2 className="font-display text-3xl text-blue-900">{t("summary")}</h2>
+        <h2 className="font-display text-xl text-blue-900">{t("summary")}</h2>
 
         {bill.cargo && (
           <div className="bg-mist flex flex-col gap-1 rounded-md px-3.5 py-3 text-sm">
@@ -242,7 +242,7 @@ export function CartView() {
                 locale,
               )}
             </p>
-            <CountdownText className="text-gold-700 font-bold tabular-nums" />
+            <CountdownText className="text-saffron-800 font-bold tabular-nums" />
           </div>
         )}
 
@@ -301,7 +301,7 @@ export function CartView() {
           <span className="text-ink-muted text-sm">{t("total")}</span>
           <span
             className={cn(
-              "text-lg font-bold tabular-nums",
+              "font-display text-lg tabular-nums",
               updating && "opacity-50",
             )}
           >

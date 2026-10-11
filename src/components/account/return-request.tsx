@@ -159,7 +159,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
     <div className="flex flex-col gap-5">
       {back}
       <header className="space-y-2">
-        <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
           {t("formTitle")}
         </h1>
         <p className="text-ink-muted max-w-2xl">

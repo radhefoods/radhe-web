@@ -68,7 +68,7 @@ export function AddressBook() {
   return (
     <div className="flex flex-col gap-6">
       <header className="space-y-2">
-        <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
           {t("title")}
         </h1>
         <p className="text-ink-muted">{t("intro")}</p>
@@ -86,7 +86,7 @@ export function AddressBook() {
         <>
           {error !== null && <ErrorAlert error={error} />}
           {addresses.length === 0 && editing === null && (
-            <p className="bg-mist text-ink-muted rounded-xl px-6 py-10 text-center">
+            <p className="border-line text-ink-muted rounded-xl border bg-white px-6 py-10 text-center">
               {t("empty")}
             </p>
           )}
@@ -96,7 +96,7 @@ export function AddressBook() {
               editing === address.id ? (
                 <li
                   key={address.id}
-                  className="border-line rounded-lg border p-4 md:col-span-2"
+                  className="border-line rounded-lg border bg-white p-4 md:col-span-2"
                 >
                   <AddressForm
                     idPrefix={`address-${address.id}`}
@@ -168,7 +168,7 @@ export function AddressBook() {
           </ul>
 
           {editing === "new" ? (
-            <div className="border-line rounded-lg border p-4">
+            <div className="border-line rounded-lg border bg-white p-4">
               <AddressForm
                 idPrefix="address-new"
                 showDefault={addresses.length > 0}

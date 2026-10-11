@@ -24,17 +24,19 @@ export default async function SignInPage({ params, searchParams }: Props) {
     <div className="container-page py-10 sm:py-16">
       <div className="mx-auto flex max-w-md flex-col gap-6">
         <header className="space-y-3">
-          <h1 className="font-display text-4xl text-blue-900 sm:text-5xl">
+          <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
             {t("title")}
           </h1>
           <p className="text-ink-muted">
             {returnTo === "/checkout" ? t("checkoutNote") : t("intro")}
           </p>
         </header>
-        <AreaMessages area="signIn">
-          <GoogleSignIn returnTo={returnTo} divider={t("or")} />
-          <SignInForm returnTo={returnTo} />
-        </AreaMessages>
+        <div className="border-line shadow-card rounded-xl border bg-white p-5 sm:p-7">
+          <AreaMessages area="signIn">
+            <GoogleSignIn returnTo={returnTo} divider={t("or")} />
+            <SignInForm returnTo={returnTo} />
+          </AreaMessages>
+        </div>
         {returnTo === "/checkout" && (
           <p className="text-ink-muted text-sm">{t("intro")}</p>
         )}
