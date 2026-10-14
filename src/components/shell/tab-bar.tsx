@@ -32,10 +32,18 @@ function Tab({
         aria-label={ariaLabel}
         className={cn(
           "flex h-14 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-bold",
-          active ? "text-blue-600" : "text-ink-muted",
+          active ? "text-leaf-700" : "text-ink-muted",
         )}
       >
-        <span className="relative">{children}</span>
+        {/* The active tab sits in a leaf pill. */}
+        <span
+          className={cn(
+            "relative grid h-7 w-12 place-items-center rounded-full",
+            active && "bg-leaf-50",
+          )}
+        >
+          {children}
+        </span>
         {label}
       </Link>
     </li>
@@ -80,7 +88,7 @@ export function TabBar() {
           ariaLabel={t("cartWithCount", { count: ready ? units : 0 })}
         >
           <ShoppingBag aria-hidden="true" className={icon} />
-          <CartBadge />
+          <CartBadge className="-top-1.5 right-0.5" />
         </Tab>
         <Tab
           href="/account"
@@ -88,7 +96,7 @@ export function TabBar() {
           label={t("account")}
         >
           <User aria-hidden="true" className={icon} />
-          <AccountDot />
+          <AccountDot className="top-0.5 right-2" />
         </Tab>
       </ul>
     </nav>

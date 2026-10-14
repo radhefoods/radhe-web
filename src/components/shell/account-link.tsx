@@ -14,7 +14,7 @@ export function AccountDot({ className }: { className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        "absolute -top-0.5 -right-1 size-2.5 rounded-full bg-green-600 ring-2 ring-white",
+        "bg-leaf-600 absolute -top-0.5 -right-1 size-2.5 rounded-full ring-2 ring-white",
         className,
       )}
     />
@@ -35,7 +35,7 @@ export function AccountLink({ className }: { className?: string }) {
       href="/account"
       aria-label={t("account")}
       className={cn(
-        "hover:bg-mist min-h-11 items-center gap-2.5 rounded-md px-2.5",
+        "bg-mist hover:bg-cloud min-h-12 items-center gap-2.5 rounded-full px-4 transition-colors duration-150",
         className,
       )}
     >

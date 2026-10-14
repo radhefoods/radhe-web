@@ -33,7 +33,7 @@ export async function SearchForm({
       </label>
       <Search
         aria-hidden="true"
-        className="text-ink-subtle pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2"
+        className="text-ink-subtle pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2"
       />
       <input
         id={id}
@@ -46,7 +46,8 @@ export async function SearchForm({
         enterKeyHint="search"
         autoComplete="off"
         placeholder={t("searchPlaceholder")}
-        className="border-line-strong placeholder:text-ink-subtle hover:border-ink-subtle h-11 w-full rounded-md border-[1.5px] bg-white pr-4 pl-11 text-base focus-visible:border-blue-600 focus-visible:outline-offset-1 lg:h-12"
+        // A pill on mist that turns white while it has the focus.
+        className="placeholder:text-ink-subtle bg-mist hover:bg-cloud h-11 w-full rounded-full border-0 pr-4 pl-12 text-base transition-colors duration-150 focus-visible:bg-white lg:h-13"
       />
     </form>
   );

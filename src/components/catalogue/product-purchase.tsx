@@ -67,7 +67,7 @@ export function ProductPurchase({
         <p className="flex items-start gap-2.5 text-[0.9375rem]">
           <CalendarClock
             aria-hidden="true"
-            className="text-saffron-500 mt-0.5 size-5 shrink-0"
+            className="text-leaf-600 mt-0.5 size-5 shrink-0"
           />
           {tCargo("promise", {
             deadline: formatDeadline(cargo.current.orderCloseAt, locale),
@@ -88,7 +88,7 @@ export function ProductPurchase({
       />
 
       {hints.length > 0 && (
-        <ul className="text-saffron-800 flex flex-col gap-0.5 text-sm font-semibold">
+        <ul className="flex flex-col gap-0.5 text-sm font-semibold text-lime-800">
           {hints.map((hint) => (
             <li key={hint}>{hint}</li>
           ))}
@@ -96,10 +96,10 @@ export function ProductPurchase({
       )}
 
       {/* On phones the same control stays in reach above the tab bar. */}
-      <div className="border-line fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-3 border-t bg-white px-4 py-2.5 md:hidden">
+      <div className="shadow-header fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-3 bg-white px-4 py-2.5 md:hidden">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{name}</p>
-          <p className="text-[0.9375rem] font-bold tabular-nums">
+          <p className="font-display text-lg tabular-nums">
             {formatMoney(pricing.price, locale)}
           </p>
         </div>

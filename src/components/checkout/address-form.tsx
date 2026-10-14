@@ -122,7 +122,7 @@ export function AddressForm({
         <label className="flex min-h-11 items-center gap-3 sm:col-span-2">
           <input
             type="checkbox"
-            className="size-5 accent-blue-600"
+            className="accent-leaf-600 size-5"
             {...form.register("isDefault")}
           />
           {t("isDefault")}

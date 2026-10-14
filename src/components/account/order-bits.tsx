@@ -90,7 +90,7 @@ export function OrderCard({
   const t = useTranslations("orders");
   const locale = useLocale() as Locale;
   return (
-    <article className="border-line hover:shadow-card relative flex flex-col gap-3 rounded-lg border bg-white p-4 transition-shadow sm:p-5">
+    <article className="border-line hover:border-line-strong hover:shadow-lift relative flex flex-col gap-3 rounded-lg border-[1.5px] bg-white p-4 transition-[box-shadow,border-color] duration-200 sm:p-5">
       <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
           <Heading className="text-lg font-bold">
@@ -208,7 +208,7 @@ export function DocumentRow({
                     pathname: "/account/orders/[orderNumber]",
                     params: { orderNumber: entry.orderNumber },
                   }}
-                  className="rounded-xs font-semibold text-blue-700 underline underline-offset-4"
+                  className="text-leaf-700 rounded-xs font-semibold underline underline-offset-4"
                 >
                   {t("order", { orderNumber: entry.orderNumber })}
                 </Link>

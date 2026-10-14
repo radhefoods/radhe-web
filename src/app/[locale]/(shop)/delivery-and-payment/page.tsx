@@ -49,12 +49,12 @@ export default async function DeliveryPage({ params }: Props) {
     });
   };
   const returnDays = settings?.returns.windowDays ?? 0;
-  const title = "font-display text-xl text-blue-900";
+  const title = "font-display text-xl text-ink";
 
   return (
     <article className="container-page max-w-3xl space-y-6 py-6 sm:py-10">
       <header className="space-y-3">
-        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+        <h1 className="font-display text-ink text-3xl sm:text-4xl">
           {t("title")}
         </h1>
         <p className="text-lg">{t("intro")}</p>
@@ -102,7 +102,7 @@ export default async function DeliveryPage({ params }: Props) {
                   <td
                     className={
                       tier.fee === 0
-                        ? "py-2.5 text-right font-bold text-green-700"
+                        ? "text-leaf-700 py-2.5 text-right font-bold"
                         : "py-2.5 text-right"
                     }
                   >
@@ -171,7 +171,7 @@ export default async function DeliveryPage({ params }: Props) {
         </p>
         <Link
           href="/legal/withdrawal"
-          className="rounded-xs font-semibold text-blue-700 underline underline-offset-4"
+          className="text-leaf-700 rounded-xs font-semibold underline underline-offset-4"
         >
           {t("withdrawalLink")}
         </Link>

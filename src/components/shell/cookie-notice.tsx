@@ -64,7 +64,7 @@ export function CookieNotice() {
         </Button>
         <Link
           href="/legal/cookies"
-          className="rounded-xs font-semibold text-blue-700 underline underline-offset-4"
+          className="text-leaf-700 rounded-xs font-semibold underline underline-offset-4"
         >
           {t("more")}
         </Link>

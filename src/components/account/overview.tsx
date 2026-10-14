@@ -30,7 +30,7 @@ export function AccountOverview() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+          <h1 className="font-display text-ink text-3xl sm:text-4xl">
             {customer?.firstName
               ? t("greeting", { name: customer.firstName })
               : t("greetingPlain")}
@@ -47,12 +47,9 @@ export function AccountOverview() {
       {toPay.length > 0 && (
         <section
           aria-labelledby="account-to-pay"
-          className="border-saffron-200 bg-saffron-100 rounded-xl border p-5"
+          className="rounded-xl bg-lime-100 p-5 sm:p-6"
         >
-          <h2
-            id="account-to-pay"
-            className="text-saffron-800 text-lg font-bold"
-          >
+          <h2 id="account-to-pay" className="text-lg font-bold text-lime-800">
             {t("toPayTitle")}
           </h2>
           <ul className="mt-2 flex flex-col gap-1">
@@ -63,7 +60,7 @@ export function AccountOverview() {
                     pathname: "/account/orders/[orderNumber]",
                     params: { orderNumber: order.orderNumber },
                   }}
-                  className="text-saffron-800 flex min-h-11 items-center rounded-xs font-semibold underline underline-offset-4"
+                  className="flex min-h-11 items-center rounded-xs font-semibold text-lime-800 underline underline-offset-4"
                 >
                   {t("toPayItem", {
                     orderNumber: order.orderNumber,
@@ -93,15 +90,12 @@ export function AccountOverview() {
         ) : (
           <>
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2
-                id="account-recent"
-                className="font-display text-xl text-blue-900"
-              >
+              <h2 id="account-recent" className="font-display text-ink text-xl">
                 {t("recentOrders")}
               </h2>
               <Link
                 href="/account/orders"
-                className="rounded-xs font-bold text-blue-700 underline underline-offset-4"
+                className="text-leaf-700 rounded-xs font-bold underline underline-offset-4"
               >
                 {t("allOrders")}
               </Link>

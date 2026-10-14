@@ -37,7 +37,7 @@ import { formatDate, formatDayRange } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { AddressBlock, DocumentRow, OrderStatusChips } from "./order-bits";
 
-const sectionTitle = "font-display text-xl text-blue-900";
+const sectionTitle = "font-display text-xl text-ink";
 const panel = "border-line rounded-xl border bg-white p-5";
 
 // --- Progress ----------------------------------------------------------------
@@ -97,7 +97,7 @@ function Timeline({ order }: { order: OrderDetail }) {
                 aria-hidden="true"
                 className={cn(
                   "absolute top-7 bottom-0 left-[0.8125rem] w-0.5",
-                  step.state === "done" ? "bg-blue-600" : "bg-line-strong",
+                  step.state === "done" ? "bg-leaf-600" : "bg-line-strong",
                 )}
               />
             )}
@@ -105,10 +105,10 @@ function Timeline({ order }: { order: OrderDetail }) {
               aria-hidden="true"
               className={cn(
                 "z-10 grid size-7 place-items-center rounded-full",
-                step.state === "done" && "bg-blue-600 text-white",
+                step.state === "done" && "bg-leaf-600 text-white",
                 // The current step is the one with the halo.
                 step.state === "current" &&
-                  "bg-blue-600 ring-4 ring-blue-600/25",
+                  "bg-leaf-600 ring-leaf-600/25 ring-4",
                 step.state === "todo" && "border-line-strong border-2 bg-white",
                 step.state === "problem" && "bg-red-600 text-white",
               )}
@@ -249,7 +249,7 @@ function PaymentPanel({
       )}
 
       {payment.status === "paid" && (
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-green-700">
+        <p className="text-leaf-700 flex flex-wrap items-center gap-x-2 gap-y-1 font-bold">
           <Check aria-hidden="true" className="size-5" strokeWidth={3} />
           {payment.paidAt &&
             t("paidOn", { date: formatDate(payment.paidAt, locale) })}
@@ -281,7 +281,7 @@ function PaymentPanel({
           href={payment.receiptUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 self-start rounded-xs font-semibold text-blue-700 underline underline-offset-4"
+          className="text-leaf-700 flex items-center gap-1.5 self-start rounded-xs font-semibold underline underline-offset-4"
         >
           {t("receipt")}
           <ExternalLink aria-hidden="true" className="size-4" />
@@ -427,7 +427,7 @@ function CancelOrder({
               <input
                 type="radio"
                 name="cancel-reason"
-                className="size-5 accent-blue-600"
+                className="accent-leaf-600 size-5"
                 checked={reason === value}
                 onChange={() => setReason(value)}
               />
@@ -524,7 +524,7 @@ function ReturnCard({
         </p>
       )}
       {request.creditAmount !== null && (
-        <p className="font-bold text-green-700">
+        <p className="text-leaf-700 font-bold">
           {t("credit", { amount: formatMoney(request.creditAmount, locale) })}
         </p>
       )}
@@ -639,7 +639,7 @@ export function OrderDetailView({
           {t("back")}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+          <h1 className="font-display text-ink text-3xl sm:text-4xl">
             {t("orderNumber", { orderNumber: order.orderNumber })}
           </h1>
           <OrderStatusChips
@@ -717,7 +717,7 @@ export function OrderDetailView({
                   {formatMoney(item.unitPrice, locale)}
                 </p>
                 {delivered && item.deliveredQuantity !== item.quantity && (
-                  <p className="text-saffron-800 text-sm font-semibold">
+                  <p className="text-sm font-semibold text-lime-800">
                     {t("deliveredQuantity", {
                       delivered: item.deliveredQuantity,
                       ordered: item.quantity,
@@ -725,7 +725,7 @@ export function OrderDetailView({
                   </p>
                 )}
                 {item.returnedQuantity > 0 && (
-                  <p className="text-saffron-800 text-sm font-semibold">
+                  <p className="text-sm font-semibold text-lime-800">
                     {t("returnedQuantity", { count: item.returnedQuantity })}
                   </p>
                 )}

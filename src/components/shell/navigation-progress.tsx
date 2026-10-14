@@ -64,7 +64,7 @@ export function NavigationProgress() {
   return (
     <div
       aria-hidden="true"
-      className="nav-progress pointer-events-none fixed inset-x-0 top-0 z-[60] h-[3px] bg-blue-600"
+      className="nav-progress bg-leaf-600 pointer-events-none fixed inset-x-0 top-0 z-[60] h-[3px]"
     />
   );
 }

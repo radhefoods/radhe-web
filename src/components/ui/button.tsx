@@ -3,26 +3,27 @@ import { cn } from "@/lib/cn";
 import { Spinner } from "./spinner";
 
 export type ButtonVariant =
-  "primary" | "secondary" | "quiet" | "saffron" | "ghost" | "pay" | "danger";
+  "primary" | "secondary" | "quiet" | "lime" | "ghost" | "pay" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-blue-600 text-white hover:bg-blue-700",
+  primary: "bg-leaf-600 text-white hover:bg-leaf-700",
   secondary:
-    "border-line-strong bg-white text-blue-800 hover:border-blue-600 hover:bg-blue-50",
-  quiet: "px-3 text-blue-700 hover:bg-blue-50",
-  // The one action on the dark band of the home page.
-  saffron: "bg-saffron-400 text-blue-900 hover:bg-saffron-500",
-  ghost: "border-white/40 text-white hover:bg-white/10",
-  // Paying is good news: green, not the blue of ordering.
-  pay: "bg-green-700 text-white hover:bg-green-800",
+    "border-line-strong bg-white text-leaf-700 hover:border-leaf-600 hover:bg-leaf-50",
+  quiet: "px-3 text-leaf-700 hover:bg-leaf-50",
+  // The one action on a dark band: the highlight, with dark text.
+  lime: "bg-lime-400 text-ink hover:bg-lime-500",
+  ghost: "border-white/50 text-white hover:border-white/80 hover:bg-white/10",
+  // Paying is good news: the deeper leaf, not the leaf of ordering.
+  pay: "bg-leaf-700 text-white hover:bg-leaf-800",
   danger: "border-red-600 bg-white text-red-600 hover:bg-red-50",
 };
 
+/* Pills need a little more room at the sides than a box did. */
 const SIZES: Record<ButtonSize, string> = {
-  sm: "min-h-11 px-4 text-[0.9375rem]",
-  md: "min-h-12 px-5 text-[0.9375rem]",
-  lg: "min-h-13 px-6 text-base",
+  sm: "min-h-11 px-5 text-[0.9375rem]",
+  md: "min-h-12 px-6 text-[0.9375rem]",
+  lg: "min-h-13 px-7 text-base",
 };
 
 export interface ButtonStyleOptions {
@@ -41,7 +42,7 @@ export function buttonStyles({
   className,
 }: ButtonStyleOptions = {}): string {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-md border-[1.5px] border-transparent text-center leading-tight font-bold transition-colors duration-150 select-none active:translate-y-px",
+    "inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] border-transparent text-center leading-tight font-bold transition-colors duration-150 select-none active:translate-y-px",
     "disabled:cursor-not-allowed disabled:border-line disabled:bg-cloud disabled:text-ink-subtle disabled:active:translate-y-0",
     "aria-disabled:cursor-not-allowed aria-disabled:border-line aria-disabled:bg-cloud aria-disabled:text-ink-subtle",
     SIZES[size],

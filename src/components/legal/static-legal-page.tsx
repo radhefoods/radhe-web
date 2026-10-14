@@ -57,7 +57,7 @@ export async function StaticLegalPage({
   return (
     <article className="container-page max-w-3xl py-6 sm:py-10">
       <div className="border-line space-y-6 rounded-xl border bg-white p-5 sm:p-8">
-        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+        <h1 className="font-display text-ink text-3xl sm:text-4xl">
           {t(name)}
         </h1>
         {PLACEHOLDER.test(text) && (

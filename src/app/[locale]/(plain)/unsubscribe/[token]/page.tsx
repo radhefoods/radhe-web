@@ -21,7 +21,7 @@ export default async function UnsubscribePage({ params }: Props) {
   const t = await getTranslations("unsubscribe");
   return (
     <div className="container-page max-w-xl space-y-6 py-10 sm:py-14">
-      <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+      <h1 className="font-display text-ink text-3xl sm:text-4xl">
         {t("title")}
       </h1>
       <UnsubscribeView token={token} />

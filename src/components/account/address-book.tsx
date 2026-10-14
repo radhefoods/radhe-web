@@ -68,7 +68,7 @@ export function AddressBook() {
   return (
     <div className="flex flex-col gap-6">
       <header className="space-y-2">
-        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+        <h1 className="font-display text-ink text-3xl sm:text-4xl">
           {t("title")}
         </h1>
         <p className="text-ink-muted">{t("intro")}</p>
@@ -86,7 +86,7 @@ export function AddressBook() {
         <>
           {error !== null && <ErrorAlert error={error} />}
           {addresses.length === 0 && editing === null && (
-            <p className="border-line text-ink-muted rounded-xl border bg-white px-6 py-10 text-center">
+            <p className="bg-mist text-ink-muted rounded-xl px-6 py-10 text-center">
               {t("empty")}
             </p>
           )}
@@ -114,7 +114,7 @@ export function AddressBook() {
                   <div className="flex items-start justify-between gap-3 text-[0.9375rem]">
                     <AddressBlock address={address} />
                     {address.isDefault && (
-                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
+                      <span className="bg-leaf-100 text-leaf-700 rounded-full px-2.5 py-1 text-xs font-bold">
                         {tAddress("default")}
                       </span>
                     )}

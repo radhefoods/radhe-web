@@ -15,7 +15,7 @@ function Column({
 }) {
   return (
     <nav aria-label={title}>
-      <h2 className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
+      <h2 className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase">
         {title}
       </h2>
       <ul className="mt-4 flex flex-col gap-2.5 text-[0.9375rem]">
@@ -23,7 +23,7 @@ function Column({
           <li key={link.key}>
             <Link
               href={link.href}
-              className="text-ink-muted rounded-sm font-medium hover:text-blue-700 hover:underline"
+              className="hover:text-leaf-700 rounded-sm font-semibold transition-colors duration-150"
             >
               {link.label}
             </Link>
@@ -36,18 +36,18 @@ function Column({
 
 /**
  * The foot of every shop page: the range, help, and the legal pages German
- * law wants within reach of every page. On a light ground, because the
- * logo exists for light backgrounds only.
+ * law wants within reach of every page. On mist, the quiet surface of the
+ * shop, where the logo reads as on white.
  */
 export async function Footer({ categories }: { categories: Category[] }) {
   const t = await getTranslations("footer");
   const tNav = await getTranslations("nav");
 
   return (
-    <footer className="border-line mt-16 border-t bg-white pb-36 md:pb-0">
-      <div className="container-page grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr]">
+    <footer className="bg-mist mt-16 pb-36 md:pb-0">
+      <div className="container-page grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="space-y-4">
-          <Logo className="h-12" />
+          <Logo className="h-11" />
           <p className="text-ink-muted max-w-sm text-[0.9375rem]">
             {t("about")}
           </p>
@@ -106,7 +106,7 @@ export async function Footer({ categories }: { categories: Category[] }) {
           ]}
         />
       </div>
-      <div className="border-line border-t">
+      <div className="border-line-strong border-t">
         <div className="container-page text-ink-subtle flex flex-wrap justify-between gap-x-6 gap-y-1 py-5 text-sm">
           <p>{t("rights", { year: new Date().getFullYear() })}</p>
           <p>{t("priceNote")}</p>

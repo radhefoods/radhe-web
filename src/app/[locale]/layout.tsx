@@ -81,7 +81,7 @@ export default async function LocaleLayout({
         <script dangerouslySetInnerHTML={{ __html: COOKIE_NOTICE_SCRIPT }} />
         <a
           href="#main"
-          className="sr-only z-50 rounded-md bg-blue-900 px-4 py-3 font-bold text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+          className="bg-leaf-900 sr-only z-50 rounded-full px-4 py-3 font-bold text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
         >
           {t("skipToContent")}
         </a>

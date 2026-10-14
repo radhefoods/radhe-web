@@ -17,7 +17,7 @@ export default async function PlainLayout({
   const t = await getTranslations("nav");
   return (
     <>
-      <header className="border-line border-b bg-white">
+      <header className="shadow-header relative z-10 bg-white">
         <div className="container-page flex h-16 items-center">
           <Link href="/" aria-label={t("logoHome")} className="rounded-sm">
             <Logo className="h-9" />

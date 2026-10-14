@@ -9,7 +9,7 @@ import type { Locale } from "@/i18n/routing";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
 
-/** A small number on the cart icon. Nothing while the cart is empty. */
+/** A small lime number on the cart icon. Nothing while the cart is empty. */
 export function CartBadge({ className }: { className?: string }) {
   const { units, ready } = useCart();
   if (!ready || units === 0) return null;
@@ -17,7 +17,7 @@ export function CartBadge({ className }: { className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        "absolute -top-1 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-blue-600 px-1 text-[0.6875rem] leading-none font-bold text-white tabular-nums",
+        "text-ink absolute -top-1 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-lime-400 px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2 ring-white",
         className,
       )}
     >
@@ -27,9 +27,9 @@ export function CartBadge({ className }: { className?: string }) {
 }
 
 /**
- * The cart in the header: a blue button with the icon, the number of
- * units, and on wide screens the total of the cart, as the stores people
- * know show it. The spoken label carries the count.
+ * The cart in the header: a leaf pill with the icon, on wide screens the
+ * total of the cart, and the number of units in a lime bubble at its end,
+ * as the stores people know show it. The spoken label carries the count.
  */
 export function CartLink({ className }: { className?: string }) {
   const t = useTranslations("nav");
@@ -47,19 +47,22 @@ export function CartLink({ className }: { className?: string }) {
       href="/cart"
       aria-label={t("cartWithCount", { count })}
       className={cn(
-        "min-h-11 items-center gap-2.5 rounded-md bg-blue-600 px-3 text-white transition-colors duration-150 hover:bg-blue-700 lg:px-3.5",
+        "bg-leaf-600 hover:bg-leaf-700 min-h-12 items-center gap-3 rounded-full py-1 pr-1.5 pl-4 text-white transition-colors duration-150",
         className,
       )}
     >
-      <span className="relative">
-        <ShoppingBag aria-hidden="true" className="size-5" />
-        <CartBadge className="bg-saffron-400 -top-2 -right-2.5 text-blue-900 ring-2 ring-blue-600" />
-      </span>
+      <ShoppingBag aria-hidden="true" className="size-5" />
       <span className="hidden flex-col text-left leading-tight lg:flex">
         <span className="text-sm font-bold">{t("cart")}</span>
-        <span className="text-xs font-medium text-blue-100 tabular-nums">
+        <span className="text-leaf-50 text-xs font-medium tabular-nums">
           {total}
         </span>
+      </span>
+      <span
+        aria-hidden="true"
+        className="text-ink grid h-9 min-w-9 place-items-center rounded-full bg-lime-400 px-2 text-sm font-bold tabular-nums"
+      >
+        {count > 99 ? "99+" : count}
       </span>
     </Link>
   );

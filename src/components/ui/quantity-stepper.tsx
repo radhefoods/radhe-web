@@ -41,17 +41,17 @@ export function QuantityStepper({
   const atMax = max !== null && value >= max;
   const removes = atMin && removeAtMin;
   const button = cn(
-    "grid shrink-0 place-items-center rounded-sm text-blue-800 hover:bg-blue-100 disabled:text-ink-subtle disabled:hover:bg-transparent",
-    // Inside the border of the group, not over it.
-    "m-px",
-    size === "sm" ? "size-9" : "size-10",
+    "grid shrink-0 place-items-center rounded-full text-white hover:bg-white/20 disabled:text-white/45 disabled:hover:bg-transparent",
+    // Inside the pill, with a hair of green around each button.
+    "m-0.5",
+    size === "sm" ? "size-8" : "size-9",
   );
   return (
     <div
       role="group"
       aria-label={labels.quantity}
       className={cn(
-        "inline-flex w-full items-center justify-between rounded-md border-[1.5px] border-blue-600 bg-blue-50 font-bold text-blue-800",
+        "bg-leaf-600 inline-flex w-full items-center justify-between rounded-full font-bold text-white",
         className,
       )}
     >

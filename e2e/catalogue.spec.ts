@@ -15,30 +15,33 @@ test.describe("the pre-order is impossible to miss", () => {
     page,
   }) => {
     await page.goto("/en");
-    const strip = page.getByRole("region", { name: "Current pre-order" });
-    await expect(strip).toContainText("Order by");
-    await expect(strip).toContainText("Delivery");
-    await expect(strip.getByRole("timer")).toHaveText(
-      /Closes in \d+d \d{2}h \d{2}m/,
+    // The countdown card in the hero: the deadline, the delivery days and
+    // the time left in four tiles.
+    const card = page.getByRole("region", { name: "Current pre-order" });
+    await expect(card).toContainText("Pre-order is open");
+    await expect(card).toContainText("Order by");
+    await expect(card).toContainText("Delivery");
+    await expect(card.getByRole("timer")).toHaveText(
+      /\d+\s*days?\s*\d{2}\s*hours?\s*\d{2}\s*min\s*\d{2}\s*sec/,
     );
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "pay after delivery",
     );
-    await expect(page.getByText("Nothing to pay today")).toBeVisible();
+    await expect(card).toContainText("Nothing to pay today");
   });
 
   test("the same in German, with formal address", async ({ page }) => {
     await page.goto("/de");
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    const strip = page.getByRole("region", { name: "Aktuelle Vorbestellung" });
-    await expect(strip).toContainText("Bestellschluss");
-    await expect(strip.getByRole("timer")).toHaveText(
-      /Noch \d+ T\. \d{2} Std\./,
+    const card = page.getByRole("region", { name: "Aktuelle Vorbestellung" });
+    await expect(card).toContainText("Bestellschluss");
+    await expect(card.getByRole("timer")).toHaveText(
+      /\d+\s*Tage?\s*\d{2}\s*Std\.\s*\d{2}\s*Min\.\s*\d{2}\s*Sek\./,
     );
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "nach der Lieferung bezahlen",
     );
-    await expect(page.getByText("Heute zahlen Sie nichts")).toBeVisible();
+    await expect(card).toContainText("Heute zahlen Sie nichts");
   });
 
   test("a closed pre-order shows on a page that was cached while it was open", async ({

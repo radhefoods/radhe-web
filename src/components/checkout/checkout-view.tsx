@@ -156,10 +156,8 @@ export function CheckoutView() {
 
   if (bill.lines.length === 0) {
     return (
-      <div className="border-line flex flex-col items-center gap-4 rounded-xl border bg-white px-6 py-16 text-center">
-        <h2 className="font-display text-xl text-blue-900">
-          {t("emptyTitle")}
-        </h2>
+      <div className="bg-mist flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center">
+        <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
         <p className="text-ink-muted">{t("emptyText")}</p>
         <Link href="/products" className={buttonStyles()}>
           {t("confirmation.continue")}
@@ -256,8 +254,8 @@ export function CheckoutView() {
     }
   }
 
-  const sectionTitle = "font-display text-xl text-blue-900";
-  const link = "font-semibold text-blue-700 underline underline-offset-4";
+  const sectionTitle = "font-display text-xl text-ink";
+  const link = "font-semibold text-leaf-700 underline underline-offset-4";
 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[1fr_25rem] lg:gap-12">
@@ -284,14 +282,14 @@ export function CheckoutView() {
                       className={cn(
                         "flex h-full cursor-pointer gap-3 rounded-md border-[1.5px] p-4 pr-20",
                         checked
-                          ? "border-blue-600 bg-blue-50"
+                          ? "border-leaf-600 bg-leaf-50"
                           : "border-line-strong hover:border-ink-subtle bg-white",
                       )}
                     >
                       <input
                         type="radio"
                         name="delivery-address"
-                        className="mt-1 size-5 shrink-0 accent-blue-600"
+                        className="accent-leaf-600 mt-1 size-5 shrink-0"
                         checked={checked}
                         onChange={() => setChosenAddress(address.id)}
                       />
@@ -390,7 +388,7 @@ export function CheckoutView() {
               aria-describedby={
                 attempted && !consent ? "checkout-consent-error" : undefined
               }
-              className="mt-0.5 size-6 shrink-0 accent-blue-600"
+              className="accent-leaf-600 mt-0.5 size-6 shrink-0"
             />
             <span>
               {t.rich("consentText", {
@@ -433,7 +431,7 @@ export function CheckoutView() {
 
       <aside
         aria-labelledby="checkout-summary"
-        className="border-line shadow-card flex flex-col gap-4 rounded-xl border bg-white p-5 lg:sticky lg:top-28"
+        className="bg-mist flex flex-col gap-4 rounded-xl p-5 sm:p-6 lg:sticky lg:top-28"
       >
         <h2 id="checkout-summary" className={sectionTitle}>
           {t("summaryTitle")}
@@ -478,7 +476,7 @@ export function CheckoutView() {
           <BillTotals totals={bill.totals} />
         </div>
 
-        <p className="rounded-md border border-green-100 bg-green-50 px-3.5 py-3 text-sm text-green-700">
+        <p className="border-leaf-100 bg-leaf-50 text-leaf-700 rounded-md border px-3.5 py-3 text-sm">
           <span className="font-bold">{tCargo("payLaterTitle")}</span>{" "}
           {t("payLater")}
         </p>

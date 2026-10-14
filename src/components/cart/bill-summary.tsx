@@ -31,7 +31,7 @@ export function BillTotals({
       <div className={row}>
         <dt>{t("delivery")}</dt>
         <dd
-          className={cn(totals.deliveryFee === 0 && "font-bold text-green-700")}
+          className={cn(totals.deliveryFee === 0 && "text-leaf-700 font-bold")}
         >
           {totals.deliveryFee === 0
             ? t("deliveryFree")
@@ -58,7 +58,12 @@ export function BillTotals({
         </div>
       ))}
       {showDueToday && (
-        <div className={cn(row, "font-bold text-green-700")}>
+        <div
+          className={cn(
+            row,
+            "mt-1 rounded-md bg-lime-100 px-3.5 py-2.5 font-bold text-lime-800",
+          )}
+        >
           <dt>{t("dueToday")}</dt>
           <dd>{formatMoney(0, locale)}</dd>
         </div>
@@ -90,19 +95,19 @@ export function FreeDeliveryProgress({
   const percent = Math.min(100, Math.round((subtotal / freeFrom) * 100));
   return (
     <div className={cn("flex flex-col gap-1.5 text-sm", className)}>
-      <p className={reached ? "font-bold text-green-700" : "text-ink-muted"}>
+      <p className={reached ? "text-leaf-700 font-bold" : "text-ink-muted"}>
         {reached
           ? t("freeReached")
           : t("freeMissing", { amount: formatMoney(missingForFree, locale) })}
       </p>
       <div
-        className="bg-cloud h-2 overflow-hidden rounded-full"
+        className="bg-cloud h-2.5 overflow-hidden rounded-full"
         aria-hidden="true"
       >
         <div
           className={cn(
             "h-full rounded-full transition-[width] duration-300",
-            reached ? "bg-green-600" : "bg-saffron-500",
+            reached ? "bg-leaf-600" : "bg-lime-400",
           )}
           style={{ width: `${percent}%` }}
         />

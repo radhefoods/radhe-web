@@ -52,7 +52,7 @@ export default async function HowItWorksPage({ params }: Props) {
         }}
       />
       <header className="space-y-3">
-        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+        <h1 className="font-display text-ink text-3xl sm:text-4xl">
           {t("title")}
         </h1>
         <p className="max-w-2xl text-lg">{t("intro")}</p>
@@ -62,15 +62,15 @@ export default async function HowItWorksPage({ params }: Props) {
         {steps.map((step, index) => (
           <li
             key={step.title}
-            className="border-line flex flex-col gap-2 rounded-lg border bg-white p-5"
+            className="bg-mist flex flex-col gap-3 rounded-lg p-6"
           >
             <span
               aria-hidden="true"
-              className="font-display grid size-9 place-items-center rounded-md bg-blue-50 text-lg text-blue-600"
+              className="font-display text-ink grid size-10 place-items-center rounded-full bg-lime-400 text-lg"
             >
               {index + 1}
             </span>
-            <h2 className="font-display mt-1 text-lg">{step.title}</h2>
+            <h2 className="font-display text-xl">{step.title}</h2>
             <p className="text-ink-muted text-[0.9375rem]">{step.text}</p>
           </li>
         ))}
@@ -79,10 +79,7 @@ export default async function HowItWorksPage({ params }: Props) {
       <PayLaterNote className="max-w-2xl" />
 
       <section aria-labelledby="how-faq" className="space-y-4">
-        <h2
-          id="how-faq"
-          className="font-display text-2xl text-blue-900 sm:text-3xl"
-        >
+        <h2 id="how-faq" className="font-display text-ink text-2xl sm:text-3xl">
           {t("faqTitle")}
         </h2>
         <dl className="divide-line border-line divide-y rounded-xl border bg-white px-5 sm:px-6">

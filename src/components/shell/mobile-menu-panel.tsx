@@ -6,6 +6,7 @@ import type { RefObject } from "react";
 import { Sheet } from "@/components/ui/sheet";
 import { Link } from "@/i18n/navigation";
 import type { Category } from "@/lib/api/types";
+import { cn } from "@/lib/cn";
 
 /**
  * The panel behind the menu button on small screens: all categories. It is
@@ -28,7 +29,7 @@ export function MobileMenuPanel({
   const tCommon = useTranslations("common");
   const close = () => onOpenChange(false);
   const row =
-    "flex min-h-12 items-center justify-between gap-3 rounded-sm px-2 text-[1.0625rem] font-semibold hover:bg-mist";
+    "flex min-h-13 items-center justify-between gap-3 rounded-md bg-mist px-4 text-[1.0625rem] font-bold transition-colors duration-150 hover:bg-cloud";
 
   return (
     <Sheet
@@ -39,7 +40,7 @@ export function MobileMenuPanel({
       returnFocusTo={button}
     >
       <nav aria-label={t("categories")}>
-        <ul className="flex flex-col">
+        <ul className="flex flex-col gap-1.5">
           <li>
             <Link href="/products" onClick={close} className={row}>
               {t("allProducts")}
@@ -66,7 +67,7 @@ export function MobileMenuPanel({
                 />
               </Link>
               {category.children.length > 0 && (
-                <ul className="border-line mb-2 ml-2 flex flex-col border-l pl-3">
+                <ul className="border-line my-1 ml-4 flex flex-col border-l-2 pl-3">
                   {category.children.map((child) => (
                     <li key={child.id}>
                       <Link
@@ -75,7 +76,7 @@ export function MobileMenuPanel({
                           params: { slug: child.slug },
                         }}
                         onClick={close}
-                        className="text-ink-muted hover:bg-mist hover:text-ink flex min-h-11 items-center rounded-sm px-2"
+                        className="text-ink-muted hover:text-ink flex min-h-11 items-center rounded-sm px-2 font-semibold"
                       >
                         {child.name}
                       </Link>
@@ -85,17 +86,14 @@ export function MobileMenuPanel({
               )}
             </li>
           ))}
-          <li className="border-line mt-2 border-t pt-2">
+          <li className="mt-2">
             <Link
               href={{ pathname: "/products", query: { onSale: "1" } }}
               onClick={close}
-              className={row}
+              className={cn(row, "bg-red-50 text-red-600 hover:bg-red-100")}
             >
-              <span className="text-red-600">{t("offers")}</span>
-              <ChevronRight
-                aria-hidden="true"
-                className="text-ink-subtle size-5"
-              />
+              {t("offers")}
+              <ChevronRight aria-hidden="true" className="size-5" />
             </Link>
           </li>
           <li>

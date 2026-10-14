@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 /*
- * Design tokens of the Radhe Foods shop (redesign approved 2026-10-11).
+ * Design tokens of the Radhe Foods shop (redesign approved 2026-10-14).
  *
- * A grey canvas with white cards, so the pages read as shelves. The deep
- * blue of the wordmark for headlines and dark bands, one bright royal blue
- * for every action, and three signal colours that each mean one thing:
- * saffron for offers and deadlines, green for in stock and paid, red for
- * reduced prices and errors. The shop is light-only.
+ * White pages, so the products carry the colour. Leaf green is the brand
+ * and the one action colour; its darkest shades make the woven hero band
+ * and the dark panels. Lime is the highlight: the promise strip, counts,
+ * the one action on a dark ground, the free-delivery bar. Coral red marks
+ * reduced prices, offers and errors. Quiet surfaces are a green-tinted
+ * grey. The shop is light-only.
  *
  * The default Tailwind palette is switched off: only these tokens exist,
  * so a colour that is not part of the system cannot slip in.
@@ -17,51 +18,47 @@
 
   --color-white: #ffffff;
   /* The page. */
-  --color-canvas: #f3f4f7;
-  /* Quiet surfaces inside a card: photo tiles, countdown tiles. */
-  --color-mist: #f7f8fa;
-  /* Disabled controls, skeletons. */
-  --color-cloud: #eef0f4;
-  --color-line: #e4e6ec;
-  --color-line-strong: #c9cdd8;
-  --color-ink: #121a3b;
-  --color-ink-muted: #4a5273;
-  /* Dark enough for small text on mist and cloud as well (4.5:1). */
-  --color-ink-subtle: #646c88;
+  --color-canvas: #ffffff;
+  /* Quiet surfaces: photo tiles, countdown tiles, chips, panels on white. */
+  --color-mist: #f1f5f2;
+  /* Disabled controls, skeletons, the hover of a quiet surface. */
+  --color-cloud: #e3eae5;
+  --color-line: #e3eae5;
+  --color-line-strong: #cfd9d3;
+  --color-ink: #15231c;
+  --color-ink-muted: #46554d;
+  /* Dark enough for small text on white and mist (4.5:1). */
+  --color-ink-subtle: #5f6d65;
 
-  /* 600 is the action colour, 800 and 900 the headlines and dark bands. */
-  --color-blue-50: #eaf0ff;
-  --color-blue-100: #d6e0ff;
-  --color-blue-200: #b4c5ff;
-  --color-blue-300: #86a1f5;
-  --color-blue-400: #5377eb;
-  --color-blue-500: #3360e6;
-  --color-blue-600: #1f4fe0;
-  --color-blue-700: #1941bd;
-  --color-blue-800: #162b7a;
-  --color-blue-900: #0e1f5b;
+  /* 600 is the action colour, 700 its hover and the text on a tint, 900 and
+     700 the woven dark band. */
+  --color-leaf-50: #e2f3e9;
+  --color-leaf-100: #c6e8d4;
+  --color-leaf-200: #9bd6b5;
+  --color-leaf-300: #6cbd92;
+  --color-leaf-400: #3f9f6e;
+  --color-leaf-500: #1f8a58;
+  --color-leaf-600: #157a4b;
+  --color-leaf-700: #0f5c38;
+  --color-leaf-800: #0d5234;
+  --color-leaf-900: #0b4a31;
 
-  /* Offers, deadlines, the pre-order moment. 800 is the only saffron for text on the tint. */
-  --color-saffron-100: #fff4df;
-  --color-saffron-200: #f7dfae;
-  --color-saffron-300: #f6c56a;
-  --color-saffron-400: #f2a325;
-  --color-saffron-500: #d98a12;
-  --color-saffron-800: #8a5209;
+  /* The highlight: fills and big numerals only. 800 is the only lime for
+     text, on white or on the tints. */
+  --color-lime-50: #f6fde3;
+  --color-lime-100: #eefcc9;
+  --color-lime-200: #d9fb72;
+  --color-lime-400: #c7f24a;
+  --color-lime-500: #b4e03a;
+  --color-lime-800: #4b6a00;
 
-  /* In stock, free delivery reached, paid, delivered. */
-  --color-green-50: #e6f6ec;
-  --color-green-100: #c5ead3;
-  /* 600 for dots, icons and bars; 700 and 800 wherever white text sits on green. */
-  --color-green-600: #1e8e4e;
-  --color-green-700: #176b3b;
-  --color-green-800: #125530;
-
-  /* Reduced prices; errors and overdue payments. */
-  --color-red-50: #fdecef;
-  --color-red-200: #f5c2ca;
-  --color-red-600: #d7263d;
-  --color-red-800: #a61b2e;
+  /* Reduced prices and offers; errors and overdue payments. 600 reads at
+     4.7:1 on the tint and carries white text at 5.4:1. */
+  --color-red-50: #fdece7;
+  --color-red-100: #fbd8ce;
+  --color-red-200: #f3bbab;
+  --color-red-600: #bf3c1d;
+  --color-red-800: #9a2f14;
 
   --font-sans:
     var(--font-dm-sans), "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
@@ -70,14 +67,20 @@
     var(--font-plus-jakarta-sans), "Segoe UI", system-ui, -apple-system,
     "Helvetica Neue", Arial, sans-serif;
 
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* Soft corners throughout; buttons, chips and the search are pills. */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
 
-  --shadow-card: 0 1px 2px rgb(18 26 59 / 0.05), 0 2px 8px rgb(18 26 59 / 0.05);
-  --shadow-float: 0 12px 32px rgb(18 26 59 / 0.14);
+  --shadow-card: 0 1px 2px rgb(21 35 28 / 0.04), 0 2px 8px rgb(21 35 28 / 0.05);
+  /* The sticky header: a hairline and a faint shadow onto the page. */
+  --shadow-header:
+    0 1px 0 var(--color-line), 0 8px 24px -20px rgb(21 35 28 / 0.3);
+  /* A card that rises on hover. */
+  --shadow-lift: 0 14px 30px -20px rgb(21 35 28 / 0.35);
+  --shadow-float: 0 12px 32px rgb(21 35 28 / 0.16);
 
   --breakpoint-xs: 26rem;
 }
@@ -100,12 +103,12 @@
 
   /* One visible focus style everywhere, for keyboard users. */
   :focus-visible {
-    outline: 2px solid var(--color-blue-600);
+    outline: 3px solid var(--color-leaf-600);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--color-blue-100);
+    background: var(--color-lime-100);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -127,6 +130,12 @@
   display: none;
 }
 
+/* A headline that must not be hyphenated (the hero: "Lebensmittel" breaks
+   whole). Outside the layers on purpose, so it wins over `font-display`. */
+.headline-no-hyphens {
+  hyphens: manual;
+}
+
 /* Headlines, prices and big numbers: the heavy cut, set tight. Long German
    words may break. */
 @utility font-display {
@@ -140,7 +149,7 @@
 /* The width and side gutter of every page section. */
 @utility container-page {
   width: 100%;
-  max-width: 80rem;
+  max-width: 84rem;
   margin-inline: auto;
   padding-inline: 1rem;
 
@@ -153,16 +162,55 @@
   }
 }
 
-/* The dark band of the home banner: the deep blue of the wordmark, lit from
-   the right, with a warm saffron glow in the corner. */
+/* The dark band of the home page and of the pay-later panel: deep leaf
+   green woven from fine lines, lit by a lime glow in the top right corner.
+   Children sit above the weave. */
 @utility hero-band {
-  background:
-    radial-gradient(
-      circle at 100% 0%,
-      rgb(242 163 37 / 0.5) 0,
-      rgb(242 163 37 / 0) 34%
-    ),
-    linear-gradient(115deg, var(--color-blue-900) 0%, #1a3aa3 55%, #2e62f0 100%);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    112deg,
+    var(--color-leaf-900) 0%,
+    var(--color-leaf-700) 100%
+  );
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      repeating-linear-gradient(
+        0deg,
+        rgb(255 255 255 / 0.055) 0 1px,
+        transparent 1px 6px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        rgb(255 255 255 / 0.055) 0 1px,
+        transparent 1px 6px
+      );
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: -16rem;
+    right: -14rem;
+    width: 40rem;
+    height: 40rem;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(
+      circle,
+      rgb(199 242 74 / 0.26) 0,
+      rgb(199 242 74 / 0) 70%
+    );
+  }
+
+  & > * {
+    position: relative;
+  }
 }
 
 /* The line at the top while the next page loads. It waits a moment, then

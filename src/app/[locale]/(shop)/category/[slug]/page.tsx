@@ -89,7 +89,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       <Breadcrumbs categories={category.breadcrumbs} />
 
       <header className="space-y-1.5">
-        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+        <h1 className="font-display text-ink text-3xl sm:text-4xl">
           {category.name}
         </h1>
         {(category.description ?? category.tagline) && (
@@ -106,7 +106,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               <li key={child.id}>
                 <Link
                   href={categoryHref(child.slug)}
-                  className="border-line-strong flex min-h-10 items-center rounded-full border bg-white px-4 text-sm font-semibold whitespace-nowrap hover:border-blue-600 hover:bg-blue-50 hover:text-blue-800"
+                  className="bg-mist hover:bg-cloud flex min-h-11 items-center rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-150"
                 >
                   {child.name}
                 </Link>

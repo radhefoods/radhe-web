@@ -26,24 +26,23 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
   [
     {
       group:
-        "Blue: 600 for every action, 800 and 900 for headlines and dark bands",
+        "Leaf: 600 for every action, 700 for hover and text on a tint, 900 to 700 for the woven dark band",
       items: [
-        ["50", "bg-blue-50"],
-        ["100", "bg-blue-100"],
-        ["200", "bg-blue-200"],
-        ["300", "bg-blue-300"],
-        ["400", "bg-blue-400"],
-        ["500", "bg-blue-500"],
-        ["600", "bg-blue-600"],
-        ["700", "bg-blue-700"],
-        ["800", "bg-blue-800"],
-        ["900", "bg-blue-900"],
+        ["50", "bg-leaf-50"],
+        ["100", "bg-leaf-100"],
+        ["200", "bg-leaf-200"],
+        ["300", "bg-leaf-300"],
+        ["400", "bg-leaf-400"],
+        ["500", "bg-leaf-500"],
+        ["600", "bg-leaf-600"],
+        ["700", "bg-leaf-700"],
+        ["800", "bg-leaf-800"],
+        ["900", "bg-leaf-900"],
       ],
     },
     {
-      group: "Neutrals: the canvas is the page, white is a card",
+      group: "Neutrals: white is the page, mist a quiet surface on it",
       items: [
-        ["canvas", "bg-canvas"],
         ["white", "bg-white"],
         ["mist", "bg-mist"],
         ["cloud", "bg-cloud"],
@@ -55,24 +54,22 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
       ],
     },
     {
-      group: "Saffron for offers and deadlines, green for in stock and paid",
+      group:
+        "Lime, the highlight: fills and big numerals only, 800 for text on the tints",
       items: [
-        ["saffron-100", "bg-saffron-100"],
-        ["saffron-200", "bg-saffron-200"],
-        ["saffron-300", "bg-saffron-300"],
-        ["saffron-400", "bg-saffron-400"],
-        ["saffron-500", "bg-saffron-500"],
-        ["saffron-800", "bg-saffron-800"],
-        ["green-50", "bg-green-50"],
-        ["green-100", "bg-green-100"],
-        ["green-600", "bg-green-600"],
-        ["green-700", "bg-green-700"],
+        ["lime-50", "bg-lime-50"],
+        ["lime-100", "bg-lime-100"],
+        ["lime-200", "bg-lime-200"],
+        ["lime-400", "bg-lime-400"],
+        ["lime-500", "bg-lime-500"],
+        ["lime-800", "bg-lime-800"],
       ],
     },
     {
-      group: "Red: reduced prices, errors, overdue",
+      group: "Red: reduced prices and offers, errors, overdue",
       items: [
         ["red-50", "bg-red-50"],
+        ["red-100", "bg-red-100"],
         ["red-200", "bg-red-200"],
         ["red-600", "bg-red-600"],
         ["red-800", "bg-red-800"],
@@ -83,7 +80,7 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="border-line space-y-5 border-t pt-8">
-      <h2 className="font-display text-2xl text-blue-900">{title}</h2>
+      <h2 className="font-display text-ink text-2xl">{title}</h2>
       {children}
     </section>
   );
@@ -115,11 +112,11 @@ export default async function StyleguidePage({
     <main id="main" className="container-page space-y-10 py-10">
       <header className="space-y-4">
         <Logo className="h-14" />
-        <h1 className="font-display text-4xl text-blue-900">Design system</h1>
+        <h1 className="font-display text-ink text-4xl">Design system</h1>
         <p className="text-ink-muted max-w-2xl">
           Tokens and components of the Radhe Foods shop. The tokens live in{" "}
           <code>src/app/globals.css</code>, the components in{" "}
-          <code>src/components</code>. The logo is used on light grounds only.
+          <code>src/components</code>.
         </p>
       </header>
 
@@ -142,10 +139,10 @@ export default async function StyleguidePage({
       </Section>
 
       <Section title="Type">
-        <p className="font-display text-5xl text-blue-900">
+        <p className="font-display text-ink text-5xl">
           Indian groceries, delivered to your door
         </p>
-        <p className="font-display text-3xl text-blue-900">
+        <p className="font-display text-ink text-3xl">
           Reis, Mehl und Hülsenfrüchte
         </p>
         <p className="font-display text-xl">
@@ -187,23 +184,23 @@ export default async function StyleguidePage({
           <Button size="lg">Large, 52 px</Button>
         </div>
         <div className="hero-band flex flex-wrap gap-3 rounded-lg p-4">
-          <Button variant="saffron">Saffron, on the dark band</Button>
+          <Button variant="lime">Lime, on the dark band</Button>
           <Button variant="ghost">Ghost, on the dark band</Button>
         </div>
       </Section>
 
       <Section title="Status chips">
         <div className="flex flex-wrap gap-2">
-          <Chip tone="blue">Confirmed</Chip>
-          <Chip tone="saffron">Preparing</Chip>
-          <Chip tone="navy">On its way</Chip>
+          <Chip tone="leaf">Confirmed</Chip>
+          <Chip tone="lime">Preparing</Chip>
+          <Chip tone="forest">On its way</Chip>
           <Chip tone="green">Delivered</Chip>
           <Chip tone="red">Delivery failed</Chip>
           <Chip tone="mute">Cancelled</Chip>
         </div>
         <div className="flex flex-wrap gap-2">
           <Chip tone="mute">Pay after delivery</Chip>
-          <Chip tone="saffron">Payment due</Chip>
+          <Chip tone="lime">Payment due</Chip>
           <Chip tone="red">Overdue</Chip>
           <Chip tone="green">Paid</Chip>
         </div>

@@ -150,10 +150,7 @@ export default async function ProductPage({ params }: Props) {
             (image, index) => (
               <li
                 key={image?.id ?? "none"}
-                className={cn(
-                  panel,
-                  "relative aspect-square w-full shrink-0 snap-center overflow-hidden p-4 sm:p-8",
-                )}
+                className="bg-mist relative aspect-square w-full shrink-0 snap-center overflow-hidden rounded-xl p-6 sm:p-10"
               >
                 <ProductImage
                   image={image}
@@ -162,7 +159,7 @@ export default async function ProductPage({ params }: Props) {
                   fallbackLabel={t("noPicture")}
                 />
                 {index === 0 && product.pricing.onSale && (
-                  <span className="absolute top-3 left-3 rounded-xs bg-red-600 px-2.5 py-1 text-sm font-bold text-white tabular-nums">
+                  <span className="absolute top-3 left-3 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold text-white tabular-nums">
                     {formatDiscount(product.pricing.discountPercent, locale)}
                   </span>
                 )}
@@ -178,7 +175,7 @@ export default async function ProductPage({ params }: Props) {
                 {product.brand}
               </p>
             )}
-            <h1 className="font-display text-[1.75rem] leading-[1.15] text-blue-900 sm:text-[2rem]">
+            <h1 className="font-display text-ink text-[1.75rem] leading-[1.15] sm:text-[2rem]">
               {product.name}
             </h1>
             {(product.subtitle ?? product.shortDescription) && (
@@ -189,7 +186,9 @@ export default async function ProductPage({ params }: Props) {
           </header>
 
           {/* The buy box: everything a decision needs, in one card. */}
-          <div className={cn(panel, "shadow-card flex flex-col gap-5 p-5")}>
+          <div
+            className={cn(panel, "shadow-card flex flex-col gap-5 p-5 sm:p-6")}
+          >
             <div>
               <Price pricing={product.pricing} size="lg" />
               <p className="text-ink-muted mt-1.5 text-sm">
@@ -214,9 +213,9 @@ export default async function ProductPage({ params }: Props) {
                       href={productHref(size.slug)}
                       aria-current={size.isSelected ? "page" : undefined}
                       className={cn(
-                        "flex min-h-11 items-center rounded-md border-[1.5px] px-4 text-[0.9375rem] font-semibold",
+                        "flex min-h-11 items-center rounded-full border-2 px-4 text-[0.9375rem] font-semibold transition-colors duration-150",
                         size.isSelected
-                          ? "border-blue-600 bg-blue-50 text-blue-800 ring-1 ring-blue-600"
+                          ? "border-leaf-600 bg-leaf-50 text-leaf-700"
                           : "border-line-strong hover:border-ink-subtle bg-white",
                       )}
                     >
@@ -248,7 +247,7 @@ export default async function ProductPage({ params }: Props) {
                   <li key={highlight} className="flex items-start gap-2.5">
                     <Check
                       aria-hidden="true"
-                      className="mt-1 size-4 shrink-0 text-green-600"
+                      className="text-leaf-600 mt-1 size-4 shrink-0"
                       strokeWidth={3}
                     />
                     {highlight}
@@ -266,7 +265,7 @@ export default async function ProductPage({ params }: Props) {
             <section aria-labelledby="product-description">
               <h2
                 id="product-description"
-                className="font-display text-xl text-blue-900"
+                className="font-display text-ink text-xl"
               >
                 {t("description")}
               </h2>
@@ -300,10 +299,7 @@ export default async function ProductPage({ params }: Props) {
           aria-labelledby="product-details"
           className={cn(panel, "p-5 sm:p-6")}
         >
-          <h2
-            id="product-details"
-            className="font-display text-xl text-blue-900"
-          >
+          <h2 id="product-details" className="font-display text-ink text-xl">
             {t("details")}
           </h2>
           <dl className="divide-line mt-3 divide-y text-[0.9375rem]">
@@ -329,7 +325,7 @@ export default async function ProductPage({ params }: Props) {
         <section aria-labelledby="product-related">
           <h2
             id="product-related"
-            className="font-display text-2xl text-blue-900 sm:text-3xl"
+            className="font-display text-ink text-2xl sm:text-3xl"
           >
             {t("related", { category: related.name })}
           </h2>

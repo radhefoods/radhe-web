@@ -2,7 +2,6 @@ import { ChevronLeft, ChevronRight, SearchX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { ComponentProps } from "react";
 import { buttonStyles } from "@/components/ui/button";
-import { controlStyles } from "@/components/ui/field";
 import { listProducts } from "@/features/catalogue/data";
 import {
   SORTS,
@@ -23,16 +22,21 @@ type Href = ComponentProps<typeof Link>["href"];
 type BaseHref =
   "/products" | { pathname: "/category/[slug]"; params: { slug: string } };
 
+/** A filter as a pill: mist at rest, a leaf tint when it is on. */
 const toggle =
-  "flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md border-[1.5px] border-line-strong bg-white px-3 text-[0.9375rem] font-semibold select-none hover:border-ink-subtle has-checked:border-blue-600 has-checked:bg-blue-50 has-checked:text-blue-800 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-blue-600";
+  "has-checked:border-leaf-600 has-checked:bg-leaf-50 has-checked:text-leaf-700 has-focus-visible:outline-leaf-600 bg-mist hover:bg-cloud flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border-2 border-transparent px-4 text-sm font-bold select-none transition-colors duration-150 has-focus-visible:outline-3 has-focus-visible:outline-offset-2";
+/** "Reduced only" turns coral, the colour of a reduced price. */
+const toggleSale =
+  "has-checked:border-red-600 has-checked:bg-red-50 has-checked:text-red-600";
+const pageLink = "grid size-11 place-items-center rounded-full";
 
 /**
  * A list of products with sorting, filters and pages: the body of "All
  * products", of a search and of a category. Its state is the address.
  *
- * On wide screens the filters stand in a column on the left, like the
- * catalogue of a store, and the sorting above the products; on phones the
- * same filters are a row of toggles above the list.
+ * One toolbar above the products: the count, the filters as pills, and
+ * the sorting. The filters are the ones the API offers (orderable,
+ * reduced, search); the row is ready for more when the API has them.
  */
 export async function ProductListing({
   locale,
@@ -64,11 +68,7 @@ export async function ProductListing({
     }) as Href;
 
   return (
-    <section
-      aria-label={listName}
-      className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8"
-    >
-      {/* `contents`: the column and the toolbar are laid out by the grid. */}
+    <section aria-label={listName}>
       <FilterForm
         action={getPathname({ href: base, locale })}
         values={{
@@ -76,15 +76,41 @@ export async function ProductListing({
           onSale: state.onSale,
           orderable: state.orderable,
         }}
-        className="contents"
+        className="flex flex-wrap items-center justify-between gap-3"
       >
         {state.q && <input type="hidden" name="q" value={state.q} />}
-        <aside
-          aria-label={t("filters")}
-          className="border-line mb-4 rounded-xl border bg-white p-4 lg:sticky lg:top-36 lg:row-span-2 lg:mb-0"
+        <p
+          className="text-ink-muted text-[0.9375rem] font-semibold"
+          role="status"
         >
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-base">{t("filtersTitle")}</h2>
+          {t("resultCount", { count: page.total })}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="group"
+            aria-label={t("filtersTitle")}
+            className="flex flex-wrap items-center gap-2"
+          >
+            <label className={toggle}>
+              <input
+                type="checkbox"
+                name="orderable"
+                value="1"
+                defaultChecked={state.orderable}
+                className="accent-leaf-600 size-4"
+              />
+              {t("orderable")}
+            </label>
+            <label className={cn(toggle, toggleSale)}>
+              <input
+                type="checkbox"
+                name="onSale"
+                value="1"
+                defaultChecked={state.onSale}
+                className="size-4 accent-red-600"
+              />
+              {t("onSale")}
+            </label>
             {filtered && !state.q && (
               <Link
                 href={hrefFor({
@@ -93,60 +119,20 @@ export async function ProductListing({
                   orderable: false,
                   page: 1,
                 })}
-                className="rounded-xs text-sm font-semibold text-blue-700 hover:underline"
+                className="text-leaf-700 inline-flex min-h-11 items-center rounded-full px-2 text-sm font-semibold hover:underline"
               >
                 {t("reset")}
               </Link>
             )}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2 lg:flex-col">
-            <label className={toggle}>
-              <input
-                type="checkbox"
-                name="orderable"
-                value="1"
-                defaultChecked={state.orderable}
-                className="size-4 accent-blue-600"
-              />
-              {t("orderable")}
-            </label>
-            <label className={toggle}>
-              <input
-                type="checkbox"
-                name="onSale"
-                value="1"
-                defaultChecked={state.onSale}
-                className="size-4 accent-blue-600"
-              />
-              {t("onSale")}
-            </label>
-          </div>
-          {/* Only needed without scripts; with scripts changes apply at once. */}
-          <noscript>
-            <button
-              type="submit"
-              className={buttonStyles({ size: "sm", className: "mt-3" })}
-            >
-              {t("apply")}
-            </button>
-          </noscript>
-        </aside>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 lg:col-start-2">
-          <p className="text-ink-muted text-[0.9375rem]" role="status">
-            {t("resultCount", { count: page.total })}
-          </p>
-          <label className="flex items-center gap-2 text-[0.9375rem]">
-            <span className="text-ink-muted font-medium whitespace-nowrap max-sm:sr-only">
+          <label className="bg-mist flex min-h-11 items-center gap-2 rounded-full pr-3 pl-4 text-sm">
+            <span className="text-ink-subtle font-semibold whitespace-nowrap max-sm:sr-only">
               {t("sortLabel")}
             </span>
             <select
               name="sort"
               defaultValue={state.sort}
-              className={cn(
-                controlStyles,
-                "min-h-11 w-auto pr-8 font-semibold",
-              )}
+              className="text-ink min-h-9 max-w-44 rounded-full bg-transparent pr-1 font-bold"
             >
               {SORTS.map((sort) => (
                 <option key={sort} value={sort}>
@@ -155,14 +141,20 @@ export async function ProductListing({
               ))}
             </select>
           </label>
+          {/* Only needed without scripts; with scripts changes apply at once. */}
+          <noscript>
+            <button type="submit" className={buttonStyles({ size: "sm" })}>
+              {t("apply")}
+            </button>
+          </noscript>
         </div>
       </FilterForm>
 
-      <div className="mt-4 lg:col-start-2 lg:mt-0">
+      <div className="mt-5">
         {page.items.length === 0 ? (
-          <div className="border-line flex flex-col items-center gap-3 rounded-xl border bg-white px-6 py-14 text-center">
+          <div className="bg-mist flex flex-col items-center gap-3 rounded-xl px-6 py-14 text-center">
             <SearchX aria-hidden="true" className="text-ink-subtle size-10" />
-            <h2 className="font-display text-2xl text-blue-900">
+            <h2 className="font-display text-ink text-2xl">
               {t("emptyTitle")}
             </h2>
             <p className="text-ink-muted max-w-md">
@@ -183,7 +175,7 @@ export async function ProductListing({
           </div>
         ) : (
           <>
-            <ProductGrid products={page.items} headingLevel="h2" />
+            <ProductGrid products={page.items} headingLevel="h2" wide />
             <JsonLd data={itemListJsonLd(listName, page.items, locale)} />
           </>
         )}
@@ -219,10 +211,11 @@ export async function ProductListing({
                     total: page.totalPages,
                   })}
                   className={cn(
-                    "grid size-11 place-items-center rounded-md text-[0.9375rem] font-bold tabular-nums",
+                    pageLink,
+                    "text-[0.9375rem] font-bold tabular-nums transition-colors duration-150",
                     number === page.page
-                      ? "bg-blue-900 text-white"
-                      : "border-line border bg-white hover:border-blue-600",
+                      ? "bg-leaf-600 text-white"
+                      : "bg-mist hover:bg-cloud",
                   )}
                 >
                   {number}
@@ -258,10 +251,9 @@ function PageLink({
   rel: "prev" | "next";
   children: React.ReactNode;
 }) {
-  const className = "grid size-11 place-items-center rounded-md";
   if (!href) {
     return (
-      <span aria-hidden="true" className={cn(className, "text-ink-subtle/50")}>
+      <span aria-hidden="true" className={cn(pageLink, "text-ink-subtle/50")}>
         {children}
       </span>
     );
@@ -272,8 +264,8 @@ function PageLink({
       rel={rel}
       aria-label={label}
       className={cn(
-        className,
-        "border-line border bg-white hover:border-blue-600",
+        pageLink,
+        "bg-mist hover:bg-cloud transition-colors duration-150",
       )}
     >
       {children}

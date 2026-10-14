@@ -36,7 +36,7 @@ export function Sheet({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-blue-900/45" />
+        <Dialog.Overlay className="bg-ink/50 fixed inset-0 z-50" />
         <Dialog.Content
           aria-describedby={undefined}
           onCloseAutoFocus={(event) => {
@@ -51,7 +51,7 @@ export function Sheet({
           )}
         >
           <div className="border-line flex items-center justify-between gap-4 border-b px-5 py-4">
-            <Dialog.Title className="font-display text-xl text-blue-900">
+            <Dialog.Title className="font-display text-ink text-xl">
               {title}
             </Dialog.Title>
             <Dialog.Close

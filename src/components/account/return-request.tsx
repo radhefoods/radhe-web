@@ -159,7 +159,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
     <div className="flex flex-col gap-5">
       {back}
       <header className="space-y-2">
-        <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+        <h1 className="font-display text-ink text-3xl sm:text-4xl">
           {t("formTitle")}
         </h1>
         <p className="text-ink-muted max-w-2xl">
@@ -183,7 +183,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                   key={item.productId}
                   className={cn(
                     "flex flex-col gap-3 rounded-lg border p-4",
-                    active ? "border-blue-600 bg-blue-50" : "border-line",
+                    active ? "border-leaf-600 bg-leaf-50" : "border-line",
                   )}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">

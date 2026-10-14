@@ -11,7 +11,7 @@ export function PayLaterNote({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-md border border-green-100 bg-green-50 px-4 py-3.5 text-green-700",
+        "border-leaf-100 bg-leaf-50 text-leaf-700 flex items-start gap-3 rounded-md border px-4 py-3.5",
         className,
       )}
     >

@@ -24,7 +24,7 @@ export default async function SignInPage({ params, searchParams }: Props) {
     <div className="container-page py-10 sm:py-16">
       <div className="mx-auto flex max-w-md flex-col gap-6">
         <header className="space-y-3">
-          <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+          <h1 className="font-display text-ink text-3xl sm:text-4xl">
             {t("title")}
           </h1>
           <p className="text-ink-muted">

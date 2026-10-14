@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 /** The look of a text input, also for selects and textareas. */
 export const controlStyles =
-  "min-h-12 w-full rounded-md border-[1.5px] border-line-strong bg-white px-3.5 text-base text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-blue-600 focus-visible:outline-offset-1 disabled:bg-cloud disabled:text-ink-subtle disabled:hover:border-line-strong aria-invalid:border-red-600 aria-invalid:bg-red-50";
+  "min-h-12 w-full rounded-md border-[1.5px] border-line-strong bg-white px-3.5 text-base text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 focus-visible:outline-offset-1 disabled:bg-cloud disabled:text-ink-subtle disabled:hover:border-line-strong aria-invalid:border-red-600 aria-invalid:bg-red-50";
 
 export interface TextFieldProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,

@@ -58,9 +58,9 @@ export function AccountShell({ children }: { children: ReactNode }) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center rounded-md px-3.5 text-[0.9375rem] font-semibold whitespace-nowrap",
+                    "flex min-h-11 items-center rounded-full px-4 text-[0.9375rem] font-semibold whitespace-nowrap transition-colors duration-150",
                     active
-                      ? "bg-blue-900 text-white"
+                      ? "bg-leaf-600 text-white"
                       : "text-ink-muted hover:bg-mist hover:text-ink",
                   )}
                 >

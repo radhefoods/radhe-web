@@ -27,11 +27,9 @@ export function useOrders() {
 export function NoOrders() {
   const t = useTranslations("account");
   return (
-    <div className="border-line flex flex-col items-center gap-3 rounded-xl border bg-white px-6 py-14 text-center">
+    <div className="bg-mist flex flex-col items-center gap-3 rounded-xl px-6 py-14 text-center">
       <PackageOpen aria-hidden="true" className="text-ink-subtle size-10" />
-      <h2 className="font-display text-xl text-blue-900">
-        {t("noOrdersTitle")}
-      </h2>
+      <h2 className="font-display text-ink text-xl">{t("noOrdersTitle")}</h2>
       <p className="text-ink-muted max-w-md">{t("noOrdersText")}</p>
       <Link href="/products" className={buttonStyles()}>
         {t("noOrdersCta")}
@@ -48,7 +46,7 @@ export function OrderList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+      <h1 className="font-display text-ink text-3xl sm:text-4xl">
         {t("title")}
       </h1>
       {query.error && orders.length === 0 ? (

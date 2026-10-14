@@ -1,9 +1,12 @@
 import { cn } from "@/lib/cn";
 
 /**
- * The Radhe wordmark with the peacock feather, as delivered. Only one
- * version exists, drawn for light backgrounds: use it on white or mist,
- * never on the dark bands, and never recolour it.
+ * The Radhe wordmark with the peacock feather. The wordmark is the leaf
+ * green of the shop (recoloured from the delivered blue with the owner's
+ * approval of 2026-10-14; the feather is untouched, the shape unchanged).
+ * The files are drawn for light backgrounds: use them on white or mist,
+ * not on the dark bands. `logo/radhe-logo-green.png` is the full-size
+ * source; the delivered blue original is next to it.
  */
 export function Logo({ className }: { className?: string }) {
   return (

@@ -39,8 +39,8 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="grid grid-cols-[5rem_1fr] gap-x-4 gap-y-3 py-5 sm:grid-cols-[6.5rem_1fr]">
-      <div className="bg-mist row-span-2 aspect-square self-start overflow-hidden rounded-md">
+    <li className="bg-mist grid grid-cols-[5rem_1fr] gap-x-4 gap-y-3 rounded-lg p-4 sm:grid-cols-[6.5rem_1fr] sm:p-5">
+      <div className="row-span-2 aspect-square self-start overflow-hidden rounded-md bg-white p-2">
         <ProductImage
           image={product?.image ?? null}
           alt=""
@@ -76,7 +76,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.productId, 0)}
-          className="text-ink-muted hover:bg-mist hover:text-ink -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-sm"
+          className="text-ink-muted hover:text-ink -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full hover:bg-white"
         >
           <Trash2 aria-hidden="true" className="size-5" />
         </button>
@@ -178,11 +178,9 @@ export function CartView() {
 
   if (cart.ready && cart.items.length === 0) {
     return (
-      <div className="border-line flex flex-col items-center gap-4 rounded-xl border bg-white px-6 py-16 text-center">
+      <div className="bg-mist flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center">
         <ShoppingBag aria-hidden="true" className="text-ink-subtle size-10" />
-        <h2 className="font-display text-xl text-blue-900">
-          {t("emptyTitle")}
-        </h2>
+        <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
         <p className="text-ink-muted max-w-md">{t("emptyText")}</p>
         <Link href="/products" className={buttonStyles()}>
           {t("emptyCta")}
@@ -215,7 +213,7 @@ export function CartView() {
           ) : (
             <ErrorAlert error={cart.problem} />
           ))}
-        <ul className="border-line divide-line divide-y rounded-xl border bg-white px-4 sm:px-5">
+        <ul className="flex flex-col gap-3">
           {lines.map((line) => (
             <CartLine key={line.productId} line={line} updating={updating} />
           ))}
@@ -224,12 +222,12 @@ export function CartView() {
 
       <aside
         aria-label={t("summary")}
-        className="border-line shadow-card flex flex-col gap-4 rounded-xl border bg-white p-5 lg:sticky lg:top-44"
+        className="bg-mist flex flex-col gap-4 rounded-xl p-5 sm:p-6 lg:sticky lg:top-44"
       >
-        <h2 className="font-display text-xl text-blue-900">{t("summary")}</h2>
+        <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
 
         {bill.cargo && (
-          <div className="bg-mist flex flex-col gap-1 rounded-md px-3.5 py-3 text-sm">
+          <div className="flex flex-col gap-1 rounded-md bg-white px-3.5 py-3 text-sm">
             <p>
               <span className="font-bold">{tCargo("orderBy")}</span>{" "}
               {formatDeadline(bill.cargo.orderCloseAt, locale)}
@@ -242,7 +240,7 @@ export function CartView() {
                 locale,
               )}
             </p>
-            <CountdownText className="text-saffron-800 font-bold tabular-nums" />
+            <CountdownText className="text-leaf-700 font-bold tabular-nums" />
           </div>
         )}
 
@@ -289,14 +287,14 @@ export function CartView() {
 
         <Link
           href="/products"
-          className="rounded-xs text-center font-semibold text-blue-700 underline underline-offset-4"
+          className="text-leaf-700 rounded-xs text-center font-semibold underline underline-offset-4"
         >
           {t("continue")}
         </Link>
       </aside>
 
       {/* On phones the total and the way to the checkout stay in reach. */}
-      <div className="border-line fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-4 border-t bg-white px-4 py-2.5 md:hidden">
+      <div className="shadow-header fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-4 bg-white px-4 py-2.5 md:hidden">
         <p className="flex min-w-0 flex-1 flex-col leading-tight">
           <span className="text-ink-muted text-sm">{t("total")}</span>
           <span

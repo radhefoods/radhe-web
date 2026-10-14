@@ -36,7 +36,7 @@ export function CartSummaryBar() {
     <aside aria-label={t("title")} className="md:hidden">
       <Link
         href="/cart"
-        className="shadow-float fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex min-h-12 items-center justify-between gap-3 rounded-lg bg-blue-900 px-4 text-[0.9375rem] font-bold text-white"
+        className="shadow-float bg-leaf-600 fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex min-h-14 items-center justify-between gap-3 rounded-full py-1.5 pr-1.5 pl-5 text-[0.9375rem] font-bold text-white"
       >
         <span className="tabular-nums">
           {t("barItems", { count: cart.units })}
@@ -44,7 +44,7 @@ export function CartSummaryBar() {
             <> · {formatMoney(bill.totals.total, locale)}</>
           )}
         </span>
-        <span className="flex items-center gap-1">
+        <span className="text-leaf-700 flex min-h-11 items-center gap-1 rounded-full bg-white pr-3 pl-4">
           {t("barView")}
           <ChevronRight aria-hidden="true" className="size-5" />
         </span>

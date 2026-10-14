@@ -21,7 +21,7 @@ export default async function CheckoutLayout({
   const tNav = await getTranslations("nav");
   return (
     <>
-      <header className="border-line border-b bg-white">
+      <header className="shadow-header relative z-10 bg-white">
         <div className="container-page flex h-16 items-center justify-between gap-4">
           <Link href="/" aria-label={tNav("logoHome")} className="rounded-sm">
             <Logo className="h-9" />
@@ -29,7 +29,7 @@ export default async function CheckoutLayout({
           <div className="flex items-center gap-3">
             <Link
               href="/cart"
-              className="hover:bg-mist flex min-h-11 items-center gap-1 rounded-sm px-2 text-[0.9375rem] font-semibold"
+              className="bg-mist hover:bg-cloud flex min-h-11 items-center gap-1 rounded-full pr-4 pl-2.5 text-[0.9375rem] font-semibold transition-colors duration-150"
             >
               <ChevronLeft aria-hidden="true" className="size-5" />
               {t("back")}

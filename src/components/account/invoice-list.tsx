@@ -25,7 +25,7 @@ export function InvoiceList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-3xl text-blue-900 sm:text-4xl">
+      <h1 className="font-display text-ink text-3xl sm:text-4xl">
         {t("title")}
       </h1>
       {query.error && documents.length === 0 ? (
@@ -40,7 +40,7 @@ export function InvoiceList() {
           <Skeleton className="h-16 rounded-lg" />
         </div>
       ) : documents.length === 0 ? (
-        <p className="border-line text-ink-muted rounded-xl border bg-white px-6 py-10 text-center">
+        <p className="bg-mist text-ink-muted rounded-xl px-6 py-10 text-center">
           {t("empty")}
         </p>
       ) : (
