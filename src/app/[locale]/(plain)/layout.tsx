@@ -20,7 +20,7 @@ export default async function PlainLayout({
       <header className="shadow-header relative z-10 bg-white">
         <div className="container-page flex h-16 items-center">
           <Link href="/" aria-label={t("logoHome")} className="rounded-sm">
-            <Logo className="h-9" />
+            <Logo className="h-10 md:h-11" />
           </Link>
         </div>
       </header>

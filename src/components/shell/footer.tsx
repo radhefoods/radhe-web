@@ -47,7 +47,7 @@ export async function Footer({ categories }: { categories: Category[] }) {
     <footer className="bg-mist mt-16 pb-36 md:pb-0">
       <div className="container-page grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="space-y-4">
-          <Logo className="h-11" />
+          <Logo className="h-12 sm:h-14" />
           <p className="text-ink-muted max-w-sm text-[0.9375rem]">
             {t("about")}
           </p>

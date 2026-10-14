@@ -83,7 +83,7 @@ export async function Header({
             aria-label={t("logoHome")}
             className="mr-auto shrink-0 rounded-sm lg:mr-0"
           >
-            <Logo className="h-10 lg:h-11" />
+            <Logo className="h-11 md:h-12 lg:h-15" />
           </Link>
 
           <SearchForm
