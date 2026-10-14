@@ -47,9 +47,9 @@ export function AccountOverview() {
       {toPay.length > 0 && (
         <section
           aria-labelledby="account-to-pay"
-          className="rounded-xl bg-lime-100 p-5 sm:p-6"
+          className="bg-wheat-100 rounded-xl p-5 sm:p-6"
         >
-          <h2 id="account-to-pay" className="text-lg font-bold text-lime-800">
+          <h2 id="account-to-pay" className="text-wheat-800 text-lg font-bold">
             {t("toPayTitle")}
           </h2>
           <ul className="mt-2 flex flex-col gap-1">
@@ -60,7 +60,7 @@ export function AccountOverview() {
                     pathname: "/account/orders/[orderNumber]",
                     params: { orderNumber: order.orderNumber },
                   }}
-                  className="flex min-h-11 items-center rounded-xs font-semibold text-lime-800 underline underline-offset-4"
+                  className="text-wheat-800 flex min-h-11 items-center rounded-xs font-semibold underline underline-offset-4"
                 >
                   {t("toPayItem", {
                     orderNumber: order.orderNumber,

@@ -88,7 +88,7 @@ export function ProductPurchase({
       />
 
       {hints.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-sm font-semibold text-lime-800">
+        <ul className="text-wheat-800 flex flex-col gap-0.5 text-sm font-semibold">
           {hints.map((hint) => (
             <li key={hint}>{hint}</li>
           ))}

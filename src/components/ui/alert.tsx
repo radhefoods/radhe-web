@@ -6,7 +6,7 @@ export type AlertTone = "info" | "good" | "warn" | "bad";
 const TONES: Record<AlertTone, string> = {
   info: "border-line bg-mist text-ink",
   good: "border-leaf-100 bg-leaf-50 text-leaf-700",
-  warn: "border-lime-200 bg-lime-100 text-lime-800",
+  warn: "border-wheat-200 bg-wheat-100 text-wheat-800",
   bad: "border-red-200 bg-red-50 text-red-800",
 };
 

@@ -26,7 +26,7 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
   [
     {
       group:
-        "Leaf: 600 for every action, 700 for hover and text on a tint, 900 to 700 for the woven dark band",
+        "Leaf: 600 for every action, 700 for hover and text on a tint; 900 through moss to olive for the woven dark band",
       items: [
         ["50", "bg-leaf-50"],
         ["100", "bg-leaf-100"],
@@ -38,6 +38,8 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
         ["700", "bg-leaf-700"],
         ["800", "bg-leaf-800"],
         ["900", "bg-leaf-900"],
+        ["moss", "bg-moss"],
+        ["olive", "bg-olive"],
       ],
     },
     {
@@ -55,14 +57,14 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
     },
     {
       group:
-        "Lime, the highlight: fills and big numerals only, 800 for text on the tints",
+        "Wheat, the highlight: fills and big numerals only, 800 for text on the tints",
       items: [
-        ["lime-50", "bg-lime-50"],
-        ["lime-100", "bg-lime-100"],
-        ["lime-200", "bg-lime-200"],
-        ["lime-400", "bg-lime-400"],
-        ["lime-500", "bg-lime-500"],
-        ["lime-800", "bg-lime-800"],
+        ["wheat-50", "bg-wheat-50"],
+        ["wheat-100", "bg-wheat-100"],
+        ["wheat-200", "bg-wheat-200"],
+        ["wheat-400", "bg-wheat-400"],
+        ["wheat-500", "bg-wheat-500"],
+        ["wheat-800", "bg-wheat-800"],
       ],
     },
     {
@@ -184,7 +186,7 @@ export default async function StyleguidePage({
           <Button size="lg">Large, 52 px</Button>
         </div>
         <div className="hero-band flex flex-wrap gap-3 rounded-lg p-4">
-          <Button variant="lime">Lime, on the dark band</Button>
+          <Button variant="wheat">Wheat, on the dark band</Button>
           <Button variant="ghost">Ghost, on the dark band</Button>
         </div>
       </Section>
@@ -192,7 +194,7 @@ export default async function StyleguidePage({
       <Section title="Status chips">
         <div className="flex flex-wrap gap-2">
           <Chip tone="leaf">Confirmed</Chip>
-          <Chip tone="lime">Preparing</Chip>
+          <Chip tone="wheat">Preparing</Chip>
           <Chip tone="forest">On its way</Chip>
           <Chip tone="green">Delivered</Chip>
           <Chip tone="red">Delivery failed</Chip>
@@ -200,7 +202,7 @@ export default async function StyleguidePage({
         </div>
         <div className="flex flex-wrap gap-2">
           <Chip tone="mute">Pay after delivery</Chip>
-          <Chip tone="lime">Payment due</Chip>
+          <Chip tone="wheat">Payment due</Chip>
           <Chip tone="red">Overdue</Chip>
           <Chip tone="green">Paid</Chip>
         </div>

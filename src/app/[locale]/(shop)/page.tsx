@@ -77,7 +77,7 @@ function SectionHeader({
       {href && (
         <Link
           href={href}
-          className="bg-leaf-50 text-leaf-700 hover:text-ink inline-flex min-h-10 items-center gap-1 rounded-full px-4 text-[0.9375rem] font-bold whitespace-nowrap transition-colors duration-150 hover:bg-lime-400"
+          className="bg-leaf-50 text-leaf-700 hover:text-ink hover:bg-wheat-400 inline-flex min-h-10 items-center gap-1 rounded-full px-4 text-[0.9375rem] font-bold whitespace-nowrap transition-colors duration-150"
         >
           {link}
           <ArrowRight aria-hidden="true" className="size-4" />
@@ -157,7 +157,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             >
               {t.rich("title", {
                 em: (chunks) => (
-                  <em className="text-lime-400 not-italic">{chunks}</em>
+                  <em className="text-wheat-400 not-italic">{chunks}</em>
                 ),
               })}
             </h1>
@@ -167,7 +167,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/products"
-                className={buttonStyles({ variant: "lime", size: "lg" })}
+                className={buttonStyles({ variant: "wheat", size: "lg" })}
               >
                 {open ? t("ctaShop") : t("ctaBrowse")}
                 <ArrowRight aria-hidden="true" className="size-5" />
@@ -291,7 +291,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               >
                 <span
                   aria-hidden="true"
-                  className="font-display text-ink grid size-10 place-items-center rounded-full bg-lime-400 text-lg"
+                  className="font-display text-ink bg-wheat-400 grid size-10 place-items-center rounded-full text-lg"
                 >
                   {index + 1}
                 </span>
@@ -320,7 +320,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             <p className={bandText}>{t("newsText")}</p>
             <Link
               href="/account/profile"
-              className={buttonStyles({ variant: "lime", className: "mt-5" })}
+              className={buttonStyles({ variant: "wheat", className: "mt-5" })}
             >
               {t("newsCta")}
             </Link>

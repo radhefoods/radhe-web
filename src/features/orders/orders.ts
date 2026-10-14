@@ -21,7 +21,7 @@ export const INVOICES_QUERY_KEY = ["invoices"] as const;
 
 export const ORDER_STATUS_TONE: Record<OrderStatus, ChipTone> = {
   confirmed: "leaf",
-  preparing: "lime",
+  preparing: "wheat",
   dispatched: "forest",
   delivered: "green",
   delivery_failed: "red",
@@ -31,7 +31,7 @@ export const ORDER_STATUS_TONE: Record<OrderStatus, ChipTone> = {
 
 export const PAYMENT_STATUS_TONE: Record<PaymentStatus, ChipTone> = {
   not_enabled: "mute",
-  due: "lime",
+  due: "wheat",
   overdue: "red",
   paid: "green",
   waived: "mute",
@@ -39,7 +39,7 @@ export const PAYMENT_STATUS_TONE: Record<PaymentStatus, ChipTone> = {
 };
 
 export const RETURN_STATUS_TONE: Record<ReturnStatus, ChipTone> = {
-  requested: "lime",
+  requested: "wheat",
   approved: "leaf",
   rejected: "red",
   completed: "green",

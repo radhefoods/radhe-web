@@ -58,8 +58,8 @@ export function LocaleSwitcher({
   tone = "light",
   className,
 }: {
-  /** `lime`: on the lime promise strip at the top of the page. */
-  tone?: "light" | "lime";
+  /** `wheat`: on the wheat promise strip at the top of the page. */
+  tone?: "light" | "wheat";
   className?: string;
 }) {
   const t = useTranslations("language");
@@ -68,14 +68,14 @@ export function LocaleSwitcher({
   const pathname = usePathname();
   const params = useParams();
   const { alternates } = useContext(AlternatesContext);
-  const lime = tone === "lime";
+  const wheat = tone === "wheat";
 
   return (
     <nav aria-label={tNav("switchTo")} className={className}>
       <ul
         className={cn(
           "flex items-center gap-0.5 rounded-full p-0.5 text-sm font-bold",
-          lime ? "bg-ink/8" : "bg-mist",
+          wheat ? "bg-ink/8" : "bg-mist",
         )}
       >
         {locales.map((other) => {
@@ -96,11 +96,11 @@ export function LocaleSwitcher({
                 aria-label={t(other)}
                 className={cn(
                   "grid place-items-center rounded-full px-2.5 uppercase",
-                  lime ? "h-7 min-w-9 text-xs" : "h-9 min-w-10",
+                  wheat ? "h-7 min-w-9 text-xs" : "h-9 min-w-10",
                   active &&
-                    (lime ? "bg-ink text-lime-400" : "bg-ink text-white"),
+                    (wheat ? "bg-ink text-wheat-400" : "bg-ink text-white"),
                   !active &&
-                    (lime
+                    (wheat
                       ? "text-ink hover:bg-ink/10"
                       : "text-ink-muted hover:bg-cloud hover:text-ink"),
                 )}

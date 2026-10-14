@@ -66,7 +66,7 @@ export default async function HowItWorksPage({ params }: Props) {
           >
             <span
               aria-hidden="true"
-              className="font-display text-ink grid size-10 place-items-center rounded-full bg-lime-400 text-lg"
+              className="font-display text-ink bg-wheat-400 grid size-10 place-items-center rounded-full text-lg"
             >
               {index + 1}
             </span>

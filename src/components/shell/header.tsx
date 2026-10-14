@@ -21,7 +21,7 @@ import { SearchForm } from "./search-form";
 
 /**
  * The top of every shop page, in three tiers like the stores people know:
- * the lime strip with the promises of the shop and the language (wide
+ * the wheat strip with the promises of the shop and the language (wide
  * screens only), the white bar with logo, the pill search, account and the
  * cart pill, and the category chips with the offers at their end. On phones
  * the search moves under the logo, the categories sit behind the menu
@@ -53,7 +53,7 @@ export async function Header({
       {/* A named region: every part of the page belongs to a landmark. */}
       <section
         aria-label={tSite("name")}
-        className="text-ink hidden bg-lime-400 lg:block"
+        className="text-ink bg-wheat-400 hidden lg:block"
       >
         <div className="container-page flex h-10 items-center justify-between gap-6 text-[0.8125rem] font-semibold">
           <ul className="flex items-center gap-6">
@@ -72,7 +72,7 @@ export async function Header({
               </li>
             )}
           </ul>
-          <LocaleSwitcher tone="lime" />
+          <LocaleSwitcher tone="wheat" />
         </div>
       </section>
 

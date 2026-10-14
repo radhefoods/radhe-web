@@ -2,16 +2,16 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * leaf: confirmed, in progress. forest: on its way. lime: needs attention
+ * leaf: confirmed, in progress. forest: on its way. wheat: needs attention
  * (preparing, payment due). green: a good outcome (delivered, paid), solid
  * so it stands apart from leaf. red: failed, overdue. mute: over.
  */
-export type ChipTone = "leaf" | "forest" | "lime" | "green" | "red" | "mute";
+export type ChipTone = "leaf" | "forest" | "wheat" | "green" | "red" | "mute";
 
 const TONES: Record<ChipTone, string> = {
   leaf: "bg-leaf-50 text-leaf-700",
   forest: "bg-leaf-900 text-white",
-  lime: "bg-lime-100 text-lime-800",
+  wheat: "bg-wheat-100 text-wheat-800",
   green: "bg-leaf-600 text-white",
   red: "bg-red-50 text-red-800",
   mute: "bg-cloud text-ink-muted",
@@ -42,7 +42,7 @@ export function Chip({
           aria-hidden="true"
           className={cn(
             "size-1.5 rounded-full",
-            tone === "forest" ? "bg-lime-400" : "bg-current",
+            tone === "forest" ? "bg-wheat-400" : "bg-current",
           )}
         />
       )}

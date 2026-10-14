@@ -717,7 +717,7 @@ export function OrderDetailView({
                   {formatMoney(item.unitPrice, locale)}
                 </p>
                 {delivered && item.deliveredQuantity !== item.quantity && (
-                  <p className="text-sm font-semibold text-lime-800">
+                  <p className="text-wheat-800 text-sm font-semibold">
                     {t("deliveredQuantity", {
                       delivered: item.deliveredQuantity,
                       ordered: item.quantity,
@@ -725,7 +725,7 @@ export function OrderDetailView({
                   </p>
                 )}
                 {item.returnedQuantity > 0 && (
-                  <p className="text-sm font-semibold text-lime-800">
+                  <p className="text-wheat-800 text-sm font-semibold">
                     {t("returnedQuantity", { count: item.returnedQuantity })}
                   </p>
                 )}

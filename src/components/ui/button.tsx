@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 import { Spinner } from "./spinner";
 
 export type ButtonVariant =
-  "primary" | "secondary" | "quiet" | "lime" | "ghost" | "pay" | "danger";
+  "primary" | "secondary" | "quiet" | "wheat" | "ghost" | "pay" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
@@ -12,7 +12,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
     "border-line-strong bg-white text-leaf-700 hover:border-leaf-600 hover:bg-leaf-50",
   quiet: "px-3 text-leaf-700 hover:bg-leaf-50",
   // The one action on a dark band: the highlight, with dark text.
-  lime: "bg-lime-400 text-ink hover:bg-lime-500",
+  wheat: "bg-wheat-400 text-ink hover:bg-wheat-500",
   ghost: "border-white/50 text-white hover:border-white/80 hover:bg-white/10",
   // Paying is good news: the deeper leaf, not the leaf of ordering.
   pay: "bg-leaf-700 text-white hover:bg-leaf-800",

@@ -61,7 +61,7 @@ export function BillTotals({
         <div
           className={cn(
             row,
-            "mt-1 rounded-md bg-lime-100 px-3.5 py-2.5 font-bold text-lime-800",
+            "bg-wheat-100 text-wheat-800 mt-1 rounded-md px-3.5 py-2.5 font-bold",
           )}
         >
           <dt>{t("dueToday")}</dt>
@@ -107,7 +107,7 @@ export function FreeDeliveryProgress({
         <div
           className={cn(
             "h-full rounded-full transition-[width] duration-300",
-            reached ? "bg-leaf-600" : "bg-lime-400",
+            reached ? "bg-leaf-600" : "bg-wheat-400",
           )}
           style={{ width: `${percent}%` }}
         />

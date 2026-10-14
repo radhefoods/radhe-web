@@ -9,7 +9,7 @@ import type { Locale } from "@/i18n/routing";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
 
-/** A small lime number on the cart icon. Nothing while the cart is empty. */
+/** A small wheat number on the cart icon. Nothing while the cart is empty. */
 export function CartBadge({ className }: { className?: string }) {
   const { units, ready } = useCart();
   if (!ready || units === 0) return null;
@@ -17,7 +17,7 @@ export function CartBadge({ className }: { className?: string }) {
     <span
       aria-hidden="true"
       className={cn(
-        "text-ink absolute -top-1 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-lime-400 px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2 ring-white",
+        "text-ink bg-wheat-400 absolute -top-1 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2 ring-white",
         className,
       )}
     >
@@ -28,7 +28,7 @@ export function CartBadge({ className }: { className?: string }) {
 
 /**
  * The cart in the header: a leaf pill with the icon, on wide screens the
- * total of the cart, and the number of units in a lime bubble at its end,
+ * total of the cart, and the number of units in a wheat bubble at its end,
  * as the stores people know show it. The spoken label carries the count.
  */
 export function CartLink({ className }: { className?: string }) {
@@ -60,7 +60,7 @@ export function CartLink({ className }: { className?: string }) {
       </span>
       <span
         aria-hidden="true"
-        className="text-ink grid h-9 min-w-9 place-items-center rounded-full bg-lime-400 px-2 text-sm font-bold tabular-nums"
+        className="text-ink bg-wheat-400 grid h-9 min-w-9 place-items-center rounded-full px-2 text-sm font-bold tabular-nums"
       >
         {count > 99 ? "99+" : count}
       </span>
