@@ -125,21 +125,123 @@ test.describe("finding products", () => {
     ).toBeVisible();
   });
 
-  test("a filter applies at once, lives in the address and can be reset", async ({
+  test("filters apply at once, live in the address and come off one by one", async ({
     page,
+    isMobile,
   }) => {
+    test.skip(isMobile, "the panel of wide screens");
     await page.goto("/en/products");
     await expect(page.getByText("22 products")).toBeVisible();
 
-    await page.getByLabel("Reduced only").check();
+    // Two brands are "any of them"; the counts say what each would leave.
+    await page.getByText("Brand", { exact: true }).click();
+    await page.getByLabel("MDH").check();
+    await expect(page).toHaveURL(/brand=MDH/);
+    await expect(page.getByText("3 products")).toBeVisible();
+    await expect(page.getByLabel("Amul")).toBeEnabled();
+    await page.getByLabel("Amul").check();
+    await expect(page).toHaveURL(/brand=MDH&brand=Amul/);
+    await expect(page.getByText("4 products")).toBeVisible();
+    await expect(card(page, "Pure Ghee")).toBeVisible();
+    await expect(card(page, "Basmati Rice")).toHaveCount(0);
+    // The one that was ticked keeps the focus.
+    await expect(page.getByLabel("Amul")).toBeFocused();
+
+    // The chips take one filter off each.
+    const applied = page.getByRole("list", { name: "Applied filters" });
+    await expect(applied.getByRole("link")).toHaveText([
+      "MDH",
+      "Amul",
+      "Clear all filters",
+    ]);
+    await applied.getByRole("link", { name: "Remove filter: Amul" }).click();
+    await expect(page).toHaveURL(/brand=MDH$/);
+    await expect(page.getByText("3 products")).toBeVisible();
+
+    await applied.getByRole("link", { name: "Clear all filters" }).click();
+    await expect(page).toHaveURL(/\/en\/products$/);
+    await expect(page.getByText("22 products")).toBeVisible();
+  });
+
+  test("the offers switch narrows the list and the sorting reorders it", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "the panel of wide screens");
+    await page.goto("/en/products");
+    await page.getByLabel("Offers").check();
     await expect(page).toHaveURL(/onSale=1/);
     await expect(page.getByText("3 products")).toBeVisible();
-    await expect(card(page, "Chakki Atta")).toHaveCount(0);
+    await page.getByText(/^Sort by:/).click();
+    await page.getByLabel("Price: low to high").check();
+    await expect(page).toHaveURL(/sort=price_asc/);
+    await expect(
+      page.getByRole("article").getByRole("heading", { level: 2 }),
+    ).toHaveText(["Chana Dal", "Pure Ghee", "Basmati Rice"]);
+  });
 
-    await page.getByRole("link", { name: "Reset" }).click();
-    await expect(page).not.toHaveURL(/onSale/);
-    await expect(page.getByText("22 products")).toBeVisible();
-    await expect(page.getByLabel("Reduced only")).not.toBeChecked();
+  test("when nothing is left, the page says which filter to drop", async ({
+    page,
+  }) => {
+    await page.goto("/en/products?brand=MDH&storageType=chilled");
+    await expect(
+      page.getByRole("heading", { name: "No products match" }),
+    ).toBeVisible();
+    await page
+      .getByRole("link", {
+        name: "Remove \u201cChilled\u201d to see 3 products",
+      })
+      .click();
+    await expect(page).toHaveURL(/\/en\/products\?brand=MDH$/);
+    await expect(page.getByText("3 products")).toBeVisible();
+  });
+
+  test("a list shows only the filters its products support, in German too", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "the panel of wide screens");
+    await page.goto("/de/kategorie/gewuerze");
+    await expect(page.getByText("Marke", { exact: true })).toBeVisible();
+    // One storage type, no offers: nothing to choose.
+    await expect(page.getByText("Lagerung", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Angebote", { exact: true })).toHaveCount(0);
+    await page.getByText("Packungsgr\u00f6\u00dfe", { exact: true }).click();
+    await page.getByLabel("400 g").check();
+    await expect(page).toHaveURL(/packSize=400g/);
+    await expect(page.getByText("2 Produkte")).toBeVisible();
+    // The matching size stands for its product.
+    await expect(
+      card(page, "Kurkuma, gemahlen").getByRole("button", {
+        name: "400 g",
+        pressed: true,
+      }),
+    ).toBeVisible();
+  });
+
+  test("on a phone the filters live in a sheet that counts as you choose", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, "phones only");
+    await page.goto("/en/products");
+    await page.getByRole("button", { name: "Filters" }).click();
+    const sheet = page.getByRole("dialog", { name: "Filters" });
+    await expect(
+      sheet.getByRole("button", { name: "Show 22 products" }),
+    ).toBeVisible();
+    await sheet.getByLabel("MDH").check();
+    await expect(page).toHaveURL(/brand=MDH/);
+    await sheet.getByRole("button", { name: "Show 3 products" }).click();
+    await expect(sheet).toBeHidden();
+    await expect(page.getByRole("button", { name: "Filters 1" })).toBeFocused();
+    await expect(
+      page
+        .getByRole("list", { name: "Applied filters" })
+        .getByRole("link", { name: "Remove filter: MDH" }),
+    ).toBeVisible();
+    await expect(card(page, "Garam Masala")).toBeVisible();
+    await expect(card(page, "Basmati Rice")).toHaveCount(0);
   });
 
   test("a category lists its products and those of its sub-categories", async ({

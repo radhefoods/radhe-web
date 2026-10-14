@@ -725,8 +725,10 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 | `locale` | `en` \| `de` | |
 | `category` | string (slug) | Products of the category and its sub-categories. |
 | `q` | string, 2–80 chars | Search. Every word must begin a word of the product name, subtitle, SKU, brand, tags or search keywords (umlauts are folded: `musli` finds `Müsli`). |
-| `tag` | string | Exact tag. |
-| `brand` | string, ≤80 | Exact brand. |
+| `tag` | string, repeatable | Labels. A product matches when it has any of them: `tag=vegan&tag=new`. |
+| `brand` | string ≤80, repeatable | Brands, any of them: `brand=Amul&brand=Tata`. |
+| `storageType` | `ambient` \| `chilled` \| `frozen`, repeatable | Any of them. |
+| `packSize` | string, repeatable | Pack sizes as value and unit without a space: `500g`, `1kg`, `0.5l`, `6pcs`. Any of them. With `groupPackSizes=true` the matching size stands for its product in the list (its `slug`, `pricing` and `packSize`) instead of the default size. |
 | `onSale` | boolean | Only reduced products (`false`: only not reduced). |
 | `available` | boolean | Only products marked available by the admin. |
 | `orderable` | boolean | Only products that can be ordered **now** (a cargo takes orders, the product is in it, units are left). Empty when ordering is closed. |
@@ -786,7 +788,49 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 **Possible Errors:**
 
 - `404 CATEGORY_NOT_FOUND` – `category` slug unknown or hidden.
-- `400 VALIDATION_FAILED` – e.g. `q` shorter than 2 characters, unknown query parameter.
+- `400 VALIDATION_FAILED` – e.g. `q` shorter than 2 characters, unknown query parameter, `packSize` not in the form `1kg`.
+
+### `GET /v1/store/products/facets`
+
+**Purpose:** The counts behind the filter panel: how many products each brand, label, storage type, pack size, price band, offer and ordering state has under the current filters. Exact at any size of the catalogue, and one request instead of one per filter value.
+
+**Authentication:** none.
+
+**Parameters:** the same as `GET /v1/store/products`. `page`, `limit` and `sort` are accepted and ignored.
+
+**Counting rule:** each facet is counted **without its own filter and with all the others**. With `brand=Amul` chosen, `brands` still lists Tata with the number of products that choosing Tata too would add (the values of one facet are "any of"), while `tags`, `packSizes` and the price facets count only among Amul's products. `total` is the number of products with every filter applied, the `total` of the list. With `groupPackSizes=true` (the default) a product with several pack sizes counts once, except in `packSizes`, where each of its sizes counts.
+
+**Success Response (200):**
+
+```json
+{
+  "total": 57,
+  "brands": [ { "value": "Amul", "count": 12 }, { "value": "India Gate", "count": 8 } ],
+  "tags": [ { "value": "vegan", "count": 20 }, { "value": "new", "count": 6 } ],
+  "storageTypes": [ { "value": "ambient", "count": 50 }, { "value": "frozen", "count": 7 } ],
+  "packSizes": [
+    { "value": "200g", "packSize": { "value": 200, "unit": "g", "label": "200 g" }, "count": 9 },
+    { "value": "1kg", "packSize": { "value": 1, "unit": "kg", "label": "1 kg" }, "count": 30 }
+  ],
+  "priceBands": [
+    { "min": 0, "max": 199, "count": 4 },
+    { "min": 200, "max": 499, "count": 21 },
+    { "min": 500, "max": 999, "count": 17 },
+    { "min": 1000, "max": 1999, "count": 10 },
+    { "min": 2000, "max": 4999, "count": 4 },
+    { "min": 5000, "max": null, "count": 1 }
+  ],
+  "price": { "min": 149, "max": 7999 },
+  "onSale": [ { "value": true, "count": 5 }, { "value": false, "count": 52 } ],
+  "orderable": [ { "value": true, "count": 30 }, { "value": false, "count": 27 } ]
+}
+```
+
+- `brands`, `tags`, `storageTypes` and `packSizes` list only values with at least one product, most products first (`packSizes` by unit and size). The values go straight into the `brand`, `tag`, `storageType` and `packSize` parameters; `packSizes[].packSize.label` is the localized text to show.
+- `priceBands` are fixed bands in cents, `min` and `max` inclusive; `max` is `null` for the last band. Pass a band as `minPrice` and `maxPrice`. `price` is the cheapest and the dearest product under the other filters, for a slider, or `null` without products.
+- `onSale` and `orderable` always contain both values. `orderable` is counted against the cargo that takes orders now; without one, every product counts as not orderable.
+
+**Possible Errors:** as for the list.
 
 ### `GET /v1/store/products/{slug}`
 

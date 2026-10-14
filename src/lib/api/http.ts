@@ -1,7 +1,13 @@
 import type { Locale } from "@/i18n/routing";
 import { ApiError } from "./errors";
 
-export type QueryValue = string | number | boolean | null | undefined;
+export type QueryValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly (string | number | boolean)[];
 
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -41,7 +47,12 @@ export function buildUrl(
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined || value === null || value === "") continue;
-    params.set(key, String(value));
+    // A list is sent as a repeated parameter (`brand=a&brand=b`).
+    if (Array.isArray(value)) {
+      for (const item of value) params.append(key, String(item));
+    } else {
+      params.set(key, String(value));
+    }
   }
   const search = params.toString();
   return `${baseUrl}${path}${search ? `?${search}` : ""}`;

@@ -32,6 +32,7 @@ import type {
   PlaceOrderInput,
   PlaceOrderResult,
   ProductDetail,
+  ProductFacets,
   ProductQuery,
   ProductSummary,
   ReturnRequest,
@@ -159,6 +160,13 @@ export function createStoreApi(request: Requester) {
       request<Page<ProductSummary>>("/v1/store/products", {
         ...o,
         query: { ...query },
+      }),
+    // The page, size and sort are left out: the counts are the same for
+    // every page of a list, and so is the cached answer.
+    getProductFacets: (query: ProductQuery = {}, o?: CallOptions) =>
+      request<ProductFacets>("/v1/store/products/facets", {
+        ...o,
+        query: { ...query, page: undefined, limit: undefined, sort: undefined },
       }),
     getProduct: (slug: string, o?: CallOptions) =>
       request<{ product: ProductDetail }>(`/v1/store/products/${seg(slug)}`, o),

@@ -8,6 +8,7 @@ import type {
   CategoryDetail,
   Page,
   ProductDetail,
+  ProductFacets,
   ProductQuery,
   ProductSummary,
   ShopSettings,
@@ -108,4 +109,12 @@ export function listProducts(
   locale: Locale,
 ): Promise<Page<ProductSummary>> {
   return serverApi.listProducts(query, { locale, next: catalogue });
+}
+
+/** The counts behind the filters of a list, under the same query. */
+export function getProductFacets(
+  query: ProductQuery,
+  locale: Locale,
+): Promise<ProductFacets> {
+  return serverApi.getProductFacets(query, { locale, next: catalogue });
 }

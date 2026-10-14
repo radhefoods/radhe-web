@@ -22,6 +22,7 @@ import type {
   Page,
   PriceView,
   ProductDetail,
+  ProductFacets,
   ProductQuery,
   ProductSummary,
   ShopSettings,
@@ -463,11 +464,28 @@ function matchesSearch(p: ProductRecord, q: string, locale: Locale): boolean {
     .every((word) => haystack.some((h) => h.startsWith(word)));
 }
 
-export function listProducts(
-  query: ProductQuery,
+const PACK_KEY = (p: ProductRecord): string => `${p.packValue}${p.packUnit}`;
+
+/** The filters of a list, without its paging and sorting. */
+type Filters = Omit<ProductQuery, "sort" | "page" | "limit" | "groupPackSizes">;
+/** A facet is counted without its own filter: the one to leave out. */
+type Skipped =
+  | "tag"
+  | "brand"
+  | "storageType"
+  | "packSize"
+  | "onSale"
+  | "orderable"
+  | "price";
+
+/** Every pack-size record that passes the filters, in catalogue order. */
+function filterRecords(
+  query: Filters,
   locale: Locale,
-): Page<ProductSummary> | { error: "CATEGORY_NOT_FOUND" } {
+  skip: Skipped | null = null,
+): ProductRecord[] | { error: "CATEGORY_NOT_FOUND" } {
   let list = [...products];
+  const on = (key: Skipped) => key !== skip;
 
   if (query.category) {
     const category = categoryBySlug(query.category);
@@ -476,39 +494,68 @@ export function listProducts(
     list = list.filter((p) => ids.has(p.categoryId));
   }
   if (query.q) list = list.filter((p) => matchesSearch(p, query.q!, locale));
-  if (query.tag) list = list.filter((p) => p.tags.includes(query.tag!));
-  if (query.brand) list = list.filter((p) => p.brand === query.brand);
-  if (query.onSale !== undefined) {
+  // The values of one parameter are "any of them"; parameters narrow down.
+  if (on("tag") && query.tag?.length) {
+    const tags = query.tag;
+    list = list.filter((p) => tags.some((tag) => p.tags.includes(tag)));
+  }
+  if (on("brand") && query.brand?.length) {
+    const brands = query.brand;
+    list = list.filter((p) => p.brand !== null && brands.includes(p.brand));
+  }
+  if (on("storageType") && query.storageType?.length) {
+    const types = query.storageType;
+    list = list.filter((p) => types.includes(p.storageType));
+  }
+  if (on("packSize") && query.packSize?.length) {
+    const sizes = query.packSize;
+    list = list.filter((p) => sizes.includes(PACK_KEY(p)));
+  }
+  if (on("onSale") && query.onSale !== undefined) {
     list = list.filter((p) => priceView(p).onSale === query.onSale);
   }
   if (query.available !== undefined) {
     list = list.filter((p) => p.isAvailable === query.available);
   }
-  if (query.orderable !== undefined) {
+  if (on("orderable") && query.orderable !== undefined) {
     list = list.filter((p) => orderingOf(p).canOrder === query.orderable);
   }
   if (query.featured !== undefined) {
     list = list.filter((p) => p.isFeatured === query.featured);
   }
-  if (query.minPrice !== undefined) {
+  if (on("price") && query.minPrice !== undefined) {
     list = list.filter((p) => effectivePrice(p) >= query.minPrice!);
   }
-  if (query.maxPrice !== undefined) {
+  if (on("price") && query.maxPrice !== undefined) {
     list = list.filter((p) => effectivePrice(p) <= query.maxPrice!);
   }
+  return list;
+}
 
-  if (query.groupPackSizes ?? true) {
-    // A product with several pack sizes appears once: its default size when
-    // that one passed the filters, otherwise the first size that did.
-    const byGroup = new Map<string, ProductRecord>();
-    for (const p of list) {
-      const chosen = byGroup.get(p.group);
-      if (!chosen || (p.isDefaultSize && !chosen.isDefaultSize)) {
-        byGroup.set(p.group, p);
-      }
+/**
+ * A product with several pack sizes appears once: its default size when
+ * that one passed the filters, otherwise the first size that did (so a
+ * pack-size filter shows the matching size).
+ */
+function groupRecords(list: ProductRecord[]): ProductRecord[] {
+  const byGroup = new Map<string, ProductRecord>();
+  for (const p of list) {
+    const chosen = byGroup.get(p.group);
+    if (!chosen || (p.isDefaultSize && !chosen.isDefaultSize)) {
+      byGroup.set(p.group, p);
     }
-    list = [...byGroup.values()];
   }
+  return [...byGroup.values()];
+}
+
+export function listProducts(
+  query: ProductQuery,
+  locale: Locale,
+): Page<ProductSummary> | { error: "CATEGORY_NOT_FOUND" } {
+  const records = filterRecords(query, locale);
+  if ("error" in records) return records;
+  let list = records;
+  if (query.groupPackSizes ?? true) list = groupRecords(list);
 
   const byName = (a: ProductRecord, b: ProductRecord) =>
     pick(a.name, locale).localeCompare(pick(b.name, locale), locale);
@@ -539,6 +586,112 @@ export function listProducts(
     limit,
     total,
     totalPages: Math.max(1, Math.ceil(total / limit)),
+  };
+}
+
+/** Fixed price bands in cents, both ends inclusive; the last one is open. */
+const PRICE_BANDS: [number, number | null][] = [
+  [0, 199],
+  [200, 499],
+  [500, 999],
+  [1000, 1999],
+  [2000, 4999],
+  [5000, null],
+];
+const UNIT_RANK: Record<ProductRecord["packUnit"], number> = {
+  g: 0,
+  kg: 0,
+  ml: 1,
+  l: 1,
+  pcs: 2,
+};
+
+/** Counts per value over the products (one per group), most first. */
+function countBy<T extends string>(
+  list: ProductRecord[],
+  valuesOf: (p: ProductRecord) => T[],
+): { value: T; count: number }[] {
+  const counts = new Map<T, number>();
+  for (const p of groupRecords(list)) {
+    for (const value of valuesOf(p)) {
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+  }
+  return [...counts]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
+
+/** How many products have a pack size that passes the test. */
+function productsWhere(
+  list: ProductRecord[],
+  test: (p: ProductRecord) => boolean,
+): number {
+  return new Set(list.filter(test).map((p) => p.group)).size;
+}
+
+/**
+ * The counts behind the filters (doc `GET /v1/store/products/facets`): each
+ * facet without its own filter and with all the others, so a count is what
+ * the list would show with that value chosen. A product with several pack
+ * sizes counts once, except in `packSizes`.
+ */
+export function productFacets(
+  query: Filters,
+  locale: Locale,
+): ProductFacets | { error: "CATEGORY_NOT_FOUND" } {
+  const all = filterRecords(query, locale);
+  if ("error" in all) return all;
+  const without = (skip: Skipped): ProductRecord[] => {
+    const records = filterRecords(query, locale, skip);
+    return "error" in records ? [] : records;
+  };
+  const flag = (
+    list: ProductRecord[],
+    test: (p: ProductRecord) => boolean,
+  ): { value: boolean; count: number }[] => [
+    { value: true, count: productsWhere(list, test) },
+    { value: false, count: productsWhere(list, (p) => !test(p)) },
+  ];
+
+  const sizes = new Map<string, { record: ProductRecord; count: number }>();
+  for (const p of without("packSize")) {
+    const key = PACK_KEY(p);
+    const entry = sizes.get(key);
+    if (entry) entry.count += 1;
+    else sizes.set(key, { record: p, count: 1 });
+  }
+  const priced = without("price");
+  const prices = priced.map(effectivePrice);
+
+  return {
+    total: groupRecords(all).length,
+    brands: countBy(without("brand"), (p) => (p.brand ? [p.brand] : [])),
+    tags: countBy(without("tag"), (p) => p.tags),
+    storageTypes: countBy(without("storageType"), (p) => [p.storageType]),
+    packSizes: [...sizes]
+      .map(([value, { record, count }]) => ({
+        value,
+        packSize: packSize(record, locale),
+        count,
+        rank: UNIT_RANK[record.packUnit],
+        amount: baseAmount(record),
+      }))
+      .sort((a, b) => a.rank - b.rank || a.amount - b.amount)
+      .map(({ value, packSize, count }) => ({ value, packSize, count })),
+    priceBands: PRICE_BANDS.map(([min, max]) => ({
+      min,
+      max,
+      count: productsWhere(priced, (p) => {
+        const price = effectivePrice(p);
+        return price >= min && (max === null || price <= max);
+      }),
+    })),
+    price: prices.length
+      ? { min: Math.min(...prices), max: Math.max(...prices) }
+      : null,
+    onSale: flag(without("onSale"), (p) => priceView(p).onSale),
+    orderable: flag(without("orderable"), (p) => orderingOf(p).canOrder),
   };
 }
 

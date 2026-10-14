@@ -61,6 +61,8 @@ test.describe("public pages have no barriers axe can find", () => {
     "/de/produkte?q=reis&sort=price_asc",
     "/en/products?q=nothing-like-this",
     "/en/category/rice",
+    "/en/products?brand=MDH&brand=Amul&sort=price_asc",
+    "/de/produkte?brand=MDH&storageType=chilled",
     "/en/products/basmati-rice-5-kg",
     "/de/produkte/basmati-reis-5-kg",
     "/en/cart",
@@ -223,5 +225,29 @@ test.describe("for people who asked for less motion", () => {
         .map((animation) => String((animation as CSSAnimation).animationName)),
     );
     expect(moving).toEqual([]);
+  });
+});
+
+test.describe("the filter panel", () => {
+  test("the open brand list on a wide screen has no barriers", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "the panel of wide screens");
+    await open(page, "/en/products?brand=MDH");
+    await page.getByText("Brand", { exact: true }).click();
+    await expect(page.getByLabel("MDH")).toBeVisible();
+    await expectNoBarriers(page);
+  });
+
+  test("the open sheet on a phone has no barriers", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, "phones only");
+    await open(page, "/en/products?brand=MDH");
+    await page.getByRole("button", { name: "Filters" }).click();
+    await expect(page.getByRole("dialog", { name: "Filters" })).toBeVisible();
+    await expectNoBarriers(page);
   });
 });

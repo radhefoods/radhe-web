@@ -18,6 +18,7 @@ const SRC = resolve(__dirname, "..");
 const AREA_OF_FOLDER: Record<string, ClientArea> = {
   "components/account": "account",
   "components/auth": "signIn",
+  "components/catalogue": "catalogue",
   "components/checkout": "checkout",
   "components/public": "emailLinks",
 };

@@ -4,7 +4,7 @@ import { ProductListing } from "@/components/catalogue/product-listing";
 import {
   isFiltered,
   parseListingState,
-  toSearchParams,
+  toQueryString,
 } from "@/features/catalogue/listing-state";
 import { localeOf } from "@/i18n/locale";
 import { alternates, sameHref } from "@/lib/seo/alternates";
@@ -27,9 +27,7 @@ export async function generateMetadata({
     alternates:
       !filtered && state.page > 1
         ? {
-            canonical: `${links.canonical}?${new URLSearchParams(
-              toSearchParams(state),
-            )}`,
+            canonical: `${links.canonical}?${toQueryString(state)}`,
           }
         : links,
   };

@@ -86,6 +86,7 @@ import {
   legalDocument,
   legalList,
   listProducts,
+  productFacets,
   placeholderSvg,
   productBySlug,
   productDetail,
@@ -600,6 +601,8 @@ const PRODUCT_QUERY_KEYS = [
   "q",
   "tag",
   "brand",
+  "storageType",
+  "packSize",
   "onSale",
   "available",
   "orderable",
@@ -619,9 +622,29 @@ const SORTS = [
   "discount",
   "name",
 ];
+const STORAGE_TYPES = ["ambient", "chilled", "frozen"];
+/** `500g`, `1kg`, `0.5l`, `6pcs`: a size and a unit, no space. */
+const PACK_SIZE = /^\d+(?:\.\d+)?(?:g|kg|ml|l|pcs)$/;
 
-route("GET", "/v1/store/products", (ctx) => {
-  const { url } = ctx;
+/** The repeated values of a parameter (`brand=a&brand=b`), or nothing. */
+function listParam(
+  url: URL,
+  key: string,
+  check?: (value: string) => boolean,
+  hint?: string,
+): string[] | undefined {
+  const values = url.searchParams.getAll(key);
+  if (values.length === 0) return undefined;
+  for (const value of values) {
+    if (value === "" || value.length > 80 || (check && !check(value))) {
+      throw validationFailed(key, hint ?? `${key} has an invalid value`);
+    }
+  }
+  return values;
+}
+
+/** The query of the product list and of its facets, checked like the API does. */
+function productQueryOf(url: URL): ProductQuery {
   for (const key of url.searchParams.keys()) {
     if (!PRODUCT_QUERY_KEYS.includes(key)) {
       throw validationFailed(key, `property ${key} should not exist`);
@@ -638,11 +661,23 @@ route("GET", "/v1/store/products", (ctx) => {
   if (sort !== undefined && !SORTS.includes(sort)) {
     throw validationFailed("sort", `sort must be one of: ${SORTS.join(", ")}`);
   }
-  const query: ProductQuery = {
+  return {
     category: url.searchParams.get("category") ?? undefined,
     q: q?.trim(),
-    tag: url.searchParams.get("tag") ?? undefined,
-    brand: url.searchParams.get("brand") ?? undefined,
+    tag: listParam(url, "tag"),
+    brand: listParam(url, "brand"),
+    storageType: listParam(
+      url,
+      "storageType",
+      (value) => STORAGE_TYPES.includes(value),
+      `storageType must be one of: ${STORAGE_TYPES.join(", ")}`,
+    ) as ProductQuery["storageType"],
+    packSize: listParam(
+      url,
+      "packSize",
+      (value) => PACK_SIZE.test(value),
+      "packSize must be a size and a unit without a space, for example 1kg",
+    ),
     onSale: booleanParam(url, "onSale"),
     available: booleanParam(url, "available"),
     orderable: booleanParam(url, "orderable"),
@@ -654,7 +689,23 @@ route("GET", "/v1/store/products", (ctx) => {
     page: intParam(url, "page", 1, 500),
     limit: intParam(url, "limit", 1, 100),
   };
-  const result = listProducts(query, ctx.locale);
+}
+
+route("GET", "/v1/store/products", (ctx) => {
+  const result = listProducts(productQueryOf(ctx.url), ctx.locale);
+  if ("error" in result) {
+    throw new HttpError(
+      404,
+      "CATEGORY_NOT_FOUND",
+      "This category does not exist.",
+    );
+  }
+  return { body: result };
+});
+
+// Before the product page: "facets" is not a slug.
+route("GET", "/v1/store/products/facets", (ctx) => {
+  const result = productFacets(productQueryOf(ctx.url), ctx.locale);
   if ("error" in result) {
     throw new HttpError(
       404,

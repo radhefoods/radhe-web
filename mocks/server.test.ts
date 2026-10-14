@@ -189,6 +189,92 @@ describe("catalogue", () => {
   });
 });
 
+describe("filters and facets", () => {
+  it("takes several values of a filter as any of them", async () => {
+    const api = guestApi();
+    const page = await api.listProducts({ brand: ["MDH", "Amul"] });
+    expect(page.total).toBe(4);
+    expect(new Set(page.items.map((p) => p.brand))).toEqual(
+      new Set(["MDH", "Amul"]),
+    );
+    const cold = await api.listProducts({
+      storageType: ["chilled", "frozen"],
+    });
+    expect(cold.total).toBe(4);
+    // Different parameters narrow down.
+    const both = await api.listProducts({
+      brand: ["MDH"],
+      storageType: ["chilled"],
+    });
+    expect(both.total).toBe(0);
+  });
+
+  it("shows the matching pack size of a product with several", async () => {
+    const page = await guestApi().listProducts({ packSize: ["1kg"] });
+    expect(page.total).toBe(6);
+    const rice = page.items.find((p) => p.name === "Basmati Rice");
+    expect(rice?.packSize.label).toBe("1 kg");
+    expect(rice?.slug).toBe("basmati-rice-1-kg");
+    expect(rice?.packSizes.find((s) => s.isSelected)?.slug).toBe(
+      "basmati-rice-1-kg",
+    );
+    expect(page.items.find((p) => p.name === "Chakki Atta")).toBeUndefined();
+  });
+
+  it("counts every facet without its own filter and with the others", async () => {
+    const api = guestApi();
+    const all = await api.getProductFacets({});
+    expect(all.total).toBe(22);
+    expect(all.brands.slice(0, 3)).toEqual([
+      { value: "Radhe", count: 13 },
+      { value: "MDH", count: 3 },
+      { value: "Aashirvaad", count: 1 },
+    ]);
+    expect(all.storageTypes).toEqual([
+      { value: "ambient", count: 18 },
+      { value: "chilled", count: 3 },
+      { value: "frozen", count: 1 },
+    ]);
+    // A product counts in every band one of its pack sizes falls into.
+    expect(all.priceBands.map((band) => band.count)).toEqual([
+      3, 11, 7, 4, 4, 0,
+    ]);
+    expect(all.priceBands.at(-1)).toMatchObject({ min: 5000, max: null });
+    expect(all.price).toEqual({ min: 179, max: 2999 });
+    expect(all.onSale).toEqual([
+      { value: true, count: 3 },
+      { value: false, count: 21 },
+    ]);
+
+    const mdh = await api.getProductFacets({ brand: ["MDH"] });
+    expect(mdh.total).toBe(3);
+    // The brands still list the others: choosing one more would add them.
+    expect(mdh.brands.find((b) => b.value === "Radhe")?.count).toBe(13);
+    // The other facets count among MDH's products only.
+    expect(mdh.tags).toEqual([]);
+    expect(mdh.storageTypes).toEqual([{ value: "ambient", count: 3 }]);
+    expect(
+      mdh.packSizes.map((s) => [s.value, s.packSize.label, s.count]),
+    ).toEqual([
+      ["100g", "100 g", 3],
+      ["400g", "400 g", 1],
+    ]);
+    expect(mdh.price).toEqual({ min: 179, max: 549 });
+    const de = await api.getProductFacets({ brand: ["MDH"] }, { locale: "de" });
+    expect(de.packSizes[0]?.packSize.label).toBe("100 g");
+  });
+
+  it("refuses a malformed pack size or storage type", async () => {
+    const api = guestApi();
+    const size = await api.listProducts({ packSize: ["1 kg"] }).catch((e) => e);
+    expect(hasErrorCode(size, "VALIDATION_FAILED")).toBe(true);
+    const type = await api
+      .getProductFacets({ storageType: ["cold" as "chilled"] })
+      .catch((e) => e);
+    expect(hasErrorCode(type, "VALIDATION_FAILED")).toBe(true);
+  });
+});
+
 describe("cargo", () => {
   it("is open with a countdown and delivery days", async () => {
     const status = await guestApi().getCargo({ locale: "de" });

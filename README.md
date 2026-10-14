@@ -13,6 +13,7 @@ Built so far:
 
 - **Phase 1, foundation and design system:** project setup, languages and routes, the typed API client, price and date formatting, the mock API; design tokens, fonts and base components. The design system is on one page: `/en/styleguide`.
 - **Phase 2, catalogue:** home page, all products with search, sorting and filters, category pages, product pages, add to cart from every product card.
+- **Filter panel (2026-10-15):** the filters and the sorting of every product list were redesigned: a row of pills above the grid (brand, keep in, price, pack size, highlights, offers, orderable now, sort), each opening its values with live counts from the API's new facets endpoint; several values of one filter are "any of them"; applied filters as removable chips with "clear all"; a sheet with a live "Show N products" button on phones; only filters the list supports are shown, and they stay while narrowing; an empty list names the filter to drop. Addresses carry the API's own parameter names, so a filtered view can be shared; filtered views stay out of search engines. The mock API gained the repeatable parameters and the facets endpoint of the documentation (section 7). The decisions and their reasons are in `DECISIONS.md`, "The filter panel".
 - **Phase 3, cart and checkout:** the cart with the bill of the API, sign-in with an email code, the checkout (address, note, consent to the exact legal versions, binding button) and the confirmation page; the three legal texts of the API.
 - **Phase 4, account:** overview, orders with a progress line, cancelling, payment, invoices and credit notes with PDF, returns, addresses, profile and news preference, sign-out; Google sign-in (shown when a client id is set).
 - **Phase 5, public pages and SEO:** the payment link and the unsubscribe link from emails, "How pre-ordering works", "Delivery and payment", legal notice, right of withdrawal and cookie page as editable files, the cookie notice, footer links; sitemap, robots, web manifest, social picture, canonical and language links on every public page.
@@ -132,7 +133,8 @@ src/
   components/ui/     base components: button, chip, alert, field, stepper, sheet
   components/shell/  header, footer, tab bar, language switch, search
   components/cargo/  the pre-order strip, countdown, pay-later note
-  components/catalogue/  product card, price, add to cart, list with filters
+  components/catalogue/  product card, price, add to cart, the list and its
+                     filter panel (filters/)
   features/          what lives in the browser: session, cart, live cargo;
                      and what the server reads for the catalogue
   config/env.ts      configuration and feature switches

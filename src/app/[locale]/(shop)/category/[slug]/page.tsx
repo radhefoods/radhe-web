@@ -8,7 +8,7 @@ import { getCategory } from "@/features/catalogue/data";
 import {
   isFiltered,
   parseListingState,
-  toSearchParams,
+  toQueryString,
 } from "@/features/catalogue/listing-state";
 import { Link, permanentRedirect } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
@@ -62,9 +62,7 @@ export async function generateMetadata({
     alternates:
       !filtered && state.page > 1
         ? {
-            canonical: `${links.canonical}?${new URLSearchParams(
-              toSearchParams(state),
-            )}`,
+            canonical: `${links.canonical}?${toQueryString(state)}`,
           }
         : links,
   };
@@ -106,9 +104,12 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               <li key={child.id}>
                 <Link
                   href={categoryHref(child.slug)}
-                  className="bg-mist hover:bg-cloud flex min-h-11 items-center rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-150"
+                  className="bg-mist hover:bg-cloud flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-150"
                 >
                   {child.name}
+                  <span className="text-ink-subtle text-xs tabular-nums">
+                    {child.productCount}
+                  </span>
                 </Link>
               </li>
             ))}

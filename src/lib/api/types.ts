@@ -335,8 +335,14 @@ export type ProductSort =
 export interface ProductQuery {
   category?: string;
   q?: string;
-  tag?: string;
-  brand?: string;
+  /** Labels, any of them. */
+  tag?: string[];
+  /** Brands, any of them. */
+  brand?: string[];
+  /** Any of them. */
+  storageType?: StorageType[];
+  /** Value and unit without a space (`500g`, `1kg`, `0.5l`, `6pcs`), any of them. */
+  packSize?: string[];
   onSale?: boolean;
   available?: boolean;
   orderable?: boolean;
@@ -347,6 +353,43 @@ export interface ProductQuery {
   groupPackSizes?: boolean;
   page?: number;
   limit?: number;
+}
+
+/** One value of a facet and how many products choosing it would leave. */
+export interface FacetCount<T> {
+  value: T;
+  count: number;
+}
+
+export interface PackSizeFacet extends FacetCount<string> {
+  /** The size to show; `value` is what goes into `packSize`. */
+  packSize: PackSize;
+}
+
+/** A fixed price band in cents, both ends inclusive; `max` is `null` for the last. */
+export interface PriceBand {
+  min: Cents;
+  max: Cents | null;
+  count: number;
+}
+
+/**
+ * The counts behind the filters (`GET /v1/store/products/facets`). Each
+ * facet is counted without its own filter and with all the others, so a
+ * count says what choosing that value would leave. `total` is the total
+ * of the list with every filter.
+ */
+export interface ProductFacets {
+  total: number;
+  brands: FacetCount<string>[];
+  tags: FacetCount<string>[];
+  storageTypes: FacetCount<StorageType>[];
+  packSizes: PackSizeFacet[];
+  priceBands: PriceBand[];
+  /** The cheapest and the dearest product under the other filters. */
+  price: { min: Cents; max: Cents } | null;
+  onSale: FacetCount<boolean>[];
+  orderable: FacetCount<boolean>[];
 }
 
 // --- 8 Cart -----------------------------------------------------------------
