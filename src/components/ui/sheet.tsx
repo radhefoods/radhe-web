@@ -17,6 +17,7 @@ export function Sheet({
   closeLabel,
   returnFocusTo,
   children,
+  footer,
   className,
 }: {
   open?: boolean;
@@ -30,6 +31,8 @@ export function Sheet({
   title: ReactNode;
   closeLabel: string;
   children: ReactNode;
+  /** Stays in view under the scrolling body: the buttons of a form. */
+  footer?: ReactNode;
   className?: string;
 }) {
   return (
@@ -61,9 +64,19 @@ export function Sheet({
               <X aria-hidden="true" className="size-5" />
             </Dialog.Close>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+          <div
+            className={cn(
+              "min-h-0 flex-1 overflow-y-auto px-5 py-5",
+              !footer && "pb-[calc(1.25rem+env(safe-area-inset-bottom))]",
+            )}
+          >
             {children}
           </div>
+          {footer && (
+            <div className="border-line border-t px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              {footer}
+            </div>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

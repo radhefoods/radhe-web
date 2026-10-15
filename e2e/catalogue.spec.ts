@@ -145,9 +145,10 @@ test.describe("finding products", () => {
     await expect(card(page, "Pure Ghee")).toBeVisible();
     await expect(card(page, "Basmati Rice")).toHaveCount(0);
     // The one that was ticked keeps the focus.
-    await expect(page.getByLabel("Amul")).toBeFocused();
+    await expect(page.getByRole("checkbox", { name: "Amul" })).toBeFocused();
 
-    // The chips take one filter off each.
+    // The chips take one filter off each (the open list lies over them).
+    await page.keyboard.press("Escape");
     const applied = page.getByRole("list", { name: "Applied filters" });
     await expect(applied.getByRole("link")).toHaveText([
       "MDH",
@@ -202,11 +203,12 @@ test.describe("finding products", () => {
   }) => {
     test.skip(isMobile, "the panel of wide screens");
     await page.goto("/de/kategorie/gewuerze");
-    await expect(page.getByText("Marke", { exact: true })).toBeVisible();
+    const list = page.getByRole("region", { name: "Gew\u00fcrze" });
+    await expect(list.getByText("Marke", { exact: true })).toBeVisible();
     // One storage type, no offers: nothing to choose.
-    await expect(page.getByText("Lagerung", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Angebote", { exact: true })).toHaveCount(0);
-    await page.getByText("Packungsgr\u00f6\u00dfe", { exact: true }).click();
+    await expect(list.getByText("Lagerung", { exact: true })).toHaveCount(0);
+    await expect(list.getByText("Angebote", { exact: true })).toHaveCount(0);
+    await list.getByText("Packungsgr\u00f6\u00dfe", { exact: true }).click();
     await page.getByLabel("400 g").check();
     await expect(page).toHaveURL(/packSize=400g/);
     await expect(page.getByText("2 Produkte")).toBeVisible();

@@ -236,7 +236,7 @@ test.describe("the filter panel", () => {
     test.skip(isMobile, "the panel of wide screens");
     await open(page, "/en/products?brand=MDH");
     await page.getByText("Brand", { exact: true }).click();
-    await expect(page.getByLabel("MDH")).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "MDH" })).toBeVisible();
     await expectNoBarriers(page);
   });
 

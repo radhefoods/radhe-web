@@ -29,6 +29,8 @@ test.describe("a change of the cart that fails", () => {
       window.localStorage.setItem("rf.cart.v1", JSON.stringify(cart));
     }, full);
     await page.goto("/en/products");
+    // The count of the cart shows once the page is alive: only then a tap counts.
+    await expect(page.getByRole("link", { name: /100 items/ })).toBeVisible();
     await page
       .getByRole("button", { name: "Add to cart: Chakki Atta, 5 kg" })
       .click();

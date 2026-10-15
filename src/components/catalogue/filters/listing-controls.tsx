@@ -289,123 +289,196 @@ export function ListingControls({
     />
   );
 
-  return (
-    <form
-      method="get"
-      action={action}
-      onChange={onChange}
-      onSubmit={(event) => event.preventDefault()}
-      className="space-y-3"
-    >
-      {view.q && <input type="hidden" name="q" value={view.q} />}
-      {/* Without scripts the pills open as plain details on every screen. */}
-      <noscript>
-        <style>{`.filters-bar{display:flex!important}.filters-phone{display:none!important}`}</style>
-      </noscript>
-
-      <div className="filters-bar hidden flex-wrap items-center gap-2 md:flex">
-        {sections.map((section) => (
-          <FacetPopover
-            key={section.key}
-            label={section.title}
-            count={section.count}
-          >
-            {facetOptions(section, 8)}
-            {section.count > 0 && (
-              <button
-                type="button"
-                onClick={() => go(section.cleared)}
-                className="text-leaf-700 border-line mt-1 flex min-h-10 w-full items-center rounded-sm border-t px-2.5 text-sm font-semibold hover:underline"
-              >
-                {t("clear")}
-              </button>
-            )}
-          </FacetPopover>
-        ))}
-        {toggles}
-        <div className="ml-auto flex items-center gap-3">
-          {countLine}
-          <FacetPopover
-            label={`${t("sortBy")}: ${sortLabel}`}
-            align="right"
-            width="w-60"
-          >
-            <FacetOptions
-              name="sort"
-              type="radio"
-              options={sortOptions}
-              selected={[view.sort]}
-              limit={99}
-            />
-          </FacetPopover>
-        </div>
-      </div>
-
-      <div className="filters-phone flex items-center gap-2 md:hidden">
-        <button
-          ref={filtersButton}
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded={sheetOpen}
-          onClick={() => openSheet("filters")}
-          className={cn(pill, count > 0 ? pillActive : pillIdle)}
-        >
-          <SlidersHorizontal aria-hidden="true" className="size-4" />
-          {t("open")}
-          {count > 0 && <span className={badge}>{count}</span>}
-        </button>
-        <button
-          ref={sortButton}
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded={sheetOpen}
-          aria-label={`${t("sortBy")}: ${sortLabel}`}
-          onClick={() => openSheet("sort")}
-          className={cn(
-            pill,
-            view.sort !== "recommended" ? pillActive : pillIdle,
-          )}
-        >
-          <ArrowUpDown aria-hidden="true" className="size-4" />
-          {t("sortTitle")}
-        </button>
-        <div className="ml-auto">{countLine}</div>
-      </div>
-
-      {active.length > 0 && (
-        <ul
-          aria-label={t("applied")}
-          className="flex flex-wrap items-center gap-2"
-        >
-          {active.map(({ filter, without }) => {
-            const label = labels.active(filter);
-            return (
-              <li key={`${filter.kind}-${label}`}>
-                <Link
-                  href={hrefOf(without)}
-                  replace
-                  scroll={false}
-                  aria-label={t("remove", { name: label })}
-                  className="bg-wheat-100 text-wheat-800 hover:bg-wheat-200 inline-flex min-h-9 items-center gap-1.5 rounded-full py-1 pr-2.5 pl-3.5 text-[0.8125rem] font-bold transition-colors duration-150"
-                >
-                  {label}
-                  <X aria-hidden="true" className="size-3.5" />
-                </Link>
-              </li>
-            );
+  const sheetFooter = (
+    <div className="flex gap-3">
+      {count > 0 && (
+        <Link
+          href={hrefOf(cleared)}
+          replace
+          scroll={false}
+          onClick={() => setSheetOpen(false)}
+          className={buttonStyles({
+            variant: "secondary",
+            size: "sm",
+            className: "shrink-0 whitespace-nowrap",
           })}
-          <li>
-            <Link
-              href={hrefOf(cleared)}
-              replace
-              scroll={false}
-              className="text-leaf-700 inline-flex min-h-9 items-center rounded-full px-2 text-[0.8125rem] font-bold hover:underline"
-            >
-              {t("clearAll")}
-            </Link>
-          </li>
-        </ul>
+        >
+          {t("clearAll")}
+        </Link>
       )}
+      <button
+        type="button"
+        onClick={() => setSheetOpen(false)}
+        className={buttonStyles({ size: "sm", className: "min-w-0 flex-1" })}
+      >
+        {t("showProducts", { count: total })}
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
+      <form
+        method="get"
+        action={action}
+        onChange={onChange}
+        onSubmit={(event) => event.preventDefault()}
+        className="space-y-3"
+      >
+        {view.q && <input type="hidden" name="q" value={view.q} />}
+        {/* Without scripts the pills open as plain details on every screen. */}
+        <noscript>
+          <style>{`.filters-bar{display:contents!important}.filters-phone{display:none!important}`}</style>
+        </noscript>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Wide screens: the pills and the switches. */}
+          <div className="filters-bar hidden md:contents">
+            {sections.map((section) => (
+              <FacetPopover
+                key={section.key}
+                label={section.title}
+                count={section.count}
+              >
+                {facetOptions(section, 8)}
+                {section.count > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => go(section.cleared)}
+                    className="text-leaf-700 border-line mt-1 flex min-h-10 w-full items-center rounded-sm border-t px-2.5 text-sm font-semibold hover:underline"
+                  >
+                    {t("clear")}
+                  </button>
+                )}
+              </FacetPopover>
+            ))}
+            {toggles}
+          </div>
+          {/* Phones: two buttons that open the sheet. */}
+          <div className="filters-phone contents md:hidden">
+            <button
+              ref={filtersButton}
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={sheetOpen}
+              onClick={() => openSheet("filters")}
+              className={cn(pill, count > 0 ? pillActive : pillIdle)}
+            >
+              <SlidersHorizontal aria-hidden="true" className="size-4" />
+              {t("open")}
+              {count > 0 && <span className={badge}>{count}</span>}
+            </button>
+            <button
+              ref={sortButton}
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={sheetOpen}
+              aria-label={`${t("sortBy")}: ${sortLabel}`}
+              onClick={() => openSheet("sort")}
+              className={cn(
+                pill,
+                view.sort !== "recommended" ? pillActive : pillIdle,
+              )}
+            >
+              <ArrowUpDown aria-hidden="true" className="size-4" />
+              {t("sortTitle")}
+            </button>
+          </div>
+          <div className="ml-auto flex items-center gap-3">
+            {countLine}
+            <div className="filters-bar hidden md:contents">
+              <FacetPopover
+                label={`${t("sortBy")}: ${sortLabel}`}
+                align="right"
+                width="w-60"
+              >
+                <FacetOptions
+                  name="sort"
+                  type="radio"
+                  options={sortOptions}
+                  selected={[view.sort]}
+                  limit={99}
+                />
+              </FacetPopover>
+            </div>
+          </div>
+        </div>
+
+        {active.length > 0 && (
+          <ul
+            aria-label={t("applied")}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {active.map(({ filter, without }) => {
+              const label = labels.active(filter);
+              return (
+                <li key={`${filter.kind}-${label}`}>
+                  <Link
+                    href={hrefOf(without)}
+                    replace
+                    scroll={false}
+                    aria-label={t("remove", { name: label })}
+                    className="bg-wheat-100 text-wheat-800 hover:bg-wheat-200 inline-flex min-h-9 items-center gap-1.5 rounded-full py-1 pr-2.5 pl-3.5 text-[0.8125rem] font-bold transition-colors duration-150"
+                  >
+                    {label}
+                    <X aria-hidden="true" className="size-3.5" />
+                  </Link>
+                </li>
+              );
+            })}
+            <li>
+              <Link
+                href={hrefOf(cleared)}
+                replace
+                scroll={false}
+                className="text-leaf-700 inline-flex min-h-9 items-center rounded-full px-2 text-[0.8125rem] font-bold hover:underline"
+              >
+                {t("clearAll")}
+              </Link>
+            </li>
+          </ul>
+        )}
+
+        <Sheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          title={t("title")}
+          closeLabel={tCommon("close")}
+          returnFocusTo={opener === "sort" ? sortButton : filtersButton}
+          footer={sheetFooter}
+        >
+          <div className="divide-line -mt-3 divide-y">
+            <Accordion title={t("sortBy")} note={sortLabel}>
+              <FacetOptions
+                name="sort"
+                type="radio"
+                options={sortOptions}
+                selected={[view.sort]}
+                limit={99}
+              />
+            </Accordion>
+            {sections.map((section) => (
+              <Accordion
+                key={section.key}
+                title={section.title}
+                count={section.count}
+              >
+                {facetOptions(section, 6)}
+              </Accordion>
+            ))}
+            {(visible.onSale || visible.orderable) && (
+              <div className="flex flex-wrap gap-2 py-4">{toggles}</div>
+            )}
+          </div>
+        </Sheet>
+
+        {/* Only needed without scripts; with scripts changes apply at once. */}
+        <noscript>
+          <button type="submit" className={buttonStyles({ size: "sm" })}>
+            {t("apply")}
+          </button>
+        </noscript>
+      </form>
 
       <div
         aria-busy={pending || undefined}
@@ -416,73 +489,7 @@ export function ListingControls({
       >
         {children}
       </div>
-
-      <Sheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        title={t("title")}
-        closeLabel={tCommon("close")}
-        returnFocusTo={opener === "sort" ? sortButton : filtersButton}
-      >
-        <div className="divide-line -mt-3 divide-y">
-          <Accordion title={t("sortBy")} note={sortLabel}>
-            <FacetOptions
-              name="sort"
-              type="radio"
-              options={sortOptions}
-              selected={[view.sort]}
-              limit={99}
-            />
-          </Accordion>
-          {sections.map((section) => (
-            <Accordion
-              key={section.key}
-              title={section.title}
-              count={section.count}
-            >
-              {facetOptions(section, 6)}
-            </Accordion>
-          ))}
-          {(visible.onSale || visible.orderable) && (
-            <div className="flex flex-wrap gap-2 py-4">{toggles}</div>
-          )}
-        </div>
-        <div className="border-line sticky bottom-0 -mx-5 mt-3 flex gap-3 border-t bg-white px-5 pt-3">
-          {count > 0 && (
-            <Link
-              href={hrefOf(cleared)}
-              replace
-              scroll={false}
-              onClick={() => setSheetOpen(false)}
-              className={buttonStyles({
-                variant: "secondary",
-                size: "sm",
-                className: "shrink-0 whitespace-nowrap",
-              })}
-            >
-              {t("clearAll")}
-            </Link>
-          )}
-          <button
-            type="button"
-            onClick={() => setSheetOpen(false)}
-            className={buttonStyles({
-              size: "sm",
-              className: "min-w-0 flex-1",
-            })}
-          >
-            {t("showProducts", { count: total })}
-          </button>
-        </div>
-      </Sheet>
-
-      {/* Only needed without scripts; with scripts changes apply at once. */}
-      <noscript>
-        <button type="submit" className={buttonStyles({ size: "sm" })}>
-          {t("apply")}
-        </button>
-      </noscript>
-    </form>
+    </div>
   );
 }
 

@@ -73,7 +73,7 @@ export function FacetPopover({
           "list-none [&::-webkit-details-marker]:hidden",
         )}
       >
-        {label}
+        <span>{label}</span>
         {count > 0 && (
           <span className="bg-leaf-600 grid size-5 place-items-center rounded-full text-[0.6875rem] leading-none text-white tabular-nums">
             {count}
