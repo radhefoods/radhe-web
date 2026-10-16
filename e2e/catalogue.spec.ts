@@ -84,6 +84,22 @@ test.describe("the shop at a glance", () => {
       "From our shelf to your door",
     );
     await expect(page.getByRole("link", { name: "Shop now" })).toBeVisible();
+    // Popular products first, then a row per category with "See all"; no
+    // offers section and no category tiles any more (owner, 2026-10-16).
+    const popular = page.getByRole("region", { name: "Popular right now" });
+    await expect(popular.getByRole("article").first()).toBeVisible();
+    await expect(
+      popular.getByRole("link", { name: "See all products" }),
+    ).toHaveAttribute("href", "/en/products");
+    const rice = page.getByRole("region", { name: "Rice", exact: true });
+    await expect(rice.getByRole("article")).toHaveCount(3);
+    await expect(
+      rice.getByRole("link", { name: "See all Rice" }),
+    ).toHaveAttribute("href", "/en/category/rice");
+    await expect(page.getByRole("heading", { name: "Offers" })).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "Shop by category" }),
+    ).toHaveCount(0);
 
     await page.goto("/de");
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
@@ -95,6 +111,38 @@ test.describe("the shop at a glance", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Von unserem Regal bis vor Ihre Tür",
     );
+    await expect(
+      page.getByRole("region", { name: "Gerade beliebt" }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("region", { name: "Reis", exact: true })
+        .getByRole("link", {
+          name: "Alle in Reis ansehen",
+        }),
+    ).toHaveAttribute("href", "/de/kategorie/reis");
+  });
+
+  test("a product row turns by its arrows on wide screens", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "The arrows exist from medium screens on.");
+    // Three cards per page at this width; "Spices" has four products.
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.goto("/en");
+    const spices = page.getByRole("region", { name: "Spices", exact: true });
+    await expect(spices.getByRole("article")).toHaveCount(4);
+    const back = spices.getByRole("button", { name: "Scroll back" });
+    const forward = spices.getByRole("button", { name: "Scroll forward" });
+    await expect(back).toBeDisabled();
+    await expect(forward).toBeEnabled();
+    await forward.click();
+    await expect(back).toBeEnabled();
+    await expect(forward).toBeDisabled();
+    await back.click();
+    await expect(back).toBeDisabled();
+    await expect(forward).toBeEnabled();
   });
 
   test("a sold-out product says so; few units left are counted", async ({
