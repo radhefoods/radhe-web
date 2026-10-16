@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Ban, PackageX, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
@@ -13,8 +13,9 @@ import { cn } from "@/lib/cn";
 /**
  * The one control that puts a pack size into the cart: a button first (a
  * full pill, or on a card the round "+"), then minus, number, plus. When
- * the size cannot be ordered (switched off, or sold out) it says why, in
- * the same place and the same height, so the grid never jumps.
+ * the size cannot be ordered (sold out, or switched off) a quiet pill with
+ * an icon says so, in the same place and the same height, so the grid
+ * never jumps and nothing looks like a button (owner, 2026-10-16).
  */
 export function AddToCart({
   variantId,
@@ -40,14 +41,16 @@ export function AddToCart({
   const height = size === "sm" ? "min-h-11" : "min-h-12";
 
   if (reason) {
+    const Icon = reason === "sold_out" ? PackageX : Ban;
     return (
       <p
         className={cn(
-          "bg-cloud text-ink-muted flex items-center justify-center rounded-full px-3.5 py-2 text-center text-xs leading-tight font-semibold",
-          look === "round" ? "min-h-10" : height,
+          "border-line bg-mist text-ink-muted flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-4 py-2 text-center text-[0.8125rem] leading-tight font-semibold",
+          look === "round" ? "min-h-11 w-full" : height,
           className,
         )}
       >
+        <Icon aria-hidden="true" className="size-4 shrink-0" />
         {t(`reason.${reason}`)}
       </p>
     );

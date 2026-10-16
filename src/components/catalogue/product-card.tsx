@@ -1,11 +1,8 @@
-"use client";
-
 import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
 import { fewLeft, orderingReason } from "@/features/catalogue/availability";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import type { ProductSummary, ProductVariant } from "@/lib/api/types";
+import type { ProductSummary } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDiscount } from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
@@ -15,27 +12,15 @@ import { ProductImage } from "./product-image";
 const badge =
   "rounded-full px-2 py-1 text-[0.6875rem] leading-none font-bold tabular-nums";
 
-/** The product as the size the list shows it as, should `variants` not list it. */
-function ownVariant(product: ProductSummary): ProductVariant {
-  return {
-    id: product.variantId,
-    sku: product.sku,
-    slug: product.slug,
-    packSize: product.packSize,
-    displayName: product.displayName,
-    pricing: product.pricing,
-    ordering: product.ordering,
-    isDefault: true,
-    isSelected: true,
-  };
-}
-
 /**
- * A product in a list: the picture on a mist tile, then the price first,
- * the name with the pack size, the sizes to choose from (each size has its
- * own price, stock and address; they can be switched on the card), whether
- * it is in stock, and the round "+" that puts it in the cart. Cards keep
- * their height whatever their state, so the grid never jumps.
+ * A product in a list, as the one pack size the API shows it as (doc 7):
+ * the picture on a mist tile with its badges, the name with the size as a
+ * link to that size's page, the price with the regular price crossed out
+ * when reduced and the price per unit under it, and the round "+" that
+ * puts it in the cart. Nothing else (owner, 2026-10-16): the other sizes
+ * are chosen on the product page. A sold-out product shows its picture
+ * greyed and a "sold out" pill where the button was. Cards keep their
+ * height whatever their state, so the grid never jumps.
  */
 export function ProductCard({
   product,
@@ -51,20 +36,13 @@ export function ProductCard({
 }) {
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
-  const [selectedId, setSelectedId] = useState(product.variantId);
-
-  const sizes = product.variants.length
-    ? product.variants
-    : [ownVariant(product)];
-  const current =
-    sizes.find((size) => size.id === selectedId) ?? ownVariant(product);
   const href = {
     pathname: "/products/[slug]" as const,
-    params: { slug: current.slug },
+    params: { slug: product.slug },
   };
-  const reason = orderingReason(current.ordering);
+  const reason = orderingReason(product.ordering);
   const soldOut = reason === "sold_out";
-  const left = fewLeft(current.ordering);
+  const left = fewLeft(product.ordering);
   const Heading = headingLevel;
 
   return (
@@ -81,7 +59,7 @@ export function ProductCard({
           sizes={imageSizes}
           priority={priority}
           fallbackLabel={t("noPicture")}
-          className={cn(soldOut && "opacity-40")}
+          className={cn(soldOut && "opacity-40 grayscale")}
         />
         <span className="absolute top-2 left-2 flex flex-col items-start gap-1">
           {soldOut ? (
@@ -89,9 +67,9 @@ export function ProductCard({
               {t("badge.sold_out")}
             </span>
           ) : (
-            current.pricing.onSale && (
+            product.pricing.onSale && (
               <span className={cn(badge, "bg-red-600 text-white")}>
-                {formatDiscount(current.pricing.discountPercent, locale)}
+                {formatDiscount(product.pricing.discountPercent, locale)}
               </span>
             )
           )}
@@ -109,62 +87,21 @@ export function ProductCard({
       </Link>
 
       <div className="flex flex-1 flex-col gap-1.5 px-1.5 pt-3">
-        <Price pricing={current.pricing} />
         <Heading className="line-clamp-2 text-[0.9375rem] leading-snug font-semibold">
           <Link
             href={href}
             className="hover:text-leaf-700 rounded-xs underline-offset-2 hover:underline"
           >
-            {current.displayName}
+            {product.displayName}
           </Link>
         </Heading>
-        {product.brand && (
-          <p className="text-ink-subtle text-[0.6875rem] font-bold tracking-wider uppercase">
-            {product.brand}
-          </p>
-        )}
-
-        {sizes.length > 1 && (
-          <div
-            role="group"
-            aria-label={t("packSize")}
-            className="flex flex-wrap gap-1.5"
-          >
-            {sizes.map((size) => (
-              <button
-                key={size.id}
-                type="button"
-                aria-pressed={size.id === current.id}
-                onClick={() => setSelectedId(size.id)}
-                className={cn(
-                  // The hit area is taller than the pill looks.
-                  "relative rounded-full border-[1.5px] px-2.5 py-1 text-[0.8125rem] leading-tight font-semibold transition-colors duration-150 before:absolute before:inset-x-0 before:-inset-y-2",
-                  size.id === current.id
-                    ? "border-leaf-600 bg-leaf-50 text-leaf-700"
-                    : "border-line-strong hover:border-ink-subtle bg-white",
-                )}
-              >
-                {size.packSize.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {reason === null && (
-          <p className="text-leaf-700 flex items-center gap-1.5 text-xs font-semibold">
-            <span
-              aria-hidden="true"
-              className="bg-leaf-600 size-1.5 shrink-0 rounded-full"
-            />
-            {t("inStock")}
-          </p>
-        )}
+        <Price pricing={product.pricing} />
 
         <div className="mt-auto flex min-h-12 items-center justify-end pt-2">
           <AddToCart
-            variantId={current.id}
-            name={current.displayName}
-            ordering={current.ordering}
+            variantId={product.variantId}
+            name={product.displayName}
+            ordering={product.ordering}
             size="sm"
             look="round"
           />

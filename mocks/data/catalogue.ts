@@ -67,8 +67,8 @@ export interface ProductRecord {
   publishedAt: string;
   updatedAt: string;
   sortOrder: number;
-  /** Tint of the generated placeholder picture. */
-  tint: string;
+  /** Tint of the generated placeholder picture; `null`: no picture yet. */
+  tint: string | null;
   /** The pack sizes, smallest first. */
   variants: VariantRecord[];
 }
@@ -254,7 +254,8 @@ interface ProductSeed {
   ingredients?: Translated;
   allergens?: Translated;
   origin?: Translated;
-  tint: string;
+  /** `null`: the product has no picture yet. */
+  tint: string | null;
 }
 
 const INDIA = t("India", "Indien");
@@ -544,7 +545,8 @@ const SEEDS: ProductSeed[] = [
     pack: [1, "kg"],
     price: 479,
     ingredients: t("Split mung beans", "Geschälte Mungbohnen"),
-    tint: "#EBDD8E",
+    // No picture yet: the shop shows its fallback.
+    tint: null,
   }),
   size({
     sku: "RF-00220",

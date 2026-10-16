@@ -93,8 +93,9 @@ async function sampleProducts(locale: "en" | "de"): Promise<ProductSummary[]> {
     const wanted = (test: (p: ProductSummary) => boolean) =>
       page.items.find(test);
     return [
-      wanted((p) => p.pricing.onSale && p.variants.length > 1),
+      wanted((p) => p.pricing.onSale),
       wanted((p) => p.ordering?.reason === "sold_out"),
+      wanted((p) => p.image === null),
       wanted(
         (p) =>
           p.ordering !== null &&

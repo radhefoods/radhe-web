@@ -163,7 +163,9 @@ export function productJsonLd(
       product.shortDescription ??
       product.description ??
       product.name,
-    image: product.images.map((image) => image.sizes.large.url),
+    ...(product.images.length > 0 && {
+      image: product.images.map((image) => image.sizes.large.url),
+    }),
     variesBy: "https://schema.org/size",
     hasVariant: variants.map((variant) => {
       const variantUrl = productUrl(variant.slug, locale);

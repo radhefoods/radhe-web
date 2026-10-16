@@ -398,28 +398,53 @@ test.describe("the cart of a visitor", () => {
     ).toBeVisible();
   });
 
-  test("pack sizes switch on the card: name, price and link change", async ({
+  test("a card shows one size: the name, the price, the price per unit, add", async ({
     page,
   }) => {
     await page.goto("/en/products");
     const rice = card(page, "Basmati Rice");
-    // The smallest size in stock stands for the product.
-    await expect(rice.getByRole("heading")).toHaveText("Basmati Rice (1 kg)");
-    await expect(rice).toContainText("€5.99");
-    await rice.getByRole("button", { name: "5 kg" }).click();
-    await expect(rice.getByRole("heading")).toHaveText("Basmati Rice (5 kg)");
-    await expect(rice).toContainText("€19.99");
-    await expect(rice).toContainText("€4.00 / kg");
-    await expect(rice.getByRole("heading").getByRole("link")).toHaveAttribute(
+    // The smallest size in stock stands for the product; its name links to
+    // the page of that size.
+    const heading = rice.getByRole("heading");
+    await expect(heading).toHaveText("Basmati Rice (1 kg)");
+    await expect(heading.getByRole("link")).toHaveAttribute(
       "href",
-      "/en/products/basmati-rice-5kg",
+      "/en/products/basmati-rice-1kg",
     );
+    // The name first, then the price, then the price per kilogram under it.
+    expect(await rice.innerText()).toMatch(
+      /Basmati Rice \(1 kg\)\s+€5\.99\s+€5\.99 \/ kg/,
+    );
+    // Nothing else: the sizes are chosen on the product page, and the card
+    // does not say "in stock" or name the brand.
+    await expect(rice.getByRole("button", { name: "5 kg" })).toHaveCount(0);
+    await expect(rice).not.toContainText("In stock");
+    await expect(rice).not.toContainText(/radhe/i);
     await rice
-      .getByRole("button", { name: "Add to cart: Basmati Rice (5 kg)" })
+      .getByRole("button", { name: "Add to cart: Basmati Rice (1 kg)" })
       .click();
     await expect(
-      rice.getByRole("group", { name: "Quantity of Basmati Rice (5 kg)" }),
+      rice.getByRole("group", { name: "Quantity of Basmati Rice (1 kg)" }),
     ).toBeVisible();
+  });
+
+  test("a product without a picture shows the Radhe mark instead", async ({
+    page,
+  }) => {
+    await page.goto("/en/category/pulses-and-lentils");
+    const dal = card(page, "Moong Dal");
+    await expect(dal.locator('img[src*="radhe-logo"]')).toBeVisible();
+    await expect(dal).toContainText("Picture coming soon");
+    // The product page too, in both languages.
+    await dal.getByRole("heading").getByRole("link").click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Moong Dal (1 kg)",
+    );
+    const main = page.getByRole("main");
+    await expect(main.locator('img[src*="radhe-logo"]').first()).toBeVisible();
+    await expect(main).toContainText("Picture coming soon");
+    await page.goto("/de/produkte/moong-dal-1kg");
+    await expect(page.getByRole("main")).toContainText("Bild folgt in Kürze");
   });
 
   test("a product with a minimum quantity starts at the minimum", async ({

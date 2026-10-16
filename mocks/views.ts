@@ -283,7 +283,8 @@ export function productImageUrl(
   return `${mediaBase}/media/products/${productId}/${size}.svg`;
 }
 
-function imageView(p: ProductRecord, locale: Locale): ApiImage {
+function imageView(p: ProductRecord, locale: Locale): ApiImage | null {
+  if (p.tint === null) return null;
   const url = (size: string) =>
     `${mediaBase}/media/products/${p.id}/${size}.svg`;
   return {
@@ -398,7 +399,9 @@ export function productDetail(
     description: pickOrNull(p.description, locale),
     highlights: p.highlights.map((h) => pick(h, locale)),
     uses: p.uses.map((u) => pick(u, locale)),
-    images: [imageView(p, locale)],
+    images: [imageView(p, locale)].filter(
+      (image): image is ApiImage => image !== null,
+    ),
     breadcrumbs: breadcrumbsOf(categoryById.get(p.categoryId), locale),
     food: {
       ingredients: pickOrNull(p.food.ingredients, locale),
@@ -909,7 +912,7 @@ export function customerView(record: CustomerRecord): Customer {
 /** A placeholder picture: the tint of the product and its initials. */
 export function placeholderSvg(productId: string, size: number): string | null {
   const p = findProduct(productId);
-  if (!p) return null;
+  if (!p || p.tint === null) return null;
   const initials = p.name.en
     .split(/\s+/)
     .slice(0, 2)
