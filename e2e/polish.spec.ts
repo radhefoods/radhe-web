@@ -54,7 +54,7 @@ test.describe("while the next page is on its way", () => {
     });
     await page
       .getByRole("contentinfo")
-      .getByRole("link", { name: "How pre-ordering works" })
+      .getByRole("link", { name: "How it works" })
       .click();
     await expect(page.locator(".nav-progress")).toBeVisible();
     await expect(page).toHaveURL(/\/en\/how-it-works$/);

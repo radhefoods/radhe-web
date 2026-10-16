@@ -49,13 +49,12 @@ async function seedGuestCart(
   }, items);
 }
 
-const placeButton = (page: Page) =>
-  page.getByRole("button", { name: "Place binding pre-order" });
+const buyButton = (page: Page) => page.getByRole("button", { name: "Buy now" });
 const consentBox = (page: Page) =>
   page.getByRole("checkbox", { name: /Terms and Conditions/ });
 
-test.describe("from the cart to the confirmed pre-order", () => {
-  test("a visitor orders: cart, sign-in, address, consent, binding button", async ({
+test.describe("from the cart to the paid order", () => {
+  test("a visitor orders: cart, sign-in, address, consent, payment page, confirmed order", async ({
     page,
   }) => {
     await page.goto("/en/products");
@@ -65,7 +64,7 @@ test.describe("from the cart to the confirmed pre-order", () => {
       .click();
     await atta.getByRole("button", { name: "One more" }).click();
 
-    // The cart shows the bill of the API and that nothing is paid today.
+    // The cart shows the bill of the API.
     await page.goto("/en/cart");
     const summary = page.getByRole("complementary", { name: "Summary" });
     await expect(summary).toContainText("€25.98");
@@ -73,8 +72,7 @@ test.describe("from the cart to the confirmed pre-order", () => {
     await expect(summary).toContainText("€30.97");
     await expect(summary).toContainText("includes 7% VAT");
     await expect(summary).toContainText("Add €24.02 more for free delivery");
-    await expect(summary).toContainText("Due today");
-    await expect(summary).toContainText("Nothing to pay today.");
+    await expect(summary).toContainText("You pay in the next step");
 
     // Checkout needs an account: sign-in, then back to the checkout.
     await summary.getByRole("link", { name: "Go to checkout" }).click();
@@ -97,52 +95,69 @@ test.describe("from the cart to the confirmed pre-order", () => {
     await page.getByRole("button", { name: "Save address" }).click();
     await expect(page.getByRole("radio")).toBeChecked();
 
-    // The visitor's cart came along; the button is the binding one.
-    const order = page.getByRole("complementary", { name: "Your pre-order" });
+    // The visitor's cart came along; the customer pays now.
+    const order = page.getByRole("complementary", { name: "Your order" });
     await expect(order).toContainText("Chakki Atta, 5 kg");
     await expect(order).toContainText("€30.97");
-    await expect(order).toContainText("Nothing to pay today.");
+    await expect(order).toContainText("2 to 4 working days");
+    await expect(order).toContainText("You pay now.");
 
-    await placeButton(page).click();
+    await buyButton(page).click();
     await expect(
-      page.getByText("Please accept the terms to place your pre-order."),
+      page.getByText("Please accept the terms to place your order."),
     ).toBeVisible();
     await expect(page).toHaveURL(/\/en\/checkout$/);
 
+    // The order is placed and the browser goes to the payment page.
     await consentBox(page).check();
-    await placeButton(page).click();
-    await expect(page).toHaveURL(/\/en\/checkout\/confirmation\/RF-1085$/);
-    await expect(
-      page.getByRole("heading", { name: "Your pre-order is confirmed" }),
-    ).toBeVisible();
-    await expect(page.getByText("RF-1085")).toBeVisible();
-    await expect(page.getByText("priya@example.com")).toBeVisible();
+    await buyButton(page).click();
+    await expect(page).toHaveURL(/__mock\/stripe\/RF-1085$/);
+    await expect(page.getByText("30.97 EUR")).toBeVisible();
+    await page.getByRole("link", { name: "Pay by card" }).click();
 
-    // The order emptied the cart.
+    // Back on the order, which is paid and confirmed.
+    await expect(page).toHaveURL(
+      /\/en\/account\/orders\/RF-1085\?payment=success$/,
+    );
+    await expect(page.getByText("Thank you, your order is paid")).toBeVisible();
+    await expect(page.getByText("priya@example.com")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Order RF-1085" }),
+    ).toBeVisible();
+    const payment = page.getByRole("region", { name: "Payment" });
+    await expect(payment).toContainText("Paid on");
+    await expect(payment).toContainText("by card");
+    await expect(payment).toContainText("Invoice INV-");
+
+    // The payment emptied the cart.
     await page.goto("/en/cart");
     await expect(
       page.getByRole("heading", { name: "Your cart is empty" }),
     ).toBeVisible();
   });
 
-  test("in German the button says that the order is binding", async ({
+  test("in German the button says that the customer pays, and the way back speaks German", async ({
     page,
   }) => {
     await seedCustomer(page);
     await page.goto("/de/kasse");
     const order = page.getByRole("complementary", {
-      name: "Ihre Vorbestellung",
+      name: "Ihre Bestellung",
     });
     await expect(order).toContainText("30,97 €");
-    await expect(order).toContainText("Heute zu zahlen");
     await expect(order).toContainText("inkl. MwSt. und Lieferung");
+    await expect(order).toContainText("Sie zahlen jetzt.");
     await page.getByRole("checkbox", { name: /Geschäftsbedingungen/ }).check();
     await page
-      .getByRole("button", { name: "Zahlungspflichtig vorbestellen" })
+      .getByRole("button", { name: "Zahlungspflichtig bestellen" })
       .click();
-    await expect(page).toHaveURL(/\/de\/kasse\/bestaetigung\/RF-1085$/);
+    await expect(page).toHaveURL(/__mock\/stripe\/RF-1085$/);
+    await page.getByRole("link", { name: "Pay by card" }).click();
+    await expect(page).toHaveURL(
+      /\/de\/konto\/bestellungen\/RF-1085\?payment=success$/,
+    );
     await expect(
-      page.getByRole("heading", { name: "Ihre Vorbestellung ist bestätigt" }),
+      page.getByText("Vielen Dank, Ihre Bestellung ist bezahlt"),
     ).toBeVisible();
   });
 
@@ -173,21 +188,21 @@ test.describe("when something changed since the page was loaded", () => {
     const { atta } = await seedCustomer(page);
     await page.goto("/en/checkout");
     await consentBox(page).check();
-    await expect(placeButton(page)).toBeEnabled();
+    await expect(buyButton(page)).toBeEnabled();
 
     await request.post(`${MOCK}/__mock/price`, {
       data: { productId: atta, price: 1399 },
     });
-    await placeButton(page).click();
+    await buyButton(page).click();
     await expect(page.getByText("The total has changed")).toBeVisible();
     await expect(
       page.getByText(/It was €30\.97 and is now €32\.97/),
     ).toBeVisible();
     await expect(page).toHaveURL(/\/en\/checkout$/);
 
-    await placeButton(page).click();
-    await expect(page).toHaveURL(/\/confirmation\/RF-1085$/);
-    await expect(page.getByText("€32.97").first()).toBeVisible();
+    await buyButton(page).click();
+    await expect(page).toHaveURL(/__mock\/stripe\/RF-1085$/);
+    await expect(page.getByText("32.97 EUR")).toBeVisible();
   });
 
   test("republished terms must be accepted again", async ({
@@ -200,7 +215,7 @@ test.describe("when something changed since the page was loaded", () => {
     await request.post(`${MOCK}/__mock/legal/republish`, {
       data: { type: "terms" },
     });
-    await placeButton(page).click();
+    await buyButton(page).click();
     await expect(page.getByText("Our terms were updated")).toBeVisible();
     await expect(consentBox(page)).not.toBeChecked();
     await expect(
@@ -208,39 +223,45 @@ test.describe("when something changed since the page was loaded", () => {
     ).toBeVisible();
 
     await consentBox(page).check();
-    await placeButton(page).click();
-    await expect(page).toHaveURL(/\/confirmation\/RF-1085$/);
+    await buyButton(page).click();
+    await expect(page).toHaveURL(/__mock\/stripe\/RF-1085$/);
   });
 
-  test("ordering that closed meanwhile is explained, nothing is lost", async ({
+  test("a product that sold out meanwhile is named, and the cart is the way out", async ({
     page,
     request,
   }) => {
-    await seedCustomer(page);
+    const { atta } = await seedCustomer(page);
     await page.goto("/en/checkout");
     await consentBox(page).check();
-    await request.post(`${MOCK}/__mock/cargo`, { data: { mode: "closed" } });
-    await placeButton(page).click();
+    await request.post(`${MOCK}/__mock/stock`, {
+      data: { productId: atta, quantity: 1 },
+    });
+    await buyButton(page).click();
+    const issues = page.getByRole("alert").filter({
+      hasText: "Some products cannot be ordered right now.",
+    });
+    await expect(issues).toBeVisible();
+    await expect(issues).toContainText("Chakki Atta, 5 kg");
     await expect(
-      page.getByText("Ordering has just closed. Your cart stays saved"),
+      issues.getByRole("link", { name: "To the cart" }),
     ).toBeVisible();
-    await expect(placeButton(page)).toBeDisabled();
+    await expect(buyButton(page)).toBeDisabled();
   });
 
-  test("an overdue payment stops the order and names what to pay", async ({
+  test("when online payment is not set up, the checkout says so", async ({
     page,
     request,
   }) => {
     await seedCustomer(page);
-    await request.post(`${MOCK}/__mock/customer`, {
-      data: { email: "priya@example.com", overdue: true },
-    });
+    await request.post(`${MOCK}/__mock/stripe`, { data: { enabled: false } });
     await page.goto("/en/checkout");
+    await consentBox(page).check();
+    await buyButton(page).click();
     await expect(
-      page.getByText("An earlier order is still unpaid."),
+      page.getByText("Checkout is not available right now"),
     ).toBeVisible();
-    await expect(page.getByText(/Order RF-1001: €31\.93/)).toBeVisible();
-    await expect(placeButton(page)).toBeDisabled();
+    await expect(buyButton(page)).toBeDisabled();
   });
 });
 
@@ -277,7 +298,7 @@ test.describe("the cart", () => {
       { productId: dal, quantity: 1 },
     ]);
     await page.goto("/en/cart");
-    await expect(page.getByText(/Sold out for this delivery\./)).toBeVisible();
+    await expect(page.getByText(/Sold out\. Please remove it/)).toBeVisible();
     const summary = page.getByRole("complementary", { name: "Summary" });
     // Only what can be ordered is in the total.
     await expect(summary).toContainText("€4.49");
@@ -289,6 +310,25 @@ test.describe("the cart", () => {
     await expect(
       summary.getByRole("link", { name: "Go to checkout" }),
     ).toBeVisible();
+  });
+
+  test("more than the stock is capped with one tap", async ({
+    page,
+    request,
+  }) => {
+    const atta = await productId(page, "chakki-atta-5-kg");
+    await request.post(`${MOCK}/__mock/stock`, {
+      data: { productId: atta, quantity: 3 },
+    });
+    await seedGuestCart(page, [{ productId: atta, quantity: 5 }]);
+    await page.goto("/en/cart");
+    await expect(
+      page.getByText("Only 3 can be ordered right now."),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Set to 3" }).click();
+    await expect(
+      page.getByText("Only 3 can be ordered right now."),
+    ).toHaveCount(0);
   });
 
   test("free delivery is reached and said so", async ({ page }) => {
@@ -358,7 +398,7 @@ test.describe("signing in", () => {
     await page.goto("/en/checkout");
     await expect(page).toHaveURL(/\/en\/sign-in\?returnTo=%2Fcheckout$/);
     await expect(
-      page.getByText("Sign in to confirm your pre-order."),
+      page.getByText("Sign in to pay for your order."),
     ).toBeVisible();
   });
 });

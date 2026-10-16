@@ -1,7 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
 const MOCK = "http://localhost:3000";
-const DEMO = "demo@radhefoods.de";
 
 test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
@@ -10,7 +9,7 @@ test.beforeEach(async ({ request }) => {
 /**
  * Creates the account through the API, outside the browser: the browser of
  * the test stays without a session, like someone who opens a link in an
- * email. Answers the tokens the emails would carry.
+ * email. Answers the token the marketing emails would carry.
  */
 async function tokensOf(request: APIRequestContext, email: string) {
   await request.post(`${MOCK}/v1/store/auth/otp/request`, { data: { email } });
@@ -20,64 +19,8 @@ async function tokensOf(request: APIRequestContext, email: string) {
   const response = await request.get(
     `${MOCK}/__mock/tokens?email=${encodeURIComponent(email)}`,
   );
-  return (await response.json()) as {
-    unsubscribe: string;
-    pay: Record<string, string>;
-  };
+  return (await response.json()) as { unsubscribe: string };
 }
-
-test.describe("the payment link of an email", () => {
-  test("pays one order without a sign-in", async ({ page, request }) => {
-    const { pay } = await tokensOf(request, DEMO);
-    // The link in the email carries no language.
-    await page.goto(`/pay/${pay["RF-1086"]}`);
-    await expect(page).toHaveURL(new RegExp(`/en/pay/${pay["RF-1086"]}$`));
-    await expect(page.getByText("Hello Priya,")).toBeVisible();
-    await expect(page.getByText(/pays order RF-1086/)).toBeVisible();
-    await expect(page.getByText("€36.95").first()).toBeVisible();
-
-    await page.getByRole("button", { name: "Pay €36.95 now" }).click();
-    await expect(page).toHaveURL(/__mock\/stripe\/RF-1086$/);
-    await page.getByRole("link", { name: "Pay by card" }).click();
-    // The way back leads to the order in the account, which asks to sign in.
-    await expect(page).toHaveURL(
-      /\/en\/sign-in\?returnTo=%2Faccount%2Forders%2FRF-1086$/,
-    );
-
-    await page.goto(`/pay/${pay["RF-1086"]}`);
-    await expect(
-      page.getByText("This order is paid. Thank you."),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: /Pay/ })).toHaveCount(0);
-  });
-
-  test("says so when the link is not valid", async ({ page }) => {
-    await page.goto("/en/pay/not-a-real-token");
-    await expect(
-      page.getByRole("heading", { name: "This payment link is not valid" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "To my orders" }),
-    ).toBeVisible();
-  });
-
-  test.describe("with a German browser", () => {
-    test.use({ locale: "de-DE" });
-
-    test("speaks the language of the order, not of the browser", async ({
-      page,
-      request,
-    }) => {
-      const { pay } = await tokensOf(request, DEMO);
-      await page.goto(`/pay/${pay["RF-1086"]}`);
-      // The demo order was placed in English.
-      await expect(page).toHaveURL(new RegExp(`/en/pay/${pay["RF-1086"]}$`));
-      await expect(
-        page.getByRole("heading", { level: 1, name: "Pay your order" }),
-      ).toBeVisible();
-    });
-  });
-});
 
 test.describe("the unsubscribe link of an email", () => {
   test("switches the news off with one tap, without a sign-in", async ({
@@ -110,14 +53,26 @@ test.describe("help and legal pages", () => {
       .getByRole("contentinfo")
       .getByRole("link")
       .evaluateAll((links) => links.map((a) => (a as HTMLAnchorElement).href));
-    expect(hrefs.length).toBeGreaterThan(15);
+    expect(hrefs.length).toBeGreaterThan(14);
     for (const href of new Set(hrefs)) {
       const response = await page.request.get(href);
       expect(response.status(), href).toBe(200);
     }
   });
 
-  test("delivery and payment shows the real fee steps", async ({ page }) => {
+  test("the old address of the pre-order terms leads to the terms", async ({
+    request,
+  }) => {
+    const moved = await request.get("/en/legal/preorder-terms", {
+      maxRedirects: 0,
+    });
+    expect(moved.status()).toBe(308);
+    expect(moved.headers()["location"]).toBe("/en/legal/terms");
+  });
+
+  test("delivery and payment shows the real fee steps and the delivery time", async ({
+    page,
+  }) => {
     await page.goto("/en/delivery-and-payment");
     await expect(
       page.getByRole("heading", { level: 1, name: "Delivery and payment" }),
@@ -127,18 +82,22 @@ test.describe("help and legal pages", () => {
     await expect(fees).toContainText("€4.99");
     await expect(fees).toContainText("from €50.00");
     await expect(fees).toContainText("Free");
+    await expect(
+      page.getByText("Delivery time: 2 to 4 working days."),
+    ).toBeVisible();
     await expect(page.getByText(/Within 14 days after delivery/)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Payment at checkout" }),
+    ).toBeVisible();
   });
 
-  test("the pre-order is explained, in German too", async ({ page }) => {
+  test("the shop is explained, in German too", async ({ page }) => {
     await page.goto("/de/so-funktionierts");
     await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: "So funktioniert die Vorbestellung",
-      }),
+      page.getByRole("heading", { level: 1, name: "So funktioniert’s" }),
     ).toBeVisible();
-    await expect(page.getByText("Zahle ich bei der Bestellung?")).toBeVisible();
+    await expect(page.getByText("Wie bezahle ich?")).toBeVisible();
+    await expect(page.getByText("Bezahlen", { exact: true })).toBeVisible();
   });
 
   test("the legal notice is a template with marked gaps until it is filled in", async ({
@@ -192,7 +151,8 @@ test.describe("for search engines", () => {
   }) => {
     const text = await (await request.get("/robots.txt")).text();
     expect(text).toContain("Allow: /");
-    expect(text).toContain("Disallow: /pay/");
+    expect(text).toContain("Disallow: /unsubscribe/");
+    expect(text).not.toContain("/pay/");
     expect(text).toContain("Sitemap: http://localhost:3001/sitemap.xml");
   });
 
@@ -215,6 +175,7 @@ test.describe("for search engines", () => {
     expect(xml).toContain('hreflang="x-default"');
     expect(xml).not.toContain("/warenkorb");
     expect(xml).not.toContain("/account");
+    expect(xml).not.toContain("preorder-terms");
   });
 
   test("a product page carries canonical, languages, a picture and its offer", async ({
@@ -252,7 +213,7 @@ test.describe("for search engines", () => {
     expect(product.offers).toMatchObject({
       priceCurrency: "EUR",
       price: "19.99",
-      availability: "https://schema.org/PreOrder",
+      availability: "https://schema.org/InStock",
     });
   });
 

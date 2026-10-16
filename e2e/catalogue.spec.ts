@@ -10,52 +10,83 @@ function card(page: Page, name: string) {
   return page.getByRole("article").filter({ hasText: name });
 }
 
-test.describe("the pre-order is impossible to miss", () => {
-  test("home says when to order, when it comes and that nothing is paid today", async ({
+async function productIdOf(page: Page, slug: string): Promise<string> {
+  const response = await page.request.get(`${MOCK}/v1/store/products/${slug}`);
+  return (await response.json()).product.id;
+}
+
+test.describe("the shop at a glance", () => {
+  test("home says what the shop promises, in both languages", async ({
     page,
   }) => {
     await page.goto("/en");
-    // The countdown card in the hero: the deadline, the delivery days and
-    // the time left in four tiles.
-    const card = page.getByRole("region", { name: "Current pre-order" });
-    await expect(card).toContainText("Pre-order is open");
-    await expect(card).toContainText("Order by");
-    await expect(card).toContainText("Delivery");
-    await expect(card.getByRole("timer")).toHaveText(
-      /\d+\s*days?\s*\d{2}\s*hours?\s*\d{2}\s*min\s*\d{2}\s*sec/,
-    );
+    // The ticket in the hero: delivery, payment and returns from the settings.
+    const card = page.getByRole("region", {
+      name: "Delivery and payment at a glance",
+    });
+    await expect(card).toContainText("In stock now");
+    await expect(card).toContainText("2 to 4 working days to your door.");
+    await expect(card).toContainText("€4.99");
+    await expect(card).toContainText("€50.00");
+    await expect(card).toContainText("14");
+    await expect(card).toContainText("Card or PayPal, at checkout");
+    await expect(card).toContainText("Secure checkout");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "pay after delivery",
+      "From our shelf to your door",
     );
-    await expect(card).toContainText("Nothing to pay today");
-  });
+    await expect(page.getByRole("link", { name: "Shop now" })).toBeVisible();
 
-  test("the same in German, with formal address", async ({ page }) => {
     await page.goto("/de");
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
-    const card = page.getByRole("region", { name: "Aktuelle Vorbestellung" });
-    await expect(card).toContainText("Bestellschluss");
-    await expect(card.getByRole("timer")).toHaveText(
-      /\d+\s*Tage?\s*\d{2}\s*Std\.\s*\d{2}\s*Min\.\s*\d{2}\s*Sek\./,
-    );
+    const karte = page.getByRole("region", {
+      name: "Lieferung und Zahlung auf einen Blick",
+    });
+    await expect(karte).toContainText("2 bis 4 Werktage bis vor Ihre Tür.");
+    await expect(karte).toContainText("Sicher bezahlen");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "nach der Lieferung bezahlen",
+      "Von unserem Regal bis vor Ihre Tür",
     );
-    await expect(card).toContainText("Heute zahlen Sie nichts");
   });
 
-  test("a closed pre-order shows on a page that was cached while it was open", async ({
+  test("a sold-out product says so; few units left are counted", async ({
+    page,
+  }) => {
+    await page.goto("/en/products");
+    const mango = card(page, "Kesar Mango");
+    await expect(mango).toContainText("Sold out");
+    await expect(mango.getByRole("button", { name: /Add/ })).toHaveCount(0);
+    const khakhra = card(page, "Methi Khakhra");
+    await expect(khakhra).toContainText("Only 8 left");
+    await expect(
+      khakhra.getByRole("button", { name: /Add to cart: Methi Khakhra/ }),
+    ).toBeVisible();
+  });
+
+  test("stock that ran out shows on a product page that was cached before", async ({
     page,
     request,
   }) => {
-    await request.post(`${MOCK}/__mock/cargo`, { data: { mode: "closed" } });
-    await page.goto("/en/products");
+    await page.goto("/en/products/chakki-atta-5-kg");
     await expect(
-      page.getByRole("region", { name: "Current pre-order" }),
-    ).toContainText("Ordering is closed right now.");
-    const atta = card(page, "Chakki Atta");
-    await expect(atta).toContainText("Ordering is closed right now");
-    await expect(atta.getByRole("button", { name: /Add/ })).toHaveCount(0);
+      page
+        .getByRole("main")
+        .getByRole("button", { name: "Add to cart: Chakki Atta, 5 kg" })
+        .first(),
+    ).toBeVisible();
+    await request.post(`${MOCK}/__mock/stock`, {
+      data: {
+        productId: await productIdOf(page, "chakki-atta-5-kg"),
+        quantity: 0,
+      },
+    });
+    // The page is cached for minutes; the buying part asks the API again.
+    await page.reload();
+    await expect(
+      page.getByRole("main").getByText("Sold out").first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Add to cart: Chakki Atta, 5 kg" }),
+    ).toHaveCount(0);
   });
 });
 

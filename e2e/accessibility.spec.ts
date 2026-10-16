@@ -81,12 +81,6 @@ test.describe("public pages have no barriers axe can find", () => {
     });
   }
 
-  test("the home page while ordering is closed", async ({ page, request }) => {
-    await request.post(`${MOCK}/__mock/cargo`, { data: { state: "closed" } });
-    await open(page, "/en");
-    await expectNoBarriers(page);
-  });
-
   test.describe("on a first visit", () => {
     test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -120,9 +114,7 @@ test.describe("cart, checkout and account have no barriers axe can find", () => 
     await expectNoBarriers(page);
 
     await open(page, "/en/checkout");
-    await expect(
-      page.getByRole("button", { name: "Place binding pre-order" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Buy now" })).toBeVisible();
     await expectNoBarriers(page);
   });
 
@@ -130,6 +122,8 @@ test.describe("cart, checkout and account have no barriers axe can find", () => 
     "/en/account",
     "/en/account/orders",
     "/en/account/orders/RF-1086",
+    "/en/account/orders/RF-1086?payment=cancelled",
+    "/en/account/orders/RF-1090",
     "/de/konto/bestellungen/RF-1087",
     "/en/account/orders/RF-1085/return",
     "/en/account/invoices",
