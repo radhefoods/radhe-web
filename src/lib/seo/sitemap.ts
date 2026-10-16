@@ -18,8 +18,9 @@ export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/legal/cookies", priority: 0.1 },
 ];
 
-/** A product as the sitemap needs it: its slug in each language. */
+/** A pack size as the sitemap needs it: its slug in each language. */
 export interface SitemapProduct {
+  /** The id of the size (`variantId`). */
   id: string;
   slugs: LocalizedSlugs;
 }
@@ -52,9 +53,9 @@ function flatten(categories: Category[]): Category[] {
 }
 
 /**
- * Joins the product lists of the two languages by id. The list of the API
+ * Joins the pack sizes of the two languages by id. The list of the API
  * carries the slug of one language only, so the catalogue is read once per
- * language; a product missing in one list is left out.
+ * language; a size missing in one list is left out.
  */
 export function joinProductSlugs(
   english: { id: string; slug: string }[],

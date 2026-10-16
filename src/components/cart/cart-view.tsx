@@ -14,7 +14,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { BillLine } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/format/money";
+import { formatBasePrice, formatMoney } from "@/lib/format/money";
 import { BillTotals, FreeDeliveryProgress } from "./bill-summary";
 
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
@@ -24,10 +24,12 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const cart = useCart();
   const { product, ordering, issue } = line;
   // The number the customer chose shows at once; prices follow from the API.
-  const quantity = cart.quantityOf(line.productId);
-  const name = product
-    ? `${product.name}, ${product.packSize.label}`
-    : tProduct("reason.product_unavailable");
+  const quantity = cart.quantityOf(line.variantId);
+  const name = product?.displayName ?? tProduct("reason.product_unavailable");
+  // The line's price is what the customer pays per pack; next to it the
+  // regular price when the size is reduced, and the price per unit.
+  const reduced =
+    product !== null && line.unitPrice < product.pricing.regularPrice;
   const min = ordering?.minQuantity ?? 1;
   // The stock and the product's limit, whichever is lower (doc 7.1).
   const max = ordering?.maxQuantity ?? null;
@@ -64,16 +66,33 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             )}
           </p>
           {product && (
-            <p className="text-ink-muted text-sm tabular-nums">
-              {product.packSize.label} ·{" "}
-              {t("unitPrice", { price: formatMoney(line.unitPrice, locale) })}
-            </p>
+            <>
+              <p className="text-ink-muted text-sm tabular-nums">
+                {product.packSize.label} ·{" "}
+                {reduced && (
+                  <span className="sr-only">{tProduct("currentPrice")}: </span>
+                )}
+                {t("unitPrice", { price: formatMoney(line.unitPrice, locale) })}
+                {reduced && (
+                  <>
+                    {" "}
+                    <span className="sr-only">{tProduct("regularPrice")}:</span>
+                    <s className="text-ink-subtle">
+                      {formatMoney(product.pricing.regularPrice, locale)}
+                    </s>
+                  </>
+                )}
+              </p>
+              <p className="text-ink-subtle text-xs tabular-nums">
+                {formatBasePrice(product.pricing.basePrice, locale)}
+              </p>
+            </>
           )}
         </div>
         <button
           type="button"
           aria-label={t("removeNamed", { name })}
-          onClick={() => cart.setQuantity(line.productId, 0)}
+          onClick={() => cart.setQuantity(line.variantId, 0)}
           className="text-ink-muted hover:text-ink -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full hover:bg-white"
         >
           <Trash2 aria-hidden="true" className="size-5" />
@@ -89,7 +108,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             removeAtMin={false}
             size="sm"
             className="w-32"
-            onChange={(next) => cart.setQuantity(line.productId, next)}
+            onChange={(next) => cart.setQuantity(line.variantId, next)}
             labels={{
               quantity: tProduct("quantityNamed", { name }),
               increase: tProduct("increase"),
@@ -122,7 +141,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => cart.setQuantity(line.productId, min)}
+              onClick={() => cart.setQuantity(line.variantId, min)}
             >
               {t("setTo", { count: min })}
             </Button>
@@ -131,7 +150,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => cart.setQuantity(line.productId, max)}
+              onClick={() => cart.setQuantity(line.variantId, max)}
             >
               {t("setTo", { count: max })}
             </Button>
@@ -196,7 +215,7 @@ export function CartView() {
 
   // Lines the customer just removed disappear at once.
   const lines = bill.lines.filter(
-    (line) => cart.quantityOf(line.productId) > 0,
+    (line) => cart.quantityOf(line.variantId) > 0,
   );
   const hasIssues = lines.some((line) => line.issue !== null);
 
@@ -211,7 +230,7 @@ export function CartView() {
           ))}
         <ul className="flex flex-col gap-3">
           {lines.map((line) => (
-            <CartLine key={line.productId} line={line} updating={updating} />
+            <CartLine key={line.variantId} line={line} updating={updating} />
           ))}
         </ul>
       </div>

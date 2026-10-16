@@ -25,11 +25,11 @@ describe("joinProductSlugs", () => {
   it("gives every product its slug in both languages", () => {
     expect(
       joinProductSlugs(
-        [{ id: "1", slug: "basmati-rice-5-kg" }],
-        [{ id: "1", slug: "basmati-reis-5-kg" }],
+        [{ id: "1", slug: "basmati-rice-5kg" }],
+        [{ id: "1", slug: "basmati-reis-5kg" }],
       ),
     ).toEqual([
-      { id: "1", slugs: { en: "basmati-rice-5-kg", de: "basmati-reis-5-kg" } },
+      { id: "1", slugs: { en: "basmati-rice-5kg", de: "basmati-reis-5kg" } },
     ]);
   });
 
@@ -49,7 +49,7 @@ describe("joinProductSlugs", () => {
 describe("buildSitemap", () => {
   const sitemap = buildSitemap(
     [category("rice", "reis", [category("basmati-rice", "basmati-reis")])],
-    [{ id: "1", slugs: { en: "basmati-rice-5-kg", de: "basmati-reis-5-kg" } }],
+    [{ id: "1", slugs: { en: "basmati-rice-5kg", de: "basmati-reis-5kg" } }],
   );
   const urls = sitemap.map((entry) => entry.url);
 
@@ -61,8 +61,8 @@ describe("buildSitemap", () => {
   });
 
   it("uses the localized address and slug of each language", () => {
-    expect(urls).toContain(`${SITE}/en/products/basmati-rice-5-kg`);
-    expect(urls).toContain(`${SITE}/de/produkte/basmati-reis-5-kg`);
+    expect(urls).toContain(`${SITE}/en/products/basmati-rice-5kg`);
+    expect(urls).toContain(`${SITE}/de/produkte/basmati-reis-5kg`);
     expect(urls).toContain(`${SITE}/en/category/rice`);
     expect(urls).toContain(`${SITE}/de/kategorie/reis`);
     expect(urls).toContain(`${SITE}/de/kategorie/basmati-reis`);
@@ -72,12 +72,12 @@ describe("buildSitemap", () => {
 
   it("names the other language and the default on every entry", () => {
     const german = sitemap.find(
-      (entry) => entry.url === `${SITE}/de/produkte/basmati-reis-5-kg`,
+      (entry) => entry.url === `${SITE}/de/produkte/basmati-reis-5kg`,
     );
     expect(german?.alternates?.languages).toEqual({
-      en: `${SITE}/en/products/basmati-rice-5-kg`,
-      de: `${SITE}/de/produkte/basmati-reis-5-kg`,
-      "x-default": `${SITE}/en/products/basmati-rice-5-kg`,
+      en: `${SITE}/en/products/basmati-rice-5kg`,
+      de: `${SITE}/de/produkte/basmati-reis-5kg`,
+      "x-default": `${SITE}/en/products/basmati-rice-5kg`,
     });
   });
 

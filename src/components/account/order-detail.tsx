@@ -288,10 +288,10 @@ function ReturnCard({
       </p>
       <ul className="text-[0.9375rem]">
         {request.items.map((item) => (
-          <li key={item.productId}>
+          <li key={item.variantId}>
             {t("itemLine", {
               quantity: item.quantity,
-              name: `${item.name}, ${item.packSize.label}`,
+              name: `${item.name} (${item.packSize.label})`,
             })}
             <span className="text-ink-muted">
               {" · "}
@@ -427,6 +427,7 @@ function OrderBody({
 }) {
   const t = useTranslations("orders");
   const tDocuments = useTranslations("documents");
+  const tProduct = useTranslations("product");
   const tReturns = useTranslations("returns");
   const locale = useLocale() as Locale;
   const client = useQueryClient();
@@ -524,7 +525,7 @@ function OrderBody({
         </h2>
         <ul className="divide-line divide-y">
           {order.items.map((item) => (
-            <li key={item.productId} className="flex gap-4 py-3.5">
+            <li key={item.variantId} className="flex gap-4 py-3.5">
               {item.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -541,6 +542,18 @@ function OrderBody({
                 <p className="text-ink-muted text-sm tabular-nums">
                   {item.packSize.label} · {item.quantity} ×{" "}
                   {formatMoney(item.unitPrice, locale)}
+                  {/* A size that was reduced: the regular price next to it. */}
+                  {item.regularUnitPrice !== null && (
+                    <>
+                      {" "}
+                      <span className="sr-only">
+                        {tProduct("regularPrice")}:
+                      </span>
+                      <s className="text-ink-subtle">
+                        {formatMoney(item.regularUnitPrice, locale)}
+                      </s>
+                    </>
+                  )}
                 </p>
                 {delivered && item.deliveredQuantity !== item.quantity && (
                   <p className="text-wheat-800 text-sm font-semibold">

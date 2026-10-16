@@ -36,7 +36,7 @@ const NOTHING: Choice = { quantity: 0, reason: "", comment: "" };
 
 /**
  * Asking to send products of a delivered order back (doc 12): how many of
- * which product, and why. Radhe Foods decides about every request; nothing
+ * which pack size, and why. Radhe Foods decides about every request; nothing
  * is refunded by sending this form.
  */
 export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
@@ -101,21 +101,21 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
     .map((item) => ({
       item,
       available:
-        returnable.find((row) => row.productId === item.productId)?.available ??
+        returnable.find((row) => row.variantId === item.variantId)?.available ??
         0,
     }))
     .filter((row) => row.available > 0);
   const chosen = rows.filter(
-    (row) => (choices[row.item.productId]?.quantity ?? 0) > 0,
+    (row) => (choices[row.item.variantId]?.quantity ?? 0) > 0,
   );
   const reasonsMissing = chosen.some(
-    (row) => !choices[row.item.productId]?.reason,
+    (row) => !choices[row.item.variantId]?.reason,
   );
 
-  const change = (productId: Id, patch: Partial<Choice>) =>
+  const change = (variantId: Id, patch: Partial<Choice>) =>
     setChoices((current) => ({
       ...current,
-      [productId]: { ...(current[productId] ?? NOTHING), ...patch },
+      [variantId]: { ...(current[variantId] ?? NOTHING), ...patch },
     }));
 
   async function submit(event: FormEvent) {
@@ -127,9 +127,9 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
     try {
       await api.createReturn(orderNumber, {
         items: chosen.map(({ item }) => {
-          const choice = choices[item.productId];
+          const choice = choices[item.variantId];
           return {
-            productId: item.productId,
+            variantId: item.variantId,
             quantity: choice.quantity,
             reason: choice.reason as ReturnReason,
             comment: choice.comment.trim() || undefined,
@@ -173,14 +173,14 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
         <form onSubmit={submit} noValidate className="flex flex-col gap-5">
           <ul className="flex flex-col gap-3">
             {rows.map(({ item, available }) => {
-              const choice = choices[item.productId] ?? NOTHING;
-              const name = `${item.name}, ${item.packSize.label}`;
+              const choice = choices[item.variantId] ?? NOTHING;
+              const name = item.displayName;
               const active = choice.quantity > 0;
-              const reasonId = `return-reason-${item.productId}`;
-              const commentId = `return-comment-${item.productId}`;
+              const reasonId = `return-reason-${item.variantId}`;
+              const commentId = `return-comment-${item.variantId}`;
               return (
                 <li
-                  key={item.productId}
+                  key={item.variantId}
                   className={cn(
                     "flex flex-col gap-3 rounded-lg border p-4",
                     active ? "border-leaf-600 bg-leaf-50" : "border-line",
@@ -201,7 +201,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                       size="sm"
                       className="w-32 bg-white"
                       onChange={(quantity) =>
-                        change(item.productId, { quantity })
+                        change(item.variantId, { quantity })
                       }
                       labels={{
                         quantity: t("quantityNamed", { name }),
@@ -224,7 +224,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                             attempted && !choice.reason ? true : undefined
                           }
                           onChange={(event) =>
-                            change(item.productId, {
+                            change(item.variantId, {
                               reason: event.target.value as ReturnReason | "",
                             })
                           }
@@ -256,7 +256,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                           maxLength={500}
                           value={choice.comment}
                           onChange={(event) =>
-                            change(item.productId, {
+                            change(item.variantId, {
                               comment: event.target.value,
                             })
                           }

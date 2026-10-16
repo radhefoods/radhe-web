@@ -3,47 +3,243 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { LocaleAlternates } from "@/components/shell/locale-switcher";
+import {
   cappedByLimit,
   fewLeft,
   orderingReason,
 } from "@/features/catalogue/availability";
+import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import type { Id, Ordering, PriceView } from "@/lib/api/types";
-import { formatMoney } from "@/lib/format/money";
+import type { Ordering, ProductDetail, ProductVariant } from "@/lib/api/types";
+import { cn } from "@/lib/cn";
+import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
+import { Price } from "./price";
+
+// The product page is one page for every pack size of a product (doc 7). The
+// server renders it for the size its address names; choosing another size
+// changes the headline, the price, the stock, the item number and the
+// address in place, without a request: every size came with the page. The
+// parts below are the ones that follow the chosen size.
+
+interface Selection {
+  product: ProductDetail;
+  /** The sizes to choose from, smallest first. */
+  variants: ProductVariant[];
+  /** The size the page shows right now. */
+  variant: ProductVariant;
+  /** Whether the size can be ordered: asked again when the page opens. */
+  ordering: Ordering | null;
+  /** Shows a size; with an address, the browser's address follows. */
+  select: (variant: ProductVariant, href?: string) => void;
+}
+
+const SelectionContext = createContext<Selection | null>(null);
+
+function useSelection(): Selection {
+  const value = useContext(SelectionContext);
+  if (!value) {
+    throw new Error("This part of the product page needs <PackSizes> above.");
+  }
+  return value;
+}
+
+/** The product as the size it is shown as, should `variants` not list it. */
+function ownVariant(product: ProductDetail): ProductVariant {
+  return {
+    id: product.variantId,
+    sku: product.sku,
+    slug: product.slug,
+    packSize: product.packSize,
+    displayName: product.displayName,
+    pricing: product.pricing,
+    ordering: product.ordering,
+    isDefault: true,
+    isSelected: true,
+  };
+}
+
+const productHref = (slug: string) => ({
+  pathname: "/products/[slug]" as const,
+  params: { slug },
+});
+
+/** The last part of an address: the slug of the size it names. */
+function slugOfPath(pathname: string): string {
+  return decodeURIComponent(pathname.split("/").filter(Boolean).at(-1) ?? "");
+}
 
 /**
- * The buying part of a product page: the add-to-cart control and the limits
- * of the product. The page itself is cached, so this part asks the API again
- * for the one thing that must be current: whether, and how much of, the
- * product can be ordered right now. Nothing is reserved before a payment,
- * so the stock can change at any moment.
+ * Holds the chosen pack size for the parts of the product page below it.
+ * The page itself is cached, so the one thing that must be current, whether
+ * and how much of each size can be ordered, is asked for again, once for all
+ * sizes. Nothing is reserved before a payment, so the stock can change at
+ * any moment.
  */
-export function ProductPurchase({
-  productId,
-  slug,
-  name,
-  pricing,
-  ordering: cachedOrdering,
+export function PackSizes({
+  product,
+  children,
 }: {
-  productId: Id;
-  slug: string;
-  /** Name with pack size, for spoken labels and the bar on phones. */
-  name: string;
-  pricing: PriceView;
-  /** The answer rendered into the page, possibly minutes old. */
-  ordering: Ordering | null;
+  product: ProductDetail;
+  children: ReactNode;
 }) {
-  const t = useTranslations("product");
   const locale = useLocale() as Locale;
+  const variants = useMemo(
+    () => (product.variants.length ? product.variants : [ownVariant(product)]),
+    [product],
+  );
+  const [variantId, setVariantId] = useState(product.variantId);
+  const variant = variants.find((v) => v.id === variantId) ?? variants[0];
 
   const fresh = useQuery({
-    queryKey: ["product-ordering", slug, locale],
-    queryFn: async () => (await api.getProduct(slug)).product.ordering,
+    queryKey: ["product-ordering", product.id, locale],
+    queryFn: async () => (await api.getProduct(product.slug)).product,
     staleTime: 30_000,
   });
-  const ordering = fresh.data ?? cachedOrdering;
+  const ordering =
+    fresh.data?.variants.find((v) => v.id === variant.id)?.ordering ??
+    variant.ordering;
+
+  // The tab's title names the size; the rest of it (the shop) stays.
+  const titledAs = useRef(product.seo.title ?? product.displayName);
+  const select = useCallback((next: ProductVariant, href?: string) => {
+    setVariantId(next.id);
+    if (href) window.history.pushState(null, "", href);
+    document.title = document.title.replace(titledAs.current, next.displayName);
+    titledAs.current = next.displayName;
+  }, []);
+
+  // Back and forward move between the addresses of the sizes.
+  useEffect(() => {
+    const onPopState = () => {
+      const slug = slugOfPath(window.location.pathname);
+      const match = variants.find((v) => v.slug === slug);
+      if (match) select(match);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [variants, select]);
+
+  const value = useMemo<Selection>(
+    () => ({ product, variants, variant, ordering, select }),
+    [product, variants, variant, ordering, select],
+  );
+
+  // The language switch keeps the size. The API answers to the slug of
+  // either language, and the page then moves to its own address.
+  const alternates =
+    variant.id === product.variantId
+      ? { en: productHref(product.slugs.en), de: productHref(product.slugs.de) }
+      : { en: productHref(variant.slug), de: productHref(variant.slug) };
+
+  return (
+    <SelectionContext.Provider value={value}>
+      <LocaleAlternates hrefs={alternates} />
+      {children}
+    </SelectionContext.Provider>
+  );
+}
+
+/** The headline: the name of the product with the chosen size. */
+export function PackSizeHeadline({ className }: { className?: string }) {
+  const { variant } = useSelection();
+  return <h1 className={className}>{variant.displayName}</h1>;
+}
+
+/** The red pill on the main picture, when the chosen size is reduced. */
+export function PackSizeDiscount({ className }: { className?: string }) {
+  const { variant } = useSelection();
+  const locale = useLocale() as Locale;
+  if (!variant.pricing.onSale) return null;
+  return (
+    <span className={className}>
+      {formatDiscount(variant.pricing.discountPercent, locale)}
+    </span>
+  );
+}
+
+/** The price of the chosen size, with its regular price and price per unit. */
+export function PackSizePrice({ className }: { className?: string }) {
+  const { variant } = useSelection();
+  return <Price pricing={variant.pricing} size="lg" className={className} />;
+}
+
+/** The item number of the chosen size, for the details table. */
+export function PackSizeSku() {
+  const { variant } = useSelection();
+  return <>{variant.sku}</>;
+}
+
+/**
+ * The sizes to choose from. Each is a link to the size's own address, so it
+ * can be opened in a new tab or found by a crawler; a plain click switches
+ * the page in place instead.
+ */
+export function PackSizePicker() {
+  const t = useTranslations("product");
+  const { variants, variant, select } = useSelection();
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
+        {t("packSize")}
+      </p>
+      <ul className="flex flex-wrap gap-2">
+        {variants.map((size) => (
+          <li key={size.id}>
+            <Link
+              href={productHref(size.slug)}
+              prefetch={false}
+              aria-current={size.id === variant.id ? "page" : undefined}
+              onClick={(event) => {
+                // A modifier or another button means "in a new tab".
+                if (
+                  event.button !== 0 ||
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                ) {
+                  return;
+                }
+                event.preventDefault();
+                select(size, event.currentTarget.href);
+              }}
+              className={cn(
+                "flex min-h-11 items-center rounded-full border-2 px-4 text-[0.9375rem] font-semibold transition-colors duration-150",
+                size.id === variant.id
+                  ? "border-leaf-600 bg-leaf-50 text-leaf-700"
+                  : "border-line-strong hover:border-ink-subtle bg-white",
+              )}
+            >
+              {size.packSize.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The buying part of the page: the add-to-cart control and the limits of
+ * the chosen size, and on phones the same control fixed above the tab bar.
+ */
+export function ProductPurchase() {
+  const t = useTranslations("product");
+  const locale = useLocale() as Locale;
+  const { variant, ordering } = useSelection();
+  const name = variant.displayName;
   const canOrder = orderingReason(ordering) === null;
 
   const hints: string[] = [];
@@ -61,7 +257,7 @@ export function ProductPurchase({
   return (
     <div className="flex flex-col gap-3">
       <AddToCart
-        productId={productId}
+        variantId={variant.id}
         name={name}
         ordering={ordering}
         className="sm:max-w-xs"
@@ -80,11 +276,11 @@ export function ProductPurchase({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{name}</p>
           <p className="font-display text-lg tabular-nums">
-            {formatMoney(pricing.price, locale)}
+            {formatMoney(variant.pricing.price, locale)}
           </p>
         </div>
         <AddToCart
-          productId={productId}
+          variantId={variant.id}
           name={name}
           ordering={ordering}
           size="sm"

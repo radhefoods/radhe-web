@@ -5,7 +5,7 @@ import { useState } from "react";
 import { fewLeft, orderingReason } from "@/features/catalogue/availability";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import type { ProductSummary } from "@/lib/api/types";
+import type { ProductSummary, ProductVariant } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDiscount } from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
@@ -15,12 +15,27 @@ import { ProductImage } from "./product-image";
 const badge =
   "rounded-full px-2 py-1 text-[0.6875rem] leading-none font-bold tabular-nums";
 
+/** The product as the size the list shows it as, should `variants` not list it. */
+function ownVariant(product: ProductSummary): ProductVariant {
+  return {
+    id: product.variantId,
+    sku: product.sku,
+    slug: product.slug,
+    packSize: product.packSize,
+    displayName: product.displayName,
+    pricing: product.pricing,
+    ordering: product.ordering,
+    isDefault: true,
+    isSelected: true,
+  };
+}
+
 /**
  * A product in a list: the picture on a mist tile, then the price first,
- * the name, the pack sizes (each size is its own product with its own
- * price and page; they can be switched on the card), whether it is in
- * stock, and the round "+" that puts it in the cart. Cards keep their
- * height whatever their state, so the grid never jumps.
+ * the name with the pack size, the sizes to choose from (each size has its
+ * own price, stock and address; they can be switched on the card), whether
+ * it is in stock, and the round "+" that puts it in the cart. Cards keep
+ * their height whatever their state, so the grid never jumps.
  */
 export function ProductCard({
   product,
@@ -36,24 +51,17 @@ export function ProductCard({
 }) {
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
-  const [selectedId, setSelectedId] = useState(product.id);
+  const [selectedId, setSelectedId] = useState(product.variantId);
 
-  const sizes = product.packSizes;
-  const selected = sizes.find((size) => size.id === selectedId) ?? null;
-  // The product itself is always one of its sizes; fall back to it anyway.
-  const current = selected ?? {
-    id: product.id,
-    slug: product.slug,
-    packSize: product.packSize,
-    pricing: product.pricing,
-    ordering: product.ordering,
-    image: product.image,
-  };
+  const sizes = product.variants.length
+    ? product.variants
+    : [ownVariant(product)];
+  const current =
+    sizes.find((size) => size.id === selectedId) ?? ownVariant(product);
   const href = {
     pathname: "/products/[slug]" as const,
     params: { slug: current.slug },
   };
-  const fullName = `${product.name}, ${current.packSize.label}`;
   const reason = orderingReason(current.ordering);
   const soldOut = reason === "sold_out";
   const left = fewLeft(current.ordering);
@@ -68,7 +76,7 @@ export function ProductCard({
         className="bg-mist relative block aspect-square overflow-hidden rounded-md p-4"
       >
         <ProductImage
-          image={current.image ?? product.image}
+          image={product.image}
           alt=""
           sizes={imageSizes}
           priority={priority}
@@ -107,7 +115,7 @@ export function ProductCard({
             href={href}
             className="hover:text-leaf-700 rounded-xs underline-offset-2 hover:underline"
           >
-            {product.name}
+            {current.displayName}
           </Link>
         </Heading>
         {product.brand && (
@@ -116,7 +124,7 @@ export function ProductCard({
           </p>
         )}
 
-        {sizes.length > 1 ? (
+        {sizes.length > 1 && (
           <div
             role="group"
             aria-label={t("packSize")}
@@ -140,10 +148,6 @@ export function ProductCard({
               </button>
             ))}
           </div>
-        ) : (
-          <p className="text-ink-muted text-[0.8125rem] font-medium">
-            {current.packSize.label}
-          </p>
         )}
 
         {reason === null && (
@@ -158,8 +162,8 @@ export function ProductCard({
 
         <div className="mt-auto flex min-h-12 items-center justify-end pt-2">
           <AddToCart
-            productId={current.id}
-            name={fullName}
+            variantId={current.id}
+            name={current.displayName}
             ordering={current.ordering}
             size="sm"
             look="round"

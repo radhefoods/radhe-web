@@ -74,6 +74,8 @@ export function CheckoutView({
 }) {
   const t = useTranslations("checkout");
   const tAddress = useTranslations("address");
+  const tCart = useTranslations("cart");
+  const tProduct = useTranslations("product");
   const locale = useLocale() as Locale;
   const router = useRouter();
   const client = useQueryClient();
@@ -174,11 +176,9 @@ export function CheckoutView({
     legal.find((document) => document.type === type)?.version ?? 0;
   const canPlace =
     bill.canOrder && !billQuery.isFetching && unavailable === null && !keyUsed;
-  const nameOf = (productId: Id) => {
-    const line = bill.lines.find((entry) => entry.productId === productId);
-    return line?.product
-      ? `${line.product.name}, ${line.product.packSize.label}`
-      : productId;
+  const nameOf = (variantId: Id) => {
+    const line = bill.lines.find((entry) => entry.variantId === variantId);
+    return line?.product?.displayName ?? variantId;
   };
 
   async function saveAddress(values: AddressFormValues) {
@@ -244,7 +244,7 @@ export function CheckoutView({
         void legalQuery.refetch();
       } else if (hasErrorCode(error, "ORDER_ITEMS_NOT_ORDERABLE")) {
         setRefusedLines(
-          error.details.lines.map((line) => nameOf(line.productId)),
+          error.details.lines.map((line) => nameOf(line.variantId)),
         );
         void billQuery.refetch();
       } else if (hasErrorCode(error, "PAYMENTS_NOT_CONFIGURED")) {
@@ -442,24 +442,47 @@ export function CheckoutView({
         </h2>
 
         <ul className="divide-line divide-y text-[0.9375rem]">
-          {bill.lines.map((line) => (
-            <li
-              key={line.productId}
-              className="flex items-baseline justify-between gap-4 py-2 first:pt-0"
-            >
-              <span className="min-w-0">
-                <span className="text-ink-muted tabular-nums">
-                  {t("quantityTimes", { quantity: line.quantity })}
-                </span>{" "}
-                {line.product
-                  ? `${line.product.name}, ${line.product.packSize.label}`
-                  : line.productId}
-              </span>
-              <span className="shrink-0 font-semibold tabular-nums">
-                {formatMoney(line.lineTotal, locale)}
-              </span>
-            </li>
-          ))}
+          {bill.lines.map((line) => {
+            // A reduced size shows what is paid per pack and the regular price.
+            const reduced =
+              line.product !== null &&
+              line.unitPrice < line.product.pricing.regularPrice;
+            return (
+              <li
+                key={line.variantId}
+                className="flex items-baseline justify-between gap-4 py-2 first:pt-0"
+              >
+                <span className="min-w-0">
+                  <span className="text-ink-muted tabular-nums">
+                    {t("quantityTimes", { quantity: line.quantity })}
+                  </span>{" "}
+                  {line.product?.displayName ?? line.variantId}
+                  {reduced && (
+                    <span className="text-ink-muted block text-sm tabular-nums">
+                      <span className="sr-only">
+                        {tProduct("currentPrice")}:{" "}
+                      </span>
+                      {tCart("unitPrice", {
+                        price: formatMoney(line.unitPrice, locale),
+                      })}{" "}
+                      <span className="sr-only">
+                        {tProduct("regularPrice")}:
+                      </span>
+                      <s className="text-ink-subtle">
+                        {formatMoney(
+                          line.product!.pricing.regularPrice,
+                          locale,
+                        )}
+                      </s>
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 font-semibold tabular-nums">
+                  {formatMoney(line.lineTotal, locale)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
 
         {deliveryEstimate && (

@@ -68,7 +68,7 @@ export function useBill({ enabled = true } = {}): BillState {
     bill !== null &&
     bill.lines.length === cart.items.length &&
     bill.lines.every(
-      (line) => cart.quantityOf(line.productId) === line.quantity,
+      (line) => cart.quantityOf(line.variantId) === line.quantity,
     );
 
   return {

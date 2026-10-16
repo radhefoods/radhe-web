@@ -2,8 +2,10 @@ import { env } from "@/config/env";
 import type { Locale } from "@/i18n/routing";
 import type {
   Breadcrumb,
+  Ordering,
   ProductDetail,
   ProductSummary,
+  ProductVariant,
 } from "@/lib/api/types";
 import { centsToDecimalString } from "@/lib/format/money";
 import { absoluteUrl, pageUrl } from "./alternates";
@@ -94,28 +96,64 @@ function productUrl(slug: string, locale: Locale): string {
 }
 
 /**
- * The offer of a product: in stock when it can be ordered now, out of stock
- * otherwise (switched off, or sold out). From the ordering block (doc 7.1).
+ * The offer of a pack size: in stock when it can be ordered now, out of
+ * stock otherwise (switched off, or sold out). From the ordering block
+ * (doc 7.1).
  */
-function availability(product: ProductSummary): string {
-  return product.ordering?.canOrder
+function availability(ordering: Ordering | null): string {
+  return ordering?.canOrder
     ? "https://schema.org/InStock"
     : "https://schema.org/OutOfStock";
 }
 
+/** The pack as schema.org knows it: a weight for grams and kilograms. */
+function packOf(variant: ProductVariant): JsonLdObject {
+  const { value, unit, label } = variant.packSize;
+  if (unit === "g" || unit === "kg") {
+    return {
+      weight: {
+        "@type": "QuantitativeValue",
+        value,
+        unitCode: unit === "g" ? "GRM" : "KGM",
+      },
+    };
+  }
+  return { size: label };
+}
+
+/**
+ * A product with its pack sizes (doc 7) as a `ProductGroup` with one
+ * `Product` per size, each with its own address, item number and offer.
+ * The group carries what the sizes share. Only the size the page shows
+ * comes with its GTIN; the API gives no other.
+ */
 export function productJsonLd(
   product: ProductDetail,
   locale: Locale,
 ): JsonLdObject {
   const url = productUrl(product.slug, locale);
+  const variants: ProductVariant[] = product.variants.length
+    ? product.variants
+    : [
+        {
+          id: product.variantId,
+          sku: product.sku,
+          slug: product.slug,
+          packSize: product.packSize,
+          displayName: product.displayName,
+          pricing: product.pricing,
+          ordering: product.ordering,
+          isDefault: true,
+          isSelected: true,
+        },
+      ];
   return {
     "@context": "https://schema.org",
-    "@type": "Product",
+    "@type": "ProductGroup",
     "@id": `${url}#product`,
-    name: `${product.name}, ${product.packSize.label}`,
+    productGroupID: product.id,
+    name: product.name,
     url,
-    sku: product.sku,
-    ...(product.gtin && { gtin: product.gtin }),
     ...(product.brand && {
       brand: { "@type": "Brand", name: product.brand },
     }),
@@ -126,16 +164,30 @@ export function productJsonLd(
       product.description ??
       product.name,
     image: product.images.map((image) => image.sizes.large.url),
-    offers: {
-      "@type": "Offer",
-      url,
-      priceCurrency: product.pricing.currency,
-      price: centsToDecimalString(product.pricing.price),
-      availability: availability(product),
-      itemCondition: "https://schema.org/NewCondition",
-      seller: { "@id": ORGANIZATION_ID },
-      eligibleRegion: { "@type": "Country", name: "DE" },
-    },
+    variesBy: "https://schema.org/size",
+    hasVariant: variants.map((variant) => {
+      const variantUrl = productUrl(variant.slug, locale);
+      return {
+        "@type": "Product",
+        "@id": `${variantUrl}#size`,
+        name: variant.displayName,
+        url: variantUrl,
+        sku: variant.sku,
+        ...(variant.id === product.variantId &&
+          product.gtin && { gtin: product.gtin }),
+        ...packOf(variant),
+        offers: {
+          "@type": "Offer",
+          url: variantUrl,
+          priceCurrency: variant.pricing.currency,
+          price: centsToDecimalString(variant.pricing.price),
+          availability: availability(variant.ordering),
+          itemCondition: "https://schema.org/NewCondition",
+          seller: { "@id": ORGANIZATION_ID },
+          eligibleRegion: { "@type": "Country", name: "DE" },
+        },
+      };
+    }),
   };
 }
 
@@ -152,7 +204,7 @@ export function itemListJsonLd(
     itemListElement: products.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      name: product.name,
+      name: product.displayName,
       url: productUrl(product.slug, locale),
     })),
   };

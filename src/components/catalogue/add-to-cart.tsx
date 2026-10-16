@@ -11,21 +11,22 @@ import { clampToOrdering } from "@/lib/cart/guest-cart";
 import { cn } from "@/lib/cn";
 
 /**
- * The one control that puts a product into the cart: a button first (a
+ * The one control that puts a pack size into the cart: a button first (a
  * full pill, or on a card the round "+"), then minus, number, plus. When
- * the product cannot be ordered (switched off, or sold out) it says why, in
+ * the size cannot be ordered (switched off, or sold out) it says why, in
  * the same place and the same height, so the grid never jumps.
  */
 export function AddToCart({
-  productId,
+  variantId,
   name,
   ordering,
   size = "md",
   look = "button",
   className,
 }: {
-  productId: Id;
-  /** For the spoken labels: "Add Basmati Rice 5 kg to cart". */
+  /** The pack size: the cart is kept by it (doc 8). */
+  variantId: Id;
+  /** The name with the size, for the spoken labels. */
   name: string;
   ordering: Ordering | null;
   size?: "sm" | "md";
@@ -52,10 +53,10 @@ export function AddToCart({
     );
   }
 
-  const quantity = cart.quantityOf(productId);
+  const quantity = cart.quantityOf(variantId);
   const min = ordering?.minQuantity ?? 1;
   const max = ordering?.canOrder ? ordering.maxQuantity : null;
-  const add = () => cart.setQuantity(productId, clampToOrdering(min, ordering));
+  const add = () => cart.setQuantity(variantId, clampToOrdering(min, ordering));
 
   if (quantity === 0 && look === "round") {
     return (
@@ -94,7 +95,7 @@ export function AddToCart({
       max={max}
       size={size === "sm" ? "sm" : "md"}
       className={cn(look === "round" ? "min-h-11" : height, className)}
-      onChange={(next) => cart.setQuantity(productId, next)}
+      onChange={(next) => cart.setQuantity(variantId, next)}
       labels={{
         quantity: t("quantityNamed", { name }),
         increase: t("increase"),

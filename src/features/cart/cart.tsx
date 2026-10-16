@@ -26,10 +26,11 @@ import {
   totalUnits,
 } from "@/lib/cart/guest-cart";
 
-// The cart, wherever it lives. A visitor's cart is a list of product ids and
-// quantities in the browser; a signed-in customer's cart is stored by the
-// API. Components only see quantities and one `setQuantity`; the bill (prices
-// and totals) is a separate question, always answered by the API.
+// The cart, wherever it lives. A visitor's cart is a list of pack sizes
+// (`variantId`) and quantities in the browser; a signed-in customer's cart
+// is stored by the API. Components only see quantities and one
+// `setQuantity`; the bill (prices and totals) is a separate question, always
+// answered by the API.
 
 export const cartQueryKey = (locale: string) => ["cart", locale] as const;
 
@@ -43,9 +44,9 @@ interface CartContextValue {
   items: readonly CartItemInput[];
   /** Sum of all units, for the badge on the cart icon. */
   units: number;
-  quantityOf: (productId: Id) => number;
-  /** `0` removes the product. Resolves when stored; rejects never. */
-  setQuantity: (productId: Id, quantity: number) => void;
+  quantityOf: (variantId: Id) => number;
+  /** `0` removes the pack size. Resolves when stored; rejects never. */
+  setQuantity: (variantId: Id, quantity: number) => void;
   /** The last change that failed, until the next change. */
   problem: CartProblem | null;
   clearProblem: () => void;
@@ -122,7 +123,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   });
 
   // After sign-in the visitor's cart is handed to the server once (doc 8):
-  // for a product in both carts the larger quantity wins.
+  // for a pack size in both carts the larger quantity wins.
   const merging = useRef(false);
   const [mergeFailed, setMergeFailed] = useState(false);
   useEffect(() => {
@@ -158,9 +159,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const timers = useRef(new Map<Id, number>());
 
   const sendToServer = useCallback(
-    (productId: Id, quantity: number) => {
+    (variantId: Id, quantity: number) => {
       api
-        .setCartItem(productId, quantity)
+        .setCartItem(variantId, quantity)
         .then((bill: Bill) => client.setQueryData(cartQueryKey(locale), bill))
         .catch((error: unknown) => {
           if (isApiError(error)) setProblem(error);
@@ -169,9 +170,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         .finally(() => {
           // Keep a newer choice the customer made while this one travelled.
           setPending((current) => {
-            if (current.get(productId) !== quantity) return current;
+            if (current.get(variantId) !== quantity) return current;
             const next = new Map(current);
-            next.delete(productId);
+            next.delete(variantId);
             return next;
           });
         });
@@ -180,12 +181,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const setQuantity = useCallback(
-    (productId: Id, quantity: number) => {
+    (variantId: Id, quantity: number) => {
       setProblem(null);
       if (!isCustomer) {
         const change = setGuestQuantity(
           readGuestSnapshot(),
-          productId,
+          variantId,
           quantity,
         );
         if (change.ok) writeGuest(change.cart);
@@ -193,13 +194,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return;
       }
       const wanted = Math.max(0, Math.trunc(quantity));
-      setPending((current) => new Map(current).set(productId, wanted));
-      window.clearTimeout(timers.current.get(productId));
+      setPending((current) => new Map(current).set(variantId, wanted));
+      window.clearTimeout(timers.current.get(variantId));
       timers.current.set(
-        productId,
+        variantId,
         window.setTimeout(() => {
-          timers.current.delete(productId);
-          sendToServer(productId, wanted);
+          timers.current.delete(variantId);
+          sendToServer(variantId, wanted);
         }, DEBOUNCE_MS),
       );
     },
@@ -210,17 +211,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!isCustomer) return guestItems;
     const merged = new Map<Id, number>();
     for (const line of serverCart.data?.lines ?? []) {
-      merged.set(line.productId, line.quantity);
+      merged.set(line.variantId, line.quantity);
     }
-    for (const [productId, quantity] of pending)
-      merged.set(productId, quantity);
+    for (const [variantId, quantity] of pending)
+      merged.set(variantId, quantity);
     return [...merged]
       .filter(([, quantity]) => quantity > 0)
-      .map(([productId, quantity]) => ({ productId, quantity }));
+      .map(([variantId, quantity]) => ({ variantId, quantity }));
   }, [isCustomer, guestItems, serverCart.data, pending]);
 
   const value = useMemo<CartContextValue>(() => {
-    const byId = new Map(items.map((item) => [item.productId, item.quantity]));
+    const byId = new Map(items.map((item) => [item.variantId, item.quantity]));
     return {
       ready:
         mounted &&
@@ -230,7 +231,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       mode: isCustomer ? "customer" : "guest",
       items,
       units: totalUnits(items),
-      quantityOf: (productId) => byId.get(productId) ?? 0,
+      quantityOf: (variantId) => byId.get(variantId) ?? 0,
       setQuantity,
       problem,
       clearProblem,

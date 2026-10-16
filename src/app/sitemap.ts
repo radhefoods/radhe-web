@@ -14,18 +14,23 @@ export const revalidate = 3600;
 
 const cache = { revalidate: REVALIDATE.catalogue, tags: [TAGS.catalogue] };
 
-/** Every sellable pack size with its slug in one language, page by page. */
+/**
+ * Every pack size on sale with its slug in one language, page by page. A
+ * list entry is one product with all its sizes; each size has an address.
+ */
 async function allProducts(locale: Locale) {
-  const products: { id: string; slug: string }[] = [];
+  const sizes: { id: string; slug: string }[] = [];
   for (let page = 1; page <= 500; page += 1) {
     const result = await serverApi.listProducts(
-      { groupPackSizes: false, sort: "name", limit: 100, page },
+      { sort: "name", limit: 100, page },
       { locale, next: cache },
     );
-    for (const { id, slug } of result.items) products.push({ id, slug });
+    for (const product of result.items) {
+      for (const { id, slug } of product.variants) sizes.push({ id, slug });
+    }
     if (page >= result.totalPages) break;
   }
-  return products;
+  return sizes;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
