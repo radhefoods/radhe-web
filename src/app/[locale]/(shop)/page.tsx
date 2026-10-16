@@ -2,9 +2,9 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ComponentProps, ReactNode } from "react";
-import { ProductGrid } from "@/components/catalogue/product-grid";
-import { ProductImage } from "@/components/catalogue/product-image";
+import { ProductCard } from "@/components/catalogue/product-card";
 import { DeliveryPromiseCard } from "@/components/home/delivery-promise-card";
+import { ProductRow, ProductRowItem } from "@/components/home/product-row";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
@@ -80,18 +80,31 @@ function SectionHeader({
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const locale = await localeOf(params);
-  const [t, tSite, tNav, settings, categories, popular, offers] =
-    await Promise.all([
-      getTranslations("home"),
-      getTranslations("site"),
-      getTranslations("nav"),
-      getSettings(),
-      getCategories(locale),
-      products({ featured: true, limit: 8 }, locale),
-      products({ onSale: true, limit: 4 }, locale),
-    ]);
-  // Full rows only: four per row on wide screens, two on phones.
-  const featured = popular.slice(0, popular.length >= 8 ? 8 : 4);
+  const [t, tSite, settings, categories, popular] = await Promise.all([
+    getTranslations("home"),
+    getTranslations("site"),
+    getSettings(),
+    getCategories(locale),
+    products({ featured: true, limit: 8 }, locale),
+  ]);
+  // One row per main category that has products, in the order of the
+  // admin, each with its first products in the recommended order (owner,
+  // 2026-10-16). A category whose products do not arrive shows no row.
+  const rows = (
+    await Promise.all(
+      categories
+        .filter((category) => category.productCount > 0)
+        .map(async (category) => ({
+          category,
+          items: await products({ category: category.slug, limit: 8 }, locale),
+        })),
+    )
+  ).filter((row) => row.items.length > 0);
+  const featured = popular.slice(0, 8);
+  const rowLabels = { back: t("rowBack"), forward: t("rowForward") };
+  // A card of a row: two and a sliver on phones, then three, four, five.
+  const cardSizes =
+    "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
 
   const steps = [
     { title: t("step1Title"), text: t("step1Text") },
@@ -149,80 +162,48 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
-        {categories.length > 0 && (
-          <section aria-labelledby="home-categories">
-            <SectionHeader
-              id="home-categories"
-              title={t("categoriesTitle")}
-              href="/products"
-              link={tNav("allCategories")}
-            />
-            <ul className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {categories.map((category) => (
-                <li key={category.id}>
-                  <Link
-                    href={{
-                      pathname: "/category/[slug]",
-                      params: { slug: category.slug },
-                    }}
-                    className="group bg-mist hover:bg-cloud flex h-full flex-col items-center gap-3 rounded-lg px-3 py-5 text-center transition-[background-color,transform] duration-150 hover:-translate-y-0.5"
-                  >
-                    <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-white">
-                      {category.image ? (
-                        <ProductImage
-                          image={category.image}
-                          alt=""
-                          sizes="64px"
-                          fallbackLabel=""
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span
-                          aria-hidden="true"
-                          className="font-display text-leaf-600 text-2xl"
-                        >
-                          {category.name.charAt(0)}
-                        </span>
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="font-display group-hover:text-leaf-700 block text-base leading-tight">
-                        {category.name}
-                      </span>
-                      <span className="text-ink-subtle mt-1 block text-xs font-semibold">
-                        {t("productCount", { count: category.productCount })}
-                      </span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {offers.length > 0 && (
-          <section aria-labelledby="home-offers">
-            <SectionHeader
-              id="home-offers"
-              title={t("offersTitle")}
-              href={{ pathname: "/products", query: { onSale: "1" } }}
-              link={t("offersAll")}
-            />
-            <ProductGrid products={offers.slice(0, 4)} className="mt-5" />
-          </section>
-        )}
-
         {featured.length > 0 && (
-          <section aria-labelledby="home-featured">
-            <SectionHeader
-              id="home-featured"
-              title={t("featuredTitle")}
-              href="/products"
-              link={t("featuredAll")}
-            />
-            <ProductGrid products={featured} className="mt-5" />
-          </section>
+          <ProductRow
+            id="home-featured"
+            title={t("featuredTitle")}
+            href="/products"
+            link={t("seeAll")}
+            linkLabel={t("featuredAll")}
+            labels={rowLabels}
+          >
+            {featured.map((product, index) => (
+              <ProductRowItem key={product.id}>
+                <ProductCard
+                  product={product}
+                  imageSizes={cardSizes}
+                  priority={index < 4}
+                />
+              </ProductRowItem>
+            ))}
+          </ProductRow>
         )}
+
+        {rows.map(({ category, items }) => (
+          <ProductRow
+            key={category.id}
+            id={`home-category-${category.id}`}
+            title={category.name}
+            tagline={category.tagline}
+            href={{
+              pathname: "/category/[slug]",
+              params: { slug: category.slug },
+            }}
+            link={t("seeAll")}
+            linkLabel={t("seeAllIn", { name: category.name })}
+            labels={rowLabels}
+          >
+            {items.map((product) => (
+              <ProductRowItem key={product.id}>
+                <ProductCard product={product} imageSizes={cardSizes} />
+              </ProductRowItem>
+            ))}
+          </ProductRow>
+        ))}
 
         <section
           id="how-it-works"
