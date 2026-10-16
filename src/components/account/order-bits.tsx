@@ -9,6 +9,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import {
   ORDER_STATUS_TONE,
   PAYMENT_STATUS_TONE,
+  showsPaymentChip,
 } from "@/features/orders/orders";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -21,7 +22,7 @@ import type {
   OrderSummary,
   PaymentStatus,
 } from "@/lib/api/types";
-import { formatDate, formatDayRange } from "@/lib/format/dates";
+import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 
 // Small parts the account pages share.
@@ -37,8 +38,7 @@ export function OrderStatusChips({
   return (
     <span className="flex flex-wrap gap-1.5">
       <Chip tone={ORDER_STATUS_TONE[status]}>{t(`status.${status}`)}</Chip>
-      {/* A cancelled order has nothing to pay: one chip says it all. */}
-      {status !== "cancelled" && (
+      {showsPaymentChip(status, paymentStatus) && (
         <Chip tone={PAYMENT_STATUS_TONE[paymentStatus]}>
           {t(`paymentStatus.${paymentStatus}`)}
         </Chip>
@@ -136,15 +136,10 @@ export function OrderCard({
           </ul>
           <p className="text-ink-muted text-sm">
             {t("itemCount", { count: order.itemCount })}
-            {order.status !== "cancelled" && !order.delivery.deliveredAt && (
+            {order.status === "dispatched" && (
               <>
                 {" · "}
-                {t("estimated")}{" "}
-                {formatDayRange(
-                  order.delivery.promisedStart,
-                  order.delivery.promisedEnd,
-                  locale,
-                )}
+                {t(`method.${order.delivery.method}`)}
               </>
             )}
           </p>

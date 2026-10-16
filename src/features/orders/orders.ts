@@ -20,21 +20,20 @@ export const ADDRESSES_QUERY_KEY = ["addresses"] as const;
 export const INVOICES_QUERY_KEY = ["invoices"] as const;
 
 export const ORDER_STATUS_TONE: Record<OrderStatus, ChipTone> = {
+  pending_payment: "wheat",
   confirmed: "leaf",
-  preparing: "wheat",
+  processing: "leaf",
   dispatched: "forest",
   delivered: "green",
-  delivery_failed: "red",
   returned: "mute",
   cancelled: "mute",
 };
 
 export const PAYMENT_STATUS_TONE: Record<PaymentStatus, ChipTone> = {
-  not_enabled: "mute",
-  due: "wheat",
-  overdue: "red",
+  pending: "wheat",
+  authorized: "wheat",
   paid: "green",
-  waived: "mute",
+  failed: "red",
   refunded: "mute",
 };
 
@@ -46,15 +45,30 @@ export const RETURN_STATUS_TONE: Record<ReturnStatus, ChipTone> = {
   cancelled: "mute",
 };
 
+/**
+ * Whether the payment chip adds anything to the status chip: not while the
+ * order waits for its payment (the status says it), and not for a cancelled
+ * order that never cost anything.
+ */
+export function showsPaymentChip(
+  status: OrderStatus,
+  paymentStatus: PaymentStatus,
+): boolean {
+  if (status === "pending_payment") return false;
+  if (status === "cancelled") {
+    return paymentStatus === "paid" || paymentStatus === "refunded";
+  }
+  return true;
+}
+
 export type TimelineStepKey =
+  | "payment"
   | "confirmed"
-  | "preparing"
+  | "processing"
   | "dispatched"
-  | "delivery_failed"
   | "delivered"
   | "returned"
-  | "cancelled"
-  | "payment";
+  | "cancelled";
 
 export interface TimelineStep {
   key: TimelineStepKey;
@@ -64,30 +78,37 @@ export interface TimelineStep {
   at: string | null;
 }
 
-const SETTLED: PaymentStatus[] = ["paid", "waived", "refunded"];
-
 /**
- * The progress of an order as steps. The API gives customers no status
- * history, so the line is built from the status and the three times the
- * order carries (placed, dispatched, delivered). A step the order has
- * passed counts as done even when its time is unknown.
+ * The progress of an order as steps, the payment first: the payment confirms
+ * the order (doc 9). The API gives customers no status history, so the line
+ * is built from the status, the payment block and the times the order
+ * carries (paid, dispatched, delivered). A step the order has passed counts
+ * as done even when its time is unknown.
  */
 export function buildTimeline(
   order: Pick<
     OrderDetail,
-    | "status"
-    | "paymentStatus"
-    | "placedAt"
-    | "delivery"
-    | "cancellation"
-    | "payment"
+    "status" | "paymentStatus" | "delivery" | "cancellation" | "payment"
   >,
 ): TimelineStep[] {
-  const { status, paymentStatus, delivery } = order;
+  const { status, paymentStatus, delivery, payment } = order;
+  const paid = paymentStatus === "paid" || paymentStatus === "refunded";
+  const paymentState: TimelineStep["state"] = paid
+    ? "done"
+    : paymentStatus === "failed"
+      ? "problem"
+      : status === "pending_payment"
+        ? "current"
+        : "todo";
+  const paymentStep: TimelineStep = {
+    key: "payment",
+    state: paymentState,
+    at: payment.paidAt,
+  };
 
   if (status === "cancelled") {
     return [
-      { key: "confirmed", state: "done", at: order.placedAt },
+      paymentStep,
       {
         key: "cancelled",
         state: "problem",
@@ -97,12 +118,12 @@ export function buildTimeline(
   }
 
   const position: Record<Exclude<OrderStatus, "cancelled">, number> = {
-    confirmed: 0,
-    preparing: 1,
-    dispatched: 2,
-    delivery_failed: 2,
-    delivered: 3,
-    returned: 3,
+    pending_payment: 0,
+    confirmed: 1,
+    processing: 2,
+    dispatched: 3,
+    delivered: 4,
+    returned: 4,
   };
   const reached = position[status];
   const arrived = status === "delivered" || status === "returned";
@@ -110,29 +131,18 @@ export function buildTimeline(
     if (index < reached) return "done";
     if (index > reached) return "todo";
     // The step the order is at; a finished delivery is simply done.
-    return arrived || status === "delivery_failed" ? "done" : "current";
+    return arrived ? "done" : "current";
   };
 
   const steps: TimelineStep[] = [
-    { key: "confirmed", state: way(0), at: order.placedAt },
-    { key: "preparing", state: way(1), at: null },
-    { key: "dispatched", state: way(2), at: delivery.dispatchedAt },
+    paymentStep,
+    { key: "confirmed", state: way(1), at: paid ? payment.paidAt : null },
+    { key: "processing", state: way(2), at: null },
+    { key: "dispatched", state: way(3), at: delivery.dispatchedAt },
+    { key: "delivered", state: way(4), at: delivery.deliveredAt },
   ];
-  if (status === "delivery_failed") {
-    steps.push({ key: "delivery_failed", state: "problem", at: null });
-  }
-  steps.push({ key: "delivered", state: way(3), at: delivery.deliveredAt });
   if (status === "returned") {
     steps.push({ key: "returned", state: "done", at: null });
   }
-
-  const paymentState: TimelineStep["state"] = !arrived
-    ? "todo"
-    : SETTLED.includes(paymentStatus)
-      ? "done"
-      : paymentStatus === "overdue"
-        ? "problem"
-        : "current";
-  steps.push({ key: "payment", state: paymentState, at: order.payment.paidAt });
   return steps;
 }

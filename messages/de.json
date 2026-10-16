@@ -363,12 +363,12 @@
     "greeting": "Hallo {name}",
     "greetingPlain": "Hallo",
     "signedInAs": "Angemeldet als {email}",
-    "toPayTitle": "Zu bezahlen",
+    "toPayTitle": "Wartet auf Ihre Zahlung",
     "toPayItem": "Bestellung {orderNumber}: {amount}",
     "recentOrders": "Ihre letzten Bestellungen",
     "allOrders": "Alle Bestellungen",
     "noOrdersTitle": "Noch keine Bestellungen",
-    "noOrdersText": "Ihre Vorbestellungen erscheinen hier, sobald Sie eine aufgeben.",
+    "noOrdersText": "Ihre Bestellungen erscheinen hier, sobald Sie eine aufgeben.",
     "noOrdersCta": "Sortiment ansehen",
     "signOut": "Abmelden",
     "loadError": "Wir konnten diese Seite nicht laden."
@@ -384,43 +384,45 @@
     "loadMore": "Ältere Bestellungen anzeigen",
     "back": "Alle Bestellungen",
     "status": {
+      "pending_payment": "Wartet auf Zahlung",
       "confirmed": "Bestätigt",
-      "preparing": "In Vorbereitung",
+      "processing": "In Vorbereitung",
       "dispatched": "Unterwegs",
       "delivered": "Geliefert",
-      "delivery_failed": "Zustellung fehlgeschlagen",
       "returned": "Zurückgegeben",
       "cancelled": "Storniert"
     },
     "paymentStatus": {
-      "not_enabled": "Zahlung nach Lieferung",
-      "due": "Zahlung fällig",
-      "overdue": "Überfällig",
+      "pending": "Noch nicht bezahlt",
+      "authorized": "Zahlung wird bestätigt",
       "paid": "Bezahlt",
-      "waived": "Erlassen",
+      "failed": "Zahlung fehlgeschlagen",
       "refunded": "Erstattet"
     },
     "timeline": {
       "title": "Verlauf",
-      "confirmed": "Vorbestellung bestätigt",
-      "preparing": "In Vorbereitung",
-      "preparingText": "Wir stellen Ihre Bestellung zusammen.",
+      "payment": "Zahlung",
+      "paymentWaiting": "Zahlen Sie jetzt, um Ihre Bestellung zu bestätigen.",
+      "paymentFailed": "Der letzte Versuch ist nicht durchgegangen.",
+      "paymentDone": "Bezahlt.",
+      "paymentNone": "Nicht bezahlt.",
+      "confirmed": "Bestellung bestätigt",
+      "confirmedText": "Wir haben Ihre Bestellung und stellen sie bald zusammen.",
+      "processing": "In Vorbereitung",
+      "processingText": "Wir stellen Ihre Bestellung zusammen.",
       "dispatched": "Unterwegs",
       "delivered": "Geliefert",
-      "delivery_failed": "Zustellung war nicht möglich",
-      "deliveryFailedText": "Wir melden uns bei Ihnen wegen einer neuen Lieferung.",
       "returned": "Alles zurückgegeben",
-      "cancelled": "Storniert",
-      "payment": "Zahlung",
-      "paymentWaiting": "Rechnung und Zahlungslink folgen nach der Lieferung.",
-      "paymentDue": "Bitte zahlen Sie bis {date}.",
-      "paymentOverdue": "Die Zahlung war am {date} fällig.",
-      "paymentDone": "Erledigt."
+      "cancelled": "Storniert"
     },
     "cancelledBy": {
       "customer": "Von Ihnen storniert",
       "admin": "Von Radhe Foods storniert",
       "system": "Storniert"
+    },
+    "cancelledReason": {
+      "sold_out": "Ein Produkt war ausverkauft, bevor die Zahlung eingezogen wurde. Es wurde nichts abgebucht.",
+      "payment_not_completed": "Es ist keine Zahlung eingegangen. Es wurde nichts abgebucht."
     },
     "deliveryTitle": "Lieferung",
     "method": {
@@ -453,7 +455,8 @@
     "cancel": {
       "button": "Bestellung stornieren",
       "title": "Bestellung {orderNumber} stornieren",
-      "intro": "Eine aufgegebene Bestellung kann nicht geändert werden. Sie können sie stornieren und neu bestellen, solange die Vorbestellung geöffnet ist.",
+      "introUnpaid": "Diese Bestellung ist noch nicht bezahlt. Wenn Sie sie stornieren, wird nichts abgebucht; Ihr Warenkorb bleibt für eine neue Bestellung erhalten.",
+      "introPaid": "Eine aufgegebene Bestellung kann nicht geändert werden. Sie können sie hier stornieren und neu bestellen; Radhe Foods erstattet Ihre Zahlung und informiert Sie per E-Mail.",
       "reason": "Warum stornieren Sie?",
       "reasons": {
         "changed_mind": "Ich habe es mir anders überlegt",
@@ -505,7 +508,7 @@
   "documents": {
     "metaTitle": "Rechnungen",
     "title": "Rechnungen und Gutschriften",
-    "empty": "Sie haben noch keine Rechnungen. Eine Rechnung wird nach der Lieferung ausgestellt.",
+    "empty": "Sie haben noch keine Rechnungen. Eine Rechnung wird mit jeder bezahlten Bestellung ausgestellt.",
     "invoice": "Rechnung",
     "credit_note": "Gutschrift",
     "forInvoice": "zu Rechnung {number}",

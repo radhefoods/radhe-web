@@ -5,18 +5,14 @@ import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent } from "@/lib/format/money";
 
 /**
- * The bill in numbers: goods, delivery, the VAT inside the total per rate,
- * the total, and that nothing is due today. Every number comes from the
- * API; nothing is added up here.
+ * The bill in numbers: goods, delivery, the total, and the VAT inside it per
+ * rate. Every number comes from the API; nothing is added up here.
  */
 export function BillTotals({
   totals,
-  showDueToday = true,
   className,
 }: {
   totals: Totals;
-  /** The line "Due today: 0.00". Off where it would mislead (a paid order). */
-  showDueToday?: boolean;
   className?: string;
 }) {
   const t = useTranslations("cart");
@@ -57,17 +53,6 @@ export function BillTotals({
           <dd>{formatMoney(group.vat, locale)}</dd>
         </div>
       ))}
-      {showDueToday && (
-        <div
-          className={cn(
-            row,
-            "bg-wheat-100 text-wheat-800 mt-1 rounded-md px-3.5 py-2.5 font-bold",
-          )}
-        >
-          <dt>{t("dueToday")}</dt>
-          <dd>{formatMoney(0, locale)}</dd>
-        </div>
-      )}
     </dl>
   );
 }

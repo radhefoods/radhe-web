@@ -363,12 +363,12 @@
     "greeting": "Hello {name}",
     "greetingPlain": "Hello",
     "signedInAs": "Signed in as {email}",
-    "toPayTitle": "To pay",
+    "toPayTitle": "Waiting for your payment",
     "toPayItem": "Order {orderNumber}: {amount}",
     "recentOrders": "Your latest orders",
     "allOrders": "All orders",
     "noOrdersTitle": "No orders yet",
-    "noOrdersText": "Your pre-orders appear here as soon as you place one.",
+    "noOrdersText": "Your orders appear here as soon as you place one.",
     "noOrdersCta": "Browse the range",
     "signOut": "Sign out",
     "loadError": "We could not load this page."
@@ -384,43 +384,45 @@
     "loadMore": "Show older orders",
     "back": "All orders",
     "status": {
+      "pending_payment": "Waiting for payment",
       "confirmed": "Confirmed",
-      "preparing": "Preparing",
+      "processing": "Being prepared",
       "dispatched": "On its way",
       "delivered": "Delivered",
-      "delivery_failed": "Delivery failed",
       "returned": "Returned",
       "cancelled": "Cancelled"
     },
     "paymentStatus": {
-      "not_enabled": "Pay after delivery",
-      "due": "Payment due",
-      "overdue": "Overdue",
+      "pending": "Not paid yet",
+      "authorized": "Payment being confirmed",
       "paid": "Paid",
-      "waived": "Waived",
+      "failed": "Payment failed",
       "refunded": "Refunded"
     },
     "timeline": {
       "title": "Progress",
-      "confirmed": "Pre-order confirmed",
-      "preparing": "Preparing",
-      "preparingText": "We are getting your order ready.",
+      "payment": "Payment",
+      "paymentWaiting": "Pay now to confirm your order.",
+      "paymentFailed": "The last attempt did not go through.",
+      "paymentDone": "Paid.",
+      "paymentNone": "Not paid.",
+      "confirmed": "Order confirmed",
+      "confirmedText": "We have your order and get it ready soon.",
+      "processing": "Being prepared",
+      "processingText": "We are getting your order ready.",
       "dispatched": "On its way",
       "delivered": "Delivered",
-      "delivery_failed": "Delivery was not possible",
-      "deliveryFailedText": "We will get in touch with you about a new delivery.",
       "returned": "Everything returned",
-      "cancelled": "Cancelled",
-      "payment": "Payment",
-      "paymentWaiting": "Invoice and payment link follow after delivery.",
-      "paymentDue": "Please pay by {date}.",
-      "paymentOverdue": "The payment was due on {date}.",
-      "paymentDone": "Settled."
+      "cancelled": "Cancelled"
     },
     "cancelledBy": {
       "customer": "Cancelled by you",
       "admin": "Cancelled by Radhe Foods",
       "system": "Cancelled"
+    },
+    "cancelledReason": {
+      "sold_out": "A product sold out before the payment was captured. Nothing was charged.",
+      "payment_not_completed": "No payment arrived. Nothing was charged."
     },
     "deliveryTitle": "Delivery",
     "method": {
@@ -453,7 +455,8 @@
     "cancel": {
       "button": "Cancel order",
       "title": "Cancel order {orderNumber}",
-      "intro": "A placed order cannot be changed. You can cancel it and order again while the pre-order is open.",
+      "introUnpaid": "This order is not paid yet. If you cancel it, nothing is charged; your cart is still there for a new order.",
+      "introPaid": "A placed order cannot be changed. You can cancel it here and order again; Radhe Foods refunds what you paid and tells you by email.",
       "reason": "Why do you cancel?",
       "reasons": {
         "changed_mind": "I changed my mind",
@@ -505,7 +508,7 @@
   "documents": {
     "metaTitle": "Invoices",
     "title": "Invoices and credit notes",
-    "empty": "You have no invoices yet. An invoice is issued after delivery.",
+    "empty": "You have no invoices yet. An invoice is issued with every paid order.",
     "invoice": "Invoice",
     "credit_note": "Credit note",
     "forInvoice": "for invoice {number}",

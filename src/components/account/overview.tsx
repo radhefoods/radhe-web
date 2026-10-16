@@ -12,8 +12,9 @@ import { NoOrders, useOrders } from "./order-list";
 import { SignOutButton } from "./sign-out";
 
 /**
- * The first page of the account: what is to pay (first, because it is the
- * one thing the customer has to do), then the latest orders.
+ * The first page of the account: orders that wait for their payment (first,
+ * because they are the one thing the customer has to do), then the latest
+ * orders.
  */
 export function AccountOverview() {
   const t = useTranslations("account");
@@ -21,10 +22,7 @@ export function AccountOverview() {
   const { customer } = useSession({ force: true });
   const query = useOrders();
   const orders = query.data?.pages[0]?.items ?? [];
-  const toPay = orders.filter(
-    (order) =>
-      order.paymentStatus === "due" || order.paymentStatus === "overdue",
-  );
+  const toPay = orders.filter((order) => order.status === "pending_payment");
 
   return (
     <div className="flex flex-col gap-8">

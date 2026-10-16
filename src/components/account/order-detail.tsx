@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ExternalLink, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
@@ -21,62 +21,69 @@ import {
   ordersQueryKey,
   type TimelineStep,
 } from "@/features/orders/orders";
-import { isSafePaymentUrl } from "@/features/orders/payment-url";
+import { useSession } from "@/features/session/session";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import { ApiError } from "@/lib/api/errors";
 import type {
-  CancellationReason,
+  CustomerCancellationReason,
   OrderDetail,
-  PaymentBlock,
   ReturnRequest,
 } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { formatDate, formatDayRange } from "@/lib/format/dates";
+import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { AddressBlock, DocumentRow, OrderStatusChips } from "./order-bits";
+import {
+  PaymentOutcome,
+  PaymentPanel,
+  usePaymentState,
+  type PaymentReturn,
+} from "./order-payment";
 
 const sectionTitle = "font-display text-xl text-ink";
 const panel = "border-line rounded-xl border bg-white p-5";
 
 // --- Progress ----------------------------------------------------------------
 
-function Timeline({ order }: { order: OrderDetail }) {
+function Timeline({
+  order,
+  deliveryEstimate,
+}: {
+  order: OrderDetail;
+  deliveryEstimate: string | null;
+}) {
   const t = useTranslations("orders");
   const locale = useLocale() as Locale;
   const steps = buildTimeline(order);
 
   const textOf = (step: TimelineStep): string | null => {
-    const { delivery, payment } = order;
+    const { delivery, cancellation } = order;
     switch (step.key) {
-      case "preparing":
-        return step.state === "current" ? t("timeline.preparingText") : null;
-      case "dispatched":
-        return step.state === "todo" ? null : t(`method.${delivery.method}`);
-      case "delivery_failed":
-        return t("timeline.deliveryFailedText");
-      case "delivered":
-        return step.state === "todo"
-          ? `${t("estimated")}: ${formatDayRange(delivery.promisedStart, delivery.promisedEnd, locale)}`
-          : null;
-      case "cancelled":
-        return order.cancellation
-          ? t(`cancelledBy.${order.cancellation.by}`)
-          : null;
       case "payment":
         if (step.state === "done") return t("timeline.paymentDone");
-        if (payment.deadline && step.state === "problem") {
-          return t("timeline.paymentOverdue", {
-            date: formatDate(payment.deadline, locale),
-          });
+        if (step.state === "problem") return t("timeline.paymentFailed");
+        if (step.state === "current") return t("timeline.paymentWaiting");
+        return order.status === "cancelled" ? t("timeline.paymentNone") : null;
+      case "confirmed":
+        return step.state === "current" ? t("timeline.confirmedText") : null;
+      case "processing":
+        return step.state === "current" ? t("timeline.processingText") : null;
+      case "dispatched":
+        return step.state === "todo" ? null : t(`method.${delivery.method}`);
+      case "delivered":
+        return step.state === "todo" && deliveryEstimate
+          ? `${t("estimated")}: ${deliveryEstimate}`
+          : null;
+      case "cancelled":
+        if (!cancellation) return null;
+        if (
+          cancellation.reason === "sold_out" ||
+          cancellation.reason === "payment_not_completed"
+        ) {
+          return t(`cancelledReason.${cancellation.reason}`);
         }
-        if (payment.deadline && payment.status === "due") {
-          return t("timeline.paymentDue", {
-            date: formatDate(payment.deadline, locale),
-          });
-        }
-        return t("timeline.paymentWaiting");
+        return t(`cancelledBy.${cancellation.by}`);
       default:
         return null;
     }
@@ -148,228 +155,9 @@ function Timeline({ order }: { order: OrderDetail }) {
   );
 }
 
-// --- Payment -----------------------------------------------------------------
-
-function PaymentPanel({
-  orderNumber,
-  payment,
-}: {
-  orderNumber: string;
-  payment: PaymentBlock;
-}) {
-  const t = useTranslations("payment");
-  const locale = useLocale() as Locale;
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const owing = payment.status === "due" || payment.status === "overdue";
-  const overdue = payment.status === "overdue" || payment.isOverdue === true;
-
-  async function payNow() {
-    setStarting(true);
-    setError(null);
-    try {
-      const { url } = await api.createOrderCheckout(orderNumber);
-      if (!isSafePaymentUrl(url)) {
-        throw new ApiError({
-          status: 502,
-          code: "PAYMENT_PROVIDER_ERROR",
-          message: "The payment page has an address that is not accepted.",
-        });
-      }
-      // Leaves the shop for the payment page; Stripe brings the customer
-      // back to this order with `?payment=success` or `?payment=cancelled`.
-      window.location.assign(url);
-    } catch (caught) {
-      setError(caught);
-      setStarting(false);
-    }
-  }
-
-  return (
-    <section
-      aria-labelledby="order-payment"
-      className={cn(
-        panel,
-        "flex flex-col gap-3",
-        // The one thing the customer has to do comes first on small screens.
-        owing && "max-xl:order-first",
-        overdue && owing && "border-red-200 bg-red-50",
-      )}
-    >
-      <h2 id="order-payment" className={sectionTitle}>
-        {t("title")}
-      </h2>
-
-      {payment.status === "not_enabled" && (
-        <p className="text-ink-muted">{t("notEnabled")}</p>
-      )}
-
-      {owing && (
-        <>
-          <p className="flex flex-wrap items-baseline justify-between gap-3">
-            <span className="font-bold">{t("amountDue")}</span>
-            <span className="text-3xl font-bold tabular-nums">
-              {formatMoney(payment.amountDue, locale)}
-            </span>
-          </p>
-          {payment.deadline && (
-            <p className={cn(overdue && "font-semibold text-red-800")}>
-              {t(overdue ? "wasDue" : "payBy", {
-                date: formatDate(payment.deadline, locale),
-              })}
-            </p>
-          )}
-          {payment.canPayOnline ? (
-            <>
-              <Button
-                variant="pay"
-                size="lg"
-                block
-                loading={starting}
-                onClick={() => void payNow()}
-              >
-                {t("payNow", {
-                  amount: formatMoney(payment.amountDue, locale),
-                })}
-              </Button>
-              <p className="text-ink-muted text-center text-sm">
-                {t("payMethods")}
-              </p>
-            </>
-          ) : (
-            !payment.cashPossible && <Alert tone="info">{t("noOnline")}</Alert>
-          )}
-          {payment.cashPossible && (
-            <p className="rounded-md bg-white/70 text-[0.9375rem]">
-              {t("cashHint")}
-            </p>
-          )}
-          {error !== null && <ErrorAlert error={error} />}
-        </>
-      )}
-
-      {payment.status === "paid" && (
-        <p className="text-leaf-700 flex flex-wrap items-center gap-x-2 gap-y-1 font-bold">
-          <Check aria-hidden="true" className="size-5" strokeWidth={3} />
-          {payment.paidAt &&
-            t("paidOn", { date: formatDate(payment.paidAt, locale) })}
-          <span className="font-normal">
-            {t(
-              `method.${payment.method === "stripe" ? (payment.paymentType ?? "stripe") : (payment.method ?? "stripe")}`,
-            )}
-          </span>
-        </p>
-      )}
-      {payment.status === "waived" && <p>{t("waived")}</p>}
-
-      {(payment.creditedAmount ?? 0) > 0 && (
-        <p className="text-ink-muted text-sm">
-          {t("credited", {
-            amount: formatMoney(payment.creditedAmount ?? 0, locale),
-          })}
-        </p>
-      )}
-      {(payment.refundedAmount ?? 0) > 0 && (
-        <p className="text-ink-muted text-sm">
-          {t("refunded", {
-            amount: formatMoney(payment.refundedAmount ?? 0, locale),
-          })}
-        </p>
-      )}
-      {payment.receiptUrl && (
-        <a
-          href={payment.receiptUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-leaf-700 flex items-center gap-1.5 self-start rounded-xs font-semibold underline underline-offset-4"
-        >
-          {t("receipt")}
-          <ExternalLink aria-hidden="true" className="size-4" />
-        </a>
-      )}
-    </section>
-  );
-}
-
-/** How many times the payment is asked for after the return from Stripe. */
-const PAYMENT_CHECKS = 6;
-
-/**
- * After the return from the payment page (`?payment=success`): the API is
- * asked about the payment, which makes it ask Stripe, so the order can show
- * "paid" before Stripe's own notification arrives. Slow payment methods are
- * asked for a few more times.
- */
-function PaymentReturn({
-  orderNumber,
-  result,
-}: {
-  orderNumber: string;
-  result: "success" | "cancelled";
-}) {
-  const t = useTranslations("payment");
-  const locale = useLocale();
-  const client = useQueryClient();
-  const [checks, setChecks] = useState(0);
-  const check = useQuery({
-    queryKey: ["order-payment", orderNumber.toUpperCase()],
-    queryFn: async () => {
-      const answer = await api.getOrderPayment(orderNumber);
-      setChecks((count) => count + 1);
-      return answer;
-    },
-    enabled: result === "success",
-    staleTime: 0,
-    refetchInterval: (query) => {
-      const status = query.state.data?.payment.status;
-      const open = status === "due" || status === "overdue";
-      return open && query.state.dataUpdateCount < PAYMENT_CHECKS
-        ? 3000
-        : false;
-    },
-  });
-  const status = check.data?.payment.status;
-
-  // The order on this page follows what the check found.
-  useEffect(() => {
-    if (!status) return;
-    void client.invalidateQueries({
-      queryKey: orderQueryKey(orderNumber, locale),
-    });
-    void client.invalidateQueries({
-      queryKey: orderDocumentsQueryKey(orderNumber),
-    });
-    void client.invalidateQueries({ queryKey: ordersQueryKey(locale) });
-  }, [status, client, orderNumber, locale]);
-
-  if (result === "cancelled") {
-    return (
-      <Alert tone="info" title={t("cancelledTitle")}>
-        {t("cancelledText")}
-      </Alert>
-    );
-  }
-  if (check.error && !check.data) return <ErrorAlert error={check.error} />;
-  if (!status) return <Alert tone="info">{t("checking")}</Alert>;
-  if (status === "due" || status === "overdue") {
-    return check.isFetching || checks < PAYMENT_CHECKS ? (
-      <Alert tone="info">{t("checking")}</Alert>
-    ) : (
-      <Alert tone="warn" title={t("pendingTitle")}>
-        {t("pendingText")}
-      </Alert>
-    );
-  }
-  return (
-    <Alert tone="good" title={t("successTitle")}>
-      {t("successText")}
-    </Alert>
-  );
-}
-
 // --- Cancelling --------------------------------------------------------------
 
-const CANCEL_REASONS: CancellationReason[] = [
+const CANCEL_REASONS: CustomerCancellationReason[] = [
   "changed_mind",
   "ordered_by_mistake",
   "wrong_items",
@@ -387,10 +175,12 @@ function CancelOrder({
   const t = useTranslations("orders.cancel");
   const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState<CancellationReason>("changed_mind");
+  const [reason, setReason] =
+    useState<CustomerCancellationReason>("changed_mind");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const paid = order.payment.paidAmount > 0;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -419,7 +209,9 @@ function CancelOrder({
       trigger={<Button variant="danger">{t("button")}</Button>}
     >
       <form onSubmit={submit} className="flex flex-col gap-5">
-        <p className="text-ink-muted">{t("intro")}</p>
+        <p className="text-ink-muted">
+          {paid ? t("introPaid") : t("introUnpaid")}
+        </p>
         <fieldset className="flex flex-col gap-1">
           <legend className="mb-1 font-bold">{t("reason")}</legend>
           {CANCEL_REASONS.map((value) => (
@@ -559,44 +351,32 @@ function ReturnCard({
 
 /**
  * One order with everything a customer wants to know about it: where it
- * is, what is to pay, the documents, returns, and the bill as agreed and as
- * it finally is.
+ * is, the payment, the documents, returns, and the bill as agreed and as
+ * it finally is. After the payment page, this is where the customer lands.
  */
 export function OrderDetailView({
   orderNumber,
   paymentReturn,
+  payAtOnce,
+  deliveryEstimate,
 }: {
   orderNumber: string;
   /** Set when the customer comes back from the payment page. */
-  paymentReturn: "success" | "cancelled" | null;
+  paymentReturn: PaymentReturn;
+  /** `?pay=1`: open the payment page straight away. */
+  payAtOnce: boolean;
+  /** `delivery.estimate` of the settings in the page's language, or `null`. */
+  deliveryEstimate: string | null;
 }) {
   const t = useTranslations("orders");
   const tAccount = useTranslations("account");
-  const tDocuments = useTranslations("documents");
-  const tReturns = useTranslations("returns");
   const locale = useLocale() as Locale;
-  const client = useQueryClient();
-  const [justCancelled, setJustCancelled] = useState(false);
-
   const orderQuery = useQuery({
     queryKey: orderQueryKey(orderNumber, locale),
     queryFn: async () => (await api.getOrder(orderNumber)).order,
     staleTime: 0,
   });
   const order = orderQuery.data;
-  const invoiced = Boolean(order?.payment.invoice);
-  const delivered = Boolean(order?.delivery.deliveredAt);
-
-  const documentsQuery = useQuery({
-    queryKey: orderDocumentsQueryKey(orderNumber),
-    queryFn: () => api.listInvoices({ orderNumber, limit: 100 }),
-    enabled: invoiced,
-  });
-  const returnsQuery = useQuery({
-    queryKey: orderReturnsQueryKey(orderNumber, locale),
-    queryFn: () => api.getOrderReturns(orderNumber),
-    enabled: delivered,
-  });
 
   if (orderQuery.error && !order) {
     return (
@@ -621,6 +401,53 @@ export function OrderDetailView({
       </div>
     );
   }
+  return (
+    <OrderBody
+      order={order}
+      paymentReturn={paymentReturn}
+      payAtOnce={payAtOnce}
+      deliveryEstimate={deliveryEstimate}
+      refetch={() => void orderQuery.refetch()}
+    />
+  );
+}
+
+function OrderBody({
+  order,
+  paymentReturn,
+  payAtOnce,
+  deliveryEstimate,
+  refetch,
+}: {
+  order: OrderDetail;
+  paymentReturn: PaymentReturn;
+  payAtOnce: boolean;
+  deliveryEstimate: string | null;
+  refetch: () => void;
+}) {
+  const t = useTranslations("orders");
+  const tDocuments = useTranslations("documents");
+  const tReturns = useTranslations("returns");
+  const locale = useLocale() as Locale;
+  const client = useQueryClient();
+  const session = useSession();
+  const [justCancelled, setJustCancelled] = useState(false);
+  const { orderNumber } = order;
+
+  const paymentState = usePaymentState(order, paymentReturn);
+  const invoiced = Boolean(order.payment.invoice);
+  const delivered = Boolean(order.delivery.deliveredAt);
+
+  const documentsQuery = useQuery({
+    queryKey: orderDocumentsQueryKey(orderNumber),
+    queryFn: () => api.listInvoices({ orderNumber, limit: 100 }),
+    enabled: invoiced,
+  });
+  const returnsQuery = useQuery({
+    queryKey: orderReturnsQueryKey(orderNumber, locale),
+    queryFn: () => api.getOrderReturns(orderNumber),
+    enabled: delivered,
+  });
 
   const changed =
     order.finalTotals.total !== order.totals.total ||
@@ -643,8 +470,8 @@ export function OrderDetailView({
             {t("orderNumber", { orderNumber: order.orderNumber })}
           </h1>
           <OrderStatusChips
-            status={order.status}
-            paymentStatus={order.paymentStatus}
+            status={paymentState.status}
+            paymentStatus={paymentState.payment.status}
           />
         </div>
         <p className="text-ink-muted">
@@ -652,9 +479,13 @@ export function OrderDetailView({
         </p>
       </header>
 
-      {paymentReturn && (
-        <PaymentReturn orderNumber={order.orderNumber} result={paymentReturn} />
-      )}
+      <PaymentOutcome
+        order={order}
+        state={paymentState}
+        paymentReturn={paymentReturn}
+        payAtOnce={payAtOnce}
+        email={session.customer?.email ?? null}
+      />
       {justCancelled && <Alert tone="good">{t("cancel.done")}</Alert>}
 
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_22rem]">
@@ -662,7 +493,7 @@ export function OrderDetailView({
           <h2 id="order-progress" className={cn(sectionTitle, "mb-4")}>
             {t("timeline.title")}
           </h2>
-          <Timeline order={order} />
+          <Timeline order={order} deliveryEstimate={deliveryEstimate} />
           {order.delivery.trackingUrl && (
             <a
               href={order.delivery.trackingUrl}
@@ -684,12 +515,7 @@ export function OrderDetailView({
           )}
         </section>
 
-        {order.status !== "cancelled" && (
-          <PaymentPanel
-            orderNumber={order.orderNumber}
-            payment={order.payment}
-          />
-        )}
+        <PaymentPanel order={order} state={paymentState} />
       </div>
 
       <section aria-labelledby="order-items" className={panel}>
@@ -768,10 +594,7 @@ export function OrderDetailView({
               {t("billFinal")}
             </p>
           )}
-          <BillTotals
-            totals={changed ? order.finalTotals : order.totals}
-            showDueToday={false}
-          />
+          <BillTotals totals={changed ? order.finalTotals : order.totals} />
           {changed && (
             <p className="text-ink-muted border-line mt-3 flex justify-between gap-4 border-t pt-3 text-sm tabular-nums">
               <span>{t("billAgreed")}</span>
@@ -799,8 +622,12 @@ export function OrderDetailView({
       </div>
 
       {documents.length > 0 && (
-        <section aria-labelledby="order-documents" className={panel}>
-          <h2 id="order-documents" className={cn(sectionTitle, "mb-1")}>
+        <section
+          id="order-documents"
+          aria-labelledby="order-documents-title"
+          className={cn(panel, "scroll-mt-28")}
+        >
+          <h2 id="order-documents-title" className={cn(sectionTitle, "mb-1")}>
             {tDocuments("title")}
           </h2>
           <ul>
@@ -824,7 +651,7 @@ export function OrderDetailView({
                   request={request}
                   onChanged={() => {
                     void returnsQuery.refetch();
-                    void orderQuery.refetch();
+                    refetch();
                   }}
                 />
               ))}
@@ -853,7 +680,7 @@ export function OrderDetailView({
         </section>
       )}
 
-      {order.canCancel && (
+      {order.canCancel && paymentState.status !== "cancelled" && (
         <div>
           <CancelOrder
             order={order}
@@ -864,6 +691,9 @@ export function OrderDetailView({
               );
               void client.invalidateQueries({
                 queryKey: ordersQueryKey(locale),
+              });
+              void client.invalidateQueries({
+                queryKey: ["order-payment", orderNumber.toUpperCase()],
               });
               setJustCancelled(true);
             }}
