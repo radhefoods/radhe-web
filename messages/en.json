@@ -35,8 +35,7 @@
     "howItWorks": "How it works",
     "allCategories": "All categories",
     "offers": "Offers",
-    "signIn": "Sign in",
-    "items": "{count, plural, =0 {Empty} one {# item} other {# items}}"
+    "signIn": "Sign in"
   },
   "product": {
     "addToCart": "Add to cart",
@@ -156,7 +155,6 @@
     "trustPay": "Secure payment at checkout",
     "trustDelivery": "Delivery across Germany",
     "trustFree": "Free delivery from {amount}",
-    "trustVat": "All prices include VAT",
     "stepsTitle": "How it works",
     "step1Title": "Choose",
     "step1Text": "Pick your groceries from what is in stock. Every price includes VAT; the delivery fee shows in your cart.",

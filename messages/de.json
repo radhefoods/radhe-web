@@ -35,8 +35,7 @@
     "howItWorks": "So funktioniert’s",
     "allCategories": "Alle Kategorien",
     "offers": "Angebote",
-    "signIn": "Anmelden",
-    "items": "{count, plural, =0 {Leer} one {# Artikel} other {# Artikel}}"
+    "signIn": "Anmelden"
   },
   "product": {
     "addToCart": "In den Warenkorb",
@@ -156,7 +155,6 @@
     "trustPay": "Sichere Zahlung an der Kasse",
     "trustDelivery": "Lieferung in ganz Deutschland",
     "trustFree": "Kostenlose Lieferung ab {amount}",
-    "trustVat": "Alle Preise inkl. MwSt.",
     "stepsTitle": "So funktioniert’s",
     "step1Title": "Auswählen",
     "step1Text": "Wählen Sie Ihre Lebensmittel aus dem, was auf Lager ist. Alle Preise inkl. MwSt.; die Lieferkosten sehen Sie im Warenkorb.",

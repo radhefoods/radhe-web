@@ -22,8 +22,8 @@ import { SearchForm } from "./search-form";
 /**
  * The top of every shop page, in three tiers like the stores people know:
  * the wheat strip with the promises of the shop and the language (wide
- * screens only), the white bar with logo, the pill search, account and the
- * cart pill, and the category chips with the offers at their end. On phones
+ * screens only), the white bar with logo, the pill search, the account and
+ * cart icons, and the category chips with the offers at their end. On phones
  * the search moves under the logo, the categories sit behind the menu
  * button, and the tab bar at the bottom does the everyday navigation; the
  * header then scrolls away with the page.
@@ -94,8 +94,8 @@ export async function Header({
 
           <div className="flex items-center gap-2">
             <LocaleSwitcher className="lg:hidden" />
-            <AccountLink className="hidden md:inline-flex" />
-            <CartLink className="hidden md:inline-flex" />
+            <AccountLink className="hidden md:grid" />
+            <CartLink className="hidden md:grid" />
             <MobileMenu categories={categories} />
           </div>
         </div>

@@ -2,9 +2,11 @@
 
 import { User } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useSession } from "@/features/session/session";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
+import { iconControl } from "./icon-control";
 
 /** A small green dot on the account icon while a customer is signed in. */
 export function AccountDot({ className }: { className?: string }) {
@@ -22,8 +24,9 @@ export function AccountDot({ className }: { className?: string }) {
 }
 
 /**
- * The account in the header. Leads to the account, or to sign in first; on
- * wide screens it says which of the two, or greets the customer by name.
+ * The account in the header: the icon alone, with the green dot while a
+ * customer is signed in. Leads to the account, or to sign in first; the
+ * tip under it says which, or greets the customer by name.
  */
 export function AccountLink({ className }: { className?: string }) {
   const t = useTranslations("nav");
@@ -31,24 +34,17 @@ export function AccountLink({ className }: { className?: string }) {
   const name =
     session.status === "customer" ? session.customer?.firstName : null;
   return (
-    <Link
-      href="/account"
-      aria-label={t("account")}
-      className={cn(
-        "bg-mist hover:bg-cloud min-h-12 items-center gap-2.5 rounded-full px-4 transition-colors duration-150",
-        className,
-      )}
-    >
-      <span className="relative">
-        <User aria-hidden="true" className="size-6" />
-        <AccountDot />
-      </span>
-      <span className="hidden flex-col text-left leading-tight lg:flex">
-        <span className="text-sm font-bold">{t("account")}</span>
-        <span className="text-ink-subtle max-w-28 truncate text-xs font-medium">
-          {name || t("signIn")}
+    <Tooltip label={name || t("signIn")}>
+      <Link
+        href="/account"
+        aria-label={t("account")}
+        className={cn(iconControl, className)}
+      >
+        <span className="relative">
+          <User aria-hidden="true" className="size-6" />
+          <AccountDot />
         </span>
-      </span>
-    </Link>
+      </Link>
+    </Tooltip>
   );
 }

@@ -1,11 +1,4 @@
-import {
-  ArrowRight,
-  PackageCheck,
-  ShieldCheck,
-  Tag,
-  Truck,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ComponentProps, ReactNode } from "react";
@@ -23,7 +16,6 @@ import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
 import type { ProductSummary } from "@/lib/api/types";
-import { formatMoney } from "@/lib/format/money";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 import { JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
 
@@ -98,21 +90,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       products({ featured: true, limit: 8 }, locale),
       products({ onSale: true, limit: 4 }, locale),
     ]);
-  const freeFrom = settings?.deliveryFee.freeFrom ?? null;
   // Full rows only: four per row on wide screens, two on phones.
   const featured = popular.slice(0, popular.length >= 8 ? 8 : 4);
-
-  const promises: [LucideIcon, string][] = [
-    [ShieldCheck, t("trustPay")],
-    [Truck, t("trustDelivery")],
-    [Tag, t("trustVat")],
-  ];
-  if (freeFrom !== null) {
-    promises.splice(2, 0, [
-      PackageCheck,
-      t("trustFree", { amount: formatMoney(freeFrom, locale) }),
-    ]);
-  }
 
   const steps = [
     { title: t("step1Title"), text: t("step1Text") },
@@ -170,23 +149,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
-        <ul
-          aria-label={tSite("name")}
-          className="grid grid-cols-2 gap-2.5 lg:grid-cols-4"
-        >
-          {promises.map(([Icon, text]) => (
-            <li
-              key={text}
-              className="bg-mist flex items-center gap-3 rounded-lg px-3.5 py-3 text-[0.8125rem] leading-snug font-semibold sm:text-[0.9375rem]"
-            >
-              <span className="text-leaf-600 grid size-8 shrink-0 place-items-center rounded-full bg-white">
-                <Icon aria-hidden="true" className="size-4.5" />
-              </span>
-              {text}
-            </li>
-          ))}
-        </ul>
-
         {categories.length > 0 && (
           <section aria-labelledby="home-categories">
             <SectionHeader
