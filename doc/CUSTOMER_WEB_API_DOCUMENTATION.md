@@ -1,8 +1,8 @@
 # Radhe Foods – Customer Web API Documentation
 
-For the customer-facing Next.js shop. Generated from the implemented NestJS backend (`radhe-api`) on 2026-09-30; every route, field, status and error below exists in the code as of this date. Admin-only APIs are documented separately in `ADMIN_API_DOCUMENTATION.md`.
+For the customer-facing Next.js shop. Generated from the implemented NestJS backend (`radhe-api`) on 2026-10-16; every route, field, status and error below exists in the code as of this date. Admin-only APIs are documented separately in `ADMIN_API_DOCUMENTATION.md`.
 
-**What the shop is:** a pre-order shop for Indian groceries in Germany. Customers browse without an account, sign in to order, confirm a pre-order for the cargo that currently takes orders, and **pay after delivery** (online by card/PayPal through Stripe Checkout, or in cash to the driver). Nothing is charged at checkout.
+**What the shop is:** an online shop for Indian groceries in Germany, sold from stock. Customers browse without an account, sign in to order, and **pay at checkout** (card or PayPal through Stripe Checkout). The payment confirms the order; Radhe Foods then prepares, dispatches and delivers it. The invoice is issued the moment the payment is captured and comes with the confirmation email.
 
 ## Contents
 
@@ -13,14 +13,14 @@ For the customer-facing Next.js shop. Generated from the implemented NestJS back
 4. Unsubscribe link (public)
 5. Health
 6. Shop settings and legal texts
-7. Catalogue and cargo status
+7. Catalogue
 8. Cart
-9. Orders (pre-orders)
+9. Orders and checkout
 10. Payments
 11. Invoices and credit notes
 12. Returns
 13. Status reference
-14. Prepared but not yet active
+14. What depends on the server configuration
 15. Integration checklist
 
 ---
@@ -29,7 +29,7 @@ For the customer-facing Next.js shop. Generated from the implemented NestJS back
 
 ### 0.1 Base URL and versioning
 
-- All shop routes are under `/v1/store/...`. Public link routes are `/v1/pay/{token}` and `/v1/unsubscribe/{token}`. Health is `/health` (no version).
+- All shop routes are under `/v1/store/...`. The public link route is `/v1/unsubscribe/{token}`. Health is `/health` (no version).
 - Local development: `http://localhost:3000`. Production: the API domain (for example `https://api.radhefoods.de`). Interactive OpenAPI documentation: `<API>/docs` (dev only), JSON at `<API>/docs/openapi.json`.
 - Versioning is in the URI (`/v1`). There is no version header.
 
@@ -63,7 +63,7 @@ Every error, from any endpoint:
 
 - `code` is stable and meant for the frontend (translate it); `message` is English, for developers and as a fallback.
 - `details` is present only for some codes; its shape is documented per endpoint. For `VALIDATION_FAILED` it is always `[{ field, problems[] }]` with dotted paths (`consent.versions.terms`, `items.0.quantity`).
-- Generic codes: `VALIDATION_FAILED` (400), `BAD_REQUEST` (400), `AUTH_TOKEN_INVALID` (401), `FORBIDDEN` (403), `ORIGIN_NOT_ALLOWED` (403), `NOT_FOUND` (404, also for unknown routes), `CONFLICT` (409), `RATE_LIMITED` (429), `SERVICE_UNAVAILABLE` (503), `INTERNAL_ERROR` (500).
+- Generic codes: `VALIDATION_FAILED` (400), `BAD_REQUEST` (400), `AUTH_TOKEN_INVALID` (401, a store route that needs a session), `UNAUTHENTICATED` (401, other unauthenticated requests), `FORBIDDEN` (403), `ORIGIN_NOT_ALLOWED` (403), `NOT_FOUND` (404, also for unknown routes), `CONFLICT` (409), `RATE_LIMITED` (429), `SERVICE_UNAVAILABLE` (503), `INTERNAL_ERROR` (500).
 
 ### 0.5 Authentication and cookies (read this before anything else)
 
@@ -97,11 +97,10 @@ Every store endpoint answers in **one** language. Pass `?locale=en` / `?locale=d
 | Kind | Representation |
 | ---- | -------------- |
 | IDs | MongoDB ObjectId as a 24-character hex string (`"66f1a2b3c4d5e6f7a8b9c0d1"`). Path parameters that take an id answer `400 VALIDATION_FAILED` ("The id in the URL is not valid.") for anything else. |
-| Human numbers | Orders `RF-1084`, returns `RF-1084-R1`, invoices `INV-2026-000123`, credit notes `CN-2026-000007`, cargos `RF-C027`. Case-insensitive in URLs. |
+| Human numbers | Orders `RF-1001`, returns `RF-1001-R1`, invoices `INV-2026-000001`, credit notes `CN-2026-000001`. Case-insensitive in URLs. |
 | Money | Integer **cents** in EUR, VAT included (`1999` = €19.99). `currency` is always `"EUR"`. Never floats. |
 | VAT rates | Hundredths of a percent: `700` = 7 %, `1900` = 19 %. Views also give `vatPercent` (`7`). |
-| Date-times | ISO 8601 strings in UTC (`"2026-09-28T10:15:00.000Z"`). |
-| Calendar days | `"YYYY-MM-DD"` (delivery windows, `deliveredOn`), meant in the business time zone `Europe/Berlin`. |
+| Date-times | ISO 8601 strings in UTC (`"2026-10-16T10:15:00.000Z"`). |
 | Booleans/nulls | Optional values are `null` when not set, except where a section says a key is absent. |
 | Images | Absolute `https` URLs (WebP), see section 7.1. Never construct image URLs yourself. |
 
@@ -112,15 +111,15 @@ Two styles exist:
 - **Page/limit** (catalogue): `?page=1&limit=24` → `{ items, page, limit, total, totalPages }`. `page` 1–500, `limit` 1–100.
 - **Cursor** (orders, invoices): `?limit=25&cursor=<nextCursor>` → `{ items, nextCursor }`; newest first; `nextCursor` is `null` on the last page. `limit` 1–100, default 25.
 
-### 0.9 Statuses
+### 0.9 HTTP status codes
 
-`POST` answers `201` when something was created and `200` otherwise (documented per endpoint). `DELETE` answers `200` with the updated list or `204` (documented).
+`POST` answers `201` when something was created and `200` otherwise (documented per endpoint; `POST /v1/store/checkout` answers `201` for a new order and `200` when the same `Idempotency-Key` is sent again). `DELETE` answers `200` with the updated list or `204` (documented).
 
 ---
 
 ## 1. Customer authentication
 
-Sign-in is passwordless: a 6-digit code by email, or Google sign-in. There is no separate sign-up: the first successful sign-in creates the account. Guests can browse and price a cart; they must sign in to place an order.
+Sign-in is passwordless: a 6-digit code by email, or Google sign-in. There is no separate sign-up: the first successful sign-in creates the account. Guests can browse and price a cart; they must sign in to check out.
 
 ### `POST /v1/store/auth/otp/request`
 
@@ -298,7 +297,7 @@ Refresh tokens rotate on every call. Two parallel refreshes within 10 seconds ar
 
 ### `PATCH /v1/store/me/communication`
 
-**Purpose:** How the customer wants to hear from Radhe Foods. Emails about the customer's own orders always come and need no consent. WhatsApp messages need a number and a yes; news about products and cargos (marketing) needs a yes of its own and can be withdrawn any time.
+**Purpose:** How the customer wants to hear from Radhe Foods. Emails about the customer's own orders always come and need no consent. WhatsApp messages need a number and a yes; news about products and offers (marketing) needs a yes of its own and can be withdrawn any time.
 
 **Authentication:** customer session.
 
@@ -311,8 +310,8 @@ Refresh tokens rotate on every call. Two parallel refreshes within 10 seconds ar
 | Field | Type | Required | Validation / meaning |
 | ----- | ---- | -------- | -------------------- |
 | `whatsappNumber` | string or `null` | no | international format; `null` removes it. When absent, the profile `phone` is used for WhatsApp. |
-| `whatsappOptIn` | boolean | no | Messages about own orders by WhatsApp (dispatch, invoice, reminders). |
-| `marketingOptIn` | boolean | no | News about products and cargos, by email (and WhatsApp when `whatsappOptIn`). |
+| `whatsappOptIn` | boolean | no | Messages about own orders by WhatsApp (the dispatch message). |
+| `marketingOptIn` | boolean | no | News about products and offers, by email (and WhatsApp when `whatsappOptIn`). |
 
 **Success Response (200):**
 
@@ -321,15 +320,15 @@ Refresh tokens rotate on every call. Two parallel refreshes within 10 seconds ar
   "communication": {
     "whatsappNumber": "+4915112345678",
     "whatsappOptIn": true,
-    "whatsappOptInAt": "2026-09-30T12:00:00.000Z",
+    "whatsappOptInAt": "2026-10-16T12:00:00.000Z",
     "marketingOptIn": true,
-    "marketingOptInAt": "2026-09-30T12:00:00.000Z",
+    "marketingOptInAt": "2026-10-16T12:00:00.000Z",
     "marketingOptOutAt": null
   }
 }
 ```
 
-Show the wording of the two consents clearly (they are dated for the record). WhatsApp sending itself is prepared on the server but only active once configured (section 14); the preference can be stored in any case.
+Show the wording of the two consents clearly (they are dated for the record). WhatsApp sending itself needs credentials on the server (section 14); the preference can be stored in any case.
 
 ---
 
@@ -418,7 +417,7 @@ Marketing emails carry a link `<SHOP_URL>/unsubscribe/<token>`. The shop needs a
 
 ### `POST /v1/unsubscribe/{token}`
 
-**Purpose:** Switch off news about products and cargos for the customer the token stands for. Emails about the customer's own orders keep coming.
+**Purpose:** Switch off news about products and offers for the customer the token stands for. Emails about the customer's own orders keep coming.
 
 **Authentication:** none (the signed token is the key). Rate limit 10 per minute.
 
@@ -442,11 +441,11 @@ Marketing emails carry a link `<SHOP_URL>/unsubscribe/<token>`. The shop needs a
 
 ## 6. Shop settings and legal texts
 
-Public. Used by the layout (currency, time zone, delivery fee steps) and by checkout (the legal texts the customer accepts).
+Public. Used by the layout (currency, delivery-fee hint, delivery estimate, return window) and by checkout (the legal texts the customer accepts).
 
 ### `GET /v1/store/settings`
 
-**Purpose:** What the shop needs to render prices, countdowns and the delivery-fee hint.
+**Purpose:** What the shop needs to render prices, the delivery-fee hint, the delivery estimate and the return window.
 
 **Authentication:** none.
 
@@ -463,6 +462,9 @@ Public. Used by the layout (currency, time zone, delivery fee steps) and by chec
     ],
     "freeFrom": 5000
   },
+  "delivery": {
+    "estimate": { "en": "2 to 4 working days", "de": "2 bis 4 Werktage" }
+  },
   "returns": { "windowDays": 14 }
 }
 ```
@@ -470,16 +472,17 @@ Public. Used by the layout (currency, time zone, delivery fee steps) and by chec
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `currency` | string | Always `EUR`. |
-| `timezone` | string | The business time zone (`Europe/Berlin`): order deadlines and delivery days are meant in it. |
+| `timezone` | string | The business time zone (`Europe/Berlin`); the dates on invoices are meant in it. |
 | `deliveryFee.tiers[]` | `{ minOrderValue: int cents, fee: int cents }` | The highest tier whose `minOrderValue` the value of the goods reaches applies. One tier always starts at 0. Sorted ascending. |
 | `deliveryFee.freeFrom` | int cents or `null` | Lowest goods value from which delivery is free, or `null` when no tier is free. |
+| `delivery.estimate` | `{ en: string, de: string }` | How long delivery takes, as Radhe Foods words it. Both languages are always given (this endpoint takes no `locale`); show it at checkout and on the order page. |
 | `returns.windowDays` | int | Days after delivery in which a return can be requested; `0` = returns switched off. |
 
 The cancellation rule (until when a customer may cancel) is not part of this answer: use `canCancel` of each order (section 9).
 
 ### `GET /v1/store/legal`
 
-**Purpose:** The versions of the legal texts that apply now. Checkout shows links to them and sends their versions back in `consent.versions` when placing an order.
+**Purpose:** The versions of the legal texts that apply now. Checkout shows links to them and sends their versions back in `consent.versions`.
 
 **Authentication:** none.
 
@@ -500,7 +503,7 @@ The cancellation rule (until when a customer may cancel) is not part of this ans
 }
 ```
 
-Only published types appear. `terms` and `privacy` must be published before any order can be placed; `preorder_terms` is optional and, when published, is also part of `consent.versions`.
+Only published types appear. There are two types, `terms` and `privacy`; both must be published before any order can be placed, and the versions of both are sent back at checkout.
 
 ### `GET /v1/store/legal/{type}`
 
@@ -512,7 +515,7 @@ Only published types appear. `terms` and `privacy` must be published before any 
 
 | Field | Location | Type | Required | Description |
 | ----- | -------- | ---- | -------- | ----------- |
-| `type` | path | `terms` \| `preorder_terms` \| `privacy` | yes | |
+| `type` | path | `terms` \| `privacy` | yes | |
 | `locale` | query | `en` \| `de` | no | |
 
 **Success Response (200):**
@@ -523,8 +526,8 @@ Only published types appear. `terms` and `privacy` must be published before any 
     "type": "terms",
     "version": 3,
     "title": "Terms and Conditions",
-    "content": "…markdown or plain text…",
-    "publishedAt": "2026-09-01T08:00:00.000Z"
+    "publishedAt": "2026-09-01T08:00:00.000Z",
+    "content": "…markdown or plain text…"
   }
 }
 ```
@@ -536,9 +539,9 @@ Only published types appear. `terms` and `privacy` must be published before any 
 
 ---
 
-## 7. Catalogue and cargo status
+## 7. Catalogue
 
-Public. Products, categories and the answer "can the customer order right now?".
+Public. Products, categories and, for every product and pack size, the answer "can the customer order this right now?", which follows from the stock.
 
 ### 7.1 Shared objects
 
@@ -590,7 +593,7 @@ Public. Products, categories and the answer "can the customer order right now?".
 
 All image URLs are absolute, WebP, immutable (cache them for a year). `url` is the largest variant. `small` is 320 px on the longest side, `medium` 800 px, `large` 1600 px (never enlarged: a 600 px source gives `medium`/`large` of 600 px). `alt` is localized and falls back to the product name.
 
-**Ordering block** (`ordering` on products and pack sizes; the same object is `line.ordering` in the cart):
+**Ordering block** (`ordering` on products and on each entry of `packSizes`; the same object is `line.ordering` in the cart):
 
 ```json
 { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 37 }
@@ -598,49 +601,13 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `canOrder` | boolean | Whether the customer can put this product in a pre-order at this moment. |
-| `reason` | `null` \| `ordering_closed` \| `product_unavailable` \| `not_in_this_cargo` \| `sold_out` | Why not. `ordering_closed`: no cargo is taking orders. `not_in_this_cargo`: the product is not offered in the current cargo. `sold_out`: the cargo's limit for this product is reached. |
-| `minQuantity` | int | Least units per order line. |
-| `maxQuantity` | int or `null` | Most units per order line (product limit and remaining cargo units combined); `null` = no limit. |
-| `remaining` | int or `null` | Units still available in the current cargo; `null` when the cargo sets no limit. |
+| `canOrder` | boolean | Whether the product can be put in an order at this moment: it is switched on for ordering and the stock covers the smallest order. This is the "add to cart" button state. |
+| `reason` | `null` \| `product_unavailable` \| `sold_out` | Why not. `product_unavailable`: Radhe Foods switched the product off for ordering. `sold_out`: the stock does not cover `minQuantity`. |
+| `minQuantity` | int | Least units per order line (the product's `quantity.min`). |
+| `maxQuantity` | int | Most units in one order line: the product's limit per order (`quantity.max`) and the units in stock, whichever is lower. `0` when sold out. |
+| `remaining` | int | Units in stock. Nothing is reserved before the payment, so this is what every customer sees; it can still change until a payment goes through. |
 
-### `GET /v1/store/cargo`
-
-**Purpose:** Whether ordering is open, the deadline countdown and the delivery days; and when the next cargo opens. Show this in the header and on the checkout page.
-
-**Authentication:** none.
-
-**Parameters:**
-
-| Field | Location | Type | Required | Description |
-| ----- | -------- | ---- | -------- | ----------- |
-| `locale` | query | `en` \| `de` | no | Language of `name` and `message`. |
-
-**Success Response (200):**
-
-```json
-{
-  "acceptingOrders": true,
-  "current": {
-    "id": "66f0a1b2c3d4e5f6a7b8c9d0",
-    "code": "RF-C027",
-    "name": "October delivery",
-    "message": "Order by Friday night.",
-    "orderOpenAt": "2026-09-24T22:00:00.000Z",
-    "orderCloseAt": "2026-09-26T21:59:00.000Z",
-    "opensInSeconds": 0,
-    "closesInSeconds": 172740,
-    "delivery": { "start": "2026-10-05", "end": "2026-10-07" }
-  },
-  "next": null,
-  "serverTime": "2026-09-24T22:01:00.000Z",
-  "timezone": "Europe/Berlin"
-}
-```
-
-- `current` is the cargo taking orders (status `taking_orders` and deadline not yet passed), or `null`. `next` is the scheduled cargo that opens first, same shape, or `null`.
-- `name` and `message` may be `null`.
-- `opensInSeconds` / `closesInSeconds` are computed on the server; use them (or `serverTime`) for countdowns instead of the browser clock. `delivery.start`/`end` are calendar days (`YYYY-MM-DD`) in `timezone`.
+Products carry no other stock field: `remaining` is the number to use for "only 3 left" hints.
 
 ### `GET /v1/store/categories`
 
@@ -729,9 +696,9 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 | `brand` | string ≤80, repeatable | Brands, any of them: `brand=Amul&brand=Tata`. |
 | `storageType` | `ambient` \| `chilled` \| `frozen`, repeatable | Any of them. |
 | `packSize` | string, repeatable | Pack sizes as value and unit without a space: `500g`, `1kg`, `0.5l`, `6pcs`. Any of them. With `groupPackSizes=true` the matching size stands for its product in the list (its `slug`, `pricing` and `packSize`) instead of the default size. |
-| `onSale` | boolean | Only reduced products (`false`: only not reduced). |
-| `available` | boolean | Only products marked available by the admin. |
-| `orderable` | boolean | Only products that can be ordered **now** (a cargo takes orders, the product is in it, units are left). Empty when ordering is closed. |
+| `onSale` | boolean | `true`: only reduced products; `false`: only products that are not reduced. |
+| `available` | boolean | `true`: only products switched on for ordering by Radhe Foods; `false`: only switched-off ones. Says nothing about stock. |
+| `orderable` | boolean | `true`: only products that can be ordered **now** (switched on, and the stock covers the smallest order). `false` is accepted and changes nothing. |
 | `featured` | boolean | |
 | `minPrice`, `maxPrice` | int cents, ≥0 | On the effective price. |
 | `sort` | `recommended` (default) \| `newest` \| `price_asc` \| `price_desc` \| `discount` \| `name` | |
@@ -768,7 +735,8 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
           "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
           "pricing": { "…PriceView…": "" },
           "isAvailable": true, "quantity": { "min": 1, "max": null },
-          "ordering": { "…": "" }, "image": null, "isDefault": false, "isSelected": false
+          "ordering": { "canOrder": false, "reason": "sold_out", "minQuantity": 1, "maxQuantity": 0, "remaining": 0 },
+          "image": null, "isDefault": false, "isSelected": false
         },
         { "id": "66f3…", "sku": "RF-00042", "slug": "basmati-rice-5-kg", "…": "this product", "isDefault": true, "isSelected": true }
       ]
@@ -781,7 +749,9 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 }
 ```
 
-- `packSizes` always contains the product itself (`isSelected: true`) and its active sibling pack sizes, smallest first. Use it for the pack-size chooser; each entry has its own `slug` for the product page.
+- `isAvailable` is the admin's switch; `ordering` combines it with the stock. Use `ordering` for the button, not `isAvailable`.
+- `quantity` is the product's own limit per order (`max` may be `null`); `ordering.maxQuantity` is that limit capped by the stock.
+- `packSizes` always contains the product itself (`isSelected: true`) and its active sibling pack sizes, smallest first, each with its own `ordering`. Use it for the pack-size chooser; each entry has its own `slug` for the product page.
 - `storageType` ∈ `ambient`, `chilled`, `frozen`. `category` and `image` can be `null`.
 - Drafts, archived products and products in hidden categories are never returned.
 
@@ -828,7 +798,7 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 
 - `brands`, `tags`, `storageTypes` and `packSizes` list only values with at least one product, most products first (`packSizes` by unit and size). The values go straight into the `brand`, `tag`, `storageType` and `packSize` parameters; `packSizes[].packSize.label` is the localized text to show.
 - `priceBands` are fixed bands in cents, `min` and `max` inclusive; `max` is `null` for the last band. Pass a band as `minPrice` and `maxPrice`. `price` is the cheapest and the dearest product under the other filters, for a slider, or `null` without products.
-- `onSale` and `orderable` always contain both values. `orderable` is counted against the cargo that takes orders now; without one, every product counts as not orderable.
+- `onSale` and `orderable` always contain both values. `orderable` is counted by the same rule as the ordering block: switched on, and the stock covers the smallest order. With `groupPackSizes=true` the size that stands for the product decides.
 
 **Possible Errors:** as for the list.
 
@@ -879,69 +849,76 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 
 ## 8. Cart
 
-The cart is stored on the server for signed-in customers. Visitors can price a cart without an account (`preview`) and hand it over after signing in (`merge`). Every cart endpoint answers with the same **bill** object.
+The cart is stored on the server for signed-in customers. Visitors can price a cart without an account (`preview`) and hand it over after signing in (`merge`). Every cart endpoint answers with the same **bill** object. Prices come from the catalogue, never from the browser. The cart is kept through checkout and emptied when the payment is captured.
 
 ### 8.1 The bill (response of every cart endpoint)
 
 ```json
 {
   "canOrder": true,
-  "cargo": {
-    "id": "66f0a1b2c3d4e5f6a7b8c9d0",
-    "code": "RF-C027",
-    "name": "October delivery",
-    "message": null,
-    "orderOpenAt": "2026-09-20T00:00:00.000Z",
-    "orderCloseAt": "2026-10-05T21:59:59.000Z",
-    "opensInSeconds": 0,
-    "closesInSeconds": 432000,
-    "delivery": { "start": "2026-10-20", "end": "2026-10-24" }
-  },
   "lines": [
     {
       "productId": "66e9f0a1b2c3d4e5f6a7b8c9",
       "quantity": 2,
-      "unitPrice": 1299,
-      "lineTotal": 2598,
+      "unitPrice": 399,
+      "lineTotal": 798,
       "vatRate": 700,
-      "vatAmount": 170,
+      "vatAmount": 52,
       "issue": null,
-      "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 48 },
+      "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 5, "remaining": 5 },
       "product": { "…product list entry (section 7)…": "" }
     },
     {
-      "productId": "66e9f0a1b2c3d4e5f6a7b8c9ff",
+      "productId": "66e9f0a1b2c3d4e5f6a7b8ca",
       "quantity": 1,
-      "unitPrice": 0,
-      "lineTotal": 0,
-      "vatRate": 0,
-      "vatAmount": 0,
-      "issue": "product_not_found",
-      "ordering": null,
-      "product": null
+      "unitPrice": 999,
+      "lineTotal": 999,
+      "vatRate": 700,
+      "vatAmount": 65,
+      "issue": null,
+      "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 10 },
+      "product": { "…": "", "pricing": { "price": 999, "regularPrice": 1299, "onSale": true, "…": "" } }
     }
   ],
   "totals": {
     "currency": "EUR",
-    "subtotal": 2598,
+    "subtotal": 1797,
     "deliveryFee": 499,
-    "total": 3097,
-    "netTotal": 2894,
-    "vatTotal": 203,
-    "vat": [ { "vatRate": 700, "vatPercent": 7, "gross": 3097, "net": 2894, "vat": 203 } ]
+    "total": 2296,
+    "netTotal": 2146,
+    "vatTotal": 150,
+    "vat": [ { "vatRate": 700, "vatPercent": 7, "gross": 2296, "net": 2146, "vat": 150 } ]
   },
-  "delivery": { "fee": 499, "freeFrom": 5000, "missingForFree": 2402 }
+  "delivery": { "fee": 499, "freeFrom": 5000, "missingForFree": 3203 }
+}
+```
+
+A line whose product left the shop, and the bill of goods at two VAT rates:
+
+```json
+{
+  "lines": [
+    { "productId": "66e9f0a1b2c3d4e5f6a7b8ff", "quantity": 1, "unitPrice": 0, "lineTotal": 0, "vatRate": 0, "vatAmount": 0, "issue": "product_not_found", "ordering": null, "product": null },
+    { "productId": "66e9…", "quantity": 2, "unitPrice": 399, "lineTotal": 798, "vatRate": 700, "vatAmount": 52, "issue": null, "ordering": { "…": "" }, "product": { "…": "" } },
+    { "productId": "66ea…", "quantity": 1, "unitPrice": 299, "lineTotal": 299, "vatRate": 1900, "vatAmount": 48, "issue": null, "ordering": { "…": "" }, "product": { "…": "" } }
+  ],
+  "totals": {
+    "currency": "EUR", "subtotal": 1097, "deliveryFee": 499, "total": 1596, "netTotal": 1451, "vatTotal": 145,
+    "vat": [
+      { "vatRate": 700, "vatPercent": 7, "gross": 1171, "net": 1094, "vat": 77 },
+      { "vatRate": 1900, "vatPercent": 19, "gross": 425, "net": 357, "vat": 68 }
+    ]
+  }
 }
 ```
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `canOrder` | boolean | `true` only when a cargo takes orders, the cart is not empty and **every** line is free of issues. This is the "Confirm pre-order" button state. |
-| `cargo` | object or `null` | The cargo the order would belong to (same shape as `current` of `GET /v1/store/cargo`). `null` = ordering closed. |
-| `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `ordering_closed`, `product_unavailable`, `not_in_this_cargo`, `sold_out` | Why this line cannot be ordered. Show it on the line. |
+| `canOrder` | boolean | `true` only when the cart is not empty and **every** line is free of issues. This is the checkout button state. |
+| `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `product_unavailable`, `sold_out` | Why this line cannot be ordered as it is. Show it on the line. `quantity_above_maximum` also means "more than in stock" (`ordering.maxQuantity` is capped by the stock). |
 | `lines[].ordering` | Ordering block or `null` | `null` when the product no longer exists. Inside `lines[].product` the `ordering` field is always `null`; use the line-level one. |
 | `lines[].product` | product entry or `null` | `null` when the product was removed or deactivated (then `unitPrice`, `lineTotal`, `vatRate`, `vatAmount` are `0`). |
-| `totals` | object | Computed over issue-free lines only. `vat[]` is grouped by rate; the delivery fee is shared across rates. |
+| `totals` | object | Computed over issue-free lines only. `vat[]` is grouped by rate; the delivery fee is shared across the rates in proportion to the net value of the goods. An empty bill has `deliveryFee: 0` and `vat: []`. |
 | `delivery.freeFrom` | int cents or `null` | Goods value from which delivery is free. `missingForFree` = what is still missing (`0` when reached; `null` when there is no free tier). |
 
 ### `POST /v1/store/cart/preview`
@@ -988,9 +965,11 @@ The cart is stored on the server for signed-in customers. Visitors can price a c
 
 **Success Response (200):** the bill.
 
+**Possible Errors:** `400 CART_FULL` (`details: { maximum: 100 }`), `400 VALIDATION_FAILED`.
+
 ### `PUT /v1/store/cart/items/{productId}`
 
-**Purpose:** Set the quantity of a product (adds it when missing).
+**Purpose:** Set the quantity of a product (adds it when missing). A quantity the product cannot be ordered in is kept and reported as the line's `issue`.
 
 **Authentication:** customer session.
 
@@ -1026,30 +1005,29 @@ The cart is stored on the server for signed-in customers. Visitors can price a c
 
 ---
 
-## 9. Orders (pre-orders)
+## 9. Orders and checkout
 
-An order is made from the **server-stored cart**, belongs to the cargo that takes orders, and is paid **after delivery**. Nothing is charged at checkout.
+An order is made from the **server-stored cart** at `POST /v1/store/checkout` and is paid at once on Stripe's payment page. It exists from that moment with status `pending_payment`; the payment confirms it. Nothing is reserved until the payment goes through, and the cart is kept until then. The items of an order cannot be changed afterwards: cancel and order again.
 
 ### 9.1 Order statuses
 
 | `status` | Meaning for the customer |
 | --- | --- |
-| `confirmed` | The pre-order is placed. |
-| `preparing` | Radhe Foods is preparing it. |
+| `pending_payment` | Waiting for the payment. The customer can pay (section 10) or give the order up. Nothing is reserved. |
+| `confirmed` | Paid. Radhe Foods has the order; the invoice is issued. |
+| `processing` | Radhe Foods is preparing it. |
 | `dispatched` | On its way (carrier and tracking in `delivery`). |
-| `delivered` | Delivered. Payment follows; returns are possible within the return window. |
-| `delivery_failed` | Delivery was not possible; Radhe Foods will get in touch (usually the order moves to the next cargo). |
-| `returned` | Everything was returned. |
-| `cancelled` | Cancelled (by the customer or Radhe Foods; see `cancellation`). |
+| `delivered` | Delivered. Returns are possible within the return window. |
+| `cancelled` | Cancelled by the customer, by Radhe Foods, or by the API (see `cancellation`). |
+| `returned` | Everything was returned after delivery. |
 
 | `paymentStatus` | Meaning |
 | --- | --- |
-| `not_enabled` | Nothing to pay yet (not delivered, or payment not activated). |
-| `due` | The invoice is issued; `payment.deadline` lies ahead. |
-| `overdue` | The deadline passed. New orders are refused until paid. |
-| `paid` | Paid (online, cash, or settled by a credit note). |
-| `waived` | Radhe Foods waived the amount. |
-| `refunded` | Everything paid was refunded. |
+| `pending` | Not paid yet. A payment page may be open (`payment.checkout`). |
+| `authorized` | The bank approved the amount; the API is taking the stock and capturing the money. Lasts moments. |
+| `paid` | Captured. |
+| `failed` | The last attempt did not go through (declined, amount mismatch, or sold out before capture). The customer can open a new page while the order is `pending_payment`. |
+| `refunded` | Everything that was paid went back. |
 
 ### 9.2 Order objects
 
@@ -1057,63 +1035,80 @@ An order is made from the **server-stored cart**, belongs to the cargo that take
 
 ```json
 {
-  "orderNumber": "RF-1084",
+  "orderNumber": "RF-1001",
   "status": "dispatched",
-  "paymentStatus": "not_enabled",
-  "placedAt": "2026-09-28T10:15:00.000Z",
-  "total": 3097,
-  "finalTotal": 3097,
+  "paymentStatus": "paid",
+  "placedAt": "2026-10-16T10:15:00.000Z",
+  "total": 2296,
+  "finalTotal": 2296,
   "currency": "EUR",
   "itemCount": 3,
-  "preview": [ { "name": "Chakki Atta", "imageUrl": "https://cdn…/small.webp" } ],
+  "preview": [
+    { "name": "Bhakhri Atta", "imageUrl": "https://cdn…/small.webp" },
+    { "name": "Cow Ghee", "imageUrl": null }
+  ],
   "delivery": {
     "method": "dhl",
-    "trackingNumber": "00340434161094015902",
-    "trackingUrl": "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=00340434161094015902&lang=en",
-    "dispatchedAt": "2026-10-21T08:00:00.000Z",
-    "deliveredAt": null,
-    "promisedStart": "2026-10-20",
-    "promisedEnd": "2026-10-24",
-    "cargo": "RF-C027"
+    "trackingNumber": "JD0001234567",
+    "trackingUrl": "https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=JD0001234567&lang=en",
+    "dispatchedAt": "2026-10-18T08:00:00.000Z",
+    "deliveredAt": null
   }
 }
 ```
 
-- `total` is the agreed bill; `finalTotal` the bill after corrections and returns (what is invoiced).
+- `placedAt` is when the checkout started. `total` is the agreed bill; `finalTotal` the bill after corrections and returns.
 - `preview` holds the first three items (`imageUrl` may be `null`). `itemCount` = sum of quantities.
-- `delivery.method` ∈ `radhe_delivery`, `dhl`, `hermes`. `trackingNumber`/`trackingUrl` are `null` until set; `trackingUrl` is `null` for `radhe_delivery`. `promisedStart`/`promisedEnd` are calendar days.
+- `delivery.method` ∈ `radhe_delivery`, `dhl`, `hermes`, chosen by Radhe Foods (never by the customer). `trackingNumber`/`trackingUrl` are `null` until set; `trackingUrl` is `null` for `radhe_delivery`. `dispatchedAt` and `deliveredAt` are set when the order reaches that status. There is no promised date: show `delivery.estimate` from `GET /v1/store/settings`.
 
-**Order detail** (`GET /v1/store/orders/{orderNumber}`, and the `order` of place/cancel) = summary plus:
+**Order detail** (`GET /v1/store/orders/{orderNumber}`, and the `order` of checkout and cancel) = summary plus:
 
 ```json
 {
-  "language": "de",
+  "language": "en",
   "items": [
     {
       "productId": "66e9f0a1b2c3d4e5f6a7b8c9",
-      "sku": "ATTA-5KG",
-      "name": "Chakki Atta",
-      "packSize": { "value": 5, "unit": "kg", "label": "5 kg" },
+      "sku": "RF-00042",
+      "name": "Bhakhri Atta",
+      "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
       "imageUrl": "https://cdn…/small.webp",
       "quantity": 2,
-      "unitPrice": 1299,
-      "regularUnitPrice": 1499,
-      "lineTotal": 2598,
+      "unitPrice": 399,
+      "regularUnitPrice": null,
+      "lineTotal": 798,
       "vatRate": 700,
       "vatPercent": 7,
-      "vatAmount": 170,
+      "vatAmount": 52,
       "deliveredQuantity": 2,
       "returnedQuantity": 0,
-      "finalLineTotal": 2598
+      "finalLineTotal": 798
+    },
+    {
+      "productId": "66e9f0a1b2c3d4e5f6a7b8ca",
+      "sku": "RF-00043",
+      "name": "Cow Ghee",
+      "packSize": { "value": 500, "unit": "ml", "label": "500 ml" },
+      "imageUrl": null,
+      "quantity": 1,
+      "unitPrice": 999,
+      "regularUnitPrice": 1299,
+      "lineTotal": 999,
+      "vatRate": 700,
+      "vatPercent": 7,
+      "vatAmount": 65,
+      "deliveredQuantity": 1,
+      "returnedQuantity": 0,
+      "finalLineTotal": 999
     }
   ],
-  "totals": { "currency": "EUR", "subtotal": 2598, "deliveryFee": 499, "total": 3097, "netTotal": 2894, "vatTotal": 203, "vat": [ { "vatRate": 700, "gross": 3097, "net": 2894, "vat": 203 } ] },
+  "totals": { "currency": "EUR", "subtotal": 1797, "deliveryFee": 499, "total": 2296, "netTotal": 2146, "vatTotal": 150, "vat": [ { "vatRate": 700, "gross": 2296, "net": 2146, "vat": 150 } ] },
   "finalTotals": { "…same shape as totals…": "" },
   "adjustments": [
-    { "productId": "66e9…", "sku": "ATTA-5KG", "from": 2, "to": 1, "reason": "damaged", "at": "2026-10-23T09:00:00.000Z" }
+    { "productId": "66e9…", "sku": "RF-00042", "from": 2, "to": 1, "reason": "missing", "at": "2026-10-20T09:00:00.000Z" }
   ],
   "deliveryAddress": {
-    "firstName": "Priya", "lastName": "Shah", "company": "…", "street": "Hauptstraße", "houseNumber": "12",
+    "firstName": "Anna", "lastName": "Schmidt", "company": "…", "street": "Hauptstraße", "houseNumber": "12a",
     "additionalLine": "2. OG", "postalCode": "60311", "city": "Frankfurt am Main", "countryCode": "DE", "phone": "+4915112345678"
   },
   "note": "Please ring twice.",
@@ -1122,22 +1117,23 @@ An order is made from the **server-stored cart**, belongs to the cargo that take
   "returns": { "possible": false, "until": null },
   "cancellation": null,
   "acceptedTerms": {
-    "at": "2026-09-28T10:15:00.000Z",
+    "at": "2026-10-16T10:15:00.000Z",
     "documents": [ { "type": "terms", "version": 3 }, { "type": "privacy", "version": 2 } ]
   }
 }
 ```
 
-- `regularUnitPrice` is the crossed-out price or `null`. `finalLineTotal = (deliveredQuantity − returnedQuantity) × unitPrice`.
-- `adjustments[].reason` ∈ `missing`, `damaged`, `wrong_item`, `customer_complaint`, `other` (corrections of delivered quantities made by Radhe Foods).
+- Everything the customer saw at checkout is copied into the order: later changes of prices or addresses do not touch it.
+- `regularUnitPrice` is the crossed-out price or `null`. `finalLineTotal = (deliveredQuantity − returnedQuantity) × unitPrice`. `totals.vat[]` has no `vatPercent` (derive it: `vatRate / 100`).
+- `adjustments[].reason` ∈ `missing`, `damaged`, `wrong_item`, `customer_complaint`, `other` (corrections of delivered quantities made by Radhe Foods). A correction lowers `finalTotals`, produces a credit note (section 11) and the difference is refunded by Radhe Foods.
 - `deliveryAddress`: `company`, `additionalLine`, `phone` are **absent** when they were not set.
-- `canCancel`: whether `POST …/cancel` is allowed right now (depends on the shop setting `customerCancellation`, section 9.6).
-- `returns.until`: end of the return window (ISO) or `null`; `returns.possible` is `true` while the window is open and something can still be sent back.
-- `cancellation`: `null` or `{ "reason": "changed_mind", "text": "…", "by": "customer" | "admin" | "system", "at": "…" }` (`text` is only shown when `by` is `customer`).
+- `canCancel`: whether `POST …/cancel` is allowed right now: always while `pending_payment`; for a paid order by the rule of the shop (section 9.5).
+- `returns.until`: end of the return window (delivery + `returns.windowDays`, ISO) or `null` when not delivered or returns are switched off; `returns.possible` is `true` while the window is open and something can still be sent back.
+- `cancellation`: `null` or `{ "reason": "changed_mind", "text": "…", "by": "customer" | "admin" | "system", "at": "…" }`. `text` is only shown when `by` is `customer`. Reasons by `by`: see section 13.
 
-### `POST /v1/store/orders`
+### `POST /v1/store/checkout`
 
-**Purpose:** Confirm the stored cart as a binding pre-order.
+**Purpose:** Turn the stored cart into an order that waits for its payment, and get the address of the Stripe payment page (card or PayPal). Redirect the browser to `checkout.url`.
 
 **Authentication:** customer session. Rate limit 20 per minute.
 
@@ -1145,16 +1141,16 @@ An order is made from the **server-stored cart**, belongs to the cargo that take
 
 | Header | Required | Description |
 | ------ | -------- | ----------- |
-| `Idempotency-Key` | yes | 8–64 characters `[A-Za-z0-9_-]` (a UUID works). Generate it when the customer reaches the confirm step and **reuse it on retries**. The same key sent again returns the first order (HTTP 200, `created: false`) instead of creating a second one. |
+| `Idempotency-Key` | yes | 8–64 characters `[A-Za-z0-9_-]` (a UUID works). Generate it when the customer reaches the last step of checkout and **reuse it on retries**. The same key sent again answers the first order (HTTP 200, `created: false`) with its payment page instead of creating a second order. Keys count per customer. |
 
-**Parameters:** `locale` (query, optional).
+**Parameters:** `locale` (query, optional; language of the `order` in the answer).
 
 **Request Body:**
 
 ```json
 {
   "addressId": "66e1a2b3c4d5e6f7a8b9c0d1",
-  "expectedTotal": 3097,
+  "expectedTotal": 2296,
   "consent": {
     "accepted": true,
     "versions": { "terms": 3, "privacy": 2 }
@@ -1167,37 +1163,46 @@ An order is made from the **server-stored cart**, belongs to the cargo that take
 | Field | Type | Required | Validation / meaning |
 | ----- | ---- | -------- | -------------------- |
 | `addressId` | ObjectId string | yes | One of the customer's delivery addresses. |
-| `expectedTotal` | int cents | yes | 1–1 000 000 000. `totals.total` of the bill the customer saw. If the bill changed since (prices, fee, cart), the order is refused with the new bill. |
+| `expectedTotal` | int cents | yes | 1–1 000 000 000. `totals.total` of the bill the customer saw. If the bill changed since (prices, fee, cart), the checkout is refused with the new bill. |
 | `consent.accepted` | boolean | yes | Must be `true`. |
-| `consent.versions` | object | yes | `{ terms?: int ≥1, preorder_terms?: int ≥1, privacy?: int ≥1 }` – the versions from `GET /v1/store/legal`. |
-| `note` | string | no | ≤500 characters. |
+| `consent.versions` | object | yes | `{ terms?: int ≥1, privacy?: int ≥1 }` – the versions from `GET /v1/store/legal`. Both must be the versions that apply now. |
+| `note` | string | no | ≤500 characters, for Radhe Foods. |
 | `language` | `en` \| `de` | no | Language of the order and its emails. Defaults to the account language. |
+
+**What happens:** the cart is priced again and every line is checked against the stock (without reserving anything); the order is created as `pending_payment` with `payment.amount` = the total; a Stripe Checkout Session is created on which the bank only **approves** the amount (nothing is taken yet). The page stays open for the time set by Radhe Foods (`checkoutMinutes`, 60 by default): `checkout.expiresAt`. The API records the IP address and user agent of the request with the consent.
 
 **Success Response:** `201` when created, `200` when the idempotency key was seen before.
 
 ```json
-{ "created": true, "order": { "…order detail…": "" } }
+{
+  "created": true,
+  "order": { "…order detail, status pending_payment…": "" },
+  "checkout": { "url": "https://checkout.stripe.com/c/pay/cs_…", "expiresAt": "2026-10-16T11:15:00.000Z" }
+}
 ```
+
+`order.payment.checkout` carries the same page. When the key is sent again: the same page while it is open (more than five minutes left), otherwise a new page for the same order; if the first order can no longer be paid (paid, or cancelled), `409 ORDER_NOT_PAYABLE`.
 
 **Possible Errors (in the order they are checked):**
 
+- `400 VALIDATION_FAILED`.
 - `400 IDEMPOTENCY_KEY_REQUIRED` – header missing or malformed.
+- `503 PAYMENTS_NOT_CONFIGURED` – online payment is not set up on the server (section 14). The shop cannot sell until it is.
+- `409 COMPANY_DETAILS_MISSING` – the seller's invoice details are not complete in the admin settings (`details: { missing: [...] }`).
 - `403 CUSTOMER_BLOCKED` – the account is blocked.
-- `403 ORDERING_BLOCKED` – Radhe Foods blocked ordering for this customer.
-- `403 PAYMENT_OVERDUE` – an earlier order is unpaid past its deadline. `details.orders[]`: `{ orderNumber, invoiceNumber, amountDue, deadlineAt, orderUrl }` (max 10). Show a friendly message with a "Pay now" link to `orderUrl`.
 - `404 ADDRESS_NOT_FOUND`.
 - `409 LEGAL_DOCUMENTS_MISSING` – the shop has no published `terms`/`privacy` yet (`details: { missing: [...] }`).
-- `409 LEGAL_VERSION_CHANGED` – a text was republished since the page loaded. `details.current` holds the current versions; reload the texts and ask again.
+- `409 LEGAL_VERSION_CHANGED` – a text was republished since the page loaded, or a version is missing. `details.current` holds the current versions (`{ terms, privacy }`); reload the texts and ask again.
 - `409 CART_EMPTY`.
-- `409 ORDERING_CLOSED` – no cargo takes orders.
-- `409 ORDER_ITEMS_NOT_ORDERABLE` – `details.lines[]`: `{ productId, sku, quantity, issue, minQuantity, maxQuantity }`.
+- `409 ORDER_ITEMS_NOT_ORDERABLE` – `details.lines[]`: `{ productId, sku, quantity, issue, minQuantity, maxQuantity, remaining }` (`sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`). Show the lines and send the customer back to the cart.
 - `409 ORDER_TOTAL_CHANGED` – `details: { expectedTotal, total, totals }` (`totals` is the new bill's totals). Show the new total and let the customer confirm again.
-- `409 CARGO_PRODUCT_NOT_AVAILABLE` / `409 CARGO_PRODUCT_LIMIT_REACHED` (`details: { requested, remaining }`) – lost a race against other orders for the last units.
-- `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
+- `409 ORDER_NOT_PAYABLE` – the key was sent again for an order that was paid or cancelled meanwhile (`details: { status, paymentStatus }`).
+- `502 PAYMENT_PROVIDER_ERROR` – Stripe could not be reached or returned no page; ask to try again.
+- `429 RATE_LIMITED`.
 
 ### `GET /v1/store/orders`
 
-**Purpose:** Own orders, newest first.
+**Purpose:** Own orders, newest first. Orders that wait for their payment are listed too (`status: "pending_payment"`), as are orders the API gave up because no payment came (`cancelled`).
 
 **Authentication:** customer session.
 
@@ -1223,7 +1228,7 @@ An order is made from the **server-stored cart**, belongs to the cargo that take
 
 **Authentication:** customer session.
 
-**Parameters:** `orderNumber` (path, `RF-1084`; case-insensitive), `locale` (query, optional).
+**Parameters:** `orderNumber` (path, `RF-1001`; case-insensitive), `locale` (query, optional).
 
 **Success Response (200):** `{ "order": { …order detail… } }`
 
@@ -1231,9 +1236,11 @@ An order is made from the **server-stored cart**, belongs to the cargo that take
 
 ### `POST /v1/store/orders/{orderNumber}/cancel`
 
-**Purpose:** Cancel an order while `canCancel` is true. Items of a placed order cannot be changed: cancel and order again.
+**Purpose:** Cancel an order while `canCancel` is true. An order that is not paid yet can always be given up: its open payment page is closed and nothing is charged. A paid order can be cancelled until the point the shop's rule sets; its units go back to the stock and Radhe Foods refunds what was paid (the customer gets an email when the refund is on its way; `payment.refundedAmount` shows it).
 
 **Authentication:** customer session.
+
+**Parameters:** `orderNumber` (path), `locale` (query, optional).
 
 **Request Body:**
 
@@ -1254,163 +1261,143 @@ An order is made from the **server-stored cart**, belongs to the cargo that take
 - `409 ORDER_CANNOT_BE_CANCELLED` – `details: { status }`; the message asks the customer to contact Radhe Foods.
 - `400 VALIDATION_FAILED`.
 
-### 9.6 Cancellation rule
+### 9.5 Cancellation rule
 
-`GET /v1/store/settings` → `orderPolicy.customerCancellation`:
+Radhe Foods sets until when a paid order can be cancelled by the customer. An unpaid order can always be given up.
 
 | Setting | Customer can cancel while status is |
 | --- | --- |
-| `while_confirmed` | `confirmed` |
-| `until_dispatched` (default) | `confirmed`, `preparing` |
-| `never` | never (ask Radhe Foods) |
+| `never` | `pending_payment` only (otherwise ask Radhe Foods) |
+| `while_confirmed` | `pending_payment`, `confirmed` |
+| `until_dispatched` (default) | `pending_payment`, `confirmed`, `processing` |
 
-Use `order.canCancel` rather than computing this yourself.
-
-### `GET /v1/store/me/ordering`
-
-**Purpose:** Whether the customer may place a new order now, for the message **before** the checkout button. Call it when the checkout page opens.
-
-**Authentication:** customer session.
-
-**Success Response (200):**
-
-```json
-{
-  "canOrder": false,
-  "reason": "payment_overdue",
-  "overdue": [
-    { "orderNumber": "RF-1084", "invoiceNumber": "INV-2026-000123", "amountDue": 3193, "deadlineAt": "2026-09-20T21:59:59.000Z" }
-  ]
-}
-```
-
-`reason` ∈ `null`, `account_blocked`, `ordering_blocked`, `payment_overdue`. `overdue[]` (max 10, earliest deadline first) lists the unpaid orders past their deadline; link each to `/account/orders/<orderNumber>` where the customer can pay. Browsing, the cart and paying keep working while ordering is blocked.
+The setting is not exposed to the shop: use `order.canCancel` rather than computing this yourself.
 
 ---
 
 ## 10. Payments
 
-Payment starts after delivery: Radhe Foods issues the invoice and emails a payment link. The customer pays online (card or PayPal through Stripe Checkout) or in cash to the driver (self-delivery only). No partial payments.
+The customer pays on Stripe's hosted page (card or PayPal) right after checkout. The bank approves the amount on the page; Stripe tells the API through a webhook; the API takes the stock of every item and only then captures the money, issues the invoice, confirms the order and empties the cart. If a product sold out in the meantime, the approval is let go of, nothing is charged, and the order is cancelled with reason `sold_out` (the customer gets an email). The order page can also ask Stripe itself (`GET …/payment`), so the answer is right the moment the customer comes back.
 
 ### 10.1 The payment block
 
-Part of every order detail (`order.payment`) and of the payment endpoints.
+Part of every order detail (`order.payment`) and of `GET …/payment`.
 
-Before payment is activated:
-
-```json
-{ "status": "not_enabled", "amountDue": 0, "invoice": null, "deadline": null, "paidAt": null, "method": null, "canPayOnline": false }
-```
-
-After activation (more keys):
+While the order waits for its payment:
 
 ```json
 {
-  "status": "due",
-  "amountDue": 3193,
-  "invoicedAmount": 3193,
-  "creditedAmount": 0,
+  "status": "pending",
+  "amount": 2296,
   "paidAmount": 0,
+  "creditedAmount": 0,
   "refundedAmount": 0,
-  "invoice": { "number": "INV-2026-000123", "issuedAt": "2026-09-28T10:15:00.000Z", "pdfPath": "/v1/store/invoices/INV-2026-000123/pdf" },
-  "deadline": "2026-10-03T21:59:59.000Z",
-  "isOverdue": false,
-  "paidAt": null,
   "method": null,
-  "paymentType": null,
+  "paidAt": null,
   "receiptUrl": null,
+  "invoice": null,
+  "checkout": { "url": "https://checkout.stripe.com/c/pay/cs_…", "expiresAt": "2026-10-16T11:15:00.000Z" },
   "canPayOnline": true,
-  "cashPossible": true
+  "lastFailure": null
+}
+```
+
+After the payment:
+
+```json
+{
+  "status": "paid",
+  "amount": 2296,
+  "paidAmount": 2296,
+  "creditedAmount": 0,
+  "refundedAmount": 0,
+  "method": "card",
+  "paidAt": "2026-10-16T10:17:30.000Z",
+  "receiptUrl": "https://pay.stripe.com/receipts/…",
+  "invoice": { "number": "INV-2026-000001", "issuedAt": "2026-10-16T10:17:30.000Z", "pdfPath": "/v1/store/invoices/INV-2026-000001/pdf" },
+  "checkout": null,
+  "canPayOnline": false,
+  "lastFailure": null
 }
 ```
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `status` | payment status (9.1) | |
-| `amountDue` | int cents | What is still to pay. |
-| `invoice.pdfPath` | string | Relative to the API base URL (needs the customer's cookies). |
-| `deadline` | ISO | End of the payment deadline (23:59:59 German time of that day). |
-| `isOverdue` | boolean | Computed against now, even before the status flips to `overdue`. |
-| `method` | `stripe` \| `cash` \| `credit` \| `null` | How it was paid (`credit`: settled by a credit note). |
-| `paymentType` | `card` \| `paypal` \| `null` | For Stripe payments. |
+| `amount` | int cents | The total to pay, agreed at checkout (= `totals.total`). |
+| `paidAmount` | int cents | What was captured. |
+| `creditedAmount` | int cents | Sum of the credit notes issued after the invoice (corrections, returns). |
+| `refundedAmount` | int cents | Sum of the refunds Radhe Foods completed. Partial refunds keep `status: "paid"`. |
+| `method` | `card` \| `paypal` \| `null` | The Stripe payment method, once paid. |
+| `paidAt` | ISO or `null` | When the money was captured. |
 | `receiptUrl` | string or `null` | Stripe receipt. |
-| `canPayOnline` | boolean | Show the "Pay now" button only when `true` (Stripe configured, status `due`/`overdue`, amount > 0). |
-| `cashPossible` | boolean | `true` when the order is delivered by Radhe Foods and still owing: tell the customer cash to the driver is possible. |
+| `invoice` | object or `null` | `{ number, issuedAt, pdfPath }` once paid. `pdfPath` is relative to the API base URL (needs the customer's cookies). |
+| `checkout` | object or `null` | `{ url, expiresAt }` while a payment page is open and not expired. Send the customer there for "Pay now". |
+| `canPayOnline` | boolean | `true` while the order is `pending_payment`, the payment is `pending` or `failed` and online payment is set up on the server. Show "Pay now" only when `true`. |
+| `lastFailure` | string or `null` | Why the last attempt did not go through, in English for developers (for example `Stripe: the payment failed`). Show a generic message. |
 
 ### `GET /v1/store/orders/{orderNumber}/payment`
 
-**Purpose:** The payment block and the documents of an order. Also the endpoint to call when the customer **returns from Stripe** (`?payment=success`): it asks Stripe about the open payment page before answering, so `status` can already be `paid` before the webhook arrives.
+**Purpose:** The payment block and the documents of an order. Call it when the customer **returns from Stripe** or opens the page of a pending order: while a payment page is open the API asks Stripe how it ended before answering, so a completed payment is settled on the spot and `payment.status` is `paid` even before the webhook arrived. An expired page is forgotten the same way (`checkout` becomes `null`).
 
-**Authentication:** customer session.
+**Authentication:** customer session. Rate limit 30 per minute.
 
 **Success Response (200):**
 
 ```json
 {
-  "orderNumber": "RF-1084",
+  "orderNumber": "RF-1001",
+  "status": "confirmed",
   "payment": { "…payment block…": "" },
   "documents": [ { "…invoice summary (section 11)…": "" } ]
 }
 ```
 
-**Possible Errors:** `404 ORDER_NOT_FOUND`; `502 PAYMENT_PROVIDER_ERROR` (Stripe could not be reached).
+`status` is the order status. `documents` are the invoice and its credit notes, oldest first; empty while the order is not paid.
 
-### `POST /v1/store/orders/{orderNumber}/checkout`
+**Possible Errors:** `404 ORDER_NOT_FOUND`; `502 PAYMENT_PROVIDER_ERROR` (Stripe could not be reached); `429 RATE_LIMITED`.
 
-**Purpose:** Get the address of the Stripe payment page for the full amount due, then redirect the browser to `url`. Asking again while the page is open returns the same page.
+### `POST /v1/store/orders/{orderNumber}/pay`
 
-**Authentication:** customer session. Rate limit 10 per minute.
+**Purpose:** A payment page for an order that still waits: after its page expired, or after an attempt that did not go through. Asking while a page is open (more than five minutes left) answers the same page. Redirect the browser to `url`.
+
+**Authentication:** customer session. Rate limit 10 per minute. No body.
 
 **Success Response (200):**
 
 ```json
-{ "url": "https://checkout.stripe.com/c/pay/cs_…", "expiresAt": "2026-09-30T11:00:00.000Z" }
+{ "url": "https://checkout.stripe.com/c/pay/cs_…", "expiresAt": "2026-10-16T12:20:00.000Z" }
 ```
-
-After paying, Stripe sends the browser to `<SHOP_URL>/account/orders/<orderNumber>?payment=success`; on cancel to `…?payment=cancelled`. On that page call `GET …/payment` (above); if `status` is still `due` (asynchronous methods), poll again after a few seconds.
 
 **Possible Errors:**
 
-- `409 PAYMENT_NOT_ACTIVATED` – no invoice yet.
-- `409 PAYMENT_NOT_POSSIBLE` – `details: { paymentStatus }` (already paid, waived, refunded).
-- `409 PAYMENT_NOTHING_DUE`.
-- `503 PAYMENTS_NOT_CONFIGURED` – online payment is not set up on the server; offer cash instead. (`canPayOnline` is `false` in this case, so the button should not be shown.)
+- `409 ORDER_NOT_PAYABLE` – `details: { status, paymentStatus }`: the order is paid ("This order is paid."), cancelled, or online payment is not set up on the server (`canPayOnline` is `false` in every one of these cases, so the button should not be shown).
 - `502 PAYMENT_PROVIDER_ERROR`, `404 ORDER_NOT_FOUND`, `429 RATE_LIMITED`.
 
-### 10.4 The payment link page (`/pay/<token>`)
+### 10.4 The way back from Stripe
 
-The payment request email and reminders carry a link `<SHOP_URL>/pay/<token>`. The shop page for it needs **no login**: it shows the order and the amount and leads to Stripe. A new token is issued with every reminder; older links stop working.
+After paying, Stripe sends the browser to `<SHOP_URL>/account/orders/<orderNumber>?payment=success`; when the customer leaves the page without paying, to `<SHOP_URL>/account/orders/<orderNumber>?payment=cancelled`. The page needs the customer signed in (the cookies survive the top-level navigation). On it, call `GET …/payment` and act on the answer:
 
-### `GET /v1/pay/{token}`
+| Answer | What to show |
+| --- | --- |
+| `payment.status` is `paid` | The confirmation. `documents[0]` is the invoice; the confirmation email with the PDF is on its way. |
+| `?payment=success`, but `status` still `pending` and `checkout` set | The payment method is asynchronous (PayPal can take a moment). Show "we are confirming your payment" and poll `GET …/payment` every few seconds; the webhook settles it. |
+| `status` is `pending` and `checkout` is `null` | The page expired or was left. Offer "Pay now" (`POST …/pay`). |
+| `status` is `failed` | The attempt did not go through. Say so and offer "Pay now". |
+| order `status` is `cancelled` with `cancellation.reason` `sold_out` | A product sold out before the payment was captured; nothing was charged. |
 
-**Purpose:** What the link pays.
+### 10.5 While the order is `pending_payment`
 
-**Authentication:** none (the token is the key). Rate limit 30 per minute.
-
-**Success Response (200):**
-
-```json
-{
-  "orderNumber": "RF-1084",
-  "firstName": "Anna",
-  "language": "de",
-  "payment": { "…payment block…": "" }
-}
-```
-
-`firstName` may be `null`. Render the page in `language`.
-
-**Possible Errors:** `404 PAY_LINK_INVALID` – malformed, unknown or replaced token. Show "This payment link is not valid. Please open the order in your account."
-
-### `POST /v1/pay/{token}/checkout`
-
-**Purpose:** The Stripe page for the linked order. Same answer and errors as `POST /v1/store/orders/{orderNumber}/checkout`, plus `404 PAY_LINK_INVALID`. Rate limit 10 per minute. The return URLs point to the account order page (the customer may be asked to sign in there).
+- Show the order as "waiting for payment" with "Pay now" (while `payment.checkout` is set, link to its `url`; otherwise `POST …/pay`) and "Cancel order" (`canCancel` is always `true` while pending; cancelling closes the page, nothing is charged).
+- The payment-failed email links to `<SHOP_URL>/account/orders/<orderNumber>?pay=1`: on `?pay=1` the page should open the payment page straight away (`POST …/pay`, then redirect to `url`).
+- Nothing is reserved: the products stay available to every customer until the payment is approved, and `ordering.remaining` in the catalogue can go down meanwhile.
+- The API gives an unpaid order up some time after its last payment page expired (at least ten minutes later, at the next run of the cleanup job): the order becomes `cancelled` with `cancellation.reason` `payment_not_completed` and `by: "system"`; no email is sent. The customer orders again from the cart, which was kept.
 
 ---
 
 ## 11. Invoices and credit notes
 
-Every activated payment has an invoice (`INV-2026-000123`); corrections and returns after invoicing produce credit notes (`CN-2026-000007`). Documents never change once issued. The PDF is rendered on request.
+The invoice (`INV-2026-000001`) is issued the moment the payment is captured, is attached as a PDF to the confirmation email and can be fetched any time. Corrections by Radhe Foods and completed returns produce credit notes (`CN-2026-000001`). Documents never change once issued; numbers run without gaps per type and year. The PDF is rendered on request.
 
 ### 11.1 Document objects
 
@@ -1419,38 +1406,41 @@ Every activated payment has an invoice (`INV-2026-000123`); corrections and retu
 ```json
 {
   "id": "66f1c0a2b3d4e5f6a7b8c9d1",
-  "number": "INV-2026-000123",
+  "number": "INV-2026-000001",
   "type": "invoice",
-  "orderNumber": "RF-1084",
-  "issuedAt": "2026-09-28T10:15:00.000Z",
-  "dueAt": "2026-10-03T21:59:59.000Z",
-  "paidAt": null,
-  "total": 3193,
+  "orderNumber": "RF-1001",
+  "issuedAt": "2026-10-16T10:17:30.000Z",
+  "paidAt": "2026-10-16T10:17:30.000Z",
+  "total": 2296,
   "currency": "EUR",
-  "language": "de",
+  "language": "en",
   "invoiceNumber": null,
   "creditReason": null
 }
 ```
 
-`type` ∈ `invoice`, `credit_note`. For a credit note, `dueAt`/`paidAt` are `null`, `invoiceNumber` names the invoice it corrects and `creditReason` is `return` or `adjustment`.
+`type` ∈ `invoice`, `credit_note`. An invoice is paid when it is issued, so `paidAt` is set. For a credit note `paidAt` is `null`, `invoiceNumber` names the invoice it corrects, `creditReason` is `return` or `adjustment`, and `total` is the amount credited.
 
 **Detail** = summary plus:
 
 ```json
 {
-  "orderId": "66f1…", "customerId": "66f1…", "cargoId": "66f1…",
-  "deliveredOn": "2026-09-27",
+  "orderId": "66f1…", "customerId": "66f1…",
   "creditReference": null,
-  "seller": { "name": "Radhe Foods GmbH", "addressLines": ["Hauptstraße 1", "60311 Frankfurt am Main"], "email": "billing@radhefoods.de", "phone": null, "website": null, "vatId": "DE123456789", "taxNumber": null, "registration": null },
-  "customer": { "name": "Anna Schmidt", "company": null, "addressLines": ["Hauptstr. 5", "10115 Berlin", "Deutschland"], "email": "anna@example.com" },
+  "seller": { "name": "Radhe Foods GmbH", "addressLines": ["Hauptstraße 1", "60311 Frankfurt am Main"], "email": "billing@radhefoods.de", "phone": "+49 69 1234567", "website": null, "vatId": "DE123456789", "taxNumber": null, "registration": null },
+  "customer": { "name": "Anna Schmidt", "company": null, "addressLines": ["Hauptstraße 12a", "60311 Frankfurt am Main", "Deutschland"], "email": "anna@example.com" },
   "lines": [
-    { "description": "Basmati Reis, 5 kg", "sku": "RICE-5KG", "quantity": 2, "unitPrice": 1299, "vatRate": 700, "vatPercent": 7, "lineTotal": 2598 }
+    { "description": "Bhakhri Atta, 1 kg", "sku": "RF-00042", "quantity": 2, "unitPrice": 399, "vatRate": 700, "vatPercent": 7, "lineTotal": 798 },
+    { "description": "Cow Ghee, 500 ml", "sku": "RF-00043", "quantity": 1, "unitPrice": 999, "vatRate": 700, "vatPercent": 7, "lineTotal": 999 }
   ],
-  "totals": { "currency": "EUR", "subtotal": 2598, "deliveryFee": 595, "total": 3193, "netTotal": 2984, "vatTotal": 209, "vat": [ { "vatRate": 700, "gross": 3193, "net": 2984, "vat": 209 } ] },
+  "totals": { "currency": "EUR", "subtotal": 1797, "deliveryFee": 499, "total": 2296, "netTotal": 2146, "vatTotal": 150, "vat": [ { "vatRate": 700, "gross": 2296, "net": 2146, "vat": 150 } ] },
   "footer": null
 }
 ```
+
+- `lines` are the goods, in the language of the order; the delivery fee is in `totals.deliveryFee`. A credit note lists what is credited; when a whole order is credited, the delivery fee appears as a line of its own (`Delivery` / `Lieferung`).
+- `creditReference`: for a credit note, what it is for: the return number (`RF-1001-R1`) or the corrected product with the reason (`RF-00042: missing`). `null` on invoices.
+- `footer` is free text from the company settings, or `null`.
 
 ### `GET /v1/store/invoices`
 
@@ -1462,7 +1452,7 @@ Every activated payment has an invoice (`INV-2026-000123`); corrections and retu
 
 | Field | Location | Type | Required | Description |
 | ----- | -------- | ---- | -------- | ----------- |
-| `orderNumber` | query | `RF-1084` | no | Only the documents of one order. |
+| `orderNumber` | query | `RF-1001` | no | Only the documents of one order. |
 | `limit` | query | int 1–100 | no | Default 25. |
 | `cursor` | query | ObjectId string | no | |
 
@@ -1474,7 +1464,7 @@ Every activated payment has an invoice (`INV-2026-000123`); corrections and retu
 
 **Authentication:** customer session.
 
-**Parameters:** `number` (path, `INV-2026-000123` or `CN-2026-000007`; case-insensitive).
+**Parameters:** `number` (path, `INV-2026-000001` or `CN-2026-000001`; case-insensitive).
 
 **Success Response (200):** `{ "invoice": { …detail… } }`
 
@@ -1486,7 +1476,7 @@ Every activated payment has an invoice (`INV-2026-000123`); corrections and retu
 
 **Authentication:** customer session (send the cookies; open it with `fetch` + `credentials: 'include'` and a Blob URL, or as a direct link on the same site domain).
 
-**Success Response (200):** binary body, `Content-Type: application/pdf`, `Content-Disposition: inline; filename="INV-2026-000123.pdf"`, `Cache-Control: private, no-store`.
+**Success Response (200):** binary body, `Content-Type: application/pdf`, `Content-Disposition: inline; filename="INV-2026-000001.pdf"`, `Cache-Control: private, no-store`.
 
 **Possible Errors:** `404 INVOICE_NOT_FOUND`.
 
@@ -1494,7 +1484,7 @@ Every activated payment has an invoice (`INV-2026-000123`); corrections and retu
 
 ## 12. Returns
 
-After delivery, within the return window, a customer can ask to send single products back. Radhe Foods decides; once the goods are back the bill goes down (credit note, refund if already paid).
+After delivery, within the return window, a customer can ask to send single products back. Radhe Foods decides; once the goods are back the bill goes down (credit note) and Radhe Foods refunds the difference.
 
 ### 12.1 Return statuses and reasons
 
@@ -1502,8 +1492,8 @@ After delivery, within the return window, a customer can ask to send single prod
 | --- | --- |
 | `requested` | Waiting for Radhe Foods. The customer can still cancel. |
 | `approved` | Accepted (possibly with fewer units: see `approvedQuantity`). Goods not back yet. |
-| `rejected` | Declined; `answer` says why. |
-| `completed` | Goods are back; `creditAmount` was credited. |
+| `rejected` | Declined; `answer` says why. Possible after approval too. |
+| `completed` | Goods are back; `creditAmount` was taken off the bill. The refund follows. |
 | `cancelled` | Withdrawn by the customer. |
 
 Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`, `other`.
@@ -1512,30 +1502,32 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ```json
 {
-  "returnNumber": "RF-1084-R1",
-  "orderNumber": "RF-1084",
+  "returnNumber": "RF-1001-R1",
+  "orderNumber": "RF-1001",
   "status": "requested",
   "requestedAt": "2026-10-26T12:00:00.000Z",
   "decidedAt": null,
   "completedAt": null,
   "items": [
     {
-      "productId": "66e9…", "sku": "ATTA-5KG", "name": "Chakki Atta",
-      "packSize": { "value": 5, "unit": "kg", "label": "5 kg" },
-      "quantity": 1, "approvedQuantity": null, "unitPrice": 1299,
+      "productId": "66e9…", "sku": "RF-00042", "name": "Bhakhri Atta",
+      "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
+      "quantity": 1, "approvedQuantity": null, "unitPrice": 399,
       "reason": "damaged", "comment": "Bag was torn"
     }
   ],
-  "comment": "Please pick up on Monday.",
+  "comment": "Please collect on Monday.",
   "answer": null,
   "creditAmount": null,
   "canCancel": true
 }
 ```
 
+`answer` is what Radhe Foods wrote with the decision (or `null`). `creditAmount` is set when completed: the cents the final bill went down by (the credit note); when everything of an order comes back, the delivery fee is credited too.
+
 ### `GET /v1/store/orders/{orderNumber}/returns`
 
-**Purpose:** The returns of an order and what can still be sent back.
+**Purpose:** The returns of an order (newest first) and what can still be sent back.
 
 **Authentication:** customer session.
 
@@ -1546,7 +1538,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 ```json
 {
   "items": [ { "…return…": "" } ],
-  "returnable": [ { "productId": "66e9…", "sku": "ATTA-5KG", "available": 1 } ]
+  "returnable": [ { "productId": "66e9…", "sku": "RF-00042", "available": 1 } ]
 }
 ```
 
@@ -1565,7 +1557,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 ```json
 {
   "items": [ { "productId": "66e9…", "quantity": 1, "reason": "damaged", "comment": "Bag was torn" } ],
-  "comment": "Please pick up on Monday.",
+  "comment": "Please collect on Monday.",
   "locale": "en"
 }
 ```
@@ -1589,19 +1581,20 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 - `409 RETURN_WINDOW_CLOSED` – `details: { until, windowDays }` (also when returns are switched off, `windowDays: 0`).
 - `400 ORDER_ITEM_NOT_FOUND` – `details: { productId }`.
 - `409 RETURN_QUANTITY_INVALID` – more than available: `details: { productId, sku, available }`.
+- `409 CONFLICT` – two requests for the same order arrived at the same moment; try again.
 - `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
 
 ### `GET /v1/store/returns/{returnNumber}`
 
-**Purpose:** One return. `returnNumber` like `RF-1084-R1` (case-insensitive).
+**Purpose:** One return. `returnNumber` like `RF-1001-R1` (case-insensitive).
 
-**Authentication:** customer session. **Success Response (200):** `{ "return": { … } }`. **Possible Errors:** `404 RETURN_NOT_FOUND`.
+**Authentication:** customer session. **Parameters:** `locale` (query, optional). **Success Response (200):** `{ "return": { … } }`. **Possible Errors:** `404 RETURN_NOT_FOUND`.
 
 ### `POST /v1/store/returns/{returnNumber}/cancel`
 
 **Purpose:** Take the request back while it is `requested`.
 
-**Authentication:** customer session. No body.
+**Authentication:** customer session. No body. **Parameters:** `locale` (query, optional).
 
 **Success Response (200):** `{ "return": { …, "status": "cancelled" } }` (already cancelled → 200 unchanged).
 
@@ -1613,11 +1606,11 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ### Order status (`order.status`)
 
-`confirmed` → `preparing` → `dispatched` → `delivered`; `dispatched` → `delivery_failed` (then usually back to `dispatched` with the next cargo); `cancelled`; `returned` (everything was returned after delivery). Radhe Foods can step one status back to correct a mistake, so a status can move backwards once in a while.
+`pending_payment` → (payment captured) `confirmed` → `processing` → `dispatched` → `delivered`; `returned` when everything was returned after delivery; `cancelled` from `pending_payment` (customer, Radhe Foods, or the API), from `confirmed`/`processing` (customer by the rule, or Radhe Foods) and from `dispatched` (Radhe Foods). An order is never confirmed by hand: the payment confirms it. Radhe Foods can step one status back to correct a mistake, so a status can move backwards once in a while.
 
 ### Payment status (`order.paymentStatus`, `payment.status`)
 
-`not_enabled` → `due` → `paid`; `due` → `overdue` (deadline passed, still payable) → `paid`; `due`/`overdue` → `waived`; `paid` → `refunded` (everything refunded; partial refunds keep `paid` with `refundedAmount > 0`).
+`pending` → `authorized` → `paid`; `pending`/`authorized` → `failed` → `pending` (a new page was opened); `paid` → `refunded` (everything paid went back; partial refunds keep `paid` with `refundedAmount > 0`).
 
 ### Return status
 
@@ -1625,34 +1618,41 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ### Cart line issue / ordering reason
 
-`ordering_closed`, `product_unavailable`, `not_in_this_cargo`, `sold_out` (from the ordering rule), plus cart-only `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`.
+`product_unavailable`, `sold_out` (from the ordering rule), plus cart-only `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`.
 
 ### Delivery methods
 
-`radhe_delivery` (Radhe Foods' own driver; cash possible), `dhl`, `hermes` (tracking link available). Chosen by Radhe Foods, never by the customer.
+`radhe_delivery` (Radhe Foods' own driver, no tracking), `dhl`, `hermes` (tracking link available). Chosen by Radhe Foods, never by the customer.
 
-### Cancellation reasons (customer)
+### Cancellation reasons
 
-`changed_mind`, `ordered_by_mistake`, `wrong_items`, `delivery_too_late`, `other`.
+- By the customer (`by: "customer"`, the only ones the shop sends): `changed_mind`, `ordered_by_mistake`, `wrong_items`, `delivery_too_late`, `other`.
+- By Radhe Foods (`by: "admin"`): `customer_request`, `product_unavailable`, `duplicate_order`, `suspected_misuse`, `other`.
+- By the API (`by: "system"`): `payment_not_completed` (no payment came), `sold_out` (a product sold out before the payment was captured).
+
+### Adjustment reasons (`adjustments[].reason`)
+
+`missing`, `damaged`, `wrong_item`, `customer_complaint`, `other`.
 
 ### Return reasons
 
 `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`, `other`.
 
-### Ordering block reasons (`GET /v1/store/me/ordering`)
+### Credit note reasons (`creditReason`)
 
-`account_blocked`, `ordering_blocked`, `payment_overdue`, or `null`.
+`return`, `adjustment`.
 
 ---
 
-## 14. Prepared but not yet active
+## 14. What depends on the server configuration
 
-| Feature | State | What the shop should do |
-| ------- | ----- | ----------------------- |
-| Online payment (Stripe Checkout, card + PayPal) | Built and tested against a Stripe stand-in; the Stripe account is not connected yet. Until then `payment.canPayOnline` is `false` and checkout answers `503 PAYMENTS_NOT_CONFIGURED`. | Show "Pay now" only when `canPayOnline` is `true`; show the cash hint when `cashPossible`. |
-| Emails through Amazon SES | Built; the AWS account is not set up yet (emails currently go to the API log in development). | Nothing to do; email content is the API's. |
-| WhatsApp messages | Built behind an interface; switched off until credentials exist. The preference (`whatsappOptIn`) can already be stored. | Offer the WhatsApp opt-in; explain that messages come by WhatsApp "as soon as the service is available", or hide the toggle until Radhe Foods confirms. |
-| Google sign-in | Built; needs the Google client id on the server (`503 GOOGLE_NOT_CONFIGURED` until then). | Hide the button on that error. |
+| Feature | How it shows | What the shop should do |
+| ------- | ------------ | ----------------------- |
+| Online payment (Stripe Checkout: card, PayPal) | Needs the Stripe keys on the server. Without them `POST /v1/store/checkout` answers `503 PAYMENTS_NOT_CONFIGURED`, `payment.canPayOnline` is `false` and `POST …/pay` answers `409 ORDER_NOT_PAYABLE`. There is no other way to pay. | Show "checkout is not available right now" on the 503; show "Pay now" only when `canPayOnline` is `true`. |
+| Seller details and legal texts | Set by Radhe Foods in the admin panel. Until then checkout answers `409 COMPANY_DETAILS_MISSING` or `409 LEGAL_DOCUMENTS_MISSING`. | Show "ordering is not possible yet". |
+| Emails | Sent by the API through the configured provider (log in development, Amazon SES or SMTP in production). | Nothing to do; email content is the API's. |
+| WhatsApp messages | Only the dispatch message and announcements go by WhatsApp, and only with the WhatsApp Business credentials on the server; without them those messages are recorded as skipped. The preference (`whatsappOptIn`) can be stored in any case. | Offer the WhatsApp opt-in; explain that messages come by WhatsApp "as soon as the service is available", or hide the toggle until Radhe Foods confirms. |
+| Google sign-in | Needs the Google client id on the server (`503 GOOGLE_NOT_CONFIGURED` until then). | Hide the button on that error. |
 
 ---
 
@@ -1660,10 +1660,13 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 1. `fetch` with `credentials: 'include'`; shop origin in `CORS_ORIGINS`; handle `401` → refresh once → sign-in.
 2. Pass `?locale=` on every store call (or rely on `Accept-Language`).
-3. Layout: `GET /v1/store/cargo` for the ordering state and countdown, `GET /v1/store/settings` for the delivery-fee hint, `GET /v1/store/categories` for navigation.
-4. Product pages by slug (either language); use `packSizes` for the size chooser and `ordering` for the "add to cart" state.
-5. Guest cart in local storage → `POST /v1/store/cart/preview` for prices; after sign-in `POST /v1/store/cart/merge`, then server cart.
-6. Checkout: `GET /v1/store/me/ordering` (block message), `GET /v1/store/me/addresses` (address chooser), `GET /v1/store/legal` (consent versions and links), `GET /v1/store/cart` (`canOrder`, `totals.total` → `expectedTotal`), then `POST /v1/store/orders` with an `Idempotency-Key`; handle `ORDER_TOTAL_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `LEGAL_VERSION_CHANGED`, `PAYMENT_OVERDUE`.
-7. Account: orders list/detail, `canCancel` → cancel; `payment` block → "Pay now" (`POST …/checkout` → redirect to `url`), invoices and PDFs; returns within `returns.until`.
-8. Pages without sign-in: `/pay/<token>` (payment link from emails), `/unsubscribe/<token>`, and the Stripe return page `/account/orders/<orderNumber>?payment=success|cancelled` (may require sign-in; then call `GET …/payment`).
-9. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.
+3. Layout: `GET /v1/store/settings` for the delivery-fee hint, the delivery estimate and the return window; `GET /v1/store/categories` for navigation.
+4. Catalogue: product pages by slug (either language); `packSizes` for the size chooser; `ordering` for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
+5. Guest cart in local storage → `POST /v1/store/cart/preview` for prices; after sign-in `POST /v1/store/cart/merge`, then the server cart. Show `lines[].issue` per line; the checkout button is `canOrder`.
+6. Checkout page: `GET /v1/store/me/addresses` (address chooser), `GET /v1/store/legal` (consent versions and links), `GET /v1/store/cart` (`canOrder`, `totals.total` → `expectedTotal`), then `POST /v1/store/checkout` with an `Idempotency-Key` and redirect to `checkout.url`; handle `ORDER_TOTAL_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `LEGAL_VERSION_CHANGED`, `CART_EMPTY`, `PAYMENTS_NOT_CONFIGURED`.
+7. The way back from Stripe: `/account/orders/<orderNumber>?payment=success|cancelled` (sign-in required) → `GET …/payment`; poll while a page is still open after `?payment=success`; "Pay now" → `POST …/pay` → redirect.
+8. Order page while `pending_payment`: "Pay now" when `canPayOnline` (the open `payment.checkout.url`, else `POST …/pay`), "Cancel order" (`canCancel`); `?pay=1` from the payment-failed email opens the payment page at once.
+9. Account: orders list/detail (status, `delivery` with the tracking link, `adjustments`, `finalTotal`), cancel when `canCancel`; the `payment` block with `invoice.pdfPath`; invoices and PDFs; returns within `returns.until`.
+10. Pages without sign-in: `/unsubscribe/<token>` (link in marketing emails); announcement emails also link to `/products/<slug>` (English slug) and the shop root.
+11. Emails the API sends, all linking to `/account/orders/<orderNumber>`: order confirmed (with the invoice PDF), cancelled, dispatched (tracking), delivered (return window), payment failed (`?pay=1`), refund completed, return requested / approved / rejected / completed. Announcements go to customers with `marketingOptIn`.
+12. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.

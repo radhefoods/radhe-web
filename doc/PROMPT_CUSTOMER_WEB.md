@@ -1,133 +1,149 @@
-# Instructions: Radhe Foods Customer Web application
+# Migration brief: Radhe Foods customer web (`radhe-web`)
 
-You are the lead frontend engineer and product designer for the **customer-facing web shop of Radhe Foods**. You build it from scratch in this folder. The backend API already exists and is finished; you build the website that uses it.
-
-The owner (Vrushabh, a solo developer and the shop owner) gives direction. Where he has not decided something, you decide, with the best judgement of an experienced e-commerce engineer and designer. Aim for a result that is production-ready, polished, fast and attractive, not for a demo.
+You are the engineer of the existing Next.js shop in this folder. Its backend, `radhe-api`, changed on 2026-10-16 from a pre-order platform to a standard online shop: products are sold from stock and paid at checkout. Your job is to adapt the shop to the new backend. The owner (Vrushabh) decides; when something is unclear, ask him before you build. Never assume what the API does: read it in the API documentation or ask.
 
 ---
 
-## 1. What Radhe Foods is
+## 1. The rule above all others: the design stays
 
-Radhe Foods sells Indian groceries in Germany through a **pre-order system**:
+Do not change the theme, colours, fonts, typography, spacing, layouts, components, animations or the visual identity of the shop. Reuse the existing components, tokens and patterns for everything new: a new status uses the existing badge, a new notice uses the existing notice, a new form field uses the existing field. What you change is functionality, business logic, API integration and the minimal UI adjustments the new flow forces:
 
-- The catalogue is permanent, but ordering happens in **cycles called cargos**. One cargo is open for orders at a time; it closes on a deadline, the goods are brought in, and the orders are delivered in a delivery window.
-- Customers **confirm an order without paying**. There is **no payment at checkout, ever**. After delivery, the shop activates payment: the customer receives an invoice with a payment link (Stripe, card and PayPal) or pays cash. Reminders go out until it is paid.
-- Currency EUR, prices include VAT, languages **English and German** with equal quality, market Germany.
-- Customers sign in with an email login code (OTP) or Google. No passwords.
-- Returns can be requested within a window after delivery.
+- elements that only existed for the old model are removed (the cargo strip, the countdown, the pay-later notes, the pay-link page);
+- texts that describe the old model are rewritten in the same place with the same components;
+- states the shop did not have (an order waiting for its payment, a sold-out product, a payment that failed) are shown with existing components.
 
-The attached concept documents explain the business in depth. Read them first, completely.
+When a page's content must change for the new flow (checkout, order detail), its look stays.
 
 ---
 
-## 2. The attached files and which one wins
+## 2. What changed
 
-| File | Role |
+| | Until now (pre-order) | Now (shop) |
+|---|---|---|
+| Buying | Orders were collected for a cargo (an ordering cycle) with a deadline; the shop was closed between cargos | The customer buys at any time from stock; a product with no stock is sold out |
+| Paying | After delivery: pay link, Stripe page or cash, with a deadline, reminders and a block for overdue customers | At checkout, on a Stripe page (card or PayPal). The payment confirms the order. Nothing is charged before, nothing is paid later |
+| Order statuses | `confirmed`, `preparing`, `dispatched`, `delivered`, `delivery_failed`, `returned`, `cancelled` | `pending_payment`, `confirmed`, `processing`, `dispatched`, `delivered`, `returned`, `cancelled` |
+| Payment statuses | `not_enabled`, `due`, `overdue`, `paid`, `waived`, `refunded` | `pending`, `authorized`, `paid`, `failed`, `refunded` |
+| Legal texts | `terms`, `preorder_terms`, `privacy` | `terms`, `privacy` |
+| Delivery | A promised window per cargo | A delivery estimate from the settings; the carrier is chosen by Radhe Foods |
+| Invoice | Issued when the payment was activated after delivery | Issued the moment the payment is captured; the PDF comes with the confirmation email |
+| Stock | Per cargo | Per product: `ordering` on every product says whether and how many can be bought |
+
+Unchanged: the catalogue, the cart (guest cart in local storage, server cart after sign-in), sign-in with email code or Google, the account with profile, communication preferences and addresses, invoices and credit notes with PDF, returns, cancellation by the customer, the unsubscribe page, the legal pages from the API, the static legal pages (imprint, withdrawal, cookies), SEO, both languages.
+
+---
+
+## 3. Files to read, in this order
+
+| File | What to read |
 |---|---|
-| `Radhe_Foods_Preorder_Core_Concept.md`, `Radhe_Foods_Preorder.md` | The business idea and the full pre-order flow. Explains **why** |
-| `ARCHITECTURE.md` | How the whole platform is built and hosted |
-| `CUSTOMER_WEB_API_DOCUMENTATION.md` | **Every endpoint, field, status and error the shop can use. This is the authority.** |
-| Logo files | The brand mark. Derive the colour palette from it |
+| This brief | All of it |
+| `ARCHITECTURE.md` | Sections 1, 2, 6 (status models), 7 (key flows), 8 (authentication), 9 (localization) |
+| `CUSTOMER_WEB_API_DOCUMENTATION.md` | **The authority.** Section 0 (conventions) and sections 6 to 15 completely; sections 1 to 5 as a check that nothing changed there |
 
-Rule: **where the concept documents and the API documentation differ, the API documentation is right** (it was generated from the real implementation; the concept documents are the original plan). Example: the concept names twelve cargo statuses, the API has nine; the concept shows illustrative order numbers, the API defines the real format. Build against the API. Do not invent endpoints, fields or statuses; if something you need is missing from the API, say so and work around it on the frontend, do not pretend it exists.
+Both files come from `radhe-api/doc/` and replace the copies under `doc/` of this repository, which describe the old API. Delete `doc/Radhe_Foods_Preorder.md`, `doc/Radhe_Foods_Preorder_Core_Concept.md` and the old `doc/PROMPT_CUSTOMER_WEB.md`; put this brief in their place.
 
----
-
-## 3. Non-negotiable facts about the backend
-
-Read section 0 of the API documentation before writing any code. In short:
-
-- Base URL `https://<api host>/v1`, JSON, errors as `{ error: { code, message, details? }, requestId }`. Translate the `code` on the frontend; messages from the API are not localized.
-- **Authentication is cookie based.** Tokens are never in response bodies. Every call uses `credentials: 'include'`. On `401 AUTH_TOKEN_INVALID` call `POST /v1/store/auth/refresh` once and retry; if that fails, the session is over. The refresh cookie only travels to `/v1/store/auth/*`. Server components forward the incoming `Cookie` header.
-- Non-GET requests from the browser must come from an origin the API allows (dev: `http://localhost:3001`). Production: shop on `radhefoods.de` (or the final domain), API on `api.<domain>`, cookies shared on the parent domain.
-- `?locale=en|de` on every store call (or `Accept-Language`).
-- Money is integer cents; format it as `19,99 €` in German and `€19.99` in English. Dates are ISO/UTC; calendar days (`YYYY-MM-DD`) are in `Europe/Berlin`. Never do float arithmetic on prices; the API gives every total.
-- Images come as absolute WebP URLs in three sizes (320/800/1600 px). Never build image URLs yourself.
-- Rate limit 120 requests/minute per IP; lower on auth. Back off on 429.
-- The order is placed with an `Idempotency-Key` and the `expectedTotal` the customer saw; handle `ORDER_TOTAL_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `LEGAL_VERSION_CHANGED`, `PAYMENT_OVERDUE` exactly as documented.
-- Some features are built but not yet active (Stripe, Google sign-in, WhatsApp). The API documentation, section 14, says what the UI does in each case. Design for both states.
+Rule: **where any other text (this brief, README, DECISIONS, code comments) and the API documentation differ, the API documentation is right.** Do not invent endpoints, fields, statuses or error codes. Where the API lacks something you need, say so and ask the owner; do not work around it silently.
 
 ---
 
-## 4. Technical decisions
+## 4. API changes
 
-Use the current stable versions of everything. My defaults, which you may change with a stated reason:
+### 4.1 Endpoints
 
-- **Next.js (App Router), TypeScript strict, React Server Components** for catalogue pages (SEO, speed) and client components where interaction needs them.
-- Tailwind CSS with a small, consistent design-token layer; a headless/accessible component base (for example Radix or shadcn/ui) rather than a heavy UI kit.
-- `next-intl` (or equivalent) for en/de with **localized routes** (`/en/...`, `/de/...`), language switch that keeps the current page, `hreflang` on every page.
-- Server state through a typed API client (one module that knows the base URL, credentials, locale, refresh-and-retry, error mapping) and TanStack Query or RSC fetching with sensible caching.
-- Forms with validation that mirrors the API's rules (zod); show API validation errors (`details[].field`) next to the right field.
-- Guest cart in local storage; `POST /v1/store/cart/preview` for prices; merge into the server cart at sign-in, as the API documentation describes.
-- Environment: `NEXT_PUBLIC_API_URL` and whatever else you need, documented in `.env.example`. No secrets in the frontend; this shop has none.
-- Tests for the parts that lose money when wrong: price formatting, cart logic, checkout flow (component tests + a few end-to-end tests with Playwright against a mocked API). Lint and type checks clean.
-- Hosting: the shop will be deployed on Vercel or on Hostinger (Node.js). Keep the build standard so both work; no platform-specific services.
+Removed. Delete their client functions, types, mocks, tests and every caller:
 
----
+- `GET /v1/store/cargo`
+- `GET /v1/store/me/ordering`
+- `POST /v1/store/orders` (placing a pre-order)
+- `POST /v1/store/orders/{orderNumber}/checkout`
+- `GET /v1/pay/{token}` and `POST /v1/pay/{token}/checkout` (pay links)
 
-## 5. What the shop must contain
+New:
 
-Pages (both languages):
+- `POST /v1/store/checkout` (section 9): the cart becomes an order and the answer carries the Stripe page.
+- `POST /v1/store/orders/{orderNumber}/pay` (section 10): a new payment page for a pending order.
 
-1. **Home**: brand, what pre-ordering means in three steps, the current cargo state with countdown (deadline, delivery window), featured categories/products, trust elements, newsletter/WhatsApp opt-in teaser.
-2. **Catalogue**: categories, product listing with filters/sort/search from the API, pack sizes and prices, "orderable" state per product; product detail page by slug with gallery, description, pack-size chooser, add to cart; related products.
-3. **Cart**: lines, quantities, the bill from the API (subtotal, delivery fee tiers, free-from hint, VAT breakdown, total), ordering block messages.
-4. **Checkout** (signed in): address chooser/editor, delivery method where the API offers it, legal consent with links to the exact versions, order summary, the confirmation button. German law ("Button-Lösung"): the final button must be labelled unambiguously, e.g. "Zahlungspflichtig vorbestellen" / "Place binding pre-order", and the page must state that payment is due after delivery, with the price including VAT and the delivery fee visible. Then an order confirmation page.
-5. **Account**: sign-in (email code with resend cooldown, Google when available), profile, communication preferences (email news, WhatsApp opt-in), addresses, orders list and detail with status timeline, cancel while allowed, payment block ("Pay now" when `canPayOnline`, cash hint, deadline, overdue state), invoices and credit notes with PDF download, returns (request within the window, list, cancel).
-6. **Public pages without sign-in**: `/pay/<token>` (payment link from emails), `/unsubscribe/<token>`, the Stripe return page (`?payment=success|cancelled`), legal pages.
-7. **Legal pages**: Terms (`terms`), Pre-order terms (`preorder_terms`), Privacy (`privacy`) rendered from the API. **Impressum and Widerrufsbelehrung are not in the API**: build them as static, editable content files with clearly marked placeholders that the owner fills in. Also a cookie notice that is honest: the shop sets only strictly necessary cookies unless you add analytics.
-8. **Error and empty states** everywhere: no open cargo, empty category, sold-out pack size, blocked account, network failure (show the `requestId`), 404.
+Changed answers. Re-read these sections and update `src/lib/api/types.ts` to match them exactly: products and `ordering` (7), cart and bill (8), orders with `payment`, `cancellation`, `returns` and `canCancel` (9), payment (10), settings and legal (6), invoices (11), returns (12), the status reference (13), the error codes (0.4 and per endpoint).
+
+### 4.2 Error codes
+
+Gone, with their translations: `ORDERING_BLOCKED`, `ORDERING_CLOSED`, `PAYMENT_OVERDUE`, `CARGO_PRODUCT_*`, `PAYMENT_NOT_ACTIVATED`, `PAYMENT_NOT_POSSIBLE`, `PAYMENT_NOTHING_DUE`, `PAY_LINK_INVALID`.
+
+Checkout answers these, in the order the API checks them: `400 VALIDATION_FAILED`, `400 IDEMPOTENCY_KEY_REQUIRED`, `503 PAYMENTS_NOT_CONFIGURED`, `409 COMPANY_DETAILS_MISSING`, `403 CUSTOMER_BLOCKED`, `404 ADDRESS_NOT_FOUND`, `409 LEGAL_DOCUMENTS_MISSING`, `409 LEGAL_VERSION_CHANGED`, `409 CART_EMPTY`, `409 ORDER_ITEMS_NOT_ORDERABLE`, `409 ORDER_TOTAL_CHANGED`, `409 ORDER_NOT_PAYABLE`, `502 PAYMENT_PROVIDER_ERROR`, `429 RATE_LIMITED`. Each has a documented `details` shape and a documented reaction (section 9). `POST …/pay` answers `409 ORDER_NOT_PAYABLE` when the order can no longer be paid.
 
 ---
 
-## 6. Design direction
+## 5. The new flow, and what to do with the existing code
 
-- For the overall design and theme, use your highest level of creativity and professional judgment. You have full freedom to create the design theme, visual system, layout, typography, spacing, colors, components, animations, interactions, and overall user experience.
+### 5.1 Checkout
 
-- Do not limit yourself to basic or conventional designs. Aim to create a world-class, modern, premium, highly professional, visually attractive, and polished website. Make design decisions based on current best practices and what will provide the strongest user experience, usability, accessibility, and brand presentation.
+Keep the checkout page and the address form as they look. Replace the call: `POST /v1/store/checkout` with the `Idempotency-Key` header (8 to 64 characters; keep the existing key per attempt in session storage and reuse it on retries, as section 9 describes), body `addressId`, `expectedTotal` (the `totals.total` the customer saw), `consent { accepted: true, versions: { terms, privacy } }` from `GET /v1/store/legal`, and the optional fields the documentation lists. The answer is `{ created, order, checkout: { url, expiresAt } }`; redirect the browser to `checkout.url` (keep the existing URL safety check). A repeated key answers the first order with `200` and `created: false`.
 
-- Where I have not provided specific design instructions, use your own expert judgment and choose what you believe will produce the best possible result.
+Remove from the page: the ordering permission (`/me/ordering`), the overdue list and blocked reasons, the delivery window, the pre-order consent and the "binding pre-order" wording. The consent checkbox stays, for `terms` and `privacy` only, with links to the exact versions. The final button must say that the customer pays now ("Zahlungspflichtig bestellen" / "Buy now") and the total with VAT and delivery fee stays visible next to it; the button keeps its style.
 
-- Modern, warm, premium grocery feel; appetizing photography-first layouts; generous whitespace; typographic hierarchy. Build the palette and typography from the logo and present it as a small design system (tokens, components, states) before building pages.
-- Mobile first. Most customers will order on a phone. Thumb-reachable add-to-cart, sticky cart summary, fast tap targets. Then tablet and desktop.
-- The pre-order concept must be **impossible to misunderstand**: the cargo state, the deadline, the delivery window and "pay after delivery" appear where decisions are made (product, cart, checkout), in plain words, not as fine print.
-- Accessibility: semantic HTML, keyboard navigation, visible focus, contrast AA, alt texts, `prefers-reduced-motion`.
-- Performance budget: Lighthouse 90+ on mobile for Performance, Accessibility, Best Practices, SEO. `next/image` with the API's size variants, font subsetting, no layout shift, streaming where it helps.
+### 5.2 The way back from Stripe
+
+Stripe sends the customer to `/account/orders/{orderNumber}?payment=success` or `?payment=cancelled` (section 10 gives the exact URLs and the table of states). The emails link to `/account/orders/{orderNumber}` and, after a failed payment, to `/account/orders/{orderNumber}?pay=1`, which must open the payment page straight away.
+
+So the order detail page is where the customer lands after paying. It calls `GET /v1/store/orders/{orderNumber}/payment`, which asks Stripe about an open page, and shows the real state: paid (confirmation), still pending after `?payment=success` (poll every few seconds, as documented), cancelled page or failed attempt ("Pay now"), order cancelled with `cancellation.reason = sold_out` (say so plainly, nothing was charged, offer the cart). The existing polling on the order page is close to this; change the endpoint shapes and states rather than rebuilding the page.
+
+The route `checkout/confirmation/[orderNumber]` is no longer where a customer arrives after checkout. Propose in your plan whether to remove it or to reuse its "thank you" content inside the order page for a paid order; choose the smaller change.
+
+### 5.3 Pay now
+
+The order page shows "Pay now" while `payment.canPayOnline` is `true`: open `payment.checkout.url` when a page is still open, else call `POST /v1/store/orders/{orderNumber}/pay` and redirect to the `url` it answers. `payment.lastFailure` is for developers; show a generic message. The existing "Pay now" button does nearly this with the old endpoint.
+
+### 5.4 Order list and detail
+
+- Statuses: `preparing` becomes `processing`, `delivery_failed` disappears, `pending_payment` is new and comes first ("waiting for payment"). Update labels, tones and the timeline builder in `features/orders`; the timeline's payment step follows the new payment block.
+- The payment panel loses `not_enabled`, `due`, `overdue`, deadline, cash and waived. It shows the payment status, method and type, `receiptUrl`, `refundedAmount`, the invoice link (`payment.invoice`) and the "Pay now" state of 5.3. Fields: section 9 and 10.
+- `canCancel` decides the cancel button; the reasons are the customer's list in section 13.
+- The returns block stays; check its fields against section 12.
+
+### 5.5 Catalogue and cart
+
+- Availability comes from `ordering` on every product (`canOrder`, `reason` = `sold_out` or `product_unavailable`, `remaining`, `minQuantity`, `maxQuantity`) and from `lines[].issue` in the cart and the bill's `canOrder`. Remove `useOrderingOpen`, the cargo reasons, the cargo promise line and the guest-cart clamp to the cargo; clamp to the product's `ordering` instead.
+- Show sold out and "few left" (when `remaining` is small) with the existing badge styles. The add-to-cart button and the quantity chooser follow `ordering`.
+- The cart loses the countdown, the closed state and "Due today". Its bill is the API's bill; the checkout button follows `canOrder`.
+- JSON-LD: `Offer.availability` is `InStock` or `OutOfStock` from `ordering`, no longer `PreOrder`.
+
+### 5.6 Pages to remove, pages whose copy changes
+
+Remove: `/pay/[token]` with its view and its entries in `robots.ts` and `proxy.ts`; `/legal/preorder-terms` and its footer link; the `components/cargo` folder (strip, countdown, next-delivery card, pay-later note); the `CargoProvider` and its hooks; the server `getCargo` fetch with its revalidation tag; the `cargo` message namespace; the pay-later band and chips in the styleguide.
+
+Rewrite the copy, in the same components and layouts: home (the call to action no longer depends on an open cargo; the three steps are choose, pay, delivered; the delivery promise comes from `GET /v1/store/settings`: `deliveryFee.tiers`, `freeFrom`, `delivery.estimate`, `returns.windowDays`), how-it-works, delivery-and-payment (fee tiers, estimate, payment at checkout by card or PayPal, cancellation until dispatch, the return window), the product page (no pay-later note), the cart, the sign-in note before checkout, the site tagline, the footer.
+
+### 5.7 Messages
+
+Remove the message keys of the old model (the `cargo` namespace and the keys about pay-later, deadlines, overdue, cash, waived, pay links, `delivery_failed`, the old payment statuses and the old error codes). Every new key goes into `en.json` and `de.json` (a test enforces it); German in the formal "Sie", written the way a German speaker writes it. Error codes are translated; the API's English `message` is never shown.
+
+### 5.8 Mocks and tests
+
+`mocks/`: remove the cargo, ordering, pay-link, activation, cash and overdue parts; add `POST /v1/store/checkout` (answering a checkout URL that the mock serves itself), `GET …/orders/{n}/payment` in its states, `POST …/orders/{n}/pay`, and controls that let a test make a payment succeed, be cancelled, expire, fail, or make an item sell out before settlement. Update the unit tests and the Playwright specs that cover the old flow (catalogue, checkout, account, public links, accessibility, polish); the new e2e flow is cart → checkout → Stripe page (mocked) → order page in each state.
+
+### 5.9 Documentation of this repository
+
+Update `README.md` and `DECISIONS.md`: remove the pre-order decisions (countdown, live ordering, checkout wording, payment after delivery, email links) and record the new ones.
 
 ---
 
-## 7. SEO
+## 6. API facts you must respect
 
-- For SEO, you have full freedom to implement everything necessary to achieve the strongest possible technical and on-page SEO.
-
-- Do not limit the optimization only to the SEO requirements explicitly mentioned in this document. Apply additional SEO improvements wherever they are appropriate, including technical SEO, metadata, structured data, internal linking, crawlability, indexability, semantic HTML, multilingual SEO, image SEO, performance, Core Web Vitals, canonicalization, sitemap strategy, robots configuration, and any other relevant areas.
-
-- Use your professional judgment and current SEO best practices to optimize the website as thoroughly as possible.
-
-
-
-Treat SEO as a feature, not an afterthought:
-
-- Server-rendered catalogue with clean URLs by slug per language, canonical and `hreflang` (`en`, `de`, `x-default`), `sitemap.xml` generated from the API, `robots.txt`.
-- Metadata per page from product/category `seo` fields where the API provides them, with sensible fallbacks; Open Graph and Twitter cards with product images; a default social image with the logo.
-- Structured data (JSON-LD): `Organization`, `WebSite`, `BreadcrumbList`, `Product` with `Offer` (price in EUR, availability from the ordering state), `ItemList` on category pages.
-- Static or ISR rendering for catalogue pages with revalidation; account and cart pages `noindex`.
-- Core Web Vitals in the green; no render-blocking third-party scripts.
+- Base URL `<NEXT_PUBLIC_API_URL>/v1`, JSON, errors as `{ error: { code, message, details? }, requestId }`. Translate the `code`; show the `requestId` on unexpected errors.
+- Cookie authentication with `credentials: 'include'`; on `401 AUTH_TOKEN_INVALID` refresh once through `POST /v1/store/auth/refresh` and retry. The existing transport does this; keep it.
+- `?locale=en|de` on every store call. Money is integer cents; the shop never adds, multiplies or rounds prices; every total comes from the API.
+- Unknown fields in a request body are rejected (`400 VALIDATION_FAILED`). Send only documented fields.
+- Nothing is reserved before the payment. A product can sell out between the cart and the payment; the API then cancels the order with `sold_out` and charges nothing. The shop shows this; it cannot prevent it.
+- Checkout needs a signed-in customer; there is no guest checkout. The customer never chooses a carrier, a delivery window or a payment deadline.
+- Online payment, Google sign-in and WhatsApp may be switched off on the server; section 14 says how each shows and what the shop does.
 
 ---
 
-Use your strongest engineering judgment when designing and implementing the application architecture.
+## 7. How to work
 
-You have full freedom to choose the best code organization, folder structure, component architecture, reusable abstractions, state-management patterns, caching strategy, data-fetching approach, utilities, validation structure, performance techniques, and other implementation details.
-
-The final codebase should be clean, modular, maintainable, reusable, secure, highly optimized, production-ready, and designed to scale as the platform grows.
-
-Where appropriate, you are also fully authorized to research the latest official documentation, framework recommendations, browser standards, accessibility guidance, SEO practices, security guidance, and current industry best practices before making implementation decisions. Prefer official and authoritative documentation whenever possible.
-
-The goal is not simply to make the application work. Build it to the highest practical standard in terms of design quality, user experience, SEO, performance, maintainability, scalability, security, accessibility, and overall engineering quality.
-
-------------
-
-if you have any doubt, uncertainty, missing information, conflicting requirement, or ambiguity regarding any part of the project, do not make assumptions.
-
-Feel free to ask me for clarification before making an important decision. This applies to anything related to the project, including the technology stack, architecture etc...
+1. Read the files of section 3 completely. Then write a short **plan**: every file you will remove, change or add, with the reason, the new type definitions, open questions, and anything the API cannot do. **Wait for the owner's go before editing.**
+2. Build in phases, each ending with lint, type check and tests green and a short note of what was done and decided: types and API client → checkout and the way back from Stripe → order list and detail with "Pay now" → catalogue and cart availability → removals, copy and messages → mocks and tests → README and DECISIONS.
+3. Do not commit to Git unless asked. No secrets in the shop; it has none.
+4. When the owner gives an instruction, follow it. When you believe it harms the result, say so once with a better alternative, then do what he decides.
+5. The design does not change. If a change you think necessary would alter the look, ask first.
