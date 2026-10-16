@@ -13,7 +13,7 @@ This shop uses only the cookies and browser storage it needs to work. There is n
 | `rf_customer_access`  | Cookie          | Keeps you signed in                                    | 15 minutes                                    |
 | `rf_customer_refresh` | Cookie          | Renews the sign-in without asking you to sign in again | 30 days, extended when used, at most 180 days |
 | `NEXT_LOCALE`         | Cookie          | Remembers the language you chose                       | Until you close the browser                   |
-| `rf.cart.v1`          | Local storage   | Your cart while you are not signed in                  | Until you order or empty it                   |
+| `rf.cart.v2`          | Local storage   | Your cart while you are not signed in                  | Until you order or empty it                   |
 | `rf.session.v1`       | Local storage   | Remembers that you were signed in with this browser    | Until you sign out                            |
 | `rf.checkout.key.v1`  | Session storage | Prevents an order from being placed twice              | Until you close the tab                       |
 | `rf.cookie-notice.v1` | Local storage   | Remembers that you have read the cookie notice         | Until you clear the storage                   |

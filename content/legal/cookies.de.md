@@ -13,7 +13,7 @@ Dieser Shop verwendet nur Cookies und Speicher im Browser, die er zum Funktionie
 | `rf_customer_access`  | Cookie           | Hält Sie angemeldet                                            | 15 Minuten                                          |
 | `rf_customer_refresh` | Cookie           | Erneuert die Anmeldung, ohne dass Sie sich neu anmelden müssen | 30 Tage, bei Nutzung verlängert, höchstens 180 Tage |
 | `NEXT_LOCALE`         | Cookie           | Merkt sich die gewählte Sprache                                | Bis Sie den Browser schließen                       |
-| `rf.cart.v1`          | Lokaler Speicher | Ihr Warenkorb, solange Sie nicht angemeldet sind               | Bis Sie bestellen oder ihn leeren                   |
+| `rf.cart.v2`          | Lokaler Speicher | Ihr Warenkorb, solange Sie nicht angemeldet sind               | Bis Sie bestellen oder ihn leeren                   |
 | `rf.session.v1`       | Lokaler Speicher | Merkt sich, dass Sie in diesem Browser angemeldet waren        | Bis Sie sich abmelden                               |
 | `rf.checkout.key.v1`  | Sitzungsspeicher | Verhindert, dass eine Bestellung doppelt aufgegeben wird       | Bis Sie den Tab schließen                           |
 | `rf.cookie-notice.v1` | Lokaler Speicher | Merkt sich, dass Sie den Cookie-Hinweis gelesen haben          | Bis Sie den Speicher löschen                        |

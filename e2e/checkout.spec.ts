@@ -6,9 +6,10 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
 });
 
-async function productId(page: Page, slug: string): Promise<string> {
+/** The id of the pack size a product page stands for: the cart's key. */
+async function variantId(page: Page, slug: string): Promise<string> {
   const response = await page.request.get(`${MOCK}/v1/store/products/${slug}`);
-  return (await response.json()).product.id;
+  return (await response.json()).product.variantId;
 }
 
 /**
@@ -32,20 +33,20 @@ async function seedCustomer(page: Page, email = "priya@example.com") {
       city: "Frankfurt am Main",
     },
   });
-  const atta = await productId(page, "chakki-atta-5-kg");
+  const atta = await variantId(page, "chakki-atta-5kg");
   await api.put(`${MOCK}/v1/store/cart/items/${atta}`, {
     data: { quantity: 2 },
   });
   return { atta };
 }
 
-/** Puts products into the visitor's cart before the page loads. */
+/** Puts pack sizes into the visitor's cart before the page loads. */
 async function seedGuestCart(
   page: Page,
-  items: { productId: string; quantity: number }[],
+  items: { variantId: string; quantity: number }[],
 ) {
   await page.addInitScript((cart) => {
-    window.localStorage.setItem("rf.cart.v1", JSON.stringify(cart));
+    window.localStorage.setItem("rf.cart.v2", JSON.stringify(cart));
   }, items);
 }
 
@@ -97,7 +98,7 @@ test.describe("from the cart to the paid order", () => {
 
     // The visitor's cart came along; the customer pays now.
     const order = page.getByRole("complementary", { name: "Your order" });
-    await expect(order).toContainText("Chakki Atta, 5 kg");
+    await expect(order).toContainText("Chakki Atta (5 kg)");
     await expect(order).toContainText("€30.97");
     await expect(order).toContainText("2 to 4 working days");
     await expect(order).toContainText("You pay now.");
@@ -191,7 +192,7 @@ test.describe("when something changed since the page was loaded", () => {
     await expect(buyButton(page)).toBeEnabled();
 
     await request.post(`${MOCK}/__mock/price`, {
-      data: { productId: atta, price: 1399 },
+      data: { variantId: atta, price: 1399 },
     });
     await buyButton(page).click();
     await expect(page.getByText("The total has changed")).toBeVisible();
@@ -235,14 +236,14 @@ test.describe("when something changed since the page was loaded", () => {
     await page.goto("/en/checkout");
     await consentBox(page).check();
     await request.post(`${MOCK}/__mock/stock`, {
-      data: { productId: atta, quantity: 1 },
+      data: { variantId: atta, quantity: 1 },
     });
     await buyButton(page).click();
     const issues = page.getByRole("alert").filter({
       hasText: "Some products cannot be ordered right now.",
     });
     await expect(issues).toBeVisible();
-    await expect(issues).toContainText("Chakki Atta, 5 kg");
+    await expect(issues).toContainText("Chakki Atta (5 kg)");
     await expect(
       issues.getByRole("link", { name: "To the cart" }),
     ).toBeVisible();
@@ -267,8 +268,8 @@ test.describe("when something changed since the page was loaded", () => {
 
 test.describe("the cart", () => {
   test("a line below its minimum is fixed with one tap", async ({ page }) => {
-    const khakhra = await productId(page, "methi-khakhra-200-g");
-    await seedGuestCart(page, [{ productId: khakhra, quantity: 1 }]);
+    const khakhra = await variantId(page, "methi-khakhra-200g");
+    await seedGuestCart(page, [{ variantId: khakhra, quantity: 1 }]);
     await page.goto("/en/cart");
     await expect(
       page.getByText("The minimum order for this product is 2."),
@@ -291,11 +292,11 @@ test.describe("the cart", () => {
   test("a sold-out product blocks the order until it is removed", async ({
     page,
   }) => {
-    const mango = await productId(page, "kesar-mango-box-3-kg");
-    const dal = await productId(page, "toor-dal-1-kg");
+    const mango = await variantId(page, "kesar-mango-box-3kg");
+    const dal = await variantId(page, "toor-dal-1kg");
     await seedGuestCart(page, [
-      { productId: mango, quantity: 1 },
-      { productId: dal, quantity: 1 },
+      { variantId: mango, quantity: 1 },
+      { variantId: dal, quantity: 1 },
     ]);
     await page.goto("/en/cart");
     await expect(page.getByText(/Sold out\. Please remove it/)).toBeVisible();
@@ -306,7 +307,11 @@ test.describe("the cart", () => {
       summary.getByRole("button", { name: "Go to checkout" }),
     ).toBeDisabled();
 
-    await page.getByRole("button", { name: /Remove Kesar Mango, Box/ }).click();
+    await page
+      .getByRole("button", {
+        name: "Remove Kesar Mango, Box (3 kg) from the cart",
+      })
+      .click();
     await expect(
       summary.getByRole("link", { name: "Go to checkout" }),
     ).toBeVisible();
@@ -316,11 +321,11 @@ test.describe("the cart", () => {
     page,
     request,
   }) => {
-    const atta = await productId(page, "chakki-atta-5-kg");
+    const atta = await variantId(page, "chakki-atta-5kg");
     await request.post(`${MOCK}/__mock/stock`, {
-      data: { productId: atta, quantity: 3 },
+      data: { variantId: atta, quantity: 3 },
     });
-    await seedGuestCart(page, [{ productId: atta, quantity: 5 }]);
+    await seedGuestCart(page, [{ variantId: atta, quantity: 5 }]);
     await page.goto("/en/cart");
     await expect(
       page.getByText("Only 3 can be ordered right now."),
@@ -332,8 +337,8 @@ test.describe("the cart", () => {
   });
 
   test("free delivery is reached and said so", async ({ page }) => {
-    const atta = await productId(page, "chakki-atta-5-kg");
-    await seedGuestCart(page, [{ productId: atta, quantity: 4 }]);
+    const atta = await variantId(page, "chakki-atta-5kg");
+    await seedGuestCart(page, [{ variantId: atta, quantity: 4 }]);
     await page.goto("/en/cart");
     const summary = page.getByRole("complementary", { name: "Summary" });
     await expect(summary).toContainText("Delivery is free for this order");

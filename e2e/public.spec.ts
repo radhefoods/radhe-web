@@ -119,7 +119,7 @@ test.describe("help and legal pages", () => {
     await page.goto("/en/legal/cookies");
     const table = page.getByRole("table");
     await expect(table).toContainText("rf_customer_refresh");
-    await expect(table).toContainText("rf.cart.v1");
+    await expect(table).toContainText("rf.cart.v2");
     // No gaps here: this text describes facts of the shop.
     await expect(page.locator("mark")).toHaveCount(0);
   });
@@ -166,8 +166,8 @@ test.describe("for search engines", () => {
       "http://localhost:3001/en",
       "http://localhost:3001/de/produkte",
       "http://localhost:3001/de/kategorie/reis",
-      "http://localhost:3001/en/products/basmati-rice-5-kg",
-      "http://localhost:3001/de/produkte/basmati-reis-5-kg",
+      "http://localhost:3001/en/products/basmati-rice-5kg",
+      "http://localhost:3001/de/produkte/basmati-reis-5kg",
       "http://localhost:3001/de/rechtliches/impressum",
     ]) {
       expect(xml, url).toContain(`<loc>${url}</loc>`);
@@ -178,26 +178,26 @@ test.describe("for search engines", () => {
     expect(xml).not.toContain("preorder-terms");
   });
 
-  test("a product page carries canonical, languages, a picture and its offer", async ({
+  test("a product page carries canonical, languages, a picture and an offer per size", async ({
     page,
   }) => {
-    await page.goto("/de/produkte/basmati-reis-5-kg");
+    await page.goto("/de/produkte/basmati-reis-5kg");
     const head = page.locator("head");
     await expect(head.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      "http://localhost:3001/de/produkte/basmati-reis-5-kg",
+      "http://localhost:3001/de/produkte/basmati-reis-5kg",
     );
     await expect(
       head.locator('link[rel="alternate"][hreflang="en"]'),
     ).toHaveAttribute(
       "href",
-      "http://localhost:3001/en/products/basmati-rice-5-kg",
+      "http://localhost:3001/en/products/basmati-rice-5kg",
     );
     await expect(
       head.locator('link[rel="alternate"][hreflang="x-default"]'),
     ).toHaveAttribute(
       "href",
-      "http://localhost:3001/en/products/basmati-rice-5-kg",
+      "http://localhost:3001/en/products/basmati-rice-5kg",
     );
     await expect(head.locator('meta[property="og:image"]')).toHaveAttribute(
       "content",
@@ -207,10 +207,22 @@ test.describe("for search engines", () => {
     const blocks = await page
       .locator('script[type="application/ld+json"]')
       .allTextContents();
-    const product = blocks
+    // One group for the product, one product per pack size (doc 7).
+    const group = blocks
       .flatMap((block) => [JSON.parse(block)].flat())
-      .find((entry) => entry["@type"] === "Product");
-    expect(product.offers).toMatchObject({
+      .find((entry) => entry["@type"] === "ProductGroup");
+    expect(group.name).toBe("Basmati-Reis");
+    expect(group.hasVariant).toHaveLength(2);
+    const size = group.hasVariant.find((entry: { url: string }) =>
+      entry.url.endsWith("/basmati-reis-5kg"),
+    );
+    expect(size).toMatchObject({
+      "@type": "Product",
+      name: "Basmati-Reis (5 kg)",
+      sku: "RF-00042",
+      weight: { value: 5, unitCode: "KGM" },
+    });
+    expect(size.offers).toMatchObject({
       priceCurrency: "EUR",
       price: "19.99",
       availability: "https://schema.org/InStock",

@@ -63,8 +63,8 @@ test.describe("public pages have no barriers axe can find", () => {
     "/en/category/rice",
     "/en/products?brand=MDH&brand=Amul&sort=price_asc",
     "/de/produkte?brand=MDH&storageType=chilled",
-    "/en/products/basmati-rice-5-kg",
-    "/de/produkte/basmati-reis-5-kg",
+    "/en/products/basmati-rice-5kg",
+    "/de/produkte/basmati-reis-5kg",
     "/en/cart",
     "/en/sign-in",
     "/de/so-funktionierts",
@@ -99,16 +99,16 @@ test.describe("cart, checkout and account have no barriers axe can find", () => 
     await signIn(page);
     await open(page, "/en/products");
     await page
-      .getByRole("button", { name: "Add to cart: Chakki Atta, 5 kg" })
+      .getByRole("button", { name: "Add to cart: Chakki Atta (5 kg)" })
       .click();
     await expect(
-      page.getByRole("group", { name: "Quantity of Chakki Atta, 5 kg" }),
+      page.getByRole("group", { name: "Quantity of Chakki Atta (5 kg)" }),
     ).toBeVisible();
     await expectNoBarriers(page);
 
     await open(page, "/en/cart");
     await expect(
-      page.getByRole("group", { name: "Quantity of Chakki Atta, 5 kg" }),
+      page.getByRole("group", { name: "Quantity of Chakki Atta (5 kg)" }),
     ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Summary" })).toBeVisible();
     await expectNoBarriers(page);
@@ -160,15 +160,15 @@ test.describe("with the keyboard", () => {
     isMobile,
   }) => {
     test.skip(isMobile, "A phone has no Tab key.");
-    await open(page, "/en/products/basmati-rice-5-kg");
+    await open(page, "/en/products/basmati-rice-5kg");
     const add = page
       .getByRole("main")
-      .getByRole("button", { name: "Add to cart: Basmati Rice, 5 kg" })
+      .getByRole("button", { name: "Add to cart: Basmati Rice (5 kg)" })
       .first();
     await add.focus();
     await page.keyboard.press("Enter");
     const quantity = page
-      .getByRole("group", { name: "Quantity of Basmati Rice, 5 kg" })
+      .getByRole("group", { name: "Quantity of Basmati Rice (5 kg)" })
       .first();
     await expect(quantity).toContainText("1");
     // The control that replaced the button can be reached and used.

@@ -20,19 +20,19 @@ test.describe("a change of the cart that fails", () => {
   test("is explained where the product was added, not only in the cart", async ({
     page,
   }) => {
-    // A visitor's cart holds at most 100 different products.
+    // A visitor's cart holds at most 100 different pack sizes.
     const full = Array.from({ length: 100 }, (_, index) => ({
-      productId: index.toString(16).padStart(24, "a"),
+      variantId: index.toString(16).padStart(24, "a"),
       quantity: 1,
     }));
     await page.addInitScript((cart) => {
-      window.localStorage.setItem("rf.cart.v1", JSON.stringify(cart));
+      window.localStorage.setItem("rf.cart.v2", JSON.stringify(cart));
     }, full);
     await page.goto("/en/products");
     // The count of the cart shows once the page is alive: only then a tap counts.
     await expect(page.getByRole("link", { name: /100 items/ })).toBeVisible();
     await page
-      .getByRole("button", { name: "Add to cart: Chakki Atta, 5 kg" })
+      .getByRole("button", { name: "Add to cart: Chakki Atta (5 kg)" })
       .click();
     const message = page.getByRole("alert").filter({ hasText: "cart is full" });
     await expect(message).toBeVisible();
