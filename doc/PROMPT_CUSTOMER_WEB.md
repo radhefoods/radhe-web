@@ -27,9 +27,10 @@ When a page's content must change for the new flow (checkout, order detail), its
 | Legal texts | `terms`, `preorder_terms`, `privacy` | `terms`, `privacy` |
 | Delivery | A promised window per cargo | A delivery estimate from the settings; the carrier is chosen by Radhe Foods |
 | Invoice | Issued when the payment was activated after delivery | Issued the moment the payment is captured; the PDF comes with the confirmation email |
-| Stock | Per cargo | Per product: `ordering` on every product says whether and how many can be bought |
+| Stock | Per cargo | Per pack size: `ordering` on every product entry and on every entry of its `variants` says whether and how many can be bought |
+| Products | One article per product | One product with one or more pack sizes (`variants`): each size has its own id, URL, price and stock; the cart, the orders and the returns name the size (`variantId`). Section 6 |
 
-Unchanged: the catalogue, the cart (guest cart in local storage, server cart after sign-in), sign-in with email code or Google, the account with profile, communication preferences and addresses, invoices and credit notes with PDF, returns, cancellation by the customer, the unsubscribe page, the legal pages from the API, the static legal pages (imprint, withdrawal, cookies), SEO, both languages.
+Unchanged in principle: the catalogue and the cart (guest cart in local storage, server cart after sign-in), though both are now keyed by pack size (section 6); sign-in with email code or Google, the account with profile, communication preferences and addresses, invoices and credit notes with PDF, returns, cancellation by the customer, the unsubscribe page, the legal pages from the API, the static legal pages (imprint, withdrawal, cookies), SEO, both languages.
 
 ---
 
@@ -64,7 +65,7 @@ New:
 - `POST /v1/store/checkout` (section 9): the cart becomes an order and the answer carries the Stripe page.
 - `POST /v1/store/orders/{orderNumber}/pay` (section 10): a new payment page for a pending order.
 
-Changed answers. Re-read these sections and update `src/lib/api/types.ts` to match them exactly: products and `ordering` (7), cart and bill (8), orders with `payment`, `cancellation`, `returns` and `canCancel` (9), payment (10), settings and legal (6), invoices (11), returns (12), the status reference (13), the error codes (0.4 and per endpoint).
+Changed answers. Re-read these sections and update `src/lib/api/types.ts` to match them exactly: products with their pack sizes (`variants`, `variantId`, `displayName`) and `ordering` (7), cart and bill keyed by `variantId` (8), orders with `payment`, `cancellation`, `returns` and `canCancel` (9), payment (10), settings and legal (6), invoices (11), returns (12), the status reference (13), the error codes (0.4 and per endpoint).
 
 ### 4.2 Error codes
 
@@ -99,14 +100,14 @@ The order page shows "Pay now" while `payment.canPayOnline` is `true`: open `pay
 - Statuses: `preparing` becomes `processing`, `delivery_failed` disappears, `pending_payment` is new and comes first ("waiting for payment"). Update labels, tones and the timeline builder in `features/orders`; the timeline's payment step follows the new payment block.
 - The payment panel loses `not_enabled`, `due`, `overdue`, deadline, cash and waived. It shows the payment status, method and type, `receiptUrl`, `refundedAmount`, the invoice link (`payment.invoice`) and the "Pay now" state of 5.3. Fields: section 9 and 10.
 - `canCancel` decides the cancel button; the reasons are the customer's list in section 13.
-- The returns block stays; check its fields against section 12.
+- The returns block stays; check its fields against section 12. Items are named by `variantId`, in the request and in `returnable`.
 
 ### 5.5 Catalogue and cart
 
-- Availability comes from `ordering` on every product (`canOrder`, `reason` = `sold_out` or `product_unavailable`, `remaining`, `minQuantity`, `maxQuantity`) and from `lines[].issue` in the cart and the bill's `canOrder`. Remove `useOrderingOpen`, the cargo reasons, the cargo promise line and the guest-cart clamp to the cargo; clamp to the product's `ordering` instead.
-- Show sold out and "few left" (when `remaining` is small) with the existing badge styles. The add-to-cart button and the quantity chooser follow `ordering`.
-- The cart loses the countdown, the closed state and "Due today". Its bill is the API's bill; the checkout button follows `canOrder`.
-- JSON-LD: `Offer.availability` is `InStock` or `OutOfStock` from `ordering`, no longer `PreOrder`.
+- Availability comes from `ordering` on every pack size (`canOrder`, `reason` = `sold_out` or `product_unavailable`, `remaining`, `minQuantity`, `maxQuantity`; on the product entry for the size it shows, and on every entry of `variants`) and from `lines[].issue` in the cart and the bill's `canOrder`. Remove `useOrderingOpen`, the cargo reasons, the cargo promise line and the guest-cart clamp to the cargo; clamp to the `ordering` of the chosen pack size instead.
+- Show sold out and "few left" (when `remaining` is small) with the existing badge styles, per pack size. The add-to-cart button and the quantity chooser follow the chosen size's `ordering`.
+- The cart loses the countdown, the closed state and "Due today". Its bill is the API's bill; the checkout button follows `canOrder`. Lines are pack sizes (section 6).
+- JSON-LD: `Offer.availability` is `InStock` or `OutOfStock` from `ordering`, no longer `PreOrder`; one offer per pack size (section 6).
 
 ### 5.6 Pages to remove, pages whose copy changes
 
@@ -128,7 +129,19 @@ Update `README.md` and `DECISIONS.md`: remove the pre-order decisions (countdown
 
 ---
 
-## 6. API facts you must respect
+## 6. Pack sizes
+
+A product comes in one or more pack sizes. The product holds the name, texts, images, category, VAT rate and the quantity limits; each pack size (`variants[]`) has its own `id`, article number (`sku`), URL (`slug`), `packSize`, `pricing`, stock and `ordering`. One size is the **default** (`isDefault`): the smallest enabled size in stock. Section 7 of the API documentation has the shapes; section 7.1 the pack size entry.
+
+- **Listing.** `GET /v1/store/products` answers one entry per product, shown as its default size or, with the `packSize` filter, as the smallest size asked for. The entry's `variantId`, `sku`, `slug`, `packSize`, `pricing` and `ordering` belong to that size. `displayName` ("Basmati Rice (1 kg)") is the title of the card; `name` is the product name without the size. `variants[]` lists every enabled size, smallest first, with the same fields each.
+- **Product page.** The URL of a product page is the URL of a pack size: `/products/basmati-rice-1kg`. `GET /v1/store/products/{slug}` also takes the base slug (`basmati-rice`) and answers the default size. The answer carries every enabled size in `variants` (the selected one has `isSelected: true`), so the size chooser switches without a request: render the chosen size from the same answer (its `slug`, `displayName`, `pricing`, `ordering`; images and texts are shared) and change the URL to its `slug` with the history API (`history.pushState`). `slugs` is the selected size's URL in both languages, for the language switch and `hreflang`. The URL of a disabled size answers 404.
+- **SEO.** Every variant URL is canonical to itself (each size is an offer of its own, with its own price and stock). The base URL redirects permanently to the default size's URL (fetch the base slug, redirect to `product.slug`). The sitemap lists the variant URLs. JSON-LD is a `ProductGroup` with `hasVariant` holding one `Product` per entry of `variants` (`url`, `sku`, `offers` with `price` and `availability` from its `ordering`, the pack size as `weight` or `size`). The page title and `og:title` are the `displayName`.
+- **Cart.** Lines are keyed by pack size: `PUT` and `DELETE /v1/store/cart/items/{variantId}`, and `preview` and `merge` take `items: [{ variantId, quantity }]`. `variantId` is `variants[].id` of the chosen size. The guest cart in local storage stores `variantId` and `quantity` per line; every line of the bill carries `variantId` and `productId`, and `lines[].product` is the list entry with that size selected. Order items, `adjustments` and return items carry `variantId`; a return request names items by `variantId` (section 12).
+- **Price per unit.** German price law requires the price per kilogram, litre or piece next to every price. Show `pricing.basePrice` (`amount` in cents, `per` = `kg`, `l` or `pcs`) wherever a price is shown: list cards, the product page for the chosen size, the cart lines. The API computes it; the shop never does.
+
+---
+
+## 7. API facts you must respect
 
 - Base URL `<NEXT_PUBLIC_API_URL>/v1`, JSON, errors as `{ error: { code, message, details? }, requestId }`. Translate the `code`; show the `requestId` on unexpected errors.
 - Cookie authentication with `credentials: 'include'`; on `401 AUTH_TOKEN_INVALID` refresh once through `POST /v1/store/auth/refresh` and retry. The existing transport does this; keep it.
@@ -140,10 +153,10 @@ Update `README.md` and `DECISIONS.md`: remove the pre-order decisions (countdown
 
 ---
 
-## 7. How to work
+## 8. How to work
 
 1. Read the files of section 3 completely. Then write a short **plan**: every file you will remove, change or add, with the reason, the new type definitions, open questions, and anything the API cannot do. **Wait for the owner's go before editing.**
-2. Build in phases, each ending with lint, type check and tests green and a short note of what was done and decided: types and API client → checkout and the way back from Stripe → order list and detail with "Pay now" → catalogue and cart availability → removals, copy and messages → mocks and tests → README and DECISIONS.
+2. Build in phases, each ending with lint, type check and tests green and a short note of what was done and decided: types and API client → checkout and the way back from Stripe → order list and detail with "Pay now" → catalogue with pack sizes, cart by pack size and availability → removals, copy and messages → mocks and tests → README and DECISIONS.
 3. Do not commit to Git unless asked. No secrets in the shop; it has none.
 4. When the owner gives an instruction, follow it. When you believe it harms the result, say so once with a better alternative, then do what he decides.
 5. The design does not change. If a change you think necessary would alter the look, ask first.

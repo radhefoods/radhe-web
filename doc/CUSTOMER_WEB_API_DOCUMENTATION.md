@@ -4,6 +4,8 @@ For the customer-facing Next.js shop. Generated from the implemented NestJS back
 
 **What the shop is:** an online shop for Indian groceries in Germany, sold from stock. Customers browse without an account, sign in to order, and **pay at checkout** (card or PayPal through Stripe Checkout). The payment confirms the order; Radhe Foods then prepares, dispatches and delivers it. The invoice is issued the moment the payment is captured and comes with the confirmation email.
 
+A product comes in one or more **pack sizes** (`variants`): the product holds the name, texts, images, category and VAT rate; each pack size has its own id (`variantId`), article number, URL, price, stock and ordering state. The cart, the orders and the returns name the pack size.
+
 ## Contents
 
 0. Conventions (base URL, versioning, responses, errors, auth, cookies, pagination, formats)
@@ -541,11 +543,13 @@ Only published types appear. There are two types, `terms` and `privacy`; both mu
 
 ## 7. Catalogue
 
-Public. Products, categories and, for every product and pack size, the answer "can the customer order this right now?", which follows from the stock.
+Public. Products, categories and, for every pack size, the answer "can the customer order this right now?", which follows from the stock.
+
+A product has one or more pack sizes, smallest first in `variants`. One of them is the **default size** and stands for the product in lists: the smallest enabled size whose stock covers the smallest order, else the smallest enabled size. Each size has its own `id` (the `variantId` of the cart and the orders), `sku`, URL (`slug`), `packSize`, `pricing` and `ordering`. The **display name** is the product name followed by the pack label in parentheses: `Basmati Rice (1 kg)`, in German `Basmati Reis (1 kg)`.
 
 ### 7.1 Shared objects
 
-**PriceView** (in every product answer as `pricing`):
+**PriceView** (in every product answer as `pricing`, always the price of one pack size):
 
 ```json
 {
@@ -571,9 +575,35 @@ Public. Products, categories and, for every product and pack size, the answer "c
 | `salePrice` | int cents or `null` | |
 | `discountPercent` | int | `floor((regular − sale) × 100 / regular)`; `0` when not on sale. |
 | `vatRate` | int | Hundredths of a percent: `700` = 7 %, `1900` = 19 %. |
-| `basePrice` | `{ amount: int cents, per: "kg" \| "l" \| "pcs" }` | Price per kilogram / litre / piece (German price-indication rule). |
+| `basePrice` | `{ amount: int cents, per: "kg" \| "l" \| "pcs" }` | Price per kilogram / litre / piece (German price-indication rule). Show it next to every price. |
 
-**PackSize:** `{ "value": 5, "unit": "kg", "label": "5 kg" }`. `unit` ∈ `g`, `kg`, `ml`, `l`, `pcs`. `label` is localized (`"0,5 kg"`, `"Stk."` in German).
+**PackSize:** `{ "value": 5, "unit": "kg", "label": "5 kg" }`. `unit` ∈ `g`, `kg`, `ml`, `l`, `pcs`. `label` is localized (`"0,5 kg"`, `"Stk."` in German). All sizes of one product share one unit family (weight, volume or pieces).
+
+**Pack size entry** (each item of `variants[]` on a product):
+
+```json
+{
+  "id": "66f4a0c1e4b0f1a2b3c4d5e7",
+  "sku": "RF-00041",
+  "slug": "basmati-rice-1kg",
+  "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
+  "displayName": "Basmati Rice (1 kg)",
+  "pricing": { "…PriceView…": "" },
+  "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 37 },
+  "isDefault": true,
+  "isSelected": true
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `id` | ObjectId string | The `variantId` for the cart. |
+| `slug` | string | The URL of this size in the requested language (`basmati-rice-1kg`, `basmati-reis-1kg`; `1-5kg` for 1.5, `6pcs` and in German `6stk` for pieces). |
+| `displayName` | string | Name with the pack label; the title of this size. |
+| `isDefault` | boolean | The size that stands for the product in lists. |
+| `isSelected` | boolean | The size the answer is about (the one shown by the list entry or the product page). Exactly one entry is selected. |
+
+`variants` holds only enabled sizes, smallest first; a size Radhe Foods switched off is not listed and its URL answers 404.
 
 **Image:**
 
@@ -593,7 +623,7 @@ Public. Products, categories and, for every product and pack size, the answer "c
 
 All image URLs are absolute, WebP, immutable (cache them for a year). `url` is the largest variant. `small` is 320 px on the longest side, `medium` 800 px, `large` 1600 px (never enlarged: a 600 px source gives `medium`/`large` of 600 px). `alt` is localized and falls back to the product name.
 
-**Ordering block** (`ordering` on products and on each entry of `packSizes`; the same object is `line.ordering` in the cart):
+**Ordering block** (`ordering` on a product entry, for the size it shows, and on each entry of `variants`; the same object is `line.ordering` in the cart):
 
 ```json
 { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 37 }
@@ -601,13 +631,13 @@ All image URLs are absolute, WebP, immutable (cache them for a year). `url` is t
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `canOrder` | boolean | Whether the product can be put in an order at this moment: it is switched on for ordering and the stock covers the smallest order. This is the "add to cart" button state. |
-| `reason` | `null` \| `product_unavailable` \| `sold_out` | Why not. `product_unavailable`: Radhe Foods switched the product off for ordering. `sold_out`: the stock does not cover `minQuantity`. |
-| `minQuantity` | int | Least units per order line (the product's `quantity.min`). |
-| `maxQuantity` | int | Most units in one order line: the product's limit per order (`quantity.max`) and the units in stock, whichever is lower. `0` when sold out. |
-| `remaining` | int | Units in stock. Nothing is reserved before the payment, so this is what every customer sees; it can still change until a payment goes through. |
+| `canOrder` | boolean | Whether this pack size can be put in an order at this moment: the product and the size are switched on and the stock covers the smallest order. This is the "add to cart" button state. |
+| `reason` | `null` \| `product_unavailable` \| `sold_out` | Why not. `product_unavailable`: Radhe Foods switched the product or this size off for ordering. `sold_out`: the stock of this size does not cover `minQuantity`. |
+| `minQuantity` | int | Least packs per order line (the product's `quantity.min`, the same for every size). |
+| `maxQuantity` | int | Most packs in one order line: the product's limit per order (`quantity.max`) and the packs of this size in stock, whichever is lower. `0` when sold out. |
+| `remaining` | int | Packs of this size in stock. Nothing is reserved before the payment, so this is what every customer sees; it can still change until a payment goes through. |
 
-Products carry no other stock field: `remaining` is the number to use for "only 3 left" hints.
+Products carry no other stock field: `remaining` is the number to use for "only 3 left" hints. Stock is per pack size: a sold-out 5 kg pack says nothing about the 1 kg pack.
 
 ### `GET /v1/store/categories`
 
@@ -681,7 +711,7 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 
 ### `GET /v1/store/products`
 
-**Purpose:** Product listing with filters, search, sorting and pages.
+**Purpose:** Product listing with filters, search, sorting and pages. One entry per product, shown as one of its pack sizes: the default size, or, with the `packSize` filter, the smallest enabled size that was asked for.
 
 **Authentication:** none.
 
@@ -691,18 +721,17 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 | ----- | ---- | ----------- |
 | `locale` | `en` \| `de` | |
 | `category` | string (slug) | Products of the category and its sub-categories. |
-| `q` | string, 2–80 chars | Search. Every word must begin a word of the product name, subtitle, SKU, brand, tags or search keywords (umlauts are folded: `musli` finds `Müsli`). |
+| `q` | string, 2–80 chars | Search. Every word must begin a word of the product name, subtitle, brand, tags, search keywords or the article number of any of its sizes (umlauts are folded: `musli` finds `Müsli`). |
 | `tag` | string, repeatable | Labels. A product matches when it has any of them: `tag=vegan&tag=new`. |
 | `brand` | string ≤80, repeatable | Brands, any of them: `brand=Amul&brand=Tata`. |
 | `storageType` | `ambient` \| `chilled` \| `frozen`, repeatable | Any of them. |
-| `packSize` | string, repeatable | Pack sizes as value and unit without a space: `500g`, `1kg`, `0.5l`, `6pcs`. Any of them. With `groupPackSizes=true` the matching size stands for its product in the list (its `slug`, `pricing` and `packSize`) instead of the default size. |
-| `onSale` | boolean | `true`: only reduced products; `false`: only products that are not reduced. |
-| `available` | boolean | `true`: only products switched on for ordering by Radhe Foods; `false`: only switched-off ones. Says nothing about stock. |
-| `orderable` | boolean | `true`: only products that can be ordered **now** (switched on, and the stock covers the smallest order). `false` is accepted and changes nothing. |
+| `packSize` | string, repeatable | Pack sizes as value and unit without a space: `500g`, `1kg`, `0.5l`, `6pcs`. A product is listed when one of its enabled sizes is among them, and is shown as the smallest of those sizes (its `variantId`, `sku`, `slug`, `packSize`, `pricing`, `ordering`) instead of the default size. |
+| `onSale` | boolean | `true`: only products with a reduced enabled size; `false`: only products without one. |
+| `available` | boolean | `true`: only products switched on for ordering by Radhe Foods; `false`: only switched-off ones. Says nothing about stock or single sizes. |
+| `orderable` | boolean | `true`: only products with an enabled size that can be ordered **now** (switched on, and its stock covers the smallest order). `false` is accepted and changes nothing. |
 | `featured` | boolean | |
-| `minPrice`, `maxPrice` | int cents, ≥0 | On the effective price. |
-| `sort` | `recommended` (default) \| `newest` \| `price_asc` \| `price_desc` \| `discount` \| `name` | |
-| `groupPackSizes` | boolean, default `true` | `true`: a product with several pack sizes appears once (its default size) with all sizes in `packSizes`. `false`: every pack size is its own entry. |
+| `minPrice`, `maxPrice` | int cents, ≥0 | On the price of the default size. |
+| `sort` | `recommended` (default) \| `newest` \| `price_asc` \| `price_desc` \| `discount` \| `name` | `price_*` and `discount` use the price and the discount of the default size. |
 | `page` | int 1–500, default 1 | |
 | `limit` | int 1–100, default 24 | |
 
@@ -713,33 +742,43 @@ Products carry no other stock field: `remaining` is the number to use for "only 
   "items": [
     {
       "id": "66f3…",
-      "sku": "RF-00042",
-      "slug": "basmati-rice-5-kg",
+      "variantId": "66f4…",
+      "sku": "RF-00041",
+      "slug": "basmati-rice-1kg",
       "name": "Basmati Rice",
+      "displayName": "Basmati Rice (1 kg)",
       "subtitle": null,
       "shortDescription": "Aged long-grain rice",
       "brand": "India Gate",
       "category": { "id": "66f0…", "slug": "rice", "name": "Rice" },
-      "packSize": { "value": 5, "unit": "kg", "label": "5 kg" },
+      "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
       "pricing": { "…PriceView…": "" },
       "isAvailable": true,
       "isFeatured": false,
-      "quantity": { "min": 1, "max": null },
-      "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 37, "remaining": 37 },
+      "quantity": { "min": 1, "max": 10 },
+      "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 37 },
       "storageType": "ambient",
       "tags": ["new"],
       "image": { "…Image…": "" },
-      "packSizes": [
+      "variants": [
         {
-          "id": "66f2…", "sku": "RF-00041", "slug": "basmati-rice-1-kg",
+          "id": "66f4…", "sku": "RF-00041", "slug": "basmati-rice-1kg",
           "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
+          "displayName": "Basmati Rice (1 kg)",
           "pricing": { "…PriceView…": "" },
-          "isAvailable": true, "quantity": { "min": 1, "max": null },
-          "ordering": { "canOrder": false, "reason": "sold_out", "minQuantity": 1, "maxQuantity": 0, "remaining": 0 },
-          "image": null, "isDefault": false, "isSelected": false
+          "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 37 },
+          "isDefault": true, "isSelected": true
         },
-        { "id": "66f3…", "sku": "RF-00042", "slug": "basmati-rice-5-kg", "…": "this product", "isDefault": true, "isSelected": true }
-      ]
+        {
+          "id": "66f5…", "sku": "RF-00042", "slug": "basmati-rice-5kg",
+          "packSize": { "value": 5, "unit": "kg", "label": "5 kg" },
+          "displayName": "Basmati Rice (5 kg)",
+          "pricing": { "…PriceView…": "" },
+          "ordering": { "canOrder": false, "reason": "sold_out", "minQuantity": 1, "maxQuantity": 0, "remaining": 0 },
+          "isDefault": false, "isSelected": false
+        }
+      ],
+      "variantCount": 2
     }
   ],
   "page": 1,
@@ -749,9 +788,10 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 }
 ```
 
-- `isAvailable` is the admin's switch; `ordering` combines it with the stock. Use `ordering` for the button, not `isAvailable`.
-- `quantity` is the product's own limit per order (`max` may be `null`); `ordering.maxQuantity` is that limit capped by the stock.
-- `packSizes` always contains the product itself (`isSelected: true`) and its active sibling pack sizes, smallest first, each with its own `ordering`. Use it for the pack-size chooser; each entry has its own `slug` for the product page.
+- `id` is the product; `variantId`, `sku`, `slug`, `displayName`, `packSize`, `pricing` and `ordering` belong to the pack size the entry shows (the one with `isSelected: true` in `variants`). `name` is the product name without the size; `displayName` is the title of the card.
+- `isAvailable` is the admin's switch for the whole product; `ordering` combines it with the size's own switch and stock. Use `ordering` for the button, not `isAvailable`.
+- `quantity` is the product's own limit per order, the same for every size (`max` may be `null`); `ordering.maxQuantity` is that limit capped by the size's stock.
+- `variants` holds every enabled size, smallest first, the shown one included, each with its own `ordering` (section 7.1). Use it for the size chooser: each entry has its own `slug` for the product page and its own `id` for the cart. `variantCount` is its length. Images, texts, `quantity` and `storageType` are the product's and apply to every size.
 - `storageType` ∈ `ambient`, `chilled`, `frozen`. `category` and `image` can be `null`.
 - Drafts, archived products and products in hidden categories are never returned.
 
@@ -768,7 +808,7 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 
 **Parameters:** the same as `GET /v1/store/products`. `page`, `limit` and `sort` are accepted and ignored.
 
-**Counting rule:** each facet is counted **without its own filter and with all the others**. With `brand=Amul` chosen, `brands` still lists Tata with the number of products that choosing Tata too would add (the values of one facet are "any of"), while `tags`, `packSizes` and the price facets count only among Amul's products. `total` is the number of products with every filter applied, the `total` of the list. With `groupPackSizes=true` (the default) a product with several pack sizes counts once, except in `packSizes`, where each of its sizes counts.
+**Counting rule:** each facet is counted **without its own filter and with all the others**. With `brand=Amul` chosen, `brands` still lists Tata with the number of products that choosing Tata too would add (the values of one facet are "any of"), while `tags`, `packSizes` and the price facets count only among Amul's products. `total` is the number of products with every filter applied, the `total` of the list. A product with several pack sizes counts once, except in `packSizes`, where each of its enabled sizes counts.
 
 **Success Response (200):**
 
@@ -797,26 +837,31 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 ```
 
 - `brands`, `tags`, `storageTypes` and `packSizes` list only values with at least one product, most products first (`packSizes` by unit and size). The values go straight into the `brand`, `tag`, `storageType` and `packSize` parameters; `packSizes[].packSize.label` is the localized text to show.
-- `priceBands` are fixed bands in cents, `min` and `max` inclusive; `max` is `null` for the last band. Pass a band as `minPrice` and `maxPrice`. `price` is the cheapest and the dearest product under the other filters, for a slider, or `null` without products.
-- `onSale` and `orderable` always contain both values. `orderable` is counted by the same rule as the ordering block: switched on, and the stock covers the smallest order. With `groupPackSizes=true` the size that stands for the product decides.
+- `priceBands` are fixed bands in cents, `min` and `max` inclusive; `max` is `null` for the last band. Pass a band as `minPrice` and `maxPrice`. Both use the price of each product's default size, like the `minPrice`/`maxPrice` filter. `price` is the cheapest and the dearest default size under the other filters, for a slider, or `null` without products.
+- `onSale` and `orderable` always contain both values and count by the same rules as the filters: `onSale` when any enabled size is reduced, `orderable` when the product is switched on and any enabled size has the stock for the smallest order.
 
 **Possible Errors:** as for the list.
 
 ### `GET /v1/store/products/{slug}`
 
-**Purpose:** The product page.
+**Purpose:** The product page, opened on one pack size.
 
 **Authentication:** none.
 
-**Parameters:** `slug` (path, either language), `locale` (query, optional).
+**Parameters:**
 
-**Success Response (200):** everything of the list entry plus:
+| Field | Location | Type | Required | Description |
+| ----- | -------- | ---- | -------- | ----------- |
+| `slug` | path | string | yes | The URL of a pack size (`basmati-rice-1kg`: selects that size) or the base slug of the product (`basmati-rice`: selects the default size), in either language. The requested language is tried first, then the other one, so a link still works after the language switch. The URL of a disabled size answers 404. |
+| `locale` | query | `en` \| `de` | no | |
+
+**Success Response (200):** everything of the list entry, shown as the selected size (`isSelected: true` on it in `variants`), plus:
 
 ```json
 {
   "product": {
     "…all list-entry fields…": "",
-    "slugs": { "en": "basmati-rice-5-kg", "de": "basmati-reis-5-kg" },
+    "slugs": { "en": "basmati-rice-1kg", "de": "basmati-reis-1kg" },
     "gtin": "8901234567890",
     "description": "…",
     "highlights": ["Aged 2 years"],
@@ -831,18 +876,20 @@ Products carry no other stock field: `remaining` is the number to use for "only 
       "origin": "India",
       "manufacturer": "…"
     },
-    "seo": { "title": "Basmati Rice 5 kg", "description": "Aged long-grain rice" },
+    "seo": { "title": "Basmati Rice (1 kg)", "description": "Aged long-grain rice" },
     "publishedAt": "2026-09-01T08:00:00.000Z",
     "updatedAt": "2026-09-20T09:30:00.000Z"
   }
 }
 ```
 
-`food.*` texts are free text as the admin typed them (may be `null`). `images` come main image first. `slugs` gives the slug in both languages for the language switch and `hreflang`. `gtin` may be `null`.
+- `slugs` is the URL of the selected size in both languages, for the language switch and `hreflang`. `gtin` is the selected size's and may be `null`.
+- Switching sizes on the page needs no request: every enabled size is in `variants` with its `slug`, `pricing` and `ordering`. Render the chosen size from the same answer and set the URL to its `slug` with the history API.
+- `seo.title` defaults to `displayName`, `seo.description` to `shortDescription`. `food.*` texts are free text as the admin typed them (may be `null`). `images` come main image first. `description`, `highlights`, `uses`, `images`, `food` and `breadcrumbs` are the product's and apply to every size.
 
 **Possible Errors:**
 
-- `404 PRODUCT_NOT_FOUND` – unknown, not active, or in a hidden category.
+- `404 PRODUCT_NOT_FOUND` – unknown slug, product not active or in a hidden category, or the URL of a disabled pack size.
 - `404 NOT_FOUND` – malformed slug.
 
 ---
@@ -851,6 +898,8 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 
 The cart is stored on the server for signed-in customers. Visitors can price a cart without an account (`preview`) and hand it over after signing in (`merge`). Every cart endpoint answers with the same **bill** object. Prices come from the catalogue, never from the browser. The cart is kept through checkout and emptied when the payment is captured.
 
+A cart line is a **pack size**: lines are keyed by `variantId` (the `id` of an entry of `variants` in the catalogue), and two sizes of one product are two lines. A guest cart in the browser stores `variantId` and `quantity` per line.
+
 ### 8.1 The bill (response of every cart endpoint)
 
 ```json
@@ -858,6 +907,7 @@ The cart is stored on the server for signed-in customers. Visitors can price a c
   "canOrder": true,
   "lines": [
     {
+      "variantId": "66f4a0c1e4b0f1a2b3c4d5e7",
       "productId": "66e9f0a1b2c3d4e5f6a7b8c9",
       "quantity": 2,
       "unitPrice": 399,
@@ -866,9 +916,10 @@ The cart is stored on the server for signed-in customers. Visitors can price a c
       "vatAmount": 52,
       "issue": null,
       "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 5, "remaining": 5 },
-      "product": { "…product list entry (section 7)…": "" }
+      "product": { "…product list entry (section 7), this size selected…": "" }
     },
     {
+      "variantId": "66f6a0c1e4b0f1a2b3c4d5e9",
       "productId": "66e9f0a1b2c3d4e5f6a7b8ca",
       "quantity": 1,
       "unitPrice": 999,
@@ -893,14 +944,14 @@ The cart is stored on the server for signed-in customers. Visitors can price a c
 }
 ```
 
-A line whose product left the shop, and the bill of goods at two VAT rates:
+A line whose pack size left the shop, and the bill of goods at two VAT rates:
 
 ```json
 {
   "lines": [
-    { "productId": "66e9f0a1b2c3d4e5f6a7b8ff", "quantity": 1, "unitPrice": 0, "lineTotal": 0, "vatRate": 0, "vatAmount": 0, "issue": "product_not_found", "ordering": null, "product": null },
-    { "productId": "66e9…", "quantity": 2, "unitPrice": 399, "lineTotal": 798, "vatRate": 700, "vatAmount": 52, "issue": null, "ordering": { "…": "" }, "product": { "…": "" } },
-    { "productId": "66ea…", "quantity": 1, "unitPrice": 299, "lineTotal": 299, "vatRate": 1900, "vatAmount": 48, "issue": null, "ordering": { "…": "" }, "product": { "…": "" } }
+    { "variantId": "66f7…", "productId": null, "quantity": 1, "unitPrice": 0, "lineTotal": 0, "vatRate": 0, "vatAmount": 0, "issue": "product_not_found", "ordering": null, "product": null },
+    { "variantId": "66f4…", "productId": "66e9…", "quantity": 2, "unitPrice": 399, "lineTotal": 798, "vatRate": 700, "vatAmount": 52, "issue": null, "ordering": { "…": "" }, "product": { "…": "" } },
+    { "variantId": "66f8…", "productId": "66ea…", "quantity": 1, "unitPrice": 299, "lineTotal": 299, "vatRate": 1900, "vatAmount": 48, "issue": null, "ordering": { "…": "" }, "product": { "…": "" } }
   ],
   "totals": {
     "currency": "EUR", "subtotal": 1097, "deliveryFee": 499, "total": 1596, "netTotal": 1451, "vatTotal": 145,
@@ -915,9 +966,11 @@ A line whose product left the shop, and the bill of goods at two VAT rates:
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `canOrder` | boolean | `true` only when the cart is not empty and **every** line is free of issues. This is the checkout button state. |
-| `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `product_unavailable`, `sold_out` | Why this line cannot be ordered as it is. Show it on the line. `quantity_above_maximum` also means "more than in stock" (`ordering.maxQuantity` is capped by the stock). |
-| `lines[].ordering` | Ordering block or `null` | `null` when the product no longer exists. Inside `lines[].product` the `ordering` field is always `null`; use the line-level one. |
-| `lines[].product` | product entry or `null` | `null` when the product was removed or deactivated (then `unitPrice`, `lineTotal`, `vatRate`, `vatAmount` are `0`). |
+| `lines[].variantId` | ObjectId string | The pack size of the line, as sent. |
+| `lines[].productId` | ObjectId string or `null` | Its product; `null` when the pack size is not in the shop. |
+| `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `product_unavailable`, `sold_out` | Why this line cannot be ordered as it is. Show it on the line. `product_not_found`: the pack size or its product is gone, or the product is no longer active. `product_unavailable`: the product or this size was switched off. `quantity_above_maximum` also means "more than in stock" (`ordering.maxQuantity` is capped by the stock). |
+| `lines[].ordering` | Ordering block or `null` | Of this pack size. `null` when the line is `product_not_found`. Inside `lines[].product` the `ordering` fields (on the entry and in its `variants`) are always `null`; use the line-level one. |
+| `lines[].product` | product entry or `null` | The product list entry (section 7) with this pack size selected: its `displayName`, `packSize`, `pricing` and `image` are the line's. `null` when the line is `product_not_found` (then `unitPrice`, `lineTotal`, `vatRate`, `vatAmount` are `0`). |
 | `totals` | object | Computed over issue-free lines only. `vat[]` is grouped by rate; the delivery fee is shared across the rates in proportion to the net value of the goods. An empty bill has `deliveryFee: 0` and `vat: []`. |
 | `delivery.freeFrom` | int cents or `null` | Goods value from which delivery is free. `missingForFree` = what is still missing (`0` when reached; `null` when there is no free tier). |
 
@@ -932,13 +985,13 @@ A line whose product left the shop, and the bill of goods at two VAT rates:
 **Request Body:**
 
 ```json
-{ "items": [ { "productId": "66e9f0a1b2c3d4e5f6a7b8c9", "quantity": 2 } ] }
+{ "items": [ { "variantId": "66f4a0c1e4b0f1a2b3c4d5e7", "quantity": 2 } ] }
 ```
 
 | Field | Type | Required | Validation |
 | ----- | ---- | -------- | ---------- |
-| `items` | array | yes | 1–100 entries, no duplicate `productId`. |
-| `items[].productId` | ObjectId string | yes | |
+| `items` | array | yes | 1–100 entries, no duplicate `variantId`. |
+| `items[].variantId` | ObjectId string | yes | A pack size (`variants[].id` of a product). |
 | `items[].quantity` | int | yes | 1–10000 |
 
 **Success Response (200):** the bill.
@@ -957,7 +1010,7 @@ A line whose product left the shop, and the bill of goods at two VAT rates:
 
 ### `POST /v1/store/cart/merge`
 
-**Purpose:** After signing in, hand over the cart the visitor filled before. For a product in both carts the larger quantity wins. Unknown or inactive products are dropped silently. Sending the same cart twice changes nothing.
+**Purpose:** After signing in, hand over the cart the visitor filled before. For a pack size in both carts the larger quantity wins. Unknown or disabled pack sizes and sizes of inactive products are dropped silently. Sending the same cart twice changes nothing.
 
 **Authentication:** customer session.
 
@@ -967,13 +1020,13 @@ A line whose product left the shop, and the bill of goods at two VAT rates:
 
 **Possible Errors:** `400 CART_FULL` (`details: { maximum: 100 }`), `400 VALIDATION_FAILED`.
 
-### `PUT /v1/store/cart/items/{productId}`
+### `PUT /v1/store/cart/items/{variantId}`
 
-**Purpose:** Set the quantity of a product (adds it when missing). A quantity the product cannot be ordered in is kept and reported as the line's `issue`.
+**Purpose:** Set the quantity of a pack size (adds it when missing). A quantity the size cannot be ordered in is kept and reported as the line's `issue`.
 
 **Authentication:** customer session.
 
-**Parameters:** `productId` (path, ObjectId), `locale` (query, optional).
+**Parameters:** `variantId` (path, ObjectId: `variants[].id` of a product), `locale` (query, optional).
 
 **Request Body:**
 
@@ -981,19 +1034,19 @@ A line whose product left the shop, and the bill of goods at two VAT rates:
 { "quantity": 2 }
 ```
 
-`quantity`: int 0–10000; `0` removes the product.
+`quantity`: int 0–10000; `0` removes the pack size.
 
 **Success Response (200):** the bill.
 
 **Possible Errors:**
 
-- `404 CART_PRODUCT_NOT_FOUND` – product missing or not active (only when `quantity > 0`).
+- `404 CART_PRODUCT_NOT_FOUND` – no such pack size, the size is disabled, or its product is not active (only when `quantity > 0`).
 - `400 CART_FULL` – the cart already has 100 lines (`details: { maximum: 100 }`).
 - `400 VALIDATION_FAILED`.
 
-### `DELETE /v1/store/cart/items/{productId}`
+### `DELETE /v1/store/cart/items/{variantId}`
 
-**Purpose:** Remove a product. Never fails when the product is not in the cart.
+**Purpose:** Remove a pack size. Never fails when it is not in the cart.
 
 **Authentication:** customer session. **Success Response (200):** the bill.
 
@@ -1069,8 +1122,10 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
   "items": [
     {
       "productId": "66e9f0a1b2c3d4e5f6a7b8c9",
+      "variantId": "66f4a0c1e4b0f1a2b3c4d5e7",
       "sku": "RF-00042",
       "name": "Bhakhri Atta",
+      "displayName": "Bhakhri Atta (1 kg)",
       "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
       "imageUrl": "https://cdn…/small.webp",
       "quantity": 2,
@@ -1086,8 +1141,10 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
     },
     {
       "productId": "66e9f0a1b2c3d4e5f6a7b8ca",
+      "variantId": "66f6a0c1e4b0f1a2b3c4d5e9",
       "sku": "RF-00043",
       "name": "Cow Ghee",
+      "displayName": "Cow Ghee (500 ml)",
       "packSize": { "value": 500, "unit": "ml", "label": "500 ml" },
       "imageUrl": null,
       "quantity": 1,
@@ -1105,7 +1162,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
   "totals": { "currency": "EUR", "subtotal": 1797, "deliveryFee": 499, "total": 2296, "netTotal": 2146, "vatTotal": 150, "vat": [ { "vatRate": 700, "gross": 2296, "net": 2146, "vat": 150 } ] },
   "finalTotals": { "…same shape as totals…": "" },
   "adjustments": [
-    { "productId": "66e9…", "sku": "RF-00042", "from": 2, "to": 1, "reason": "missing", "at": "2026-10-20T09:00:00.000Z" }
+    { "productId": "66e9…", "variantId": "66f4…", "sku": "RF-00042", "from": 2, "to": 1, "reason": "missing", "at": "2026-10-20T09:00:00.000Z" }
   ],
   "deliveryAddress": {
     "firstName": "Anna", "lastName": "Schmidt", "company": "…", "street": "Hauptstraße", "houseNumber": "12a",
@@ -1124,6 +1181,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 ```
 
 - Everything the customer saw at checkout is copied into the order: later changes of prices or addresses do not touch it.
+- An item is one pack size: `variantId` names it (the key for returns, section 12), `name` is the product name, `displayName` the name with the size, `packSize` the size as ordered. `adjustments[]` name the item by `productId`, `variantId` and `sku`.
 - `regularUnitPrice` is the crossed-out price or `null`. `finalLineTotal = (deliveredQuantity − returnedQuantity) × unitPrice`. `totals.vat[]` has no `vatPercent` (derive it: `vatRate / 100`).
 - `adjustments[].reason` ∈ `missing`, `damaged`, `wrong_item`, `customer_complaint`, `other` (corrections of delivered quantities made by Radhe Foods). A correction lowers `finalTotals`, produces a credit note (section 11) and the difference is refunded by Radhe Foods.
 - `deliveryAddress`: `company`, `additionalLine`, `phone` are **absent** when they were not set.
@@ -1194,7 +1252,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 - `409 LEGAL_DOCUMENTS_MISSING` – the shop has no published `terms`/`privacy` yet (`details: { missing: [...] }`).
 - `409 LEGAL_VERSION_CHANGED` – a text was republished since the page loaded, or a version is missing. `details.current` holds the current versions (`{ terms, privacy }`); reload the texts and ask again.
 - `409 CART_EMPTY`.
-- `409 ORDER_ITEMS_NOT_ORDERABLE` – `details.lines[]`: `{ productId, sku, quantity, issue, minQuantity, maxQuantity, remaining }` (`sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`). Show the lines and send the customer back to the cart.
+- `409 ORDER_ITEMS_NOT_ORDERABLE` – `details.lines[]`: `{ productId, variantId, sku, quantity, issue, minQuantity, maxQuantity, remaining }`, one per cart line with an issue (`productId`, `sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`). Show the lines and send the customer back to the cart.
 - `409 ORDER_TOTAL_CHANGED` – `details: { expectedTotal, total, totals }` (`totals` is the new bill's totals). Show the new total and let the customer confirm again.
 - `409 ORDER_NOT_PAYABLE` – the key was sent again for an order that was paid or cancelled meanwhile (`details: { status, paymentStatus }`).
 - `502 PAYMENT_PROVIDER_ERROR` – Stripe could not be reached or returned no page; ask to try again.
@@ -1484,7 +1542,7 @@ The invoice (`INV-2026-000001`) is issued the moment the payment is captured, is
 
 ## 12. Returns
 
-After delivery, within the return window, a customer can ask to send single products back. Radhe Foods decides; once the goods are back the bill goes down (credit note) and Radhe Foods refunds the difference.
+After delivery, within the return window, a customer can ask to send single items back. An item is a pack size of the order, named by its `variantId`. Radhe Foods decides; once the goods are back the bill goes down (credit note) and Radhe Foods refunds the difference.
 
 ### 12.1 Return statuses and reasons
 
@@ -1510,7 +1568,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
   "completedAt": null,
   "items": [
     {
-      "productId": "66e9…", "sku": "RF-00042", "name": "Bhakhri Atta",
+      "productId": "66e9…", "variantId": "66f4…", "sku": "RF-00042", "name": "Bhakhri Atta",
       "packSize": { "value": 1, "unit": "kg", "label": "1 kg" },
       "quantity": 1, "approvedQuantity": null, "unitPrice": 399,
       "reason": "damaged", "comment": "Bag was torn"
@@ -1538,17 +1596,17 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 ```json
 {
   "items": [ { "…return…": "" } ],
-  "returnable": [ { "productId": "66e9…", "sku": "RF-00042", "available": 1 } ]
+  "returnable": [ { "productId": "66e9…", "variantId": "66f4…", "sku": "RF-00042", "available": 1 } ]
 }
 ```
 
-`returnable` has one row per order item; `available` = delivered − returned − units in open requests (can be `0`).
+`returnable` has one row per order item (pack size); `available` = delivered − returned − units in open requests (can be `0`). Send `variantId` in the request below.
 
 **Possible Errors:** `404 ORDER_NOT_FOUND`.
 
 ### `POST /v1/store/orders/{orderNumber}/returns`
 
-**Purpose:** Ask to send products back. Only for a delivered order while `order.returns.possible` is true.
+**Purpose:** Ask to send items back. Only for a delivered order while `order.returns.possible` is true.
 
 **Authentication:** customer session. Rate limit 10 per minute.
 
@@ -1556,7 +1614,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ```json
 {
-  "items": [ { "productId": "66e9…", "quantity": 1, "reason": "damaged", "comment": "Bag was torn" } ],
+  "items": [ { "variantId": "66f4…", "quantity": 1, "reason": "damaged", "comment": "Bag was torn" } ],
   "comment": "Please collect on Monday.",
   "locale": "en"
 }
@@ -1564,8 +1622,8 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 | Field | Type | Required | Validation |
 | ----- | ---- | -------- | ---------- |
-| `items` | array | yes | 1–100, unique `productId`. |
-| `items[].productId` | ObjectId string | yes | A product of the order. |
+| `items` | array | yes | 1–100, unique `variantId`. |
+| `items[].variantId` | ObjectId string | yes | The `variantId` of an item of the order. |
 | `items[].quantity` | int | yes | 1–10000, at most `available`. |
 | `items[].reason` | reason enum | yes | |
 | `items[].comment` | string | no | ≤500 |
@@ -1579,8 +1637,8 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 - `404 ORDER_NOT_FOUND`.
 - `409 RETURN_NOT_POSSIBLE` – order not delivered (`details: { status }`).
 - `409 RETURN_WINDOW_CLOSED` – `details: { until, windowDays }` (also when returns are switched off, `windowDays: 0`).
-- `400 ORDER_ITEM_NOT_FOUND` – `details: { productId }`.
-- `409 RETURN_QUANTITY_INVALID` – more than available: `details: { productId, sku, available }`.
+- `400 ORDER_ITEM_NOT_FOUND` – the order has no item with this `variantId`: `details: { variantId }`.
+- `409 RETURN_QUANTITY_INVALID` – more than available: `details: { variantId, sku, available }`.
 - `409 CONFLICT` – two requests for the same order arrived at the same moment; try again.
 - `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
 
@@ -1618,7 +1676,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ### Cart line issue / ordering reason
 
-`product_unavailable`, `sold_out` (from the ordering rule), plus cart-only `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`.
+`product_unavailable` (the product or the pack size is switched off), `sold_out` (the stock of the pack size does not cover the smallest order), both from the ordering rule and per pack size; plus cart-only `product_not_found` (the pack size or its product is gone, or the product is not active), `quantity_below_minimum`, `quantity_above_maximum`.
 
 ### Delivery methods
 
@@ -1661,12 +1719,12 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 1. `fetch` with `credentials: 'include'`; shop origin in `CORS_ORIGINS`; handle `401` → refresh once → sign-in.
 2. Pass `?locale=` on every store call (or rely on `Accept-Language`).
 3. Layout: `GET /v1/store/settings` for the delivery-fee hint, the delivery estimate and the return window; `GET /v1/store/categories` for navigation.
-4. Catalogue: product pages by slug (either language); `packSizes` for the size chooser; `ordering` for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
-5. Guest cart in local storage → `POST /v1/store/cart/preview` for prices; after sign-in `POST /v1/store/cart/merge`, then the server cart. Show `lines[].issue` per line; the checkout button is `canOrder`.
+4. Catalogue: one list entry per product, shown as one pack size (`displayName` as the title, `pricing.basePrice` next to every price); product pages by the URL of a pack size or the base slug (either language); `variants` for the size chooser (switch from the same answer and set the URL to the chosen `slug` with the history API); `ordering` per size for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
+5. Cart by pack size: `variants[].id` is the `variantId` of `PUT /v1/store/cart/items/{variantId}` and of the `items` of `preview` and `merge`. Guest cart in local storage (`variantId`, `quantity`) → `POST /v1/store/cart/preview` for prices; after sign-in `POST /v1/store/cart/merge`, then the server cart. Show `lines[].issue` per line; the checkout button is `canOrder`.
 6. Checkout page: `GET /v1/store/me/addresses` (address chooser), `GET /v1/store/legal` (consent versions and links), `GET /v1/store/cart` (`canOrder`, `totals.total` → `expectedTotal`), then `POST /v1/store/checkout` with an `Idempotency-Key` and redirect to `checkout.url`; handle `ORDER_TOTAL_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `LEGAL_VERSION_CHANGED`, `CART_EMPTY`, `PAYMENTS_NOT_CONFIGURED`.
 7. The way back from Stripe: `/account/orders/<orderNumber>?payment=success|cancelled` (sign-in required) → `GET …/payment`; poll while a page is still open after `?payment=success`; "Pay now" → `POST …/pay` → redirect.
 8. Order page while `pending_payment`: "Pay now" when `canPayOnline` (the open `payment.checkout.url`, else `POST …/pay`), "Cancel order" (`canCancel`); `?pay=1` from the payment-failed email opens the payment page at once.
-9. Account: orders list/detail (status, `delivery` with the tracking link, `adjustments`, `finalTotal`), cancel when `canCancel`; the `payment` block with `invoice.pdfPath`; invoices and PDFs; returns within `returns.until`.
+9. Account: orders list/detail (status, `delivery` with the tracking link, items with `displayName`, `adjustments`, `finalTotal`), cancel when `canCancel`; the `payment` block with `invoice.pdfPath`; invoices and PDFs; returns within `returns.until`, requested by the item's `variantId`.
 10. Pages without sign-in: `/unsubscribe/<token>` (link in marketing emails); announcement emails also link to `/products/<slug>` (English slug) and the shop root.
 11. Emails the API sends, all linking to `/account/orders/<orderNumber>`: order confirmed (with the invoice PDF), cancelled, dispatched (tracking), delivered (return window), payment failed (`?pay=1`), refund completed, return requested / approved / rejected / completed. Announcements go to customers with `marketingOptIn`.
 12. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.
