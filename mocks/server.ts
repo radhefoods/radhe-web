@@ -82,7 +82,7 @@ import {
   categoryDetail,
   categoryTree,
   customerView,
-  findProduct,
+  findVariant,
   legalDocument,
   legalList,
   listProducts,
@@ -204,11 +204,11 @@ function cartItems(value: unknown, minimum: number): CartItemInput[] {
   }
   const seen = new Set<string>();
   return value.map((entry, index) => {
-    const item = objectBody(entry, ["productId", "quantity"]);
-    if (typeof item.productId !== "string" || !OBJECT_ID.test(item.productId)) {
+    const item = objectBody(entry, ["variantId", "quantity"]);
+    if (typeof item.variantId !== "string" || !OBJECT_ID.test(item.variantId)) {
       throw validationFailed(
-        `items.${index}.productId`,
-        "productId must be an id",
+        `items.${index}.variantId`,
+        "variantId must be an id",
       );
     }
     if (
@@ -222,11 +222,14 @@ function cartItems(value: unknown, minimum: number): CartItemInput[] {
         "quantity must not be less than 1",
       );
     }
-    if (seen.has(item.productId)) {
-      throw validationFailed("items", "items must not contain a product twice");
+    if (seen.has(item.variantId)) {
+      throw validationFailed(
+        "items",
+        "items must not contain a pack size twice",
+      );
     }
-    seen.add(item.productId);
-    return { productId: item.productId, quantity: item.quantity };
+    seen.add(item.variantId);
+    return { variantId: item.variantId, quantity: item.quantity };
   });
 }
 
@@ -621,7 +624,6 @@ const PRODUCT_QUERY_KEYS = [
   "minPrice",
   "maxPrice",
   "sort",
-  "groupPackSizes",
   "page",
   "limit",
 ];
@@ -696,7 +698,6 @@ function productQueryOf(url: URL): ProductQuery {
     minPrice: intParam(url, "minPrice", 0, 1_000_000_000),
     maxPrice: intParam(url, "maxPrice", 0, 1_000_000_000),
     sort: sort as ProductQuery["sort"],
-    groupPackSizes: booleanParam(url, "groupPackSizes"),
     page: intParam(url, "page", 1, 500),
     limit: intParam(url, "limit", 1, 100),
   };
@@ -727,16 +728,19 @@ route("GET", "/v1/store/products/facets", (ctx) => {
   return { body: result };
 });
 
+// The URL of a pack size, or the base slug of a product (its default size).
 route("GET", "/v1/store/products/:slug", (ctx) => {
-  const record = productBySlug(slugParam(ctx));
-  if (!record) {
+  const found = productBySlug(slugParam(ctx));
+  if (!found) {
     throw new HttpError(
       404,
       "PRODUCT_NOT_FOUND",
       "This product does not exist.",
     );
   }
-  return { body: { product: productDetail(record, ctx.locale) } };
+  return {
+    body: { product: productDetail(found.product, found.variant, ctx.locale) },
+  };
 });
 
 // --- 8 Cart -----------------------------------------------------------------
@@ -754,9 +758,10 @@ route("POST", "/v1/store/cart/merge", (ctx) => {
   const customer = requireCustomer(ctx);
   const body = objectBody(ctx.body, ["items"]);
   for (const item of cartItems(body.items, 1)) {
-    // Unknown products are dropped silently; the larger quantity wins.
-    if (!findProduct(item.productId)) continue;
-    const existing = customer.cart.find((i) => i.productId === item.productId);
+    // Unknown or disabled pack sizes are dropped silently; the larger
+    // quantity wins.
+    if (!findVariant(item.variantId)?.variant.isEnabled) continue;
+    const existing = customer.cart.find((i) => i.variantId === item.variantId);
     if (existing)
       existing.quantity = Math.max(existing.quantity, item.quantity);
     else if (customer.cart.length < CART_MAX_LINES)
@@ -765,16 +770,16 @@ route("POST", "/v1/store/cart/merge", (ctx) => {
   return { body: billOf(customer.cart, ctx.locale) };
 });
 
-function productIdParam(ctx: Context): string {
-  if (!OBJECT_ID.test(ctx.params.productId)) {
-    throw validationFailed("productId", "The id in the URL is not valid.");
+function variantIdParam(ctx: Context): string {
+  if (!OBJECT_ID.test(ctx.params.variantId)) {
+    throw validationFailed("variantId", "The id in the URL is not valid.");
   }
-  return ctx.params.productId;
+  return ctx.params.variantId;
 }
 
-route("PUT", "/v1/store/cart/items/:productId", (ctx) => {
+route("PUT", "/v1/store/cart/items/:variantId", (ctx) => {
   const customer = requireCustomer(ctx);
-  const productId = productIdParam(ctx);
+  const variantId = variantIdParam(ctx);
   const body = objectBody(ctx.body, ["quantity"]);
   const quantity = body.quantity;
   if (
@@ -788,14 +793,14 @@ route("PUT", "/v1/store/cart/items/:productId", (ctx) => {
       "quantity must be an integer from 0 to 10000",
     );
   }
-  const existing = customer.cart.find((i) => i.productId === productId);
+  const existing = customer.cart.find((i) => i.variantId === variantId);
   if (quantity === 0) {
-    customer.cart = customer.cart.filter((i) => i.productId !== productId);
-  } else if (!findProduct(productId)) {
+    customer.cart = customer.cart.filter((i) => i.variantId !== variantId);
+  } else if (!findVariant(variantId)?.variant.isEnabled) {
     throw new HttpError(
       404,
       "CART_PRODUCT_NOT_FOUND",
-      "This product does not exist or is not active.",
+      "No such pack size, or it is switched off.",
     );
   } else if (existing) {
     existing.quantity = quantity;
@@ -804,15 +809,15 @@ route("PUT", "/v1/store/cart/items/:productId", (ctx) => {
       maximum: CART_MAX_LINES,
     });
   } else {
-    customer.cart.push({ productId, quantity });
+    customer.cart.push({ variantId, quantity });
   }
   return { body: billOf(customer.cart, ctx.locale) };
 });
 
-route("DELETE", "/v1/store/cart/items/:productId", (ctx) => {
+route("DELETE", "/v1/store/cart/items/:variantId", (ctx) => {
   const customer = requireCustomer(ctx);
-  const productId = productIdParam(ctx);
-  customer.cart = customer.cart.filter((i) => i.productId !== productId);
+  const variantId = variantIdParam(ctx);
+  customer.cart = customer.cart.filter((i) => i.variantId !== variantId);
   return { body: billOf(customer.cart, ctx.locale) };
 });
 
@@ -1065,21 +1070,21 @@ route("GET", "/media/products/:productId/:file", (ctx) => {
   };
 });
 
-// Not part of the real API: the admin sets the stock of a product.
+// Not part of the real API: the admin sets the stock of a pack size.
 route("POST", "/__mock/stock", (ctx) => {
-  const body = objectBody(ctx.body, ["productId", "quantity"]);
-  const product = findProduct(String(body.productId));
+  const body = objectBody(ctx.body, ["variantId", "quantity"]);
+  const found = findVariant(String(body.variantId));
   const quantity = body.quantity;
   if (
-    !product ||
+    !found ||
     typeof quantity !== "number" ||
     !Number.isInteger(quantity) ||
     quantity < 0
   ) {
-    throw validationFailed("productId", "unknown product or quantity");
+    throw validationFailed("variantId", "unknown pack size or quantity");
   }
-  product.stock = quantity;
-  return { body: { productId: product.id, stock: product.stock } };
+  found.variant.stock = quantity;
+  return { body: { variantId: found.variant.id, stock: found.variant.stock } };
 });
 
 // Not part of the real API: a new version of a legal text is published.
@@ -1091,16 +1096,18 @@ route("POST", "/__mock/legal/republish", (ctx) => {
   return { body: { type: document.type, version: document.version } };
 });
 
-// Not part of the real API: the admin changes the price of a product.
+// Not part of the real API: the admin changes the price of a pack size.
 route("POST", "/__mock/price", (ctx) => {
-  const body = objectBody(ctx.body, ["productId", "price"]);
-  const product = findProduct(String(body.productId));
-  if (!product || typeof body.price !== "number") {
-    throw validationFailed("productId", "unknown product or price");
+  const body = objectBody(ctx.body, ["variantId", "price"]);
+  const found = findVariant(String(body.variantId));
+  if (!found || typeof body.price !== "number") {
+    throw validationFailed("variantId", "unknown pack size or price");
   }
-  product.regularPrice = body.price;
-  product.salePrice = null;
-  return { body: { productId: product.id, price: product.regularPrice } };
+  found.variant.regularPrice = body.price;
+  found.variant.salePrice = null;
+  return {
+    body: { variantId: found.variant.id, price: found.variant.regularPrice },
+  };
 });
 
 // Not part of the real API: Radhe Foods blocks or unblocks a customer.

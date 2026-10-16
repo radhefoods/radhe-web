@@ -29,7 +29,7 @@ const daysAgo = (days: number) =>
 /** A checkout of these items: the order waits for its payment. */
 function order(
   customer: CustomerRecord,
-  items: { productId: string; quantity: number }[],
+  items: { variantId: string; quantity: number }[],
   placedDaysAgo: number,
   mockBase: string,
 ): OrderRecord {
@@ -60,7 +60,7 @@ function order(
 /** A checkout paid by card right away: the order is confirmed. */
 function paidOrder(
   customer: CustomerRecord,
-  items: { productId: string; quantity: number }[],
+  items: { variantId: string; quantity: number }[],
   placedDaysAgo: number,
   mockBase: string,
 ): OrderRecord {
@@ -93,9 +93,9 @@ export function seedDemoAccount(
     const delivered = paidOrder(
       customer,
       [
-        { productId: SKU.basmati5kg, quantity: 1 },
-        { productId: SKU.toorDal1kg, quantity: 2 },
-        { productId: SKU.mangoDrink, quantity: 6 },
+        { variantId: SKU.basmati5kg, quantity: 1 },
+        { variantId: SKU.toorDal1kg, quantity: 2 },
+        { variantId: SKU.mangoDrink, quantity: 6 },
       ],
       40,
       mockBase,
@@ -108,7 +108,7 @@ export function seedDemoAccount(
       {
         items: [
           {
-            productId: SKU.mangoDrink,
+            variantId: SKU.mangoDrink,
             quantity: 2,
             reason: "damaged",
             comment: "Two cartons were dented and leaking.",
@@ -122,8 +122,8 @@ export function seedDemoAccount(
     order(
       customer,
       [
-        { productId: SKU.chakkiAtta5kg, quantity: 2 },
-        { productId: SKU.khakhra, quantity: 2 },
+        { variantId: SKU.chakkiAtta5kg, quantity: 2 },
+        { variantId: SKU.khakhra, quantity: 2 },
       ],
       0,
       mockBase,
@@ -132,7 +132,7 @@ export function seedDemoAccount(
     // RF-1087: paid, on its way with a parcel service.
     const onItsWay = paidOrder(
       customer,
-      [{ productId: SKU.basmati1kg, quantity: 3 }],
+      [{ variantId: SKU.basmati1kg, quantity: 3 }],
       9,
       mockBase,
     );
@@ -143,7 +143,7 @@ export function seedDemoAccount(
     // RF-1088: paid, then cancelled by the customer; the money went back.
     const cancelled = paidOrder(
       customer,
-      [{ productId: SKU.toorDal1kg, quantity: 1 }],
+      [{ variantId: SKU.toorDal1kg, quantity: 1 }],
       5,
       mockBase,
     );
@@ -161,8 +161,8 @@ export function seedDemoAccount(
     paidOrder(
       customer,
       [
-        { productId: SKU.chakkiAtta5kg, quantity: 1 },
-        { productId: SKU.basmati5kg, quantity: 1 },
+        { variantId: SKU.chakkiAtta5kg, quantity: 1 },
+        { variantId: SKU.basmati5kg, quantity: 1 },
       ],
       0,
       mockBase,
@@ -171,7 +171,7 @@ export function seedDemoAccount(
     // RF-1090: a product sold out before the payment was captured.
     const gone = order(
       customer,
-      [{ productId: SKU.mangoDrink, quantity: 6 }],
+      [{ variantId: SKU.mangoDrink, quantity: 6 }],
       2,
       mockBase,
     );

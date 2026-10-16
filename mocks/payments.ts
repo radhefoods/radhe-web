@@ -32,7 +32,7 @@ import {
   type Locale,
   type OrderRecord,
 } from "./state.ts";
-import { findProduct, packSize, vatOf } from "./views.ts";
+import { findVariant, packSizeOf, vatOf } from "./views.ts";
 
 /** Online payment "configured": off with `MOCK_STRIPE=off`. */
 export const stripe = { enabled: process.env.MOCK_STRIPE !== "off" };
@@ -95,11 +95,11 @@ export function finalTotalsOf(order: OrderRecord): Totals {
 /** Takes the units of every item off the shelf, or nothing when one is short. */
 function takeStock(order: OrderRecord): boolean {
   const short = order.items.some(
-    (item) => (findProduct(item.productId)?.stock ?? 0) < item.quantity,
+    (item) => (findVariant(item.variantId)?.variant.stock ?? 0) < item.quantity,
   );
   if (short) return false;
   for (const item of order.items) {
-    findProduct(item.productId)!.stock -= item.quantity;
+    findVariant(item.variantId)!.variant.stock -= item.quantity;
   }
   order.payment.stockTaken = true;
   return true;
@@ -109,8 +109,8 @@ function takeStock(order: OrderRecord): boolean {
 export function releaseStock(order: OrderRecord): void {
   if (!order.payment.stockTaken) return;
   for (const item of order.items) {
-    const product = findProduct(item.productId);
-    if (product) product.stock += item.quantity;
+    const found = findVariant(item.variantId);
+    if (found) found.variant.stock += item.quantity;
   }
   order.payment.stockTaken = false;
 }
@@ -388,11 +388,10 @@ function documentFor(
 function linesOf(order: OrderRecord, quantityOf: (index: number) => number) {
   return order.items
     .map((item, index) => {
-      const product = findProduct(item.productId);
       const quantity = quantityOf(index);
-      const size = product ? packSize(product, order.language).label : "";
+      const size = packSizeOf(item.packValue, item.packUnit, order.language);
       return {
-        description: `${item.name[order.language] || item.name.en}${size ? `, ${size}` : ""}`,
+        description: `${item.name[order.language] || item.name.en}, ${size.label}`,
         sku: item.sku,
         quantity,
         unitPrice: item.unitPrice,
@@ -557,10 +556,11 @@ function returnable(order: OrderRecord) {
   return order.items.map((item) => {
     const inRequests = open
       .flatMap((r) => r.items)
-      .filter((i) => i.productId === item.productId)
+      .filter((i) => i.variantId === item.variantId)
       .reduce((sum, i) => sum + (i.approvedQuantity ?? i.quantity), 0);
     return {
       productId: item.productId,
+      variantId: item.variantId,
       sku: item.sku,
       available: Math.max(
         0,
@@ -629,27 +629,27 @@ export function createReturn(
     );
   }
   const available = new Map(
-    returnable(order).map((row) => [row.productId, row]),
+    returnable(order).map((row) => [row.variantId, row]),
   );
   const seen = new Set<string>();
   const items = body.items.map((entry, index) => {
     const item = objectBody(entry, [
-      "productId",
+      "variantId",
       "quantity",
       "reason",
       "comment",
     ]);
-    const productId = item.productId;
-    if (typeof productId !== "string" || !OBJECT_ID.test(productId)) {
+    const variantId = item.variantId;
+    if (typeof variantId !== "string" || !OBJECT_ID.test(variantId)) {
       throw validationFailed(
-        `items.${index}.productId`,
-        "productId must be an id",
+        `items.${index}.variantId`,
+        "variantId must be an id",
       );
     }
-    if (seen.has(productId)) {
+    if (seen.has(variantId)) {
       throw validationFailed("items", "items must not contain a product twice");
     }
-    seen.add(productId);
+    seen.add(variantId);
     const quantity = item.quantity;
     if (
       typeof quantity !== "number" ||
@@ -677,14 +677,14 @@ export function createReturn(
         "comment must be at most 500 characters",
       );
     }
-    const orderItem = order.items.find((i) => i.productId === productId);
-    const row = available.get(productId);
+    const orderItem = order.items.find((i) => i.variantId === variantId);
+    const row = available.get(variantId);
     if (!orderItem || !row) {
       throw new HttpError(
         400,
         "ORDER_ITEM_NOT_FOUND",
         "This product is not part of the order.",
-        { productId },
+        { variantId },
       );
     }
     if (quantity > row.available) {
@@ -692,17 +692,15 @@ export function createReturn(
         409,
         "RETURN_QUANTITY_INVALID",
         "More units than can be returned.",
-        { productId, sku: row.sku, available: row.available },
+        { variantId, sku: row.sku, available: row.available },
       );
     }
-    const product = findProduct(productId);
     return {
-      productId,
+      productId: orderItem.productId,
+      variantId,
       sku: orderItem.sku,
       name: orderItem.name[locale] || orderItem.name.en,
-      packSize: product
-        ? packSize(product, locale)
-        : { value: 1, unit: "pcs" as const, label: "1" },
+      packSize: packSizeOf(orderItem.packValue, orderItem.packUnit, locale),
       quantity,
       approvedQuantity: null,
       unitPrice: orderItem.unitPrice,
@@ -784,7 +782,7 @@ export function decideReturn(
   const before = finalTotalsOf(order).total;
   for (const item of request.items) {
     item.approvedQuantity ??= item.quantity;
-    const orderItem = order.items.find((i) => i.productId === item.productId);
+    const orderItem = order.items.find((i) => i.variantId === item.variantId);
     if (orderItem) orderItem.returnedQuantity += item.approvedQuantity;
   }
   const after = finalTotalsOf(order);
@@ -807,10 +805,10 @@ export function decideReturn(
         quantity: item.approvedQuantity ?? item.quantity,
         unitPrice: item.unitPrice,
         vatRate:
-          order.items.find((i) => i.productId === item.productId)?.vatRate ??
+          order.items.find((i) => i.variantId === item.variantId)?.vatRate ??
           700,
         vatPercent:
-          (order.items.find((i) => i.productId === item.productId)?.vatRate ??
+          (order.items.find((i) => i.variantId === item.variantId)?.vatRate ??
             700) / 100,
         lineTotal: (item.approvedQuantity ?? item.quantity) * item.unitPrice,
       })),

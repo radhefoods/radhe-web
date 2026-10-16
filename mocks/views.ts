@@ -1,7 +1,7 @@
 // Turns the fixture records into the answers of the store API, in the shapes
-// of doc/CUSTOMER_WEB_API_DOCUMENTATION.md. The rules (ordering block, bill,
-// VAT, delivery fee, search) follow the documentation; where it leaves a
-// detail open, the choice made here is noted.
+// of doc/CUSTOMER_WEB_API_DOCUMENTATION.md. The rules (default pack size,
+// ordering block, bill, VAT, delivery fee, search) follow the documentation;
+// where it leaves a detail open, the choice made here is noted.
 
 import type {
   ApiImage,
@@ -16,23 +16,25 @@ import type {
   LegalSummary,
   Ordering,
   PackSize,
-  PackSizeOption,
   Page,
   PriceView,
   ProductDetail,
   ProductFacets,
   ProductQuery,
   ProductSummary,
+  ProductVariant,
   ShopSettings,
   Totals,
   VatGroup,
 } from "../src/lib/api/types.ts";
 import {
+  baseQuantity,
   categories,
   products,
   type CategoryRecord,
   type ProductRecord,
   type Translated,
+  type VariantRecord,
 } from "./data/catalogue.ts";
 import {
   TIMEZONE,
@@ -50,9 +52,21 @@ const pickOrNull = (value: Translated | null, locale: Locale): string | null =>
 
 const productById = new Map(products.map((p) => [p.id, p]));
 const categoryById = new Map(categories.map((c) => [c.id, c]));
+/** A pack size and its product, by the size's id (the `variantId`). */
+const variantById = new Map(
+  products.flatMap((p) =>
+    p.variants.map((v) => [v.id, { product: p, variant: v }] as const),
+  ),
+);
 
 export function findProduct(id: string): ProductRecord | undefined {
   return productById.get(id);
+}
+
+export function findVariant(
+  variantId: string,
+): { product: ProductRecord; variant: VariantRecord } | undefined {
+  return variantById.get(variantId);
 }
 
 // --- Settings and legal texts -----------------------------------------------
@@ -107,28 +121,75 @@ export function legalDocument(
   };
 }
 
-// --- Products ---------------------------------------------------------------
+// --- Pack sizes -------------------------------------------------------------
 
-const UNIT_LABEL: Record<Locale, Record<ProductRecord["packUnit"], string>> = {
+type PackUnit = VariantRecord["packUnit"];
+
+const UNIT_LABEL: Record<Locale, Record<PackUnit, string>> = {
   en: { g: "g", kg: "kg", ml: "ml", l: "l", pcs: "pcs" },
   de: { g: "g", kg: "kg", ml: "ml", l: "l", pcs: "Stk." },
 };
 
-export function packSize(p: ProductRecord, locale: Locale): PackSize {
+/** A pack size with its localized label ("0,5 kg", "6 Stk."). */
+export function packSizeOf(
+  value: number,
+  unit: PackUnit,
+  locale: Locale,
+): PackSize {
   const number = new Intl.NumberFormat(locale === "de" ? "de-DE" : "en-GB", {
     maximumFractionDigits: 3,
-  }).format(p.packValue);
-  return {
-    value: p.packValue,
-    unit: p.packUnit,
-    label: `${number} ${UNIT_LABEL[locale][p.packUnit]}`,
-  };
+  }).format(value);
+  return { value, unit, label: `${number} ${UNIT_LABEL[locale][unit]}` };
 }
 
-function effectivePrice(p: ProductRecord): number {
-  return p.salePrice !== null && p.salePrice < p.regularPrice
-    ? p.salePrice
-    : p.regularPrice;
+export function packSize(v: VariantRecord, locale: Locale): PackSize {
+  return packSizeOf(v.packValue, v.packUnit, locale);
+}
+
+/** The URL part of a pack (doc 7.1): `1kg`, `1-5kg`, `6pcs`, `6stk` in German. */
+function packSlug(v: VariantRecord, locale: Locale): string {
+  const unit = v.packUnit === "pcs" && locale === "de" ? "stk" : v.packUnit;
+  return `${String(v.packValue).replace(".", "-")}${unit}`;
+}
+
+/** The URL of a pack size: the base slug of the product plus the pack. */
+export function variantSlug(
+  p: ProductRecord,
+  v: VariantRecord,
+  locale: Locale,
+): string {
+  return `${pick(p.slug, locale)}-${packSlug(v, locale)}`;
+}
+
+/** "Basmati Rice (1 kg)": the name of the product with the pack label. */
+export function displayNameOf(
+  p: ProductRecord,
+  v: VariantRecord,
+  locale: Locale,
+): string {
+  return `${pick(p.name, locale)} (${packSize(v, locale).label})`;
+}
+
+export function enabledVariants(p: ProductRecord): VariantRecord[] {
+  return p.variants.filter((v) => v.isEnabled);
+}
+
+/**
+ * The size that stands for the product (doc 7): the smallest enabled size
+ * whose stock covers the smallest order, else the smallest enabled one,
+ * else the smallest. Never the cheapest.
+ */
+export function defaultVariant(p: ProductRecord): VariantRecord {
+  const enabled = enabledVariants(p);
+  return (
+    enabled.find((v) => v.stock >= p.minQuantity) ?? enabled[0] ?? p.variants[0]
+  );
+}
+
+function effectivePrice(v: VariantRecord): number {
+  return v.salePrice !== null && v.salePrice < v.regularPrice
+    ? v.salePrice
+    : v.regularPrice;
 }
 
 /** VAT inside a gross amount: `round(gross × rate / (10000 + rate))`. */
@@ -136,30 +197,30 @@ export function vatOf(gross: number, vatRate: number): number {
   return Math.round((gross * vatRate) / (10_000 + vatRate));
 }
 
-function priceView(p: ProductRecord): PriceView {
-  const price = effectivePrice(p);
-  const onSale = price < p.regularPrice;
+function priceView(p: ProductRecord, v: VariantRecord): PriceView {
+  const price = effectivePrice(v);
+  const onSale = price < v.regularPrice;
   // The price per kilogram, litre or piece (German price-indication rule).
   const per =
-    p.packUnit === "g" || p.packUnit === "kg"
+    v.packUnit === "g" || v.packUnit === "kg"
       ? "kg"
-      : p.packUnit === "ml" || p.packUnit === "l"
+      : v.packUnit === "ml" || v.packUnit === "l"
         ? "l"
         : "pcs";
   const amountInBase =
-    p.packUnit === "g" || p.packUnit === "ml"
-      ? p.packValue / 1000
-      : p.packValue;
+    v.packUnit === "g" || v.packUnit === "ml"
+      ? v.packValue / 1000
+      : v.packValue;
   return {
     currency: "EUR",
     price,
-    regularPrice: p.regularPrice,
+    regularPrice: v.regularPrice,
     salePrice: onSale ? price : null,
     onSale,
     discountPercent: onSale
-      ? Math.floor(((p.regularPrice - price) * 100) / p.regularPrice)
+      ? Math.floor(((v.regularPrice - price) * 100) / v.regularPrice)
       : 0,
-    discountAmount: p.regularPrice - price,
+    discountAmount: v.regularPrice - price,
     vatIncluded: true,
     vatRate: p.vatRate,
     vatPercent: p.vatRate / 100,
@@ -167,6 +228,46 @@ function priceView(p: ProductRecord): PriceView {
     basePrice: { amount: Math.round(price / amountInBase), per },
   };
 }
+
+/**
+ * Whether a pack size can be ordered right now (doc 7.1): the product and
+ * the size are switched on, and the stock of the size covers the smallest
+ * order. `maxQuantity` is the product's limit per order capped by the size's
+ * stock, 0 when sold out. Nothing is reserved before a payment, so
+ * `remaining` is what everyone sees.
+ */
+export function orderingOf(p: ProductRecord, v: VariantRecord): Ordering {
+  const remaining = v.stock;
+  const cap =
+    p.maxQuantity === null ? remaining : Math.min(p.maxQuantity, remaining);
+  if (!p.isAvailable || !v.isEnabled) {
+    return {
+      canOrder: false,
+      reason: "product_unavailable",
+      minQuantity: p.minQuantity,
+      maxQuantity: cap,
+      remaining,
+    };
+  }
+  if (remaining < p.minQuantity) {
+    return {
+      canOrder: false,
+      reason: "sold_out",
+      minQuantity: p.minQuantity,
+      maxQuantity: 0,
+      remaining,
+    };
+  }
+  return {
+    canOrder: true,
+    reason: null,
+    minQuantity: p.minQuantity,
+    maxQuantity: cap,
+    remaining,
+  };
+}
+
+// --- Products ---------------------------------------------------------------
 
 /** The address of the mock itself, for the placeholder pictures. */
 let mediaBase = "http://localhost:3000";
@@ -198,88 +299,48 @@ function imageView(p: ProductRecord, locale: Locale): ApiImage {
   };
 }
 
-/** Whether, and how much of, a product can be ordered right now (doc 7.1). */
-/**
- * Whether a product can be ordered right now (doc 7.1): switched on by the
- * admin, and the stock covers the smallest order. `maxQuantity` is the
- * product's limit per order capped by the stock, 0 when sold out. Nothing
- * is reserved before a payment, so `remaining` is what everyone sees.
- */
-export function orderingOf(p: ProductRecord): Ordering {
-  const remaining = p.stock;
-  const cap =
-    p.maxQuantity === null ? remaining : Math.min(p.maxQuantity, remaining);
-  if (!p.isAvailable) {
-    return {
-      canOrder: false,
-      reason: "product_unavailable",
-      minQuantity: p.minQuantity,
-      maxQuantity: cap,
-      remaining,
-    };
-  }
-  if (remaining < p.minQuantity) {
-    return {
-      canOrder: false,
-      reason: "sold_out",
-      minQuantity: p.minQuantity,
-      maxQuantity: 0,
-      remaining,
-    };
-  }
+function variantView(
+  p: ProductRecord,
+  v: VariantRecord,
+  locale: Locale,
+  selected: VariantRecord,
+  withOrdering: boolean,
+): ProductVariant {
   return {
-    canOrder: true,
-    reason: null,
-    minQuantity: p.minQuantity,
-    maxQuantity: cap,
-    remaining,
+    id: v.id,
+    sku: v.sku,
+    slug: variantSlug(p, v, locale),
+    packSize: packSize(v, locale),
+    displayName: displayNameOf(p, v, locale),
+    pricing: priceView(p, v),
+    ordering: withOrdering ? orderingOf(p, v) : null,
+    isDefault: v.id === defaultVariant(p).id,
+    isSelected: v.id === selected.id,
   };
 }
 
-function siblingsOf(p: ProductRecord): ProductRecord[] {
-  return products
-    .filter((other) => other.group === p.group)
-    .sort((a, b) => baseAmount(a) - baseAmount(b));
-}
-
-function baseAmount(p: ProductRecord): number {
-  return p.packUnit === "g" || p.packUnit === "ml"
-    ? p.packValue / 1000
-    : p.packValue;
-}
-
-function packSizeOptions(
-  p: ProductRecord,
-  locale: Locale,
-  withOrdering: boolean,
-): PackSizeOption[] {
-  return siblingsOf(p).map((size) => ({
-    id: size.id,
-    sku: size.sku,
-    slug: pick(size.slug, locale),
-    packSize: packSize(size, locale),
-    pricing: priceView(size),
-    isAvailable: size.isAvailable,
-    quantity: { min: size.minQuantity, max: size.maxQuantity },
-    ordering: withOrdering ? orderingOf(size) : null,
-    image: imageView(size, locale),
-    isDefault: size.isDefaultSize,
-    isSelected: size.id === p.id,
-  }));
-}
-
+/**
+ * The list entry of a product (doc 7): the product shown as one of its pack
+ * sizes, the default one unless another is asked for.
+ */
 export function productSummary(
   p: ProductRecord,
   locale: Locale,
-  options: { withOrdering?: boolean } = {},
+  options: { selected?: VariantRecord; withOrdering?: boolean } = {},
 ): ProductSummary {
+  const selected = options.selected ?? defaultVariant(p);
   const withOrdering = options.withOrdering ?? true;
   const category = categoryById.get(p.categoryId);
+  const variants = enabledVariants(p).map((v) =>
+    variantView(p, v, locale, selected, withOrdering),
+  );
   return {
     id: p.id,
-    sku: p.sku,
-    slug: pick(p.slug, locale),
+    variantId: selected.id,
+    sku: selected.sku,
+    slug: variantSlug(p, selected, locale),
     name: pick(p.name, locale),
+    displayName: displayNameOf(p, selected, locale),
     subtitle: pickOrNull(p.subtitle, locale),
     shortDescription: pickOrNull(p.shortDescription, locale),
     brand: p.brand,
@@ -290,16 +351,17 @@ export function productSummary(
           name: pick(category.name, locale),
         }
       : null,
-    packSize: packSize(p, locale),
-    pricing: priceView(p),
+    packSize: packSize(selected, locale),
+    pricing: priceView(p, selected),
     isAvailable: p.isAvailable,
     isFeatured: p.isFeatured,
     quantity: { min: p.minQuantity, max: p.maxQuantity },
-    ordering: withOrdering ? orderingOf(p) : null,
+    ordering: withOrdering ? orderingOf(p, selected) : null,
     storageType: p.storageType,
     tags: p.tags,
     image: imageView(p, locale),
-    packSizes: packSizeOptions(p, locale, withOrdering),
+    variants,
+    variantCount: variants.length,
   };
 }
 
@@ -322,11 +384,17 @@ function breadcrumbsOf(category: CategoryRecord | undefined, locale: Locale) {
   }));
 }
 
-export function productDetail(p: ProductRecord, locale: Locale): ProductDetail {
+/** The product page, opened on one pack size (doc 7). */
+export function productDetail(
+  p: ProductRecord,
+  v: VariantRecord,
+  locale: Locale,
+): ProductDetail {
+  const summary = productSummary(p, locale, { selected: v });
   return {
-    ...productSummary(p, locale),
-    slugs: { en: p.slug.en, de: p.slug.de },
-    gtin: p.gtin,
+    ...summary,
+    slugs: { en: variantSlug(p, v, "en"), de: variantSlug(p, v, "de") },
+    gtin: v.gtin,
     description: pickOrNull(p.description, locale),
     highlights: p.highlights.map((h) => pick(h, locale)),
     uses: p.uses.map((u) => pick(u, locale)),
@@ -341,7 +409,7 @@ export function productDetail(p: ProductRecord, locale: Locale): ProductDetail {
       manufacturer: p.food.manufacturer,
     },
     seo: {
-      title: `${pick(p.name, locale)} ${packSize(p, locale).label}`,
+      title: summary.displayName,
       description: pickOrNull(p.shortDescription, locale),
     },
     publishedAt: p.publishedAt,
@@ -349,8 +417,28 @@ export function productDetail(p: ProductRecord, locale: Locale): ProductDetail {
   };
 }
 
-export function productBySlug(slug: string): ProductRecord | undefined {
-  return products.find((p) => p.slug.en === slug || p.slug.de === slug);
+/**
+ * The product and the pack size a URL names (doc 7): the URL of a size in
+ * either language, or the base slug of the product, which selects the default
+ * size. The URL of a disabled size answers nothing, like the API's 404.
+ */
+export function productBySlug(
+  slug: string,
+): { product: ProductRecord; variant: VariantRecord } | undefined {
+  for (const product of products) {
+    for (const variant of product.variants) {
+      if (
+        variantSlug(product, variant, "en") === slug ||
+        variantSlug(product, variant, "de") === slug
+      ) {
+        return variant.isEnabled ? { product, variant } : undefined;
+      }
+    }
+    if (product.slug.en === slug || product.slug.de === slug) {
+      return { product, variant: defaultVariant(product) };
+    }
+  }
+  return undefined;
 }
 
 // --- Categories -------------------------------------------------------------
@@ -423,7 +511,7 @@ function matchesSearch(p: ProductRecord, q: string, locale: Locale): boolean {
       pick(p.name, locale),
       p.name.en,
       p.subtitle ? pick(p.subtitle, locale) : "",
-      p.sku,
+      ...p.variants.map((v) => v.sku),
       p.brand ?? "",
       ...p.tags,
       ...p.keywords,
@@ -436,10 +524,15 @@ function matchesSearch(p: ProductRecord, q: string, locale: Locale): boolean {
     .every((word) => haystack.some((h) => h.startsWith(word)));
 }
 
-const PACK_KEY = (p: ProductRecord): string => `${p.packValue}${p.packUnit}`;
+/** The value of the `packSize` parameter for a size: `500g`, `1kg`. */
+const PACK_KEY = (v: VariantRecord): string => `${v.packValue}${v.packUnit}`;
+
+const isOnSale = (p: ProductRecord, v: VariantRecord) => priceView(p, v).onSale;
+const isOrderable = (p: ProductRecord, v: VariantRecord) =>
+  orderingOf(p, v).canOrder;
 
 /** The filters of a list, without its paging and sorting. */
-type Filters = Omit<ProductQuery, "sort" | "page" | "limit" | "groupPackSizes">;
+type Filters = Omit<ProductQuery, "sort" | "page" | "limit">;
 /** A facet is counted without its own filter: the one to leave out. */
 type Skipped =
   | "tag"
@@ -450,7 +543,12 @@ type Skipped =
   | "orderable"
   | "price";
 
-/** Every pack-size record that passes the filters, in catalogue order. */
+/**
+ * Every product that passes the filters, in catalogue order (doc 7). A size
+ * filter matches when one enabled size matches; the offer and the ordering
+ * filters when some enabled size is reduced or can be ordered; the price
+ * filters use the default size.
+ */
 function filterRecords(
   query: Filters,
   locale: Locale,
@@ -481,43 +579,51 @@ function filterRecords(
   }
   if (on("packSize") && query.packSize?.length) {
     const sizes = query.packSize;
-    list = list.filter((p) => sizes.includes(PACK_KEY(p)));
+    list = list.filter((p) =>
+      enabledVariants(p).some((v) => sizes.includes(PACK_KEY(v))),
+    );
   }
   if (on("onSale") && query.onSale !== undefined) {
-    list = list.filter((p) => priceView(p).onSale === query.onSale);
+    list = list.filter(
+      (p) => enabledVariants(p).some((v) => isOnSale(p, v)) === query.onSale,
+    );
   }
   if (query.available !== undefined) {
     list = list.filter((p) => p.isAvailable === query.available);
   }
   if (on("orderable") && query.orderable !== undefined) {
-    list = list.filter((p) => orderingOf(p).canOrder === query.orderable);
+    list = list.filter(
+      (p) =>
+        enabledVariants(p).some((v) => isOrderable(p, v)) === query.orderable,
+    );
   }
   if (query.featured !== undefined) {
     list = list.filter((p) => p.isFeatured === query.featured);
   }
   if (on("price") && query.minPrice !== undefined) {
-    list = list.filter((p) => effectivePrice(p) >= query.minPrice!);
+    list = list.filter(
+      (p) => effectivePrice(defaultVariant(p)) >= query.minPrice!,
+    );
   }
   if (on("price") && query.maxPrice !== undefined) {
-    list = list.filter((p) => effectivePrice(p) <= query.maxPrice!);
+    list = list.filter(
+      (p) => effectivePrice(defaultVariant(p)) <= query.maxPrice!,
+    );
   }
   return list;
 }
 
 /**
- * A product with several pack sizes appears once: its default size when
- * that one passed the filters, otherwise the first size that did (so a
- * pack-size filter shows the matching size).
+ * The size a list entry shows: the default size, or, with a pack-size
+ * filter, the smallest enabled size that was asked for.
  */
-function groupRecords(list: ProductRecord[]): ProductRecord[] {
-  const byGroup = new Map<string, ProductRecord>();
-  for (const p of list) {
-    const chosen = byGroup.get(p.group);
-    if (!chosen || (p.isDefaultSize && !chosen.isDefaultSize)) {
-      byGroup.set(p.group, p);
-    }
+function shownVariant(p: ProductRecord, query: Filters): VariantRecord {
+  if (query.packSize?.length) {
+    const sizes = query.packSize;
+    const match = enabledVariants(p).find((v) => sizes.includes(PACK_KEY(v)));
+    if (match) return match;
   }
-  return [...byGroup.values()];
+  return defaultVariant(p);
 }
 
 export function listProducts(
@@ -526,11 +632,13 @@ export function listProducts(
 ): Page<ProductSummary> | { error: "CATEGORY_NOT_FOUND" } {
   const records = filterRecords(query, locale);
   if ("error" in records) return records;
-  let list = records;
-  if (query.groupPackSizes ?? true) list = groupRecords(list);
+  const list = [...records];
 
   const byName = (a: ProductRecord, b: ProductRecord) =>
     pick(a.name, locale).localeCompare(pick(b.name, locale), locale);
+  const price = (p: ProductRecord) => effectivePrice(defaultVariant(p));
+  const discount = (p: ProductRecord) =>
+    priceView(p, defaultVariant(p)).discountPercent;
   const sorters: Record<
     string,
     (a: ProductRecord, b: ProductRecord) => number
@@ -538,11 +646,9 @@ export function listProducts(
     recommended: (a, b) =>
       Number(b.isFeatured) - Number(a.isFeatured) || a.sortOrder - b.sortOrder,
     newest: (a, b) => b.publishedAt.localeCompare(a.publishedAt),
-    price_asc: (a, b) => effectivePrice(a) - effectivePrice(b),
-    price_desc: (a, b) => effectivePrice(b) - effectivePrice(a),
-    discount: (a, b) =>
-      priceView(b).discountPercent - priceView(a).discountPercent ||
-      a.sortOrder - b.sortOrder,
+    price_asc: (a, b) => price(a) - price(b),
+    price_desc: (a, b) => price(b) - price(a),
+    discount: (a, b) => discount(b) - discount(a) || a.sortOrder - b.sortOrder,
     name: byName,
   };
   list.sort(sorters[query.sort ?? "recommended"]);
@@ -553,7 +659,9 @@ export function listProducts(
   return {
     items: list
       .slice((page - 1) * limit, page * limit)
-      .map((p) => productSummary(p, locale)),
+      .map((p) =>
+        productSummary(p, locale, { selected: shownVariant(p, query) }),
+      ),
     page,
     limit,
     total,
@@ -570,7 +678,7 @@ const PRICE_BANDS: [number, number | null][] = [
   [2000, 4999],
   [5000, null],
 ];
-const UNIT_RANK: Record<ProductRecord["packUnit"], number> = {
+const UNIT_RANK: Record<PackUnit, number> = {
   g: 0,
   kg: 0,
   ml: 1,
@@ -578,13 +686,13 @@ const UNIT_RANK: Record<ProductRecord["packUnit"], number> = {
   pcs: 2,
 };
 
-/** Counts per value over the products (one per group), most first. */
+/** Counts per value over the products, most first. */
 function countBy<T extends string>(
   list: ProductRecord[],
   valuesOf: (p: ProductRecord) => T[],
 ): { value: T; count: number }[] {
   const counts = new Map<T, number>();
-  for (const p of groupRecords(list)) {
+  for (const p of list) {
     for (const value of valuesOf(p)) {
       counts.set(value, (counts.get(value) ?? 0) + 1);
     }
@@ -594,19 +702,12 @@ function countBy<T extends string>(
     .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
 }
 
-/** How many products have a pack size that passes the test. */
-function productsWhere(
-  list: ProductRecord[],
-  test: (p: ProductRecord) => boolean,
-): number {
-  return new Set(list.filter(test).map((p) => p.group)).size;
-}
-
 /**
  * The counts behind the filters (doc `GET /v1/store/products/facets`): each
  * facet without its own filter and with all the others, so a count is what
- * the list would show with that value chosen. A product with several pack
- * sizes counts once, except in `packSizes`.
+ * the list would show with that value chosen. A product counts once, except
+ * in `packSizes`, where each of its enabled sizes counts; the price facets
+ * use the default size, like the price filter.
  */
 export function productFacets(
   query: Filters,
@@ -622,48 +723,53 @@ export function productFacets(
     list: ProductRecord[],
     test: (p: ProductRecord) => boolean,
   ): { value: boolean; count: number }[] => [
-    { value: true, count: productsWhere(list, test) },
-    { value: false, count: productsWhere(list, (p) => !test(p)) },
+    { value: true, count: list.filter(test).length },
+    { value: false, count: list.filter((p) => !test(p)).length },
   ];
 
-  const sizes = new Map<string, { record: ProductRecord; count: number }>();
+  const sizes = new Map<string, { sample: VariantRecord; count: number }>();
   for (const p of without("packSize")) {
-    const key = PACK_KEY(p);
-    const entry = sizes.get(key);
-    if (entry) entry.count += 1;
-    else sizes.set(key, { record: p, count: 1 });
+    for (const v of enabledVariants(p)) {
+      const key = PACK_KEY(v);
+      const entry = sizes.get(key);
+      if (entry) entry.count += 1;
+      else sizes.set(key, { sample: v, count: 1 });
+    }
   }
   const priced = without("price");
-  const prices = priced.map(effectivePrice);
+  const prices = priced.map((p) => effectivePrice(defaultVariant(p)));
 
   return {
-    total: groupRecords(all).length,
+    total: all.length,
     brands: countBy(without("brand"), (p) => (p.brand ? [p.brand] : [])),
     tags: countBy(without("tag"), (p) => p.tags),
     storageTypes: countBy(without("storageType"), (p) => [p.storageType]),
     packSizes: [...sizes]
-      .map(([value, { record, count }]) => ({
+      .map(([value, { sample, count }]) => ({
         value,
-        packSize: packSize(record, locale),
+        packSize: packSize(sample, locale),
         count,
-        rank: UNIT_RANK[record.packUnit],
-        amount: baseAmount(record),
+        rank: UNIT_RANK[sample.packUnit],
+        amount: baseQuantity(sample.packValue, sample.packUnit),
       }))
       .sort((a, b) => a.rank - b.rank || a.amount - b.amount)
       .map(({ value, packSize, count }) => ({ value, packSize, count })),
     priceBands: PRICE_BANDS.map(([min, max]) => ({
       min,
       max,
-      count: productsWhere(priced, (p) => {
-        const price = effectivePrice(p);
-        return price >= min && (max === null || price <= max);
-      }),
+      count: prices.filter(
+        (price) => price >= min && (max === null || price <= max),
+      ).length,
     })),
     price: prices.length
       ? { min: Math.min(...prices), max: Math.max(...prices) }
       : null,
-    onSale: flag(without("onSale"), (p) => priceView(p).onSale),
-    orderable: flag(without("orderable"), (p) => orderingOf(p).canOrder),
+    onSale: flag(without("onSale"), (p) =>
+      enabledVariants(p).some((v) => isOnSale(p, v)),
+    ),
+    orderable: flag(without("orderable"), (p) =>
+      enabledVariants(p).some((v) => isOrderable(p, v)),
+    ),
   };
 }
 
@@ -723,11 +829,13 @@ function totalsOf(lines: BillLine[]): Totals {
   };
 }
 
+/** A cart line is one pack size (doc 8). */
 function lineOf(item: CartItemInput, locale: Locale): BillLine {
-  const p = findProduct(item.productId);
-  if (!p) {
+  const found = findVariant(item.variantId);
+  if (!found) {
     return {
-      productId: item.productId,
+      variantId: item.variantId,
+      productId: null,
       quantity: item.quantity,
       unitPrice: 0,
       lineTotal: 0,
@@ -738,20 +846,19 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
       product: null,
     };
   }
-  const ordering = orderingOf(p);
+  const { product: p, variant: v } = found;
+  const ordering = orderingOf(p, v);
   let issue: CartLineIssue | null = null;
   if (!ordering.canOrder) issue = ordering.reason;
   else if (item.quantity < ordering.minQuantity)
     issue = "quantity_below_minimum";
-  else if (
-    ordering.maxQuantity !== null &&
-    item.quantity > ordering.maxQuantity
-  ) {
+  else if (item.quantity > ordering.maxQuantity) {
     issue = "quantity_above_maximum";
   }
-  const unitPrice = effectivePrice(p);
+  const unitPrice = effectivePrice(v);
   const lineTotal = unitPrice * item.quantity;
   return {
+    variantId: v.id,
     productId: p.id,
     quantity: item.quantity,
     unitPrice,
@@ -760,8 +867,8 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
     vatAmount: vatOf(lineTotal, p.vatRate),
     issue,
     ordering,
-    // Inside a line the product's own `ordering` is always null.
-    product: productSummary(p, locale, { withOrdering: false }),
+    // Inside a line the product's own `ordering` fields are always null.
+    product: productSummary(p, locale, { selected: v, withOrdering: false }),
   };
 }
 

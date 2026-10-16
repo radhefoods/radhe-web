@@ -34,15 +34,19 @@ import {
   returnsInfo,
   stripe,
 } from "./payments.ts";
-import { billOf, findProduct, packSize, productImageUrl } from "./views.ts";
+import { billOf, findVariant, packSizeOf, productImageUrl } from "./views.ts";
 
 const ADDRESS_LIMIT = 10;
 
 // --- Fixtures that orders and tests change, and how to restore them ----------
 
-const initialStock = new Map(products.map((p) => [p.id, p.stock]));
+const initialStock = new Map(
+  products.flatMap((p) => p.variants.map((v) => [v.id, v.stock] as const)),
+);
 const initialPrices = new Map(
-  products.map((p) => [p.id, [p.regularPrice, p.salePrice] as const]),
+  products.flatMap((p) =>
+    p.variants.map((v) => [v.id, [v.regularPrice, v.salePrice] as const]),
+  ),
 );
 const initialLegalVersions = new Map(
   legalDocuments.map((document) => [document.type, document.version]),
@@ -51,10 +55,12 @@ const initialLegalVersions = new Map(
 /** Back to the fixtures as they were at start (`POST /__mock/reset`). */
 export function resetFixtures(): void {
   for (const p of products) {
-    const [regular, sale] = initialPrices.get(p.id)!;
-    p.regularPrice = regular;
-    p.salePrice = sale;
-    p.stock = initialStock.get(p.id) ?? p.stock;
+    for (const v of p.variants) {
+      const [regular, sale] = initialPrices.get(v.id)!;
+      v.regularPrice = regular;
+      v.salePrice = sale;
+      v.stock = initialStock.get(v.id) ?? v.stock;
+    }
   }
   for (const document of legalDocuments) {
     document.version = initialLegalVersions.get(document.type)!;
@@ -291,17 +297,18 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
     ...summaryOf(order, locale),
     language: order.language,
     items: order.items.map((item) => {
-      const product = findProduct(item.productId);
       const kept = delivered
         ? item.deliveredQuantity - item.returnedQuantity
         : item.quantity;
+      const name = item.name[locale] || item.name.en;
+      const size = packSizeOf(item.packValue, item.packUnit, locale);
       return {
         productId: item.productId,
+        variantId: item.variantId,
         sku: item.sku,
-        name: item.name[locale] || item.name.en,
-        packSize: product
-          ? packSize(product, locale)
-          : { value: 1, unit: "pcs", label: "1" },
+        name,
+        displayName: `${name} (${size.label})`,
+        packSize: size,
         imageUrl: productImageUrl(item.productId, "small"),
         quantity: item.quantity,
         unitPrice: item.unitPrice,
@@ -490,6 +497,7 @@ export function checkout(
       {
         lines: issues.map((line) => ({
           productId: line.productId,
+          variantId: line.variantId,
           sku: line.product?.sku ?? null,
           quantity: line.quantity,
           issue: line.issue,
@@ -533,15 +541,18 @@ export function checkout(
     placedAt: now,
     language: (body.language as Locale | undefined) ?? customer.locale,
     items: bill.lines.map((line) => {
-      const product = findProduct(line.productId)!;
+      const { product, variant } = findVariant(line.variantId)!;
       return {
         productId: product.id,
-        sku: product.sku,
+        variantId: variant.id,
+        sku: variant.sku,
         name: product.name,
+        packValue: variant.packValue,
+        packUnit: variant.packUnit,
         quantity: line.quantity,
         unitPrice: line.unitPrice,
         regularUnitPrice:
-          line.unitPrice < product.regularPrice ? product.regularPrice : null,
+          line.unitPrice < variant.regularPrice ? variant.regularPrice : null,
         lineTotal: line.lineTotal,
         vatRate: line.vatRate,
         vatAmount: line.vatAmount,

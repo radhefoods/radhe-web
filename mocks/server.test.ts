@@ -92,20 +92,27 @@ describe("catalogue", () => {
     expect(en.items[0].children.map((c) => c.slug)).toContain("basmati-rice");
   });
 
-  it("groups pack sizes into one entry with a size chooser", async () => {
+  it("shows a product as its default size, with every size to choose from", async () => {
     const page = await guestApi().listProducts(
       { q: "basmati" },
       { locale: "en" },
     );
     expect(page.total).toBe(1);
     const [rice] = page.items;
-    expect(rice.packSize.label).toBe("5 kg");
-    expect(rice.packSizes.map((s) => s.packSize.label)).toEqual([
+    // The smallest enabled size in stock stands for the product.
+    expect(rice.packSize.label).toBe("1 kg");
+    expect(rice.slug).toBe("basmati-rice-1kg");
+    expect(rice.displayName).toBe("Basmati Rice (1 kg)");
+    expect(rice.variantCount).toBe(2);
+    expect(rice.variants.map((v) => v.packSize.label)).toEqual([
       "1 kg",
       "5 kg",
     ]);
-    expect(rice.packSizes.find((s) => s.isSelected)?.slug).toBe(rice.slug);
-    expect(rice.pricing).toMatchObject({
+    expect(rice.variants.find((v) => v.isSelected)?.id).toBe(rice.variantId);
+    expect(rice.variants.find((v) => v.isDefault)?.slug).toBe(rice.slug);
+    const big = rice.variants[1];
+    expect(big.displayName).toBe("Basmati Rice (5 kg)");
+    expect(big.pricing).toMatchObject({
       price: 1999,
       regularPrice: 2499,
       onSale: true,
@@ -114,12 +121,23 @@ describe("catalogue", () => {
     });
   });
 
-  it("lists every pack size when grouping is off", async () => {
-    const page = await guestApi().listProducts({
-      q: "basmati",
-      groupPackSizes: false,
+  it("opens a product on the URL of a size or on its base slug", async () => {
+    const api = guestApi();
+    const big = await api.getProduct("basmati-rice-5kg");
+    expect(big.product.displayName).toBe("Basmati Rice (5 kg)");
+    expect(big.product.slugs).toEqual({
+      en: "basmati-rice-5kg",
+      de: "basmati-reis-5kg",
     });
-    expect(page.total).toBe(2);
+    expect(big.product.variants.find((v) => v.isSelected)?.slug).toBe(
+      "basmati-rice-5kg",
+    );
+    expect(big.product.seo.title).toBe("Basmati Rice (5 kg)");
+    const base = await api.getProduct("basmati-rice");
+    expect(base.product.slug).toBe("basmati-rice-1kg");
+    expect(base.product.variants.find((v) => v.isSelected)?.isDefault).toBe(
+      true,
+    );
   });
 
   it("finds products by word beginnings, with umlauts folded", async () => {
@@ -142,11 +160,11 @@ describe("catalogue", () => {
 
   it("finds a product by its slug in either language", async () => {
     const api = guestApi();
-    const viaGerman = await api.getProduct("basmati-reis-5-kg", {
+    const viaGerman = await api.getProduct("basmati-reis-5kg", {
       locale: "en",
     });
-    expect(viaGerman.product.slug).toBe("basmati-rice-5-kg");
-    expect(viaGerman.product.slugs.de).toBe("basmati-reis-5-kg");
+    expect(viaGerman.product.slug).toBe("basmati-rice-5kg");
+    expect(viaGerman.product.slugs.de).toBe("basmati-reis-5kg");
     expect(viaGerman.product.breadcrumbs.map((b) => b.slug)).toEqual([
       "rice",
       "basmati-rice",
@@ -154,12 +172,9 @@ describe("catalogue", () => {
   });
 
   it("explains why a product cannot be ordered", async () => {
-    const page = await guestApi().listProducts({
-      limit: 100,
-      groupPackSizes: false,
-    });
+    const page = await guestApi().listProducts({ limit: 100 });
     const ordering = (id: string) =>
-      page.items.find((p) => p.id === id)?.ordering;
+      page.items.find((p) => p.variantId === id)?.ordering;
     expect(ordering(SKU.kesarMango)).toMatchObject({
       canOrder: false,
       reason: "sold_out",
@@ -215,9 +230,9 @@ describe("filters and facets", () => {
     expect(page.total).toBe(6);
     const rice = page.items.find((p) => p.name === "Basmati Rice");
     expect(rice?.packSize.label).toBe("1 kg");
-    expect(rice?.slug).toBe("basmati-rice-1-kg");
-    expect(rice?.packSizes.find((s) => s.isSelected)?.slug).toBe(
-      "basmati-rice-1-kg",
+    expect(rice?.slug).toBe("basmati-rice-1kg");
+    expect(rice?.variants.find((s) => s.isSelected)?.slug).toBe(
+      "basmati-rice-1kg",
     );
     expect(page.items.find((p) => p.name === "Chakki Atta")).toBeUndefined();
   });
@@ -236,15 +251,16 @@ describe("filters and facets", () => {
       { value: "chilled", count: 3 },
       { value: "frozen", count: 1 },
     ]);
-    // A product counts in every band one of its pack sizes falls into.
+    // A product counts once, in the band of its default size (doc 7).
     expect(all.priceBands.map((band) => band.count)).toEqual([
-      3, 11, 7, 4, 4, 0,
+      3, 11, 4, 2, 2, 0,
     ]);
     expect(all.priceBands.at(-1)).toMatchObject({ min: 5000, max: null });
     expect(all.price).toEqual({ min: 179, max: 2999 });
+    // A product is on offer when one of its sizes is reduced.
     expect(all.onSale).toEqual([
       { value: true, count: 3 },
-      { value: false, count: 21 },
+      { value: false, count: 19 },
     ]);
 
     const mdh = await api.getProductFacets({ brand: ["MDH"] });
@@ -260,7 +276,8 @@ describe("filters and facets", () => {
       ["100g", "100 g", 3],
       ["400g", "400 g", 1],
     ]);
-    expect(mdh.price).toEqual({ min: 179, max: 549 });
+    // The price range runs over the default sizes, not the 400 g pack.
+    expect(mdh.price).toEqual({ min: 179, max: 249 });
     const de = await api.getProductFacets({ brand: ["MDH"] }, { locale: "de" });
     expect(de.packSizes[0]?.packSize.label).toBe("100 g");
   });
@@ -277,25 +294,25 @@ describe("filters and facets", () => {
 });
 
 describe("stock", () => {
-  async function setStock(productId: string, quantity: number) {
+  async function setStock(variantId: string, quantity: number) {
     await fetch(`${base}/__mock/stock`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId, quantity }),
+      body: JSON.stringify({ variantId, quantity }),
     });
   }
 
   it("caps the quantity of a line at what is in stock", async () => {
     await setStock(SKU.chakkiAtta5kg, 3);
     const api = guestApi();
-    const product = await api.getProduct("chakki-atta-5-kg");
+    const product = await api.getProduct("chakki-atta-5kg");
     expect(product.product.ordering).toMatchObject({
       canOrder: true,
       maxQuantity: 3,
       remaining: 3,
     });
     const bill = await api.previewCart([
-      { productId: SKU.chakkiAtta5kg, quantity: 4 },
+      { variantId: SKU.chakkiAtta5kg, quantity: 4 },
     ]);
     expect(bill.canOrder).toBe(false);
     expect(bill.lines[0].issue).toBe("quantity_above_maximum");
@@ -304,7 +321,7 @@ describe("stock", () => {
   it("sells out when the stock is gone, and the cart says so", async () => {
     await setStock(SKU.chakkiAtta5kg, 0);
     const api = guestApi();
-    const product = await api.getProduct("chakki-atta-5-kg");
+    const product = await api.getProduct("chakki-atta-5kg");
     expect(product.product.ordering).toMatchObject({
       canOrder: false,
       reason: "sold_out",
@@ -314,7 +331,7 @@ describe("stock", () => {
     const orderable = await api.listProducts({ q: "atta", orderable: true });
     expect(orderable.items.map((p) => p.sku)).not.toContain("RF-00101");
     const bill = await api.previewCart([
-      { productId: SKU.chakkiAtta5kg, quantity: 1 },
+      { variantId: SKU.chakkiAtta5kg, quantity: 1 },
     ]);
     expect(bill.canOrder).toBe(false);
     expect(bill.lines[0].issue).toBe("sold_out");
@@ -325,7 +342,7 @@ describe("the bill", () => {
   it("adds the delivery fee below the free limit and splits out VAT", async () => {
     // Two bags of atta at 12.99: the example of the API documentation (8.1).
     const bill = await guestApi().previewCart([
-      { productId: SKU.chakkiAtta5kg, quantity: 2 },
+      { variantId: SKU.chakkiAtta5kg, quantity: 2 },
     ]);
     expect(bill.canOrder).toBe(true);
     expect(bill.totals).toEqual({
@@ -348,7 +365,7 @@ describe("the bill", () => {
 
   it("delivers free from the limit", async () => {
     const bill = await guestApi().previewCart([
-      { productId: SKU.chakkiAtta5kg, quantity: 4 },
+      { variantId: SKU.chakkiAtta5kg, quantity: 4 },
     ]);
     expect(bill.totals.deliveryFee).toBe(0);
     expect(bill.totals.total).toBe(5196);
@@ -357,8 +374,8 @@ describe("the bill", () => {
 
   it("keeps two VAT rates apart and shares the delivery fee between them", async () => {
     const bill = await guestApi().previewCart([
-      { productId: SKU.chakkiAtta5kg, quantity: 1 },
-      { productId: SKU.mangoDrink, quantity: 4 },
+      { variantId: SKU.chakkiAtta5kg, quantity: 1 },
+      { variantId: SKU.mangoDrink, quantity: 4 },
     ]);
     const { totals } = bill;
     expect(totals.vat.map((g) => g.vatRate)).toEqual([700, 1900]);
@@ -369,11 +386,11 @@ describe("the bill", () => {
 
   it("marks lines that cannot be ordered and leaves them out of the total", async () => {
     const bill = await guestApi().previewCart([
-      { productId: SKU.chakkiAtta5kg, quantity: 1 },
-      { productId: SKU.kesarMango, quantity: 1 },
-      { productId: SKU.khakhra, quantity: 1 },
-      { productId: SKU.bhujia, quantity: 20 },
-      { productId: "66e9000000000000000000ff", quantity: 1 },
+      { variantId: SKU.chakkiAtta5kg, quantity: 1 },
+      { variantId: SKU.kesarMango, quantity: 1 },
+      { variantId: SKU.khakhra, quantity: 1 },
+      { variantId: SKU.bhujia, quantity: 20 },
+      { variantId: "66f4000000000000000000ff", quantity: 1 },
     ]);
     expect(bill.canOrder).toBe(false);
     expect(bill.lines.map((line) => line.issue)).toEqual([
@@ -392,7 +409,7 @@ describe("the bill", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: [{ productId: SKU.toorDal1kg, quantity: 1, price: 1 }],
+        items: [{ variantId: SKU.toorDal1kg, quantity: 1, price: 1 }],
       }),
     });
     expect(response.status).toBe(400);
@@ -473,11 +490,11 @@ describe("sign-in and the stored cart", () => {
     const { api } = await signIn("anna@example.com");
     await api.setCartItem(SKU.toorDal1kg, 3);
     const bill = await api.mergeCart([
-      { productId: SKU.toorDal1kg, quantity: 1 },
-      { productId: SKU.chakkiAtta5kg, quantity: 2 },
-      { productId: "66e9000000000000000000ff", quantity: 5 },
+      { variantId: SKU.toorDal1kg, quantity: 1 },
+      { variantId: SKU.chakkiAtta5kg, quantity: 2 },
+      { variantId: "66f4000000000000000000ff", quantity: 5 },
     ]);
-    expect(bill.lines.map((line) => [line.productId, line.quantity])).toEqual([
+    expect(bill.lines.map((line) => [line.variantId, line.quantity])).toEqual([
       [SKU.toorDal1kg, 3],
       [SKU.chakkiAtta5kg, 2],
     ]);
@@ -536,7 +553,7 @@ describe("sign-in and the stored cart", () => {
         origin: "https://evil.example",
       },
       body: JSON.stringify({
-        items: [{ productId: SKU.toorDal1kg, quantity: 1 }],
+        items: [{ variantId: SKU.toorDal1kg, quantity: 1 }],
       }),
     });
     expect(response.status).toBe(403);

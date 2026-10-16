@@ -153,7 +153,7 @@ describe("checkout", () => {
     // Nothing is reserved and the cart is kept until the payment goes through.
     const cart = await api.getCart();
     expect(cart.lines).toHaveLength(1);
-    const product = await api.getProduct("chakki-atta-5-kg");
+    const product = await api.getProduct("chakki-atta-5kg");
     expect(product.product.ordering?.remaining).toBe(120);
   });
 
@@ -176,7 +176,7 @@ describe("checkout", () => {
 
   it("refuses when the total is not the one the customer saw", async () => {
     const { api, input } = await readyToOrder();
-    await mock.control("price", { productId: SKU.chakkiAtta5kg, price: 1399 });
+    await mock.control("price", { variantId: SKU.chakkiAtta5kg, price: 1399 });
     const error = await api.checkout(input, "attempt-0001").catch((e) => e);
     expect(hasErrorCode(error, "ORDER_TOTAL_CHANGED")).toBe(true);
     if (hasErrorCode(error, "ORDER_TOTAL_CHANGED")) {
@@ -211,7 +211,7 @@ describe("checkout", () => {
     if (hasErrorCode(error, "ORDER_ITEMS_NOT_ORDERABLE")) {
       expect(error.details.lines).toEqual([
         expect.objectContaining({
-          productId: SKU.kesarMango,
+          variantId: SKU.kesarMango,
           issue: "sold_out",
           remaining: 0,
         }),
@@ -268,7 +268,7 @@ describe("checkout", () => {
     });
     expect(order.payment.invoice?.number).toMatch(/^INV-\d{4}-\d{6}$/);
     expect(
-      (await api.getProduct("aloo-bhujia-400-g")).product.ordering,
+      (await api.getProduct("aloo-bhujia-400g")).product.ordering,
     ).toMatchObject({ remaining: 25, maxQuantity: 12 });
     expect((await api.getCart()).lines).toHaveLength(0);
 
@@ -334,7 +334,7 @@ describe("orders of a customer", () => {
     );
     await payOnPage(result.checkout.url);
     expect(
-      (await api.getProduct("aloo-bhujia-400-g")).product.ordering?.remaining,
+      (await api.getProduct("aloo-bhujia-400g")).product.ordering?.remaining,
     ).toBe(27);
     const { order } = await api.cancelOrder("RF-1085", {
       reason: "ordered_by_mistake",
@@ -351,7 +351,7 @@ describe("orders of a customer", () => {
       by: "customer",
     });
     expect(
-      (await api.getProduct("aloo-bhujia-400-g")).product.ordering?.remaining,
+      (await api.getProduct("aloo-bhujia-400g")).product.ordering?.remaining,
     ).toBe(37);
   });
 });

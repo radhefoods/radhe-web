@@ -35,19 +35,19 @@ function memoryStorage(initial: Record<string, string> = {}) {
 
 describe("sanitizeCart", () => {
   it("keeps valid lines", () => {
-    expect(sanitizeCart([{ productId: A, quantity: 2 }])).toEqual([
-      { productId: A, quantity: 2 },
+    expect(sanitizeCart([{ variantId: A, quantity: 2 }])).toEqual([
+      { variantId: A, quantity: 2 },
     ]);
   });
 
   it("drops what the API would reject", () => {
     expect(
       sanitizeCart([
-        { productId: "not-an-id", quantity: 1 },
-        { productId: A, quantity: 0 },
-        { productId: B, quantity: 1.5 },
-        { productId: C, quantity: CART_MAX_QUANTITY + 1 },
-        { productId: A, quantity: "2" },
+        { variantId: "not-an-id", quantity: 1 },
+        { variantId: A, quantity: 0 },
+        { variantId: B, quantity: 1.5 },
+        { variantId: C, quantity: CART_MAX_QUANTITY + 1 },
+        { variantId: A, quantity: "2" },
         null,
         "text",
       ]),
@@ -57,21 +57,21 @@ describe("sanitizeCart", () => {
   it("keeps the first of duplicate products", () => {
     expect(
       sanitizeCart([
-        { productId: A, quantity: 2 },
-        { productId: A, quantity: 5 },
+        { variantId: A, quantity: 2 },
+        { variantId: A, quantity: 5 },
       ]),
-    ).toEqual([{ productId: A, quantity: 2 }]);
+    ).toEqual([{ variantId: A, quantity: 2 }]);
   });
 
   it("strips fields the API does not know", () => {
-    expect(sanitizeCart([{ productId: A, quantity: 1, price: 1 }])).toEqual([
-      { productId: A, quantity: 1 },
+    expect(sanitizeCart([{ variantId: A, quantity: 1, price: 1 }])).toEqual([
+      { variantId: A, quantity: 1 },
     ]);
   });
 
   it("cuts the cart at the maximum number of lines", () => {
     const many = Array.from({ length: CART_MAX_LINES + 20 }, (_, i) => ({
-      productId: id(i + 1),
+      variantId: id(i + 1),
       quantity: 1,
     }));
     expect(sanitizeCart(many)).toHaveLength(CART_MAX_LINES);
@@ -87,26 +87,26 @@ describe("changing quantities", () => {
   it("adds a new product", () => {
     expect(setQuantity([], A, 2)).toEqual({
       ok: true,
-      cart: [{ productId: A, quantity: 2 }],
+      cart: [{ variantId: A, quantity: 2 }],
     });
   });
 
   it("replaces the quantity of a product in the cart", () => {
     const cart = [
-      { productId: A, quantity: 2 },
-      { productId: B, quantity: 1 },
+      { variantId: A, quantity: 2 },
+      { variantId: B, quantity: 1 },
     ];
     expect(setQuantity(cart, A, 5)).toEqual({
       ok: true,
       cart: [
-        { productId: A, quantity: 5 },
-        { productId: B, quantity: 1 },
+        { variantId: A, quantity: 5 },
+        { variantId: B, quantity: 1 },
       ],
     });
   });
 
   it("removes a product at quantity zero or below", () => {
-    const cart = [{ productId: A, quantity: 2 }];
+    const cart = [{ variantId: A, quantity: 2 }];
     expect(setQuantity(cart, A, 0)).toEqual({ ok: true, cart: [] });
     expect(setQuantity(cart, A, -3)).toEqual({ ok: true, cart: [] });
   });
@@ -114,46 +114,46 @@ describe("changing quantities", () => {
   it("cuts the quantity at the maximum of the API", () => {
     expect(setQuantity([], A, 99_999)).toEqual({
       ok: true,
-      cart: [{ productId: A, quantity: CART_MAX_QUANTITY }],
+      cart: [{ variantId: A, quantity: CART_MAX_QUANTITY }],
     });
   });
 
   it("refuses a new line in a full cart, but still changes existing ones", () => {
     const full = Array.from({ length: CART_MAX_LINES }, (_, i) => ({
-      productId: id(i + 1),
+      variantId: id(i + 1),
       quantity: 1,
     }));
     expect(setQuantity(full, A, 1)).toEqual({ ok: false, reason: "cart_full" });
     const changed = setQuantity(full, id(1), 3);
     expect(changed.ok && changed.cart[0]).toEqual({
-      productId: id(1),
+      variantId: id(1),
       quantity: 3,
     });
   });
 
   it("does not change the cart it was given", () => {
-    const cart = Object.freeze([Object.freeze({ productId: A, quantity: 2 })]);
+    const cart = Object.freeze([Object.freeze({ variantId: A, quantity: 2 })]);
     setQuantity(cart, A, 3);
     addQuantity(cart, B, 1);
     removeItem(cart, A);
-    expect(cart).toEqual([{ productId: A, quantity: 2 }]);
+    expect(cart).toEqual([{ variantId: A, quantity: 2 }]);
   });
 
   it("adds to what is there", () => {
     const first = addQuantity([], A, 1);
     const second = first.ok ? addQuantity(first.cart, A, 2) : first;
-    expect(second).toEqual({ ok: true, cart: [{ productId: A, quantity: 3 }] });
+    expect(second).toEqual({ ok: true, cart: [{ variantId: A, quantity: 3 }] });
   });
 
   it("counts units and reads quantities", () => {
     const cart = [
-      { productId: A, quantity: 2 },
-      { productId: B, quantity: 3 },
+      { variantId: A, quantity: 2 },
+      { variantId: B, quantity: 3 },
     ];
     expect(totalUnits(cart)).toBe(5);
     expect(quantityOf(cart, B)).toBe(3);
     expect(quantityOf(cart, C)).toBe(0);
-    expect(removeItem(cart, A)).toEqual([{ productId: B, quantity: 3 }]);
+    expect(removeItem(cart, A)).toEqual([{ variantId: B, quantity: 3 }]);
   });
 });
 
@@ -178,8 +178,8 @@ describe("clampToOrdering", () => {
 describe("storage", () => {
   it("stores and loads the cart", () => {
     const storage = memoryStorage();
-    expect(saveGuestCart([{ productId: A, quantity: 2 }], storage)).toBe(true);
-    expect(loadGuestCart(storage)).toEqual([{ productId: A, quantity: 2 }]);
+    expect(saveGuestCart([{ variantId: A, quantity: 2 }], storage)).toBe(true);
+    expect(loadGuestCart(storage)).toEqual([{ variantId: A, quantity: 2 }]);
   });
 
   it("removes the entry when the cart is empty", () => {
@@ -197,7 +197,7 @@ describe("storage", () => {
 
   it("works without storage (blocked, or on the server)", () => {
     expect(loadGuestCart(null)).toEqual([]);
-    expect(saveGuestCart([{ productId: A, quantity: 1 }], null)).toBe(false);
+    expect(saveGuestCart([{ variantId: A, quantity: 1 }], null)).toBe(false);
     expect(() => clearGuestCart(null)).not.toThrow();
   });
 
@@ -209,12 +209,12 @@ describe("storage", () => {
       },
       removeItem: () => {},
     };
-    expect(saveGuestCart([{ productId: A, quantity: 1 }], storage)).toBe(false);
+    expect(saveGuestCart([{ variantId: A, quantity: 1 }], storage)).toBe(false);
   });
 
   it("clears the cart", () => {
     const storage = memoryStorage();
-    saveGuestCart([{ productId: A, quantity: 1 }], storage);
+    saveGuestCart([{ variantId: A, quantity: 1 }], storage);
     clearGuestCart(storage);
     expect(loadGuestCart(storage)).toEqual([]);
   });

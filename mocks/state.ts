@@ -100,7 +100,8 @@ export interface CustomerRecord {
     marketingOptOutAt: string | null;
   };
   createdAt: string;
-  cart: { productId: string; quantity: number }[];
+  /** One line per pack size. */
+  cart: { variantId: string; quantity: number }[];
   addresses: Address[];
 }
 
@@ -151,8 +152,11 @@ export interface OrderRecord {
   language: Locale;
   items: {
     productId: string;
+    variantId: string;
     sku: string;
     name: Translated;
+    packValue: number;
+    packUnit: "g" | "kg" | "ml" | "l" | "pcs";
     quantity: number;
     unitPrice: number;
     regularUnitPrice: number | null;

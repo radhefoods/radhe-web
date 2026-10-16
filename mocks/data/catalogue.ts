@@ -18,12 +18,25 @@ export interface CategoryRecord {
   sortOrder: number;
 }
 
-export interface ProductRecord {
+/** One pack size of a product: its own article number, price, stock and URL. */
+export interface VariantRecord {
   id: string;
   sku: string;
-  /** Pack sizes of the same product share a group. */
-  group: string;
-  isDefaultSize: boolean;
+  gtin: string | null;
+  packValue: number;
+  packUnit: "g" | "kg" | "ml" | "l" | "pcs";
+  regularPrice: number;
+  salePrice: number | null;
+  /** The admin's switch for this one size. */
+  isEnabled: boolean;
+  /** Packs in stock; 0 is sold out. Nothing is reserved before a payment. */
+  stock: number;
+}
+
+/** A product with its pack sizes; the texts and the limits are the product's. */
+export interface ProductRecord {
+  id: string;
+  /** The base of the URLs of its sizes, per language ("basmati-rice"). */
   slug: Translated;
   name: Translated;
   subtitle: Translated | null;
@@ -31,17 +44,13 @@ export interface ProductRecord {
   description: Translated | null;
   brand: string | null;
   categoryId: string;
-  packValue: number;
-  packUnit: "g" | "kg" | "ml" | "l" | "pcs";
-  regularPrice: number;
-  salePrice: number | null;
+  /** The same for every size. */
   vatRate: number;
   isAvailable: boolean;
   isFeatured: boolean;
+  /** Packs per order line, the same for every size. */
   minQuantity: number;
   maxQuantity: number | null;
-  /** Units in stock; 0 is sold out. Nothing is reserved before a payment. */
-  stock: number;
   storageType: "ambient" | "chilled" | "frozen";
   tags: string[];
   keywords: string[];
@@ -55,12 +64,13 @@ export interface ProductRecord {
     origin: Translated | null;
     manufacturer: string | null;
   };
-  gtin: string | null;
   publishedAt: string;
   updatedAt: string;
   sortOrder: number;
   /** Tint of the generated placeholder picture. */
   tint: string;
+  /** The pack sizes, smallest first. */
+  variants: VariantRecord[];
 }
 
 let sequence = 0;
@@ -207,10 +217,15 @@ export const categories: CategoryRecord[] = [
 
 // --- Products ---------------------------------------------------------------
 
+/**
+ * The fixtures are written per pack size, in catalogue order; the sizes of
+ * one product share a `group`, and the first seed of a group carries the
+ * product's texts. `buildProducts` folds them into products.
+ */
 interface ProductSeed {
   sku: string;
   group: string;
-  isDefaultSize?: boolean;
+  /** The URL of this size as it was; the base slug is what stands before the pack. */
   slug: Translated;
   name: Translated;
   subtitle?: Translated;
@@ -218,7 +233,7 @@ interface ProductSeed {
   description?: Translated;
   brand?: string;
   categoryId: string;
-  pack: [number, ProductRecord["packUnit"]];
+  pack: [number, VariantRecord["packUnit"]];
   price: number;
   salePrice?: number;
   vatRate?: number;
@@ -226,8 +241,11 @@ interface ProductSeed {
   isFeatured?: boolean;
   minQuantity?: number;
   maxQuantity?: number;
-  /** Units in stock; plenty when not said. */
+  /** Packs in stock; plenty when not said. */
   stock?: number;
+  /** Radhe Foods switched this one size off. */
+  isEnabled?: boolean;
+  gtin?: string;
   storageType?: ProductRecord["storageType"];
   tags?: string[];
   keywords?: string[];
@@ -242,58 +260,99 @@ interface ProductSeed {
 const INDIA = t("India", "Indien");
 const STORE_DRY = t("Store in a cool, dry place.", "Kühl und trocken lagern.");
 
-let productOrder = 0;
-function product(seed: ProductSeed): ProductRecord {
-  productOrder += 1;
-  const day = String((productOrder % 27) + 1).padStart(2, "0");
-  return {
-    id: oid("66e9"),
-    sku: seed.sku,
-    group: seed.group,
-    isDefaultSize: seed.isDefaultSize ?? true,
-    slug: seed.slug,
-    name: seed.name,
-    subtitle: seed.subtitle ?? null,
-    shortDescription: seed.shortDescription ?? null,
-    description: seed.description ?? seed.shortDescription ?? null,
-    brand: seed.brand ?? null,
-    categoryId: seed.categoryId,
-    packValue: seed.pack[0],
-    packUnit: seed.pack[1],
-    regularPrice: seed.price,
-    salePrice: seed.salePrice ?? null,
-    vatRate: seed.vatRate ?? 700,
-    isAvailable: seed.isAvailable ?? true,
-    isFeatured: seed.isFeatured ?? false,
-    minQuantity: seed.minQuantity ?? 1,
-    maxQuantity: seed.maxQuantity ?? null,
-    stock: seed.stock ?? 120,
-    storageType: seed.storageType ?? "ambient",
-    tags: seed.tags ?? [],
-    keywords: seed.keywords ?? [],
-    highlights: seed.highlights ?? [],
-    uses: seed.uses ?? [],
-    food: {
-      ingredients: seed.ingredients ?? null,
-      allergens: seed.allergens ?? null,
-      nutrition: null,
-      storageInstructions: seed.storageType === "frozen" ? null : STORE_DRY,
-      origin: seed.origin ?? INDIA,
-      manufacturer: seed.brand ?? null,
-    },
-    gtin: null,
-    publishedAt: `2026-09-${day}T08:00:00.000Z`,
-    updatedAt: "2026-09-28T09:30:00.000Z",
-    sortOrder: productOrder,
-    tint: seed.tint,
-  };
+/** The pack of a seed's slug ("-5-kg", "-5-pieces"): the base slug stands before it. */
+const PACK_SUFFIX = /-\d+(?:-\d+)?-(?:kg|g|ml|l|pcs|pieces|stk|stueck)$/;
+const baseSlugOf = (slug: Translated): Translated => ({
+  en: slug.en.replace(PACK_SUFFIX, ""),
+  de: slug.de.replace(PACK_SUFFIX, ""),
+});
+
+/** The quantity of a pack in its base unit (g, ml or pieces), to sort sizes. */
+export function baseQuantity(value: number, unit: VariantRecord["packUnit"]) {
+  return unit === "kg" || unit === "l" ? value * 1000 : value;
 }
 
-export const products: ProductRecord[] = [
-  product({
+/** Folds the seeds, written per size, into products with their sizes. */
+function buildProducts(seeds: ProductSeed[]): ProductRecord[] {
+  const byGroup = new Map<string, ProductRecord>();
+  let productOrder = 0;
+  for (const seed of seeds) {
+    let record = byGroup.get(seed.group);
+    if (!record) {
+      productOrder += 1;
+      const day = String((productOrder % 27) + 1).padStart(2, "0");
+      record = {
+        id: oid("66e9"),
+        slug: baseSlugOf(seed.slug),
+        name: seed.name,
+        subtitle: seed.subtitle ?? null,
+        shortDescription: seed.shortDescription ?? null,
+        description: seed.description ?? seed.shortDescription ?? null,
+        brand: seed.brand ?? null,
+        categoryId: seed.categoryId,
+        vatRate: seed.vatRate ?? 700,
+        isAvailable: seed.isAvailable ?? true,
+        isFeatured: seed.isFeatured ?? false,
+        minQuantity: seed.minQuantity ?? 1,
+        maxQuantity: seed.maxQuantity ?? null,
+        storageType: seed.storageType ?? "ambient",
+        tags: seed.tags ?? [],
+        keywords: seed.keywords ?? [],
+        highlights: seed.highlights ?? [],
+        uses: seed.uses ?? [],
+        food: {
+          ingredients: seed.ingredients ?? null,
+          allergens: seed.allergens ?? null,
+          nutrition: null,
+          storageInstructions: seed.storageType === "frozen" ? null : STORE_DRY,
+          origin: seed.origin ?? INDIA,
+          manufacturer: seed.brand ?? null,
+        },
+        publishedAt: `2026-09-${day}T08:00:00.000Z`,
+        updatedAt: "2026-09-28T09:30:00.000Z",
+        sortOrder: productOrder,
+        tint: seed.tint,
+        variants: [],
+      };
+      byGroup.set(seed.group, record);
+    } else {
+      // A later seed of the group may carry the fuller texts.
+      record.description ??= seed.description ?? null;
+      if (seed.isFeatured) record.isFeatured = true;
+      if (seed.highlights?.length) record.highlights = seed.highlights;
+      if (seed.uses?.length) record.uses = seed.uses;
+      for (const tag of seed.tags ?? []) {
+        if (!record.tags.includes(tag)) record.tags.push(tag);
+      }
+    }
+    record.variants.push({
+      id: oid("66f4"),
+      sku: seed.sku,
+      gtin: seed.gtin ?? null,
+      packValue: seed.pack[0],
+      packUnit: seed.pack[1],
+      regularPrice: seed.price,
+      salePrice: seed.salePrice ?? null,
+      isEnabled: seed.isEnabled ?? true,
+      stock: seed.stock ?? 120,
+    });
+  }
+  for (const record of byGroup.values()) {
+    record.variants.sort(
+      (a, b) =>
+        baseQuantity(a.packValue, a.packUnit) -
+        baseQuantity(b.packValue, b.packUnit),
+    );
+  }
+  return [...byGroup.values()];
+}
+
+const size = (seed: ProductSeed): ProductSeed => seed;
+
+const SEEDS: ProductSeed[] = [
+  size({
     sku: "RF-00041",
     group: "basmati-india-gate",
-    isDefaultSize: false,
     slug: t("basmati-rice-1-kg", "basmati-reis-1-kg"),
     name: t("Basmati Rice", "Basmati-Reis"),
     shortDescription: t("Aged long-grain rice", "Gereifter Langkornreis"),
@@ -305,7 +364,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Basmati rice", "Basmati-Reis"),
     tint: "#F3E6C4",
   }),
-  product({
+  size({
     sku: "RF-00042",
     group: "basmati-india-gate",
     slug: t("basmati-rice-5-kg", "basmati-reis-5-kg"),
@@ -331,7 +390,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Basmati rice", "Basmati-Reis"),
     tint: "#F3E6C4",
   }),
-  product({
+  size({
     sku: "RF-00051",
     group: "sona-masoori",
     slug: t("sona-masoori-rice-5-kg", "sona-masoori-reis-5-kg"),
@@ -347,10 +406,9 @@ export const products: ProductRecord[] = [
     ingredients: t("Rice", "Reis"),
     tint: "#EFE7D2",
   }),
-  product({
+  size({
     sku: "RF-00052",
     group: "sona-masoori",
-    isDefaultSize: false,
     slug: t("sona-masoori-rice-10-kg", "sona-masoori-reis-10-kg"),
     name: t("Sona Masoori Rice", "Sona-Masoori-Reis"),
     shortDescription: t(
@@ -364,7 +422,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Rice", "Reis"),
     tint: "#EFE7D2",
   }),
-  product({
+  size({
     sku: "RF-00060",
     group: "poha",
     slug: t("poha-flattened-rice-1-kg", "poha-reisflocken-1-kg"),
@@ -380,7 +438,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Rice", "Reis"),
     tint: "#F1EDE0",
   }),
-  product({
+  size({
     sku: "RF-00101",
     group: "chakki-atta",
     slug: t("chakki-atta-5-kg", "chakki-atta-5-kg"),
@@ -401,10 +459,9 @@ export const products: ProductRecord[] = [
     allergens: t("Contains gluten (wheat).", "Enthält Gluten (Weizen)."),
     tint: "#EADBC0",
   }),
-  product({
+  size({
     sku: "RF-00102",
     group: "chakki-atta",
-    isDefaultSize: false,
     slug: t("chakki-atta-10-kg", "chakki-atta-10-kg"),
     name: t("Chakki Atta", "Chakki Atta"),
     subtitle: t("Whole wheat flour", "Weizenvollkornmehl"),
@@ -421,7 +478,7 @@ export const products: ProductRecord[] = [
     allergens: t("Contains gluten (wheat).", "Enthält Gluten (Weizen)."),
     tint: "#EADBC0",
   }),
-  product({
+  size({
     sku: "RF-00110",
     group: "besan",
     slug: t("besan-gram-flour-1-kg", "besan-kichererbsenmehl-1-kg"),
@@ -438,7 +495,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Chickpeas", "Kichererbsen"),
     tint: "#F2DFA3",
   }),
-  product({
+  size({
     sku: "RF-00201",
     group: "toor-dal",
     slug: t("toor-dal-1-kg", "toor-dal-1-kg"),
@@ -457,10 +514,9 @@ export const products: ProductRecord[] = [
     ingredients: t("Split pigeon peas", "Geschälte Straucherbsen"),
     tint: "#EFD27A",
   }),
-  product({
+  size({
     sku: "RF-00202",
     group: "toor-dal",
-    isDefaultSize: false,
     slug: t("toor-dal-2-kg", "toor-dal-2-kg"),
     name: t("Toor Dal", "Toor Dal"),
     subtitle: t("Split pigeon peas", "Geschälte Straucherbsen"),
@@ -476,7 +532,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Split pigeon peas", "Geschälte Straucherbsen"),
     tint: "#EFD27A",
   }),
-  product({
+  size({
     sku: "RF-00210",
     group: "moong-dal",
     slug: t("moong-dal-1-kg", "moong-dal-1-kg"),
@@ -490,7 +546,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Split mung beans", "Geschälte Mungbohnen"),
     tint: "#EBDD8E",
   }),
-  product({
+  size({
     sku: "RF-00220",
     group: "chana-dal",
     slug: t("chana-dal-1-kg", "chana-dal-1-kg"),
@@ -505,7 +561,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Split chickpeas", "Geschälte Kichererbsen"),
     tint: "#E8CC6E",
   }),
-  product({
+  size({
     sku: "RF-00301",
     group: "cumin-seeds",
     slug: t("cumin-seeds-100-g", "kreuzkuemmel-ganz-100-g"),
@@ -519,10 +575,9 @@ export const products: ProductRecord[] = [
     ingredients: t("Cumin", "Kreuzkümmel"),
     tint: "#D9C49A",
   }),
-  product({
+  size({
     sku: "RF-00302",
     group: "cumin-seeds",
-    isDefaultSize: false,
     slug: t("cumin-seeds-400-g", "kreuzkuemmel-ganz-400-g"),
     name: t("Cumin Seeds", "Kreuzkümmel, ganz"),
     shortDescription: t("Whole jeera", "Ganze Jeera"),
@@ -534,7 +589,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Cumin", "Kreuzkümmel"),
     tint: "#D9C49A",
   }),
-  product({
+  size({
     sku: "RF-00311",
     group: "turmeric-powder",
     slug: t("turmeric-powder-100-g", "kurkuma-gemahlen-100-g"),
@@ -551,10 +606,9 @@ export const products: ProductRecord[] = [
     ingredients: t("Turmeric", "Kurkuma"),
     tint: "#F2C14E",
   }),
-  product({
+  size({
     sku: "RF-00312",
     group: "turmeric-powder",
-    isDefaultSize: false,
     slug: t("turmeric-powder-400-g", "kurkuma-gemahlen-400-g"),
     name: t("Turmeric Powder", "Kurkuma, gemahlen"),
     shortDescription: t(
@@ -569,7 +623,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Turmeric", "Kurkuma"),
     tint: "#F2C14E",
   }),
-  product({
+  size({
     sku: "RF-00321",
     group: "red-chilli-powder",
     slug: t("red-chilli-powder-100-g", "chilipulver-rot-100-g"),
@@ -586,7 +640,7 @@ export const products: ProductRecord[] = [
     ingredients: t("Red chilli", "Rote Chili"),
     tint: "#E7A08A",
   }),
-  product({
+  size({
     sku: "RF-00331",
     group: "garam-masala",
     slug: t("garam-masala-100-g", "garam-masala-100-g"),
@@ -606,7 +660,7 @@ export const products: ProductRecord[] = [
     ),
     tint: "#C9A27E",
   }),
-  product({
+  size({
     sku: "RF-00401",
     group: "banana-chips",
     slug: t("banana-chips-200-g", "bananenchips-200-g"),
@@ -626,7 +680,7 @@ export const products: ProductRecord[] = [
     ),
     tint: "#F4D98B",
   }),
-  product({
+  size({
     sku: "RF-00410",
     stock: 37,
     group: "aloo-bhujia",
@@ -648,7 +702,7 @@ export const products: ProductRecord[] = [
     ),
     tint: "#F0CF86",
   }),
-  product({
+  size({
     sku: "RF-00420",
     stock: 8,
     group: "methi-khakhra",
@@ -670,7 +724,7 @@ export const products: ProductRecord[] = [
     allergens: t("Contains gluten (wheat).", "Enthält Gluten (Weizen)."),
     tint: "#E5D2A8",
   }),
-  product({
+  size({
     sku: "RF-00501",
     stock: 0,
     group: "kesar-mango",
@@ -690,7 +744,7 @@ export const products: ProductRecord[] = [
     origin: t("Gujarat, India", "Gujarat, Indien"),
     tint: "#F6C667",
   }),
-  product({
+  size({
     sku: "RF-00502",
     group: "alphonso-mango",
     slug: t("alphonso-mango-box-3-kg", "alphonso-mango-kiste-3-kg"),
@@ -708,7 +762,7 @@ export const products: ProductRecord[] = [
     origin: t("Maharashtra, India", "Maharashtra, Indien"),
     tint: "#F7B955",
   }),
-  product({
+  size({
     sku: "RF-00601",
     group: "masala-chai",
     slug: t("masala-chai-250-g", "masala-chai-250-g"),
@@ -728,7 +782,7 @@ export const products: ProductRecord[] = [
     ),
     tint: "#D8B48C",
   }),
-  product({
+  size({
     sku: "RF-00610",
     group: "mango-drink",
     slug: t("mango-drink-1-l", "mango-getraenk-1-l"),
@@ -745,7 +799,7 @@ export const products: ProductRecord[] = [
     ),
     tint: "#F9CE74",
   }),
-  product({
+  size({
     sku: "RF-00701",
     group: "ghee",
     slug: t("pure-ghee-500-ml", "reines-ghee-500-ml"),
@@ -762,10 +816,9 @@ export const products: ProductRecord[] = [
     allergens: t("Contains milk.", "Enthält Milch."),
     tint: "#F5E29B",
   }),
-  product({
+  size({
     sku: "RF-00702",
     group: "ghee",
-    isDefaultSize: false,
     slug: t("pure-ghee-1-l", "reines-ghee-1-l"),
     name: t("Pure Ghee", "Reines Ghee"),
     shortDescription: t(
@@ -781,7 +834,7 @@ export const products: ProductRecord[] = [
     allergens: t("Contains milk.", "Enthält Milch."),
     tint: "#F5E29B",
   }),
-  product({
+  size({
     sku: "RF-00710",
     group: "paneer",
     slug: t("paneer-500-g", "paneer-500-g"),
@@ -801,7 +854,7 @@ export const products: ProductRecord[] = [
     origin: t("Germany", "Deutschland"),
     tint: "#F4F0E6",
   }),
-  product({
+  size({
     sku: "RF-00801",
     group: "paratha",
     slug: t("plain-paratha-5-pieces", "paratha-natur-5-stueck"),
@@ -824,14 +877,18 @@ export const products: ProductRecord[] = [
   }),
 ];
 
-const bySku = new Map(products.map((p) => [p.sku, p]));
+export const products: ProductRecord[] = buildProducts(SEEDS);
+
+const bySku = new Map(
+  products.flatMap((p) => p.variants.map((v) => [v.sku, v.id] as const)),
+);
 const idOf = (sku: string): string => {
   const found = bySku.get(sku);
   if (!found) throw new Error(`Unknown SKU in fixtures: ${sku}`);
-  return found.id;
+  return found;
 };
 
-/** Product ids by SKU, for tests and for the seeded demo data. */
+/** Pack-size ids (`variantId`) by SKU, for tests and the seeded demo data. */
 export const SKU = {
   basmati1kg: idOf("RF-00041"),
   basmati5kg: idOf("RF-00042"),

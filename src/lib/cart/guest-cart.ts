@@ -1,13 +1,15 @@
 import type { CartItemInput, Id, Ordering } from "@/lib/api/types";
 
-// The cart of a visitor who is not signed in. It holds product ids and
-// quantities only, never prices: `POST /v1/store/cart/preview` prices it,
-// and after sign-in `POST /v1/store/cart/merge` hands it to the server.
-// The limits mirror the API (8): at most 100 lines, 1 to 10000 units each.
+// The cart of a visitor who is not signed in. It holds pack sizes
+// (`variantId`) and quantities only, never prices: `POST /v1/store/cart/preview`
+// prices it, and after sign-in `POST /v1/store/cart/merge` hands it to the
+// server. The limits mirror the API (8): at most 100 lines, 1 to 10000 units
+// each. The key changed to `v2` when the shop moved to pack sizes
+// (2026-10-16): carts keyed by the old product ids are left where they are.
 
 export const CART_MAX_LINES = 100;
 export const CART_MAX_QUANTITY = 10_000;
-export const GUEST_CART_KEY = "rf.cart.v1";
+export const GUEST_CART_KEY = "rf.cart.v2";
 
 export type GuestCart = readonly CartItemInput[];
 
@@ -34,17 +36,17 @@ export function sanitizeCart(value: unknown): CartItemInput[] {
   for (const entry of value) {
     if (items.length >= CART_MAX_LINES) break;
     if (!entry || typeof entry !== "object") continue;
-    const { productId, quantity } = entry as Record<string, unknown>;
-    if (typeof productId !== "string" || !OBJECT_ID.test(productId)) continue;
-    if (!isValidQuantity(quantity) || seen.has(productId)) continue;
-    seen.add(productId);
-    items.push({ productId, quantity });
+    const { variantId, quantity } = entry as Record<string, unknown>;
+    if (typeof variantId !== "string" || !OBJECT_ID.test(variantId)) continue;
+    if (!isValidQuantity(quantity) || seen.has(variantId)) continue;
+    seen.add(variantId);
+    items.push({ variantId, quantity });
   }
   return items;
 }
 
-export function quantityOf(cart: GuestCart, productId: Id): number {
-  return cart.find((item) => item.productId === productId)?.quantity ?? 0;
+export function quantityOf(cart: GuestCart, variantId: Id): number {
+  return cart.find((item) => item.variantId === variantId)?.quantity ?? 0;
 }
 
 /** The sum of all units, for the badge on the cart icon. */
@@ -62,36 +64,36 @@ export type CartChange =
  */
 export function setQuantity(
   cart: GuestCart,
-  productId: Id,
+  variantId: Id,
   quantity: number,
 ): CartChange {
   const wanted = Math.min(Math.trunc(quantity), CART_MAX_QUANTITY);
   if (!Number.isFinite(wanted) || wanted <= 0) {
-    return { ok: true, cart: cart.filter((i) => i.productId !== productId) };
+    return { ok: true, cart: cart.filter((i) => i.variantId !== variantId) };
   }
-  const exists = cart.some((item) => item.productId === productId);
+  const exists = cart.some((item) => item.variantId === variantId);
   if (exists) {
     return {
       ok: true,
       cart: cart.map((item) =>
-        item.productId === productId ? { productId, quantity: wanted } : item,
+        item.variantId === variantId ? { variantId, quantity: wanted } : item,
       ),
     };
   }
   if (cart.length >= CART_MAX_LINES) return { ok: false, reason: "cart_full" };
-  return { ok: true, cart: [...cart, { productId, quantity: wanted }] };
+  return { ok: true, cart: [...cart, { variantId, quantity: wanted }] };
 }
 
 export function addQuantity(
   cart: GuestCart,
-  productId: Id,
+  variantId: Id,
   amount: number,
 ): CartChange {
-  return setQuantity(cart, productId, quantityOf(cart, productId) + amount);
+  return setQuantity(cart, variantId, quantityOf(cart, variantId) + amount);
 }
 
-export function removeItem(cart: GuestCart, productId: Id): CartItemInput[] {
-  return cart.filter((item) => item.productId !== productId);
+export function removeItem(cart: GuestCart, variantId: Id): CartItemInput[] {
+  return cart.filter((item) => item.variantId !== variantId);
 }
 
 /**

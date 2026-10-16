@@ -264,45 +264,70 @@ export interface QuantityLimits {
   max: number | null;
 }
 
-export interface PackSizeOption {
+/**
+ * One pack size of a product (7.1): its own id (the `variantId` of the cart
+ * and the orders), article number, URL, price, stock and ordering state.
+ * `variants` holds only enabled sizes, smallest first; exactly one is
+ * selected (the one a list entry or a product page shows).
+ */
+export interface ProductVariant {
   id: Id;
   sku: string;
+  /** The URL of this size in the requested language (`basmati-rice-1kg`). */
   slug: string;
   packSize: PackSize;
+  /** The name with the pack label: "Basmati Rice (1 kg)". */
+  displayName: string;
   pricing: PriceView;
-  isAvailable: boolean;
-  quantity: QuantityLimits;
+  /** `null` inside a cart line's product: use the line's own `ordering`. */
   ordering: Ordering | null;
-  image: ApiImage | null;
+  /** The size that stands for the product in lists. */
   isDefault: boolean;
   isSelected: boolean;
 }
 
+/**
+ * One product, shown as one of its pack sizes: `variantId`, `sku`, `slug`,
+ * `displayName`, `packSize`, `pricing` and `ordering` belong to the shown
+ * size (the one with `isSelected` in `variants`); `name`, the texts, the
+ * image, `quantity` and `storageType` are the product's and apply to every
+ * size.
+ */
 export interface ProductSummary {
   id: Id;
+  variantId: Id;
   sku: string;
   slug: string;
+  /** The product name without the size. */
   name: string;
+  /** The title of the card: the name with the pack label. */
+  displayName: string;
   subtitle: string | null;
   shortDescription: string | null;
   brand: string | null;
   category: { id: Id; slug: string; name: string } | null;
   packSize: PackSize;
   pricing: PriceView;
-  /** The admin's switch; use `ordering` for the button. */
+  /** The admin's switch for the whole product; use `ordering` for the button. */
   isAvailable: boolean;
   isFeatured: boolean;
+  /** The product's own limit per order, the same for every size. */
   quantity: QuantityLimits;
-  /** `null` inside a cart line: use the line's own `ordering` there. */
+  /** Of the shown size. `null` inside a cart line: use the line's own `ordering`. */
   ordering: Ordering | null;
   storageType: StorageType;
   tags: string[];
   image: ApiImage | null;
-  packSizes: PackSizeOption[];
+  /** Every enabled size, smallest first, the shown one included. */
+  variants: ProductVariant[];
+  variantCount: number;
 }
 
+/** The product page, opened on one size: the list entry plus the texts. */
 export interface ProductDetail extends ProductSummary {
+  /** The URL of the selected size in both languages. */
   slugs: LocalizedSlugs;
+  /** Of the selected size. */
   gtin: string | null;
   description: string | null;
   highlights: string[];
@@ -334,7 +359,11 @@ export interface ProductQuery {
   brand?: string[];
   /** Any of them. */
   storageType?: StorageType[];
-  /** Value and unit without a space (`500g`, `1kg`, `0.5l`, `6pcs`), any of them. */
+  /**
+   * Value and unit without a space (`500g`, `1kg`, `0.5l`, `6pcs`), any of
+   * them. A product is listed when one of its sizes matches, shown as the
+   * smallest matching size.
+   */
   packSize?: string[];
   onSale?: boolean;
   available?: boolean;
@@ -344,7 +373,6 @@ export interface ProductQuery {
   minPrice?: Cents;
   maxPrice?: Cents;
   sort?: ProductSort;
-  groupPackSizes?: boolean;
   page?: number;
   limit?: number;
 }
@@ -417,16 +445,20 @@ export interface Totals {
   vat: VatGroup[];
 }
 
+/** A cart line is one pack size (8). */
 export interface BillLine {
-  productId: Id;
+  variantId: Id;
+  /** `null` when the pack size is not in the shop any more. */
+  productId: Id | null;
   quantity: number;
   unitPrice: Cents;
   lineTotal: Cents;
   vatRate: VatRate;
   vatAmount: Cents;
   issue: CartLineIssue | null;
-  /** `null` when the product no longer exists. */
+  /** Of this pack size; `null` when the line is `product_not_found`. */
   ordering: Ordering | null;
+  /** The list entry with this size selected; `null` when it is gone. */
   product: ProductSummary | null;
 }
 
@@ -447,7 +479,8 @@ export interface Bill {
 }
 
 export interface CartItemInput {
-  productId: Id;
+  /** `variants[].id` of the chosen pack size. */
+  variantId: Id;
   quantity: number;
 }
 
@@ -505,10 +538,15 @@ export interface OrderSummary {
   delivery: OrderDelivery;
 }
 
+/** One pack size of the order, named by `variantId` (the key for returns). */
 export interface OrderItem {
   productId: Id;
+  variantId: Id;
   sku: string;
+  /** The product name without the size. */
   name: string;
+  /** The name with the size, as ordered. */
+  displayName: string;
   packSize: PackSize;
   imageUrl: string | null;
   quantity: number;
@@ -528,6 +566,7 @@ export type AdjustmentReason =
 
 export interface OrderAdjustment {
   productId: Id;
+  variantId: Id;
   sku: string;
   from: number;
   to: number;
@@ -724,6 +763,7 @@ export type ReturnReason =
 
 export interface ReturnItem {
   productId: Id;
+  variantId: Id;
   sku: string;
   name: string;
   packSize: PackSize;
@@ -750,12 +790,19 @@ export interface ReturnRequest {
 
 export interface OrderReturns {
   items: ReturnRequest[];
-  returnable: { productId: Id; sku: string; available: number }[];
+  /** One row per order item (pack size); `available` can be 0. */
+  returnable: {
+    productId: Id;
+    variantId: Id;
+    sku: string;
+    available: number;
+  }[];
 }
 
 export interface CreateReturnInput {
   items: {
-    productId: Id;
+    /** The `variantId` of an item of the order. */
+    variantId: Id;
     quantity: number;
     reason: ReturnReason;
     comment?: string;

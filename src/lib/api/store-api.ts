@@ -179,14 +179,15 @@ export function createStoreApi(request: Requester) {
         method: "POST",
         body: { items },
       }),
-    setCartItem: (productId: Id, quantity: number, o?: CallOptions) =>
-      request<Bill>(`/v1/store/cart/items/${seg(productId)}`, {
+    /** `variantId` is `variants[].id` of the chosen pack size (8). */
+    setCartItem: (variantId: Id, quantity: number, o?: CallOptions) =>
+      request<Bill>(`/v1/store/cart/items/${seg(variantId)}`, {
         ...o,
         method: "PUT",
         body: { quantity },
       }),
-    removeCartItem: (productId: Id, o?: CallOptions) =>
-      request<Bill>(`/v1/store/cart/items/${seg(productId)}`, {
+    removeCartItem: (variantId: Id, o?: CallOptions) =>
+      request<Bill>(`/v1/store/cart/items/${seg(variantId)}`, {
         ...o,
         method: "DELETE",
       }),

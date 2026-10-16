@@ -165,7 +165,7 @@ describe("payment at checkout", () => {
 
   it("a product that sold out meanwhile cancels the order and charges nothing", async () => {
     const { api, orderNumber, page } = await pendingOrder();
-    await mock.control("stock", { productId: SKU.chakkiAtta5kg, quantity: 1 });
+    await mock.control("stock", { variantId: SKU.chakkiAtta5kg, quantity: 1 });
     const back = await payOnPage(page);
     expect(back.headers.get("location")).toContain("?payment=success");
 
@@ -188,7 +188,7 @@ describe("payment at checkout", () => {
     expect(hasErrorCode(again, "ORDER_NOT_PAYABLE")).toBe(true);
     // The one unit that was left is still there, and the cart was kept.
     expect(
-      (await api.getProduct("chakki-atta-5-kg")).product.ordering?.remaining,
+      (await api.getProduct("chakki-atta-5kg")).product.ordering?.remaining,
     ).toBe(1);
     expect((await api.getCart()).lines).toHaveLength(1);
   });
@@ -265,7 +265,7 @@ describe("returns", () => {
     const tooMany = await api
       .createReturn(orderNumber, {
         items: [
-          { productId: SKU.chakkiAtta5kg, quantity: 3, reason: "damaged" },
+          { variantId: SKU.chakkiAtta5kg, quantity: 3, reason: "damaged" },
         ],
       })
       .catch((e) => e);
@@ -277,7 +277,7 @@ describe("returns", () => {
     const created = await api.createReturn(orderNumber, {
       items: [
         {
-          productId: SKU.chakkiAtta5kg,
+          variantId: SKU.chakkiAtta5kg,
           quantity: 1,
           reason: "damaged",
           comment: "Bag was torn",
@@ -295,14 +295,14 @@ describe("returns", () => {
     const state = await api.getOrderReturns(orderNumber);
     expect(state.items).toHaveLength(1);
     expect(state.returnable).toEqual([
-      expect.objectContaining({ productId: SKU.chakkiAtta5kg, available: 1 }),
+      expect.objectContaining({ variantId: SKU.chakkiAtta5kg, available: 1 }),
     ]);
   });
 
   it("can be withdrawn until Radhe Foods decided", async () => {
     const { api, orderNumber } = await deliveredOrder();
     const item = {
-      productId: SKU.chakkiAtta5kg,
+      variantId: SKU.chakkiAtta5kg,
       quantity: 1,
       reason: "changed_mind" as const,
     };
@@ -324,7 +324,7 @@ describe("returns", () => {
   it("a completed return lowers the bill and issues a credit note", async () => {
     const { api, orderNumber } = await deliveredOrder();
     const { return: request } = await api.createReturn(orderNumber, {
-      items: [{ productId: SKU.chakkiAtta5kg, quantity: 1, reason: "quality" }],
+      items: [{ variantId: SKU.chakkiAtta5kg, quantity: 1, reason: "quality" }],
     });
     await mock.control("return", {
       returnNumber: request.returnNumber,
@@ -367,7 +367,7 @@ describe("returns", () => {
     const confirmed = items.find((order) => order.status === "confirmed")!;
     const error = await api
       .createReturn(confirmed.orderNumber, {
-        items: [{ productId: SKU.basmati5kg, quantity: 1, reason: "other" }],
+        items: [{ variantId: SKU.basmati5kg, quantity: 1, reason: "other" }],
       })
       .catch((e) => e);
     expect(hasErrorCode(error, "RETURN_NOT_POSSIBLE")).toBe(true);

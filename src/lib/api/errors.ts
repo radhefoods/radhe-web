@@ -102,10 +102,11 @@ export interface ErrorDetails {
   COMPANY_DETAILS_MISSING: { missing: string[] };
   LEGAL_DOCUMENTS_MISSING: { missing: LegalType[] };
   LEGAL_VERSION_CHANGED: { current: ConsentVersions };
-  /** `sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`. */
+  /** One per cart line with an issue; all but `variantId`, `quantity` and `issue` are `null` for `product_not_found`. */
   ORDER_ITEMS_NOT_ORDERABLE: {
     lines: {
-      productId: Id;
+      productId: Id | null;
+      variantId: Id;
       sku: string | null;
       quantity: number;
       issue: CartLineIssue;
@@ -119,8 +120,8 @@ export interface ErrorDetails {
   ORDER_CANNOT_BE_CANCELLED: { status: OrderStatus };
   RETURN_NOT_POSSIBLE: { status: OrderStatus };
   RETURN_WINDOW_CLOSED: { until: IsoDateTime | null; windowDays: number };
-  ORDER_ITEM_NOT_FOUND: { productId: Id };
-  RETURN_QUANTITY_INVALID: { productId: Id; sku: string; available: number };
+  ORDER_ITEM_NOT_FOUND: { variantId: Id };
+  RETURN_QUANTITY_INVALID: { variantId: Id; sku: string; available: number };
   RETURN_TRANSITION_NOT_ALLOWED: { from: string; to: string };
 }
 
