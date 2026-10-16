@@ -1,6 +1,5 @@
 import { ChevronLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { CargoStrip } from "@/components/cargo/cargo-strip";
 import { LocaleSwitcher } from "@/components/shell/locale-switcher";
 import { Logo } from "@/components/shell/logo";
 import { AreaMessages } from "@/i18n/area-messages";
@@ -8,9 +7,8 @@ import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 
 /**
- * The frame of the checkout: the logo, the way back to the cart, the state
- * of the pre-order. No navigation and no search: nothing here leads away
- * from confirming the order.
+ * The frame of the checkout: the logo and the way back to the cart. No
+ * navigation and no search: nothing here leads away from placing the order.
  */
 export default async function CheckoutLayout({
   children,
@@ -38,7 +36,6 @@ export default async function CheckoutLayout({
           </div>
         </div>
       </header>
-      <CargoStrip />
       <main id="main" className="flex-1 pb-16">
         <AreaMessages area="checkout">{children}</AreaMessages>
       </main>

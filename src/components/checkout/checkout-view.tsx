@@ -17,11 +17,12 @@ import {
   type AddressFormValues,
 } from "@/features/checkout/address-schema";
 import { ADDRESSES_QUERY_KEY, orderQueryKey } from "@/features/orders/orders";
+import { isSafePaymentUrl } from "@/features/orders/payment-url";
 import { useSession } from "@/features/session/session";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import { hasErrorCode } from "@/lib/api/errors";
+import { ApiError, hasErrorCode } from "@/lib/api/errors";
 import type { Address, Id, LegalSummary } from "@/lib/api/types";
 import {
   checkoutKey,
@@ -29,7 +30,6 @@ import {
   consentVersions,
 } from "@/lib/checkout/order-attempt";
 import { cn } from "@/lib/cn";
-import { formatDate, formatDayRange } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { AddressForm } from "./address-form";
 
@@ -53,22 +53,27 @@ function AddressLines({ address }: { address: Address }) {
 
 const LEGAL_HREF = {
   terms: "/legal/terms",
-  preorder_terms: "/legal/preorder-terms",
   privacy: "/legal/privacy",
 } as const;
+
+/** Why the shop cannot sell right now: not the customer's doing (doc 14). */
+type Unavailable = "payments" | "shop";
 
 /**
  * The checkout: delivery address, an optional note, the consent to the
  * exact versions of the legal texts, the full bill, and the one button that
- * places the binding pre-order. Nothing is paid here, and the page says so.
- *
- * The order is made of the cart stored by the API; this page sends the
- * address, the consent and the total the customer saw (doc 9).
+ * places the order and leads to the payment page. The order is made of the
+ * cart stored by the API; this page sends the address, the consent and the
+ * total the customer saw (doc 9), and the browser goes to `checkout.url`.
  */
-export function CheckoutView() {
+export function CheckoutView({
+  deliveryEstimate,
+}: {
+  /** `delivery.estimate` of the settings in the page's language, or `null`. */
+  deliveryEstimate: string | null;
+}) {
   const t = useTranslations("checkout");
   const tAddress = useTranslations("address");
-  const tCargo = useTranslations("cargo");
   const locale = useLocale() as Locale;
   const router = useRouter();
   const client = useQueryClient();
@@ -86,8 +91,8 @@ export function CheckoutView() {
     }
   }, [session.status, router]);
 
-  // Everything is asked for again when the page opens: the bill, the legal
-  // versions and the permission must be the current ones.
+  // Everything is asked for again when the page opens: the bill and the
+  // legal versions must be the current ones.
   const ready = isCustomer && cart.ready;
   const billQuery = useQuery({
     queryKey: cartQueryKey(locale),
@@ -106,12 +111,6 @@ export function CheckoutView() {
     enabled: ready,
     staleTime: 0,
   });
-  const permissionQuery = useQuery({
-    queryKey: ["ordering-permission"],
-    queryFn: () => api.getOrderingPermission(),
-    enabled: ready,
-    staleTime: 0,
-  });
 
   const [chosenAddress, setChosenAddress] = useState<Id | null>(null);
   const [editing, setEditing] = useState<Id | "new" | null>(null);
@@ -119,26 +118,25 @@ export function CheckoutView() {
   const [consent, setConsent] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [placing, setPlacing] = useState(false);
-  const [placed, setPlaced] = useState(false);
   const [placeError, setPlaceError] = useState<unknown>(null);
   const [totalChanged, setTotalChanged] = useState<{
     before: number;
     after: number;
   } | null>(null);
   const [legalChanged, setLegalChanged] = useState(false);
+  const [unavailable, setUnavailable] = useState<Unavailable | null>(null);
+  /** Names of the lines the API refused (`ORDER_ITEMS_NOT_ORDERABLE`). */
+  const [refusedLines, setRefusedLines] = useState<string[]>([]);
+  /** The key was used for an order that is paid or cancelled meanwhile. */
+  const [keyUsed, setKeyUsed] = useState(false);
 
   const bill = billQuery.data;
   const addresses = addressQuery.data?.items;
   const legal = legalQuery.data?.items;
-  const permission = permissionQuery.data;
-  const loadError =
-    billQuery.error ??
-    addressQuery.error ??
-    legalQuery.error ??
-    permissionQuery.error;
+  const loadError = billQuery.error ?? addressQuery.error ?? legalQuery.error;
 
-  if (placed || session.status !== "customer") return <CheckoutSkeleton />;
-  if (loadError && (!bill || !addresses || !legal || !permission)) {
+  if (session.status !== "customer") return <CheckoutSkeleton />;
+  if (loadError && (!bill || !addresses || !legal)) {
     return (
       <ErrorAlert
         error={loadError}
@@ -147,12 +145,11 @@ export function CheckoutView() {
           void billQuery.refetch();
           void addressQuery.refetch();
           void legalQuery.refetch();
-          void permissionQuery.refetch();
         }}
       />
     );
   }
-  if (!bill || !addresses || !legal || !permission) return <CheckoutSkeleton />;
+  if (!bill || !addresses || !legal) return <CheckoutSkeleton />;
 
   if (bill.lines.length === 0) {
     return (
@@ -160,7 +157,7 @@ export function CheckoutView() {
         <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
         <p className="text-ink-muted">{t("emptyText")}</p>
         <Link href="/products" className={buttonStyles()}>
-          {t("confirmation.continue")}
+          {t("continueShopping")}
         </Link>
       </div>
     );
@@ -175,9 +172,14 @@ export function CheckoutView() {
   const showForm = editing !== null || addresses.length === 0;
   const versionOf = (type: LegalSummary["type"]) =>
     legal.find((document) => document.type === type)?.version ?? 0;
-  const hasPreorderTerms = legal.some((d) => d.type === "preorder_terms");
   const canPlace =
-    bill.canOrder && permission.canOrder && !billQuery.isFetching;
+    bill.canOrder && !billQuery.isFetching && unavailable === null && !keyUsed;
+  const nameOf = (productId: Id) => {
+    const line = bill.lines.find((entry) => entry.productId === productId);
+    return line?.product
+      ? `${line.product.name}, ${line.product.packSize.label}`
+      : productId;
+  };
 
   async function saveAddress(values: AddressFormValues) {
     const input = toAddressInput(values);
@@ -199,8 +201,9 @@ export function CheckoutView() {
     setPlaceError(null);
     setTotalChanged(null);
     setLegalChanged(false);
+    setRefusedLines([]);
     try {
-      const result = await api.placeOrder(
+      const result = await api.checkout(
         {
           addressId: selected.id,
           // The total the customer sees right now. If the bill changed
@@ -214,15 +217,20 @@ export function CheckoutView() {
       );
       // An order answered: this attempt is over, the next gets a new key.
       clearCheckoutKey();
-      setPlaced(true);
       const { orderNumber } = result.order;
       client.setQueryData(orderQueryKey(orderNumber, locale), result.order);
-      void client.invalidateQueries({ queryKey: cartQueryKey(locale) });
-      router.replace({
-        pathname: "/checkout/confirmation/[orderNumber]",
-        params: { orderNumber },
-      });
+      if (!isSafePaymentUrl(result.checkout.url)) {
+        throw new ApiError({
+          status: 502,
+          code: "PAYMENT_PROVIDER_ERROR",
+          message: "The payment page has an address that is not accepted.",
+        });
+      }
+      // Leaves the shop for the payment page; Stripe brings the customer
+      // back to the order with `?payment=success` or `?payment=cancelled`.
+      window.location.assign(result.checkout.url);
     } catch (error) {
+      setPlacing(false);
       if (hasErrorCode(error, "ORDER_TOTAL_CHANGED")) {
         setTotalChanged({
           before: error.details.expectedTotal,
@@ -234,13 +242,22 @@ export function CheckoutView() {
         setConsent(false);
         setAttempted(false);
         void legalQuery.refetch();
+      } else if (hasErrorCode(error, "ORDER_ITEMS_NOT_ORDERABLE")) {
+        setRefusedLines(
+          error.details.lines.map((line) => nameOf(line.productId)),
+        );
+        void billQuery.refetch();
+      } else if (hasErrorCode(error, "PAYMENTS_NOT_CONFIGURED")) {
+        setUnavailable("payments");
       } else if (
-        hasErrorCode(error, "PAYMENT_OVERDUE") ||
-        hasErrorCode(error, "ORDERING_BLOCKED") ||
-        hasErrorCode(error, "CUSTOMER_BLOCKED")
+        hasErrorCode(error, "COMPANY_DETAILS_MISSING") ||
+        hasErrorCode(error, "LEGAL_DOCUMENTS_MISSING")
       ) {
-        // The block above the button explains it, with what to pay.
-        void permissionQuery.refetch();
+        setUnavailable("shop");
+      } else if (hasErrorCode(error, "ORDER_NOT_PAYABLE")) {
+        // The first order of this key was paid or given up meanwhile.
+        clearCheckoutKey();
+        setKeyUsed(true);
       } else {
         setPlaceError(error);
         // The cart or the addresses are not what this page shows any more.
@@ -249,8 +266,6 @@ export function CheckoutView() {
           void addressQuery.refetch();
         }
       }
-    } finally {
-      setPlacing(false);
     }
   }
 
@@ -393,21 +408,10 @@ export function CheckoutView() {
             <span>
               {t.rich("consentText", {
                 termsVersion: versionOf("terms"),
-                preorderVersion: versionOf("preorder_terms"),
                 privacyVersion: versionOf("privacy"),
                 terms: (chunks) => (
                   <Link
                     href={LEGAL_HREF.terms}
-                    target="_blank"
-                    className={link}
-                  >
-                    {chunks}
-                  </Link>
-                ),
-                preorder: (chunks) => (hasPreorderTerms ? chunks : null),
-                preorderLink: (chunks) => (
-                  <Link
-                    href={LEGAL_HREF.preorder_terms}
                     target="_blank"
                     className={link}
                   >
@@ -458,14 +462,10 @@ export function CheckoutView() {
           ))}
         </ul>
 
-        {bill.cargo && (
-          <p className="bg-mist rounded-md px-3.5 py-3 text-sm">
-            <span className="font-bold">{t("deliveryWindow")}:</span>{" "}
-            {formatDayRange(
-              bill.cargo.delivery.start,
-              bill.cargo.delivery.end,
-              locale,
-            )}
+        {deliveryEstimate && (
+          <p className="rounded-md bg-white px-3.5 py-3 text-sm">
+            <span className="font-bold">{t("deliveryEstimate")}:</span>{" "}
+            {deliveryEstimate}
           </p>
         )}
 
@@ -477,38 +477,40 @@ export function CheckoutView() {
         </div>
 
         <p className="border-leaf-100 bg-leaf-50 text-leaf-700 rounded-md border px-3.5 py-3 text-sm">
-          <span className="font-bold">{tCargo("payLaterTitle")}</span>{" "}
-          {t("payLater")}
+          <span className="font-bold">{t("payNowTitle")}</span>{" "}
+          {t("payNowText")}
         </p>
 
-        {!permission.canOrder && permission.reason && (
-          <Alert tone="bad" title={t(`blocked.${permission.reason}`)}>
-            {permission.overdue.length > 0 && (
-              <ul className="mt-1 space-y-1">
-                {permission.overdue.map((order) => (
-                  <li key={order.orderNumber}>
-                    {t("overdueItem", {
-                      orderNumber: order.orderNumber,
-                      amount: formatMoney(order.amountDue, locale),
-                      date: formatDate(order.deadlineAt, locale),
-                    })}{" "}
-                    <Link
-                      href={{
-                        pathname: "/account/orders/[orderNumber]",
-                        params: { orderNumber: order.orderNumber },
-                      }}
-                      className="font-bold underline underline-offset-4"
-                    >
-                      {t("overdueLink")}
-                    </Link>
-                  </li>
+        {unavailable === "payments" && (
+          <Alert tone="warn" title={t("notAvailableTitle")}>
+            {t("notAvailableText")}
+          </Alert>
+        )}
+        {unavailable === "shop" && (
+          <Alert tone="warn" title={t("notPossibleTitle")}>
+            {t("notPossibleText")}
+          </Alert>
+        )}
+        {keyUsed && (
+          <Alert tone="info" title={t("keyUsedTitle")}>
+            <p>{t("keyUsedText")}</p>
+            <Link
+              href="/account/orders"
+              className="font-bold underline underline-offset-4"
+            >
+              {t("toOrders")}
+            </Link>
+          </Alert>
+        )}
+        {(!bill.canOrder || refusedLines.length > 0) && (
+          <Alert tone="warn" title={t("issuesTitle")}>
+            {refusedLines.length > 0 && (
+              <ul className="list-disc pl-5">
+                {refusedLines.map((name) => (
+                  <li key={name}>{name}</li>
                 ))}
               </ul>
             )}
-          </Alert>
-        )}
-        {!bill.canOrder && (
-          <Alert tone="warn" title={t("issuesTitle")}>
             <p>{t("issuesText")}</p>
             <Link
               href="/cart"
@@ -526,7 +528,16 @@ export function CheckoutView() {
             })}
           </Alert>
         )}
-        {placeError !== null && <ErrorAlert error={placeError} />}
+        {placeError !== null && (
+          <ErrorAlert
+            error={placeError}
+            onRetry={
+              hasErrorCode(placeError, "PAYMENT_PROVIDER_ERROR")
+                ? () => void place()
+                : undefined
+            }
+          />
+        )}
 
         {attempted && (!selected || showForm) && (
           <p role="alert" className="text-sm font-semibold text-red-600">
@@ -543,7 +554,7 @@ export function CheckoutView() {
           </p>
         )}
 
-        {/* The wording is the legal one: it says that the order is binding. */}
+        {/* The legal wording: the customer orders and pays now. */}
         <Button
           size="lg"
           block

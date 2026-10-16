@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { CheckoutView } from "@/components/checkout/checkout-view";
+import { getSettings } from "@/features/catalogue/data";
 import { localeOf } from "@/i18n/locale";
 
 type Props = PageProps<"/[locale]/checkout">;
@@ -12,14 +13,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CheckoutPage({ params }: Props) {
-  await localeOf(params);
-  const t = await getTranslations("checkout");
+  const locale = await localeOf(params);
+  const [t, settings] = await Promise.all([
+    getTranslations("checkout"),
+    getSettings(),
+  ]);
   return (
     <div className="container-page space-y-5 py-6 sm:py-8">
       <h1 className="font-display text-ink text-3xl sm:text-4xl">
         {t("title")}
       </h1>
-      <CheckoutView />
+      <CheckoutView
+        deliveryEstimate={settings?.delivery.estimate[locale] ?? null}
+      />
     </div>
   );
 }

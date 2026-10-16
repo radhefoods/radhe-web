@@ -29,10 +29,6 @@ export const routing = defineRouting({
     },
     "/cart": { en: "/cart", de: "/warenkorb" },
     "/checkout": { en: "/checkout", de: "/kasse" },
-    "/checkout/confirmation/[orderNumber]": {
-      en: "/checkout/confirmation/[orderNumber]",
-      de: "/kasse/bestaetigung/[orderNumber]",
-    },
     "/sign-in": { en: "/sign-in", de: "/anmelden" },
     "/account": { en: "/account", de: "/konto" },
     "/account/orders": { en: "/account/orders", de: "/konto/bestellungen" },
