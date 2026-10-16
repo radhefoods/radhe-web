@@ -16,12 +16,15 @@ function Tab({
   active,
   label,
   ariaLabel,
+  target = false,
   children,
 }: {
   href: Href;
   active: boolean;
   label: string;
   ariaLabel?: string;
+  /** The icon pill is where a product lands when added (fly-to-cart). */
+  target?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -37,6 +40,7 @@ function Tab({
       >
         {/* The active tab sits in a leaf pill. */}
         <span
+          data-cart-target={target ? "" : undefined}
           className={cn(
             "relative grid h-7 w-12 place-items-center rounded-full",
             active && "bg-leaf-50",
@@ -86,6 +90,7 @@ export function TabBar() {
           active={pathname === "/cart"}
           label={t("cart")}
           ariaLabel={t("cartWithCount", { count: ready ? units : 0 })}
+          target
         >
           <ShoppingBag aria-hidden="true" className={icon} />
           <CartBadge className="-top-1.5 right-0.5" />

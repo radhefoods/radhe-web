@@ -46,6 +46,8 @@ export function CartLink({ className }: { className?: string }) {
     <Link
       href="/cart"
       aria-label={t("cartWithCount", { count })}
+      data-cart-target=""
+
       className={cn(
         "bg-leaf-600 hover:bg-leaf-700 min-h-12 items-center gap-3 rounded-full py-1 pr-1.5 pl-4 text-white transition-colors duration-150",
         className,

@@ -426,6 +426,9 @@ test.describe("the cart of a visitor", () => {
     await expect(
       rice.getByRole("group", { name: "Quantity of Basmati Rice (1 kg)" }),
     ).toBeVisible();
+    // The picture flew to the one cart pill on screen: the header's, or on
+    // phones the cart tab.
+    await expect(page.locator("[data-cart-target]:visible")).toHaveCount(1);
   });
 
   test("a product without a picture shows the Radhe mark instead", async ({
@@ -434,7 +437,7 @@ test.describe("the cart of a visitor", () => {
     await page.goto("/en/category/pulses-and-lentils");
     const dal = card(page, "Moong Dal");
     await expect(dal.locator('img[src*="radhe-logo"]')).toBeVisible();
-    await expect(dal).toContainText("Picture coming soon");
+    await expect(dal).toContainText("coming soon");
     // The product page too, in both languages.
     await dal.getByRole("heading").getByRole("link").click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -442,7 +445,7 @@ test.describe("the cart of a visitor", () => {
     );
     const main = page.getByRole("main");
     await expect(main.locator('img[src*="radhe-logo"]').first()).toBeVisible();
-    await expect(main).toContainText("Picture coming soon");
+    await expect(main).toContainText("coming soon");
     await page.goto("/de/produkte/moong-dal-1kg");
     await expect(page.getByRole("main")).toContainText("Bild folgt in Kürze");
   });

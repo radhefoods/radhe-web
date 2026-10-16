@@ -20,7 +20,8 @@ const badge =
  * puts it in the cart. Nothing else (owner, 2026-10-16): the other sizes
  * are chosen on the product page. A sold-out product shows its picture
  * greyed and a "sold out" pill where the button was. Cards keep their
- * height whatever their state, so the grid never jumps.
+ * height whatever their state, so the grid never jumps. The tile is the
+ * `data-fly-source` of the add button: its picture flies into the cart.
  */
 export function ProductCard({
   product,
@@ -46,11 +47,15 @@ export function ProductCard({
   const Heading = headingLevel;
 
   return (
-    <article className="border-line hover:border-line-strong hover:shadow-lift relative flex h-full flex-col rounded-lg border-[1.5px] bg-white p-2 pb-3 transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5">
+    <article
+      data-fly-scope=""
+      className="border-line hover:border-line-strong hover:shadow-lift relative flex h-full flex-col rounded-lg border-[1.5px] bg-white p-2 pb-3 transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5"
+    >
       <Link
         href={href}
         tabIndex={-1}
         aria-hidden="true"
+        data-fly-source=""
         className="bg-mist relative block aspect-square overflow-hidden rounded-md p-4"
       >
         <ProductImage

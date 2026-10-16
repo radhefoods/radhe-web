@@ -147,13 +147,17 @@ export default async function ProductPage({ params }: Props) {
       <Breadcrumbs categories={product.breadcrumbs} current={product.name} />
 
       <PackSizes product={product}>
-        <div className="grid gap-6 md:grid-cols-[1.1fr_1fr] lg:gap-10">
+        <div
+          data-fly-scope=""
+          className="grid gap-6 md:grid-cols-[1.1fr_1fr] lg:gap-10"
+        >
           {/* Pictures: swipe on phones; the first one is the page's main picture. */}
           <ul className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto md:sticky md:top-36 md:self-start">
             {(product.images.length ? product.images : [null]).map(
               (image, index) => (
                 <li
                   key={image?.id ?? "none"}
+                  data-fly-source={index === 0 ? "" : undefined}
                   className="bg-mist relative aspect-square w-full shrink-0 snap-center overflow-hidden rounded-xl p-6 sm:p-10"
                 >
                   <ProductImage
