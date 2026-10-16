@@ -1,19 +1,12 @@
-import {
-  LayoutGrid,
-  PackageCheck,
-  ShieldCheck,
-  Tag,
-  Truck,
-} from "lucide-react";
+import { PackageCheck, ShieldCheck, Truck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { ProductImage } from "@/components/catalogue/product-image";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { Category } from "@/lib/api/types";
-import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
 import { AccountLink } from "./account-link";
 import { CartLink } from "./cart-link";
+import { CategoryNav } from "./category-nav";
 import { LocaleSwitcher } from "./locale-switcher";
 import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
@@ -23,7 +16,7 @@ import { SearchForm } from "./search-form";
  * The top of every shop page, in three tiers like the stores people know:
  * the wheat strip with the promises of the shop and the language (wide
  * screens only), the white bar with logo, the pill search, the account and
- * cart icons, and the category chips with the offers at their end. On phones
+ * cart icons, and the category bar with its dropdowns. On phones
  * the search moves under the logo, the categories sit behind the menu
  * button, and the tab bar at the bottom does the everyday navigation; the
  * header then scrolls away with the page.
@@ -45,8 +38,6 @@ export async function Header({
   ]);
   const promise = "flex items-center gap-2 whitespace-nowrap";
   const promiseIcon = "size-4 shrink-0";
-  const chip =
-    "flex h-11 items-center gap-2 rounded-full bg-mist px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-150 hover:bg-cloud";
 
   return (
     <>
@@ -101,56 +92,10 @@ export async function Header({
         </div>
 
         {categories.length > 0 && (
-          <nav aria-label={t("main")} className="hidden lg:block">
-            <ul className="container-page no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-3">
-              <li>
-                <Link href="/products" className={cn(chip, "font-bold")}>
-                  <LayoutGrid aria-hidden="true" className="size-[1.125rem]" />
-                  {t("allCategories")}
-                </Link>
-              </li>
-              {categories.map((item) => (
-                <li key={item.id}>
-                  <Link
-                    href={{
-                      pathname: "/category/[slug]",
-                      params: { slug: item.slug },
-                    }}
-                    className={cn(chip, item.image && "pl-1.5")}
-                  >
-                    {item.image && (
-                      <span
-                        aria-hidden="true"
-                        className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-white p-1"
-                      >
-                        <ProductImage
-                          image={item.image}
-                          alt=""
-                          sizes="32px"
-                          fallbackLabel=""
-                        />
-                      </span>
-                    )}
-                    {item.name}
-                  </Link>
-                </li>
-              ))}
-              <li>
-                <Link href="/how-it-works" className={chip}>
-                  {t("howItWorks")}
-                </Link>
-              </li>
-              <li className="ml-auto">
-                <Link
-                  href={{ pathname: "/products", query: { onSale: "1" } }}
-                  className="flex h-11 items-center gap-1.5 rounded-full bg-red-50 px-4 text-sm font-bold whitespace-nowrap text-red-600 transition-colors duration-150 hover:bg-red-100"
-                >
-                  <Tag aria-hidden="true" className="size-4" />
-                  {t("offers")}
-                </Link>
-              </li>
-            </ul>
-          </nav>
+          <CategoryNav
+            categories={categories}
+            className="border-line hidden border-t lg:block"
+          />
         )}
       </header>
     </>

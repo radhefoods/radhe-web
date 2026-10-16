@@ -122,6 +122,23 @@ test.describe("on a phone", () => {
     await expect(button).toBeFocused();
 
     await button.click();
+    // Nothing but categories: no "all products", offers or "how it works".
+    await expect(
+      menu.getByRole("link", { name: /all products|offers|how it works/i }),
+    ).toHaveCount(0);
+    // A parent folds out its sub-categories; its own name leads to its page.
+    const fold = menu.getByRole("button", { name: "Subcategories of Spices" });
+    await expect(fold).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      menu.getByRole("link", { name: "Masala Blends" }),
+    ).toBeHidden();
+    await fold.click();
+    await expect(fold).toHaveAttribute("aria-expanded", "true");
+    await menu.getByRole("link", { name: "Masala Blends" }).click();
+    await expect(page).toHaveURL(/\/en\/category\/masala-blends$/);
+    await expect(menu).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Menu" }).click();
     await menu.getByRole("link", { name: "Spices", exact: true }).click();
     await expect(page).toHaveURL(/\/en\/category\/spices$/);
     await expect(menu).toHaveCount(0);

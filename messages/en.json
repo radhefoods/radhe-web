@@ -21,8 +21,8 @@
     "errorText": "We could not load this page. Please try again in a moment."
   },
   "nav": {
-    "main": "Main navigation",
     "categories": "Categories",
+    "subcategoriesOf": "Subcategories of {name}",
     "tabBar": "Quick navigation",
     "home": "Home",
     "shop": "Shop",
@@ -32,9 +32,7 @@
     "cartWithCount": "Cart, {count, plural, =0 {empty} one {# item} other {# items}}",
     "logoHome": "Radhe Foods, to the home page",
     "switchTo": "Switch language",
-    "howItWorks": "How it works",
     "allCategories": "All categories",
-    "offers": "Offers",
     "signIn": "Sign in"
   },
   "product": {

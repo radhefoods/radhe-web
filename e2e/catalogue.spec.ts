@@ -16,6 +16,54 @@ async function variantIdOf(page: Page, slug: string): Promise<string> {
   return (await response.json()).product.variantId;
 }
 
+test.describe("the category navigation", () => {
+  test("the bar lists the categories; a parent opens its sub-categories on hover and by keyboard", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "The bar exists on wide screens only.");
+    await page.goto("/en");
+    const nav = page.getByRole("navigation", { name: "Categories" });
+    await expect(
+      nav.getByRole("link", { name: "Rice", exact: true }),
+    ).toHaveAttribute("href", "/en/category/rice");
+    // Nothing but the categories of the API.
+    await expect(
+      nav.getByRole("link", { name: /offers|how it works|all categories/i }),
+    ).toHaveCount(0);
+    const chevron = nav.getByRole("button", {
+      name: "Subcategories of Spices",
+    });
+    await expect(chevron).toHaveAttribute("aria-expanded", "false");
+    const wholeSpices = nav.getByRole("link", { name: "Whole Spices" });
+    await expect(wholeSpices).toBeHidden();
+
+    // Resting on the item opens the panel; moving down into it keeps it.
+    await nav.getByRole("link", { name: "Spices", exact: true }).hover();
+    await expect(wholeSpices).toBeVisible();
+    await wholeSpices.hover();
+    await expect(wholeSpices).toBeVisible();
+    await wholeSpices.click();
+    await expect(page).toHaveURL(/\/en\/category\/whole-spices$/);
+    await expect(
+      nav.getByRole("link", { name: "Spices", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(nav.getByRole("link", { name: "Whole Spices" })).toBeHidden();
+
+    // By keyboard: the chevron opens, Escape closes and keeps the focus.
+    await page.mouse.move(0, 0);
+    await chevron.focus();
+    await page.keyboard.press("Enter");
+    await expect(chevron).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      nav.getByRole("link", { name: "Masala Blends" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(chevron).toHaveAttribute("aria-expanded", "false");
+    await expect(chevron).toBeFocused();
+  });
+});
+
 test.describe("the shop at a glance", () => {
   test("home says what the shop promises, in both languages", async ({
     page,
