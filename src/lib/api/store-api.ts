@@ -5,16 +5,17 @@ import type {
   AddressInput,
   AddressList,
   Bill,
-  CancellationReason,
-  CargoStatus,
   CartItemInput,
   Category,
   CategoryDetail,
+  CheckoutInput,
+  CheckoutResult,
   CheckoutSession,
   Communication,
   CreateReturnInput,
   CursorPage,
   Customer,
+  CustomerCancellationReason,
   Id,
   InvoiceDetail,
   InvoiceSummary,
@@ -25,12 +26,8 @@ import type {
   OrderPayment,
   OrderReturns,
   OrderSummary,
-  OrderingPermission,
   OtpRequestResult,
   Page,
-  PayLink,
-  PlaceOrderInput,
-  PlaceOrderResult,
   ProductDetail,
   ProductFacets,
   ProductQuery,
@@ -103,8 +100,6 @@ export function createStoreApi(request: Requester) {
         method: "PATCH",
         body: input,
       }),
-    getOrderingPermission: (o?: CallOptions) =>
-      request<OrderingPermission>("/v1/store/me/ordering", o),
 
     // --- 3 Addresses --------------------------------------------------------
     listAddresses: (o?: CallOptions) =>
@@ -147,8 +142,7 @@ export function createStoreApi(request: Requester) {
     getLegal: (type: LegalType, o?: CallOptions) =>
       request<{ document: LegalDocument }>(`/v1/store/legal/${seg(type)}`, o),
 
-    // --- 7 Catalogue and cargo ----------------------------------------------
-    getCargo: (o?: CallOptions) => request<CargoStatus>("/v1/store/cargo", o),
+    // --- 7 Catalogue --------------------------------------------------------
     listCategories: (o?: CallOptions) =>
       request<{ items: Category[] }>("/v1/store/categories", o),
     getCategory: (slug: string, o?: CallOptions) =>
@@ -199,18 +193,15 @@ export function createStoreApi(request: Requester) {
     clearCart: (o?: CallOptions) =>
       request<Bill>("/v1/store/cart", { ...o, method: "DELETE" }),
 
-    // --- 9 Orders -----------------------------------------------------------
+    // --- 9 Orders and checkout ----------------------------------------------
     /**
-     * Confirms the stored cart as a binding pre-order. The idempotency key
-     * is made when the customer reaches the confirm step and reused on every
-     * retry: the same key answers with the first order.
+     * Turns the stored cart into an order that waits for its payment and
+     * answers the address of the payment page (9). The idempotency key is
+     * made when the customer reaches the checkout and reused on every
+     * retry: the same key answers the first order with its page.
      */
-    placeOrder: (
-      input: PlaceOrderInput,
-      idempotencyKey: string,
-      o?: CallOptions,
-    ) =>
-      request<PlaceOrderResult>("/v1/store/orders", {
+    checkout: (input: CheckoutInput, idempotencyKey: string, o?: CallOptions) =>
+      request<CheckoutResult>("/v1/store/checkout", {
         ...o,
         method: "POST",
         body: input,
@@ -227,7 +218,7 @@ export function createStoreApi(request: Requester) {
       ),
     cancelOrder: (
       orderNumber: string,
-      input: { reason: CancellationReason; text?: string },
+      input: { reason: CustomerCancellationReason; text?: string },
       o?: CallOptions,
     ) =>
       request<{ order: OrderDetail }>(
@@ -236,18 +227,16 @@ export function createStoreApi(request: Requester) {
       ),
 
     // --- 10 Payments --------------------------------------------------------
-    /** Also the call after the return from Stripe: it asks Stripe first. */
+    /**
+     * The payment block and the documents of an order. Also the call after
+     * the return from Stripe: the API asks Stripe about an open page first,
+     * so the answer is right the moment the customer comes back (10.4).
+     */
     getOrderPayment: (orderNumber: string, o?: CallOptions) =>
       request<OrderPayment>(`/v1/store/orders/${seg(orderNumber)}/payment`, o),
-    createOrderCheckout: (orderNumber: string, o?: CallOptions) =>
-      request<CheckoutSession>(
-        `/v1/store/orders/${seg(orderNumber)}/checkout`,
-        { ...o, method: "POST" },
-      ),
-    getPayLink: (token: string, o?: CallOptions) =>
-      request<PayLink>(`/v1/pay/${seg(token)}`, o),
-    createPayLinkCheckout: (token: string, o?: CallOptions) =>
-      request<CheckoutSession>(`/v1/pay/${seg(token)}/checkout`, {
+    /** A payment page for an order that still waits (10.3). */
+    createPaymentPage: (orderNumber: string, o?: CallOptions) =>
+      request<CheckoutSession>(`/v1/store/orders/${seg(orderNumber)}/pay`, {
         ...o,
         method: "POST",
       }),

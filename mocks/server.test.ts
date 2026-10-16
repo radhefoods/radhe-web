@@ -164,8 +164,9 @@ describe("catalogue", () => {
       canOrder: false,
       reason: "sold_out",
       remaining: 0,
+      maxQuantity: 0,
     });
-    expect(ordering(SKU.alphonsoMango)?.reason).toBe("not_in_this_cargo");
+    expect(ordering(SKU.alphonsoMango)?.canOrder).toBe(true);
     expect(ordering(SKU.paneer)?.reason).toBe("product_unavailable");
     expect(ordering(SKU.bhujia)).toEqual({
       canOrder: true,
@@ -275,35 +276,48 @@ describe("filters and facets", () => {
   });
 });
 
-describe("cargo", () => {
-  it("is open with a countdown and delivery days", async () => {
-    const status = await guestApi().getCargo({ locale: "de" });
-    expect(status.acceptingOrders).toBe(true);
-    expect(status.current?.name).toBe("Oktober-Lieferung");
-    expect(status.current?.closesInSeconds).toBeGreaterThan(2 * 86_400);
-    expect(status.current?.delivery.start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(status.timezone).toBe("Europe/Berlin");
-  });
-
-  it("can be closed, and then nothing is orderable", async () => {
-    await fetch(`${base}/__mock/cargo`, {
+describe("stock", () => {
+  async function setStock(productId: string, quantity: number) {
+    await fetch(`${base}/__mock/stock`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "closed" }),
+      body: JSON.stringify({ productId, quantity }),
     });
+  }
+
+  it("caps the quantity of a line at what is in stock", async () => {
+    await setStock(SKU.chakkiAtta5kg, 3);
     const api = guestApi();
-    const status = await api.getCargo();
-    expect(status.acceptingOrders).toBe(false);
-    expect(status.current).toBeNull();
-    expect(status.next?.opensInSeconds).toBeGreaterThan(0);
-    const orderable = await api.listProducts({ orderable: true });
-    expect(orderable.total).toBe(0);
+    const product = await api.getProduct("chakki-atta-5-kg");
+    expect(product.product.ordering).toMatchObject({
+      canOrder: true,
+      maxQuantity: 3,
+      remaining: 3,
+    });
+    const bill = await api.previewCart([
+      { productId: SKU.chakkiAtta5kg, quantity: 4 },
+    ]);
+    expect(bill.canOrder).toBe(false);
+    expect(bill.lines[0].issue).toBe("quantity_above_maximum");
+  });
+
+  it("sells out when the stock is gone, and the cart says so", async () => {
+    await setStock(SKU.chakkiAtta5kg, 0);
+    const api = guestApi();
+    const product = await api.getProduct("chakki-atta-5-kg");
+    expect(product.product.ordering).toMatchObject({
+      canOrder: false,
+      reason: "sold_out",
+      maxQuantity: 0,
+      remaining: 0,
+    });
+    const orderable = await api.listProducts({ q: "atta", orderable: true });
+    expect(orderable.items.map((p) => p.sku)).not.toContain("RF-00101");
     const bill = await api.previewCart([
       { productId: SKU.chakkiAtta5kg, quantity: 1 },
     ]);
     expect(bill.canOrder).toBe(false);
-    expect(bill.cargo).toBeNull();
-    expect(bill.lines[0].issue).toBe("ordering_closed");
+    expect(bill.lines[0].issue).toBe("sold_out");
   });
 });
 

@@ -161,8 +161,8 @@ describe("clampToOrdering", () => {
   it("keeps the quantity inside the limits of the product", () => {
     expect(clampToOrdering(0, { minQuantity: 1, maxQuantity: 10 })).toBe(1);
     expect(clampToOrdering(50, { minQuantity: 1, maxQuantity: 10 })).toBe(10);
-    expect(clampToOrdering(4, { minQuantity: 2, maxQuantity: null })).toBe(4);
-    expect(clampToOrdering(1, { minQuantity: 2, maxQuantity: null })).toBe(2);
+    expect(clampToOrdering(4, { minQuantity: 2, maxQuantity: 10 })).toBe(4);
+    expect(clampToOrdering(1, { minQuantity: 2, maxQuantity: 10 })).toBe(2);
   });
 
   it("falls back to the limits of the cart", () => {

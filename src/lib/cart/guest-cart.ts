@@ -97,7 +97,7 @@ export function removeItem(cart: GuestCart, productId: Id): CartItemInput[] {
 /**
  * The quantity the customer may choose for a product, from its ordering
  * block: at least `minQuantity`, at most `maxQuantity` (product limit and
- * remaining units of the cargo combined), never more than the cart allows.
+ * units in stock combined), never more than the cart allows.
  */
 export function clampToOrdering(
   quantity: number,

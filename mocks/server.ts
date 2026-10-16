@@ -4,10 +4,11 @@
 //
 //   npm run dev:mock        starts it on http://localhost:3000
 //
-// Built so far: settings, legal texts, cargo, categories, products, cart
-// (preview, stored cart, merge), sign-in with a login code, addresses,
-// orders, payments (with a stand-in payment page), invoices and credit notes
-// with PDF, and returns. `demo@radhefoods.de` gets a filled demo account.
+// Built so far: settings, legal texts, categories, products with their
+// stock, cart (preview, stored cart, merge), sign-in with a login code,
+// addresses, checkout with a stand-in payment page, orders and payments,
+// invoices and credit notes with PDF, and returns. `demo@radhefoods.de`
+// gets a filled demo account.
 //
 // Runs on the project's Node (24, see .nvmrc) and needs at least 22.18, which
 // reads TypeScript directly; no build step.
@@ -31,28 +32,29 @@ import {
 import {
   addresses,
   cancelOrder,
+  checkout,
+  findOrder,
   getOrder,
   listOrders,
-  orderingPermission,
-  placeOrder,
-  findOrder,
   resetFixtures,
 } from "./orders.ts";
 import { DEMO_EMAIL, seedDemoAccount } from "./demo.ts";
 import {
   advanceOrder,
   cancelReturn,
-  createCheckout,
   createReturn,
   decideReturn,
+  expirePaymentPage,
+  failPayment,
   findInvoice,
   findReturn,
   invoicePdf,
   listInvoices,
-  markPaid,
   orderPayment,
   orderReturns,
-  paymentBlockOf,
+  paymentPage,
+  settleLater,
+  settlePayment,
   stripe,
   type OrderAction,
 } from "./payments.ts";
@@ -65,7 +67,6 @@ import {
   OTP_MAX_PER_HOUR,
   OTP_TTL_SECONDS,
   REFRESH_TTL_SECONDS,
-  cargoState,
   customerByEmail,
   db,
   legalDocuments,
@@ -77,7 +78,6 @@ import {
 } from "./state.ts";
 import {
   billOf,
-  cargoStatus,
   categoryBySlug,
   categoryDetail,
   categoryTree,
@@ -100,6 +100,11 @@ const REFRESH_PATH = "/v1/store/auth";
 const CART_MAX_LINES = 100;
 /** The shop, for the links the API builds (`SHOP_URL` of the real API). */
 const SHOP_URL = process.env.SHOP_URL || "http://localhost:3001";
+
+/** The address of the mock itself, where its payment page lives. */
+function mockBaseOf(ctx: Context): string {
+  return `http://${ctx.headers.host}`;
+}
 
 // --- Errors (doc 0.4) -------------------------------------------------------
 
@@ -374,9 +379,13 @@ route("POST", "/v1/store/auth/otp/request", (ctx) => {
   };
 });
 
-function createAccount(email: string, locale: Locale): CustomerRecord {
+function createAccount(
+  email: string,
+  locale: Locale,
+  mockBase: string,
+): CustomerRecord {
   const customer = newCustomer(email, locale);
-  if (email === DEMO_EMAIL) seedDemoAccount(customer, SHOP_URL);
+  if (email === DEMO_EMAIL) seedDemoAccount(customer, mockBase);
   return customer;
 }
 
@@ -411,7 +420,11 @@ route("POST", "/v1/store/auth/otp/verify", (ctx) => {
   }
   const customer =
     customerByEmail(email) ??
-    createAccount(email, optionalLocale(body.locale, otp.locale));
+    createAccount(
+      email,
+      optionalLocale(body.locale, otp.locale),
+      mockBaseOf(ctx),
+    );
   return startSession(customer);
 });
 
@@ -549,7 +562,7 @@ route("GET", "/v1/store/settings", () => ({ body: settingsView() }));
 route("GET", "/v1/store/legal", (ctx) => ({ body: legalList(ctx.locale) }));
 
 route("GET", "/v1/store/legal/:type", (ctx) => {
-  if (!["terms", "preorder_terms", "privacy"].includes(ctx.params.type)) {
+  if (!["terms", "privacy"].includes(ctx.params.type)) {
     throw new HttpError(
       400,
       "BAD_REQUEST",
@@ -567,9 +580,7 @@ route("GET", "/v1/store/legal/:type", (ctx) => {
   return { body: { document } };
 });
 
-// --- 7 Catalogue and cargo --------------------------------------------------
-
-route("GET", "/v1/store/cargo", (ctx) => ({ body: cargoStatus(ctx.locale) }));
+// --- 7 Catalogue ------------------------------------------------------------
 
 route("GET", "/v1/store/categories", (ctx) => ({
   body: categoryTree(ctx.locale),
@@ -834,20 +845,16 @@ route("DELETE", "/v1/store/me/addresses/:id", (ctx) => ({
   body: addresses.remove(requireCustomer(ctx), ctx.params.id),
 }));
 
-// --- 9 Orders ---------------------------------------------------------------
+// --- 9 Orders and checkout --------------------------------------------------
 
-route("GET", "/v1/store/me/ordering", (ctx) => ({
-  body: orderingPermission(requireCustomer(ctx)),
-}));
-
-route("POST", "/v1/store/orders", (ctx) => {
+route("POST", "/v1/store/checkout", (ctx) => {
   const key = ctx.headers["idempotency-key"];
-  return placeOrder(
+  return checkout(
     requireCustomer(ctx),
     typeof key === "string" ? key : undefined,
     ctx.body,
     ctx.locale,
-    SHOP_URL,
+    mockBaseOf(ctx),
   );
 });
 
@@ -882,86 +889,82 @@ route("GET", "/v1/store/orders/:orderNumber/payment", (ctx) => {
   };
 });
 
-route("POST", "/v1/store/orders/:orderNumber/checkout", (ctx) => ({
-  body: createCheckout(
+route("POST", "/v1/store/orders/:orderNumber/pay", (ctx) => ({
+  body: paymentPage(
     findOrder(requireCustomer(ctx), ctx.params.orderNumber),
-    // The payment page is played by the mock itself, at its own address.
-    `http://${ctx.headers.host}`,
+    mockBaseOf(ctx),
   ),
 }));
 
-// The payment page of the mock: stands in for Stripe Checkout.
-route("GET", "/__mock/stripe/:orderNumber", (ctx) => {
-  const order = db.orders.get(ctx.params.orderNumber.toUpperCase());
+// The payment page of the mock: stands in for Stripe Checkout. Nothing is
+// charged; "pay" settles the order the way Stripe's notification would.
+function orderOfPage(orderNumber: string) {
+  const order = db.orders.get(orderNumber.toUpperCase());
   if (!order) throw new HttpError(404, "NOT_FOUND", "Not found.");
+  return order;
+}
+
+/** Whether the page can still be paid: the order waits and the page is not expired. */
+function pageIsOpen(order: ReturnType<typeof orderOfPage>): boolean {
+  const page = order.payment.checkout;
+  return (
+    order.status === "pending_payment" &&
+    page !== null &&
+    Date.parse(page.expiresAt) > Date.now()
+  );
+}
+
+/** Where Stripe sends the browser afterwards (doc 10.4). */
+function backToOrder(
+  orderNumber: string,
+  result: "success" | "cancelled",
+): Result {
+  return {
+    status: 302,
+    headers: {
+      Location: `${SHOP_URL}/account/orders/${orderNumber}?payment=${result}`,
+    },
+  };
+}
+
+route("GET", "/__mock/stripe/:orderNumber", (ctx) => {
+  const order = orderOfPage(ctx.params.orderNumber);
   const base = `/__mock/stripe/${order.orderNumber}`;
+  const amount = `${(order.payment.amount / 100).toFixed(2)} EUR`;
+  const content = pageIsOpen(order)
+    ? `<p>Order ${order.orderNumber}: ${amount}</p><p><a href="${base}/pay?type=card">Pay by card</a></p><p><a href="${base}/pay?type=paypal">Pay with PayPal</a></p><p><a href="${base}/cancel">Cancel</a></p>`
+    : `<p>This payment page is no longer open.</p><p><a href="${base}/cancel">Back to the order</a></p>`;
   return {
     raw: {
       contentType: "text/html; charset=utf-8",
-      content: `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mock payment page</title><body style="font-family:system-ui;max-width:28rem;margin:3rem auto;padding:0 1rem"><h1>Mock payment page</h1><p>This page stands in for Stripe Checkout. Nothing is charged.</p><p>Order ${order.orderNumber}</p><p><a href="${base}/pay?type=card">Pay by card</a></p><p><a href="${base}/pay?type=paypal">Pay with PayPal</a></p><p><a href="${base}/cancel">Cancel</a></p></body></html>`,
+      content: `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mock payment page</title><body style="font-family:system-ui;max-width:28rem;margin:3rem auto;padding:0 1rem"><h1>Mock payment page</h1><p>This page stands in for Stripe Checkout. Nothing is charged.</p>${content}</body></html>`,
     },
   };
 });
 
 route("GET", "/__mock/stripe/:orderNumber/pay", (ctx) => {
-  const order = db.orders.get(ctx.params.orderNumber.toUpperCase());
-  if (!order) throw new HttpError(404, "NOT_FOUND", "Not found.");
-  markPaid(
-    order,
-    "stripe",
-    ctx.url.searchParams.get("type") === "paypal" ? "paypal" : "card",
-  );
-  return {
-    status: 302,
-    headers: {
-      Location: `${SHOP_URL}/account/orders/${order.orderNumber}?payment=success`,
-    },
-  };
+  const order = orderOfPage(ctx.params.orderNumber);
+  // A closed page (the order was given up, or the page expired) pays nothing.
+  if (!pageIsOpen(order)) return backToOrder(order.orderNumber, "cancelled");
+  if (ctx.url.searchParams.get("type") === "paypal") {
+    // The bank approves now; Stripe's notification comes a moment later.
+    settleLater(order);
+  } else {
+    settlePayment(order, "card");
+  }
+  return backToOrder(order.orderNumber, "success");
 });
 
-route("GET", "/__mock/stripe/:orderNumber/cancel", (ctx) => ({
-  status: 302,
-  headers: {
-    Location: `${SHOP_URL}/account/orders/${ctx.params.orderNumber.toUpperCase()}?payment=cancelled`,
-  },
-}));
+route("GET", "/__mock/stripe/:orderNumber/cancel", (ctx) =>
+  backToOrder(ctx.params.orderNumber.toUpperCase(), "cancelled"),
+);
 
-// --- Links in emails: no sign-in, the token is the key (doc 4, 10.4) ----------
+// --- Links in emails: no sign-in, the token is the key (doc 4) ---------------
 
 /** The token of the unsubscribe link: the customer id and a signature. */
 function unsubscribeTokenOf(customer: CustomerRecord): string {
   return `${customer.id}.mock-signature-${customer.id.slice(-6)}`;
 }
-
-function orderOfPayLink(token: string) {
-  for (const order of db.orders.values()) {
-    if (order.payment && order.payment.payLinkToken === token) return order;
-  }
-  throw new HttpError(
-    404,
-    "PAY_LINK_INVALID",
-    "This payment link is not valid.",
-  );
-}
-
-route("GET", "/v1/pay/:token", (ctx) => {
-  const order = orderOfPayLink(ctx.params.token);
-  return {
-    body: {
-      orderNumber: order.orderNumber,
-      firstName: db.customers.get(order.customerId)?.firstName ?? null,
-      language: order.language,
-      payment: paymentBlockOf(order),
-    },
-  };
-});
-
-route("POST", "/v1/pay/:token/checkout", (ctx) => ({
-  body: createCheckout(
-    orderOfPayLink(ctx.params.token),
-    `http://${ctx.headers.host}`,
-  ),
-}));
 
 route("POST", "/v1/unsubscribe/:token", (ctx) => {
   const customer = [...db.customers.values()].find(
@@ -978,17 +981,11 @@ route("POST", "/v1/unsubscribe/:token", (ctx) => {
   return { body: { email: customer.email, marketingOptIn: false } };
 });
 
-// Not part of the real API: the tokens the emails would carry, for tests.
+// Not part of the real API: the token the emails would carry, for tests.
 route("GET", "/__mock/tokens", (ctx) => {
   const customer = customerByEmail(ctx.url.searchParams.get("email") ?? "");
   if (!customer) throw validationFailed("email", "unknown customer");
-  const pay: Record<string, string> = {};
-  for (const order of db.orders.values()) {
-    if (order.customerId === customer.id && order.payment) {
-      pay[order.orderNumber] = order.payment.payLinkToken;
-    }
-  }
-  return { body: { unsubscribe: unsubscribeTokenOf(customer), pay } };
+  return { body: { unsubscribe: unsubscribeTokenOf(customer) } };
 });
 
 // --- 11 Invoices and credit notes -------------------------------------------
@@ -1068,14 +1065,21 @@ route("GET", "/media/products/:productId/:file", (ctx) => {
   };
 });
 
-// Not part of the real API: lets tests choose the state of the shop.
-route("POST", "/__mock/cargo", (ctx) => {
-  const body = objectBody(ctx.body, ["mode"]);
-  if (body.mode !== "open" && body.mode !== "closed" && body.mode !== "none") {
-    throw validationFailed("mode", "mode must be one of: open, closed, none");
+// Not part of the real API: the admin sets the stock of a product.
+route("POST", "/__mock/stock", (ctx) => {
+  const body = objectBody(ctx.body, ["productId", "quantity"]);
+  const product = findProduct(String(body.productId));
+  const quantity = body.quantity;
+  if (
+    !product ||
+    typeof quantity !== "number" ||
+    !Number.isInteger(quantity) ||
+    quantity < 0
+  ) {
+    throw validationFailed("productId", "unknown product or quantity");
   }
-  cargoState.mode = body.mode;
-  return { body: { mode: cargoState.mode } };
+  product.stock = quantity;
+  return { body: { productId: product.id, stock: product.stock } };
 });
 
 // Not part of the real API: a new version of a legal text is published.
@@ -1099,38 +1103,21 @@ route("POST", "/__mock/price", (ctx) => {
   return { body: { productId: product.id, price: product.regularPrice } };
 });
 
-// Not part of the real API: what Radhe Foods decided about a customer.
+// Not part of the real API: Radhe Foods blocks or unblocks a customer.
 route("POST", "/__mock/customer", (ctx) => {
-  const body = objectBody(ctx.body, ["email", "overdue", "orderingBlocked"]);
+  const body = objectBody(ctx.body, ["email", "blocked"]);
   const customer = customerByEmail(String(body.email));
   if (!customer) throw validationFailed("email", "unknown customer");
-  if (typeof body.orderingBlocked === "boolean") {
-    customer.orderingBlocked = body.orderingBlocked;
-  }
-  if (typeof body.overdue === "boolean") {
-    customer.overdue = body.overdue
-      ? [
-          {
-            orderNumber: "RF-1001",
-            invoiceNumber: "INV-2026-000012",
-            amountDue: 3193,
-            deadlineAt: "2026-09-20T21:59:59.000Z",
-          },
-        ]
-      : [];
-  }
+  if (typeof body.blocked === "boolean") customer.blocked = body.blocked;
   return { status: 204 };
 });
 
 // Not part of the real API: the admin moves an order along.
 const ORDER_ACTIONS: OrderAction[] = [
-  "prepare",
+  "process",
   "dispatch",
   "deliver",
-  "fail",
-  "activate",
-  "pay_cash",
-  "overdue",
+  "refund",
 ];
 route("POST", "/__mock/order", (ctx) => {
   const body = objectBody(ctx.body, ["orderNumber", "actions", "method"]);
@@ -1145,6 +1132,33 @@ route("POST", "/__mock/order", (ctx) => {
       throw validationFailed("actions", `unknown action ${String(action)}`);
     }
     advanceOrder(order, action);
+  }
+  return { status: 204 };
+});
+
+// Not part of the real API: what Stripe would report about a payment page.
+route("POST", "/__mock/payment", (ctx) => {
+  const body = objectBody(ctx.body, ["orderNumber", "action"]);
+  const order = db.orders.get(String(body.orderNumber).toUpperCase());
+  if (!order) throw validationFailed("orderNumber", "unknown order");
+  switch (body.action) {
+    case "settle":
+      settlePayment(
+        order,
+        order.payment.checkout?.completesAt ? "paypal" : "card",
+      );
+      break;
+    case "fail":
+      failPayment(order);
+      break;
+    case "expire":
+      expirePaymentPage(order);
+      break;
+    default:
+      throw validationFailed(
+        "action",
+        "action must be one of: settle, fail, expire",
+      );
   }
   return { status: 204 };
 });

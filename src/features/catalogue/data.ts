@@ -3,7 +3,6 @@ import type { Locale } from "@/i18n/routing";
 import { hasErrorCode } from "@/lib/api/errors";
 import { REVALIDATE, TAGS, serverApi } from "@/lib/api/server";
 import type {
-  CargoStatus,
   Category,
   CategoryDetail,
   Page,
@@ -19,24 +18,11 @@ import type {
 // components of one request (`cache`).
 //
 // Two kinds of readers:
-// - the frame of the shop (cargo, settings, categories) must never take a
-//   page down: on failure they answer `null` / an empty list;
+// - the frame of the shop (settings, categories) must never take a page
+//   down: on failure they answer `null` / an empty list;
 // - the content of a page throws, so the error page with "try again" shows.
 
 const catalogue = { revalidate: REVALIDATE.catalogue, tags: [TAGS.catalogue] };
-
-export const getCargo = cache(
-  async (locale: Locale): Promise<CargoStatus | null> => {
-    try {
-      return await serverApi.getCargo({
-        locale,
-        next: { revalidate: REVALIDATE.cargo, tags: [TAGS.cargo] },
-      });
-    } catch {
-      return null;
-    }
-  },
-);
 
 export const getSettings = cache(async (): Promise<ShopSettings | null> => {
   try {

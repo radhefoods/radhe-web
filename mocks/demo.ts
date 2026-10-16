@@ -3,8 +3,15 @@
 // the states a customer meets. Invented data, created at the first sign-in.
 
 import { SKU } from "./data/catalogue.ts";
-import { addresses, placeOrder } from "./orders.ts";
-import { advanceOrder, createReturn, markPaid } from "./payments.ts";
+import { addresses, checkout } from "./orders.ts";
+import {
+  advanceOrder,
+  cancelSoldOut,
+  createReturn,
+  refundOrder,
+  releaseStock,
+  settlePayment,
+} from "./payments.ts";
 import {
   db,
   legalDocuments,
@@ -19,15 +26,16 @@ const DAY = 86_400_000;
 const daysAgo = (days: number) =>
   new Date(Date.now() - days * DAY).toISOString();
 
+/** A checkout of these items: the order waits for its payment. */
 function order(
   customer: CustomerRecord,
   items: { productId: string; quantity: number }[],
   placedDaysAgo: number,
-  shopUrl: string,
+  mockBase: string,
 ): OrderRecord {
   customer.cart = items;
   const bill = billOf(items, customer.locale);
-  const { body } = placeOrder(
+  const { body } = checkout(
     customer,
     `demo-order-${db.orderSequence + 1}`,
     {
@@ -41,7 +49,7 @@ function order(
       },
     },
     customer.locale,
-    shopUrl,
+    mockBase,
   );
   const record = db.orders.get(body.order.orderNumber)!;
   record.placedAt = daysAgo(placedDaysAgo);
@@ -49,9 +57,22 @@ function order(
   return record;
 }
 
+/** A checkout paid by card right away: the order is confirmed. */
+function paidOrder(
+  customer: CustomerRecord,
+  items: { productId: string; quantity: number }[],
+  placedDaysAgo: number,
+  mockBase: string,
+): OrderRecord {
+  const record = order(customer, items, placedDaysAgo, mockBase);
+  settlePayment(record, "card");
+  record.payment.paidAt = record.placedAt;
+  return record;
+}
+
 export function seedDemoAccount(
   customer: CustomerRecord,
-  shopUrl: string,
+  mockBase: string,
 ): void {
   customer.firstName = "Priya";
   customer.lastName = "Shah";
@@ -68,8 +89,8 @@ export function seedDemoAccount(
   });
 
   try {
-    // Delivered and paid by card, with a return request waiting.
-    const paid = order(
+    // RF-1085: delivered and paid by card, with a return request waiting.
+    const delivered = paidOrder(
       customer,
       [
         { productId: SKU.basmati5kg, quantity: 1 },
@@ -77,16 +98,13 @@ export function seedDemoAccount(
         { productId: SKU.mangoDrink, quantity: 6 },
       ],
       40,
-      shopUrl,
+      mockBase,
     );
-    advanceOrder(paid, "deliver");
-    paid.delivery.dispatchedAt = daysAgo(11);
-    paid.delivery.deliveredAt = daysAgo(10);
-    advanceOrder(paid, "activate");
-    markPaid(paid, "stripe", "card");
-    paid.payment!.paidAt = daysAgo(8);
+    advanceOrder(delivered, "deliver");
+    delivered.delivery.dispatchedAt = daysAgo(11);
+    delivered.delivery.deliveredAt = daysAgo(10);
     createReturn(
-      paid,
+      delivered,
       {
         items: [
           {
@@ -100,39 +118,36 @@ export function seedDemoAccount(
       customer.locale,
     );
 
-    // Delivered, invoice issued, to be paid within a few days.
-    const due = order(
+    // RF-1086: waiting for its payment, the payment page is open.
+    order(
       customer,
       [
         { productId: SKU.chakkiAtta5kg, quantity: 2 },
         { productId: SKU.khakhra, quantity: 2 },
       ],
-      21,
-      shopUrl,
+      0,
+      mockBase,
     );
-    advanceOrder(due, "deliver");
-    due.delivery.dispatchedAt = daysAgo(3);
-    due.delivery.deliveredAt = daysAgo(2);
-    advanceOrder(due, "activate");
 
-    // On its way with a parcel service.
-    const onItsWay = order(
+    // RF-1087: paid, on its way with a parcel service.
+    const onItsWay = paidOrder(
       customer,
       [{ productId: SKU.basmati1kg, quantity: 3 }],
       9,
-      shopUrl,
+      mockBase,
     );
     onItsWay.delivery.method = "dhl";
     advanceOrder(onItsWay, "dispatch");
     onItsWay.delivery.dispatchedAt = daysAgo(1);
 
-    // Cancelled by the customer.
-    const cancelled = order(
+    // RF-1088: paid, then cancelled by the customer; the money went back.
+    const cancelled = paidOrder(
       customer,
       [{ productId: SKU.toorDal1kg, quantity: 1 }],
       5,
-      shopUrl,
+      mockBase,
     );
+    releaseStock(cancelled);
     cancelled.status = "cancelled";
     cancelled.cancellation = {
       reason: "ordered_by_mistake",
@@ -140,19 +155,30 @@ export function seedDemoAccount(
       by: "customer",
       at: daysAgo(5),
     };
+    refundOrder(cancelled);
 
-    // Just confirmed: can still be cancelled.
-    order(
+    // RF-1089: paid and confirmed today; can still be cancelled.
+    paidOrder(
       customer,
       [
         { productId: SKU.chakkiAtta5kg, quantity: 1 },
         { productId: SKU.basmati5kg, quantity: 1 },
       ],
       0,
-      shopUrl,
+      mockBase,
     );
+
+    // RF-1090: a product sold out before the payment was captured.
+    const gone = order(
+      customer,
+      [{ productId: SKU.mangoDrink, quantity: 6 }],
+      2,
+      mockBase,
+    );
+    cancelSoldOut(gone);
+    gone.cancellation!.at = daysAgo(2);
   } catch {
-    // Ordering is closed in the mock right now: the demo account stays
+    // Online payment is switched off in the mock: the demo account stays
     // without orders rather than failing the sign-in.
   }
   customer.cart = [];

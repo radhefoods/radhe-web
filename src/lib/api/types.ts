@@ -13,8 +13,6 @@ export type Id = string;
 export type Cents = number;
 /** ISO 8601 date-time in UTC. */
 export type IsoDateTime = string;
-/** `YYYY-MM-DD`, meant in the business time zone (Europe/Berlin). */
-export type CalendarDay = string;
 /** Hundredths of a percent: 700 = 7 %. */
 export type VatRate = number;
 
@@ -135,10 +133,14 @@ export interface ShopSettings {
     tiers: DeliveryFeeTier[];
     freeFrom: Cents | null;
   };
+  /** How long delivery takes, as Radhe Foods words it, in both languages. */
+  delivery: { estimate: Record<Locale, string> };
+  /** Days after delivery for a return; `0` switches returns off. */
   returns: { windowDays: number };
 }
 
-export type LegalType = "terms" | "preorder_terms" | "privacy";
+/** Both must be published before any order can be placed. */
+export type LegalType = "terms" | "privacy";
 
 export interface LegalSummary {
   type: LegalType;
@@ -152,7 +154,7 @@ export interface LegalDocument extends LegalSummary {
   content: string;
 }
 
-// --- 7 Catalogue and cargo --------------------------------------------------
+// --- 7 Catalogue ------------------------------------------------------------
 
 export type BasePriceUnit = "kg" | "l" | "pcs";
 
@@ -199,35 +201,25 @@ export interface ApiImage {
   };
 }
 
-export type OrderingReason =
-  "ordering_closed" | "product_unavailable" | "not_in_this_cargo" | "sold_out";
+/**
+ * `product_unavailable`: Radhe Foods switched the product off for ordering.
+ * `sold_out`: the stock does not cover the smallest order.
+ */
+export type OrderingReason = "product_unavailable" | "sold_out";
 
+/**
+ * Whether a product can be put in an order at this moment (7.1). `canOrder`
+ * is the state of the add-to-cart button. `maxQuantity` is the product's
+ * limit per order capped by the stock, `0` when sold out. `remaining` is the
+ * stock; nothing is reserved before a payment goes through, so it can still
+ * change.
+ */
 export interface Ordering {
   canOrder: boolean;
   reason: OrderingReason | null;
   minQuantity: number;
-  maxQuantity: number | null;
-  remaining: number | null;
-}
-
-export interface Cargo {
-  id: Id;
-  code: string;
-  name: string | null;
-  message: string | null;
-  orderOpenAt: IsoDateTime;
-  orderCloseAt: IsoDateTime;
-  opensInSeconds: number;
-  closesInSeconds: number;
-  delivery: { start: CalendarDay; end: CalendarDay };
-}
-
-export interface CargoStatus {
-  acceptingOrders: boolean;
-  current: Cargo | null;
-  next: Cargo | null;
-  serverTime: IsoDateTime;
-  timezone: string;
+  maxQuantity: number;
+  remaining: number;
 }
 
 export interface Seo {
@@ -297,6 +289,7 @@ export interface ProductSummary {
   category: { id: Id; slug: string; name: string } | null;
   packSize: PackSize;
   pricing: PriceView;
+  /** The admin's switch; use `ordering` for the button. */
   isAvailable: boolean;
   isFeatured: boolean;
   quantity: QuantityLimits;
@@ -345,6 +338,7 @@ export interface ProductQuery {
   packSize?: string[];
   onSale?: boolean;
   available?: boolean;
+  /** `true`: only products that can be ordered now (switched on, in stock). */
   orderable?: boolean;
   featured?: boolean;
   minPrice?: Cents;
@@ -394,6 +388,10 @@ export interface ProductFacets {
 
 // --- 8 Cart -----------------------------------------------------------------
 
+/**
+ * Why a line cannot be ordered as it is. `quantity_above_maximum` also
+ * means "more than in stock".
+ */
 export type CartLineIssue =
   | OrderingReason
   | "product_not_found"
@@ -427,14 +425,18 @@ export interface BillLine {
   vatRate: VatRate;
   vatAmount: Cents;
   issue: CartLineIssue | null;
+  /** `null` when the product no longer exists. */
   ordering: Ordering | null;
   product: ProductSummary | null;
 }
 
-/** The answer of every cart endpoint (8.1). */
+/**
+ * The answer of every cart endpoint (8.1). `canOrder` is `true` only when
+ * the cart is not empty and every line is free of issues: the state of the
+ * checkout button.
+ */
 export interface Bill {
   canOrder: boolean;
-  cargo: Cargo | null;
   lines: BillLine[];
   totals: Totals;
   delivery: {
@@ -449,39 +451,53 @@ export interface CartItemInput {
   quantity: number;
 }
 
-// --- 9 Orders ---------------------------------------------------------------
+// --- 9 Orders and checkout --------------------------------------------------
 
+/**
+ * `pending_payment` waits for the payment; the payment confirms the order.
+ * Radhe Foods can step one status back to correct a mistake (13).
+ */
 export type OrderStatus =
+  | "pending_payment"
   | "confirmed"
-  | "preparing"
+  | "processing"
   | "dispatched"
   | "delivered"
-  | "delivery_failed"
   | "returned"
   | "cancelled";
 
+/**
+ * `authorized` lasts moments: the bank approved, the API takes the stock
+ * and captures. `failed`: the last attempt did not go through; a new page
+ * sets it back to `pending`. Partial refunds keep `paid`.
+ */
 export type PaymentStatus =
-  "not_enabled" | "due" | "overdue" | "paid" | "waived" | "refunded";
+  "pending" | "authorized" | "paid" | "failed" | "refunded";
 
+/** Chosen by Radhe Foods, never by the customer. */
 export type DeliveryMethod = "radhe_delivery" | "dhl" | "hermes";
 
+/**
+ * There is no promised date: the delivery estimate comes from the
+ * settings (6). `trackingUrl` is `null` for `radhe_delivery`.
+ */
 export interface OrderDelivery {
   method: DeliveryMethod;
   trackingNumber: string | null;
   trackingUrl: string | null;
   dispatchedAt: IsoDateTime | null;
   deliveredAt: IsoDateTime | null;
-  promisedStart: CalendarDay;
-  promisedEnd: CalendarDay;
-  cargo: string;
 }
 
 export interface OrderSummary {
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
+  /** When the checkout started. */
   placedAt: IsoDateTime;
+  /** The agreed bill. */
   total: Cents;
+  /** The bill after corrections and returns. */
   finalTotal: Cents;
   currency: "EUR";
   itemCount: number;
@@ -533,15 +549,29 @@ export interface OrderAddress {
   phone?: string;
 }
 
-export type CancellationReason =
+/** The reasons the shop sends (`by: "customer"`). */
+export type CustomerCancellationReason =
   | "changed_mind"
   | "ordered_by_mistake"
   | "wrong_items"
   | "delivery_too_late"
   | "other";
 
+/** Every reason an order can carry, by who cancelled it (13). */
+export type CancellationReason =
+  | CustomerCancellationReason
+  // by Radhe Foods
+  | "customer_request"
+  | "product_unavailable"
+  | "duplicate_order"
+  | "suspected_misuse"
+  // by the API
+  | "payment_not_completed"
+  | "sold_out";
+
 export interface OrderCancellation {
-  reason: CancellationReason | string;
+  reason: CancellationReason;
+  /** Only shown when `by` is `customer`. */
   text?: string | null;
   by: "customer" | "admin" | "system";
   at: IsoDateTime;
@@ -556,6 +586,7 @@ export interface OrderDetail extends OrderSummary {
   deliveryAddress: OrderAddress;
   note: string | null;
   payment: PaymentBlock;
+  /** Always while `pending_payment`; for a paid order by the shop's rule (9.5). */
   canCancel: boolean;
   returns: { possible: boolean; until: IsoDateTime | null };
   cancellation: OrderCancellation | null;
@@ -567,77 +598,63 @@ export interface OrderDetail extends OrderSummary {
 
 export type ConsentVersions = Partial<Record<LegalType, number>>;
 
-export interface PlaceOrderInput {
+/** Body of `POST /v1/store/checkout`; the `Idempotency-Key` travels as a header. */
+export interface CheckoutInput {
   addressId: Id;
+  /** `totals.total` of the bill the customer saw. */
   expectedTotal: Cents;
   consent: { accepted: true; versions: ConsentVersions };
   note?: string;
   language?: Locale;
 }
 
-export interface PlaceOrderResult {
+/** `created` is `false` when the same key was seen before. */
+export interface CheckoutResult {
   created: boolean;
   order: OrderDetail;
-}
-
-export type OrderingBlockReason =
-  "account_blocked" | "ordering_blocked" | "payment_overdue";
-
-export interface OverdueOrder {
-  orderNumber: string;
-  invoiceNumber: string;
-  amountDue: Cents;
-  deadlineAt: IsoDateTime;
-}
-
-export interface OrderingPermission {
-  canOrder: boolean;
-  reason: OrderingBlockReason | null;
-  overdue: OverdueOrder[];
+  checkout: CheckoutSession;
 }
 
 // --- 10 Payments ------------------------------------------------------------
 
-export type PaymentMethod = "stripe" | "cash" | "credit";
+/** The Stripe payment method, once paid. */
+export type PaymentMethod = "card" | "paypal";
 
-/**
- * Before activation only the first seven keys exist; the others are present
- * once an invoice was issued (10.1).
- */
-export interface PaymentBlock {
-  status: PaymentStatus;
-  amountDue: Cents;
-  invoice: { number: string; issuedAt: IsoDateTime; pdfPath: string } | null;
-  deadline: IsoDateTime | null;
-  paidAt: IsoDateTime | null;
-  method: PaymentMethod | null;
-  canPayOnline: boolean;
-  invoicedAmount?: Cents;
-  creditedAmount?: Cents;
-  paidAmount?: Cents;
-  refundedAmount?: Cents;
-  isOverdue?: boolean;
-  paymentType?: "card" | "paypal" | null;
-  receiptUrl?: string | null;
-  cashPossible?: boolean;
-}
-
-export interface OrderPayment {
-  orderNumber: string;
-  payment: PaymentBlock;
-  documents: InvoiceSummary[];
-}
-
+/** A payment page: the answer of the checkout and of `POST …/pay`. */
 export interface CheckoutSession {
   url: string;
   expiresAt: IsoDateTime;
 }
 
-export interface PayLink {
+/** `order.payment`, and the `payment` of `GET …/payment` (10.1). */
+export interface PaymentBlock {
+  status: PaymentStatus;
+  /** The total to pay, agreed at checkout. */
+  amount: Cents;
+  paidAmount: Cents;
+  /** Sum of the credit notes issued after the invoice. */
+  creditedAmount: Cents;
+  /** Sum of the refunds Radhe Foods completed. */
+  refundedAmount: Cents;
+  method: PaymentMethod | null;
+  paidAt: IsoDateTime | null;
+  receiptUrl: string | null;
+  /** Once paid. `pdfPath` is relative to the API base URL and needs the session. */
+  invoice: { number: string; issuedAt: IsoDateTime; pdfPath: string } | null;
+  /** While a payment page is open and not expired. */
+  checkout: CheckoutSession | null;
+  /** Show "Pay now" only when `true`. */
+  canPayOnline: boolean;
+  /** English, for developers; the shop shows a generic message. */
+  lastFailure: string | null;
+}
+
+export interface OrderPayment {
   orderNumber: string;
-  firstName: string | null;
-  language: Locale;
+  status: OrderStatus;
   payment: PaymentBlock;
+  /** The invoice and its credit notes, oldest first; empty while not paid. */
+  documents: InvoiceSummary[];
 }
 
 // --- 11 Invoices and credit notes -------------------------------------------
@@ -648,11 +665,12 @@ export interface InvoiceSummary {
   type: "invoice" | "credit_note";
   orderNumber: string;
   issuedAt: IsoDateTime;
-  dueAt: IsoDateTime | null;
+  /** An invoice is paid when it is issued; `null` on a credit note. */
   paidAt: IsoDateTime | null;
   total: Cents;
   currency: "EUR";
   language: Locale;
+  /** On a credit note: the invoice it corrects. */
   invoiceNumber: string | null;
   creditReason: "return" | "adjustment" | null;
 }
@@ -660,8 +678,7 @@ export interface InvoiceSummary {
 export interface InvoiceDetail extends InvoiceSummary {
   orderId: Id;
   customerId: Id;
-  cargoId: Id;
-  deliveredOn: CalendarDay | null;
+  /** On a credit note: the return number or the corrected product with the reason. */
   creditReference: string | null;
   seller: {
     name: string;

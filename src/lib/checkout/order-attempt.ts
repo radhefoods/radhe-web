@@ -1,6 +1,6 @@
 import type { ConsentVersions, LegalSummary, LegalType } from "@/lib/api/types";
 
-// Helpers for `POST /v1/store/orders` (doc 9).
+// Helpers for `POST /v1/store/checkout` (doc 9).
 
 export const CHECKOUT_KEY_STORAGE = "rf.checkout.key.v1";
 
@@ -29,11 +29,11 @@ let memoryKey: string | null = null;
 
 /**
  * The idempotency key of the current checkout. It is made once when the
- * customer reaches the confirm step and kept until an order answers, also
+ * customer reaches the checkout and kept until an order answers, also
  * across reloads: when the answer of a successful attempt was lost on the
- * way, sending the same key again returns that order instead of placing a
- * second one. A refusal (total changed, legal text changed, ...) creates no
- * order, so the key simply stays for the next try.
+ * way, sending the same key again returns that order and its payment page
+ * instead of creating a second order. A refusal (total changed, legal text
+ * changed, ...) creates no order, so the key simply stays for the next try.
  */
 export function checkoutKey(
   storage: KeyStorage | null = sessionStore(),
@@ -67,16 +67,13 @@ export function clearCheckoutKey(
   }
 }
 
-const CONSENT_TYPES: readonly LegalType[] = [
-  "terms",
-  "preorder_terms",
-  "privacy",
-];
+const CONSENT_TYPES: readonly LegalType[] = ["terms", "privacy"];
 
 /**
- * `consent.versions` for the order: the versions of the published legal
- * texts the customer was shown (`GET /v1/store/legal`). Only published
- * types appear in that list; `preorder_terms` is optional.
+ * `consent.versions` for the checkout: the versions of the published legal
+ * texts the customer was shown (`GET /v1/store/legal`). Both must be the
+ * versions that apply now; the API refuses others with
+ * `LEGAL_VERSION_CHANGED`.
  */
 export function consentVersions(documents: LegalSummary[]): ConsentVersions {
   const versions: ConsentVersions = {};
@@ -91,5 +88,5 @@ export function consentVersions(documents: LegalSummary[]): ConsentVersions {
 /** `terms` and `privacy` must be published before an order can be placed. */
 export function missingLegalTypes(documents: LegalSummary[]): LegalType[] {
   const published = new Set(documents.map((document) => document.type));
-  return (["terms", "privacy"] as const).filter((t) => !published.has(t));
+  return CONSENT_TYPES.filter((type) => !published.has(type));
 }

@@ -2,15 +2,14 @@
 
 import type {
   Address,
-  OrderAddress,
-  OrderCancellation,
-  OrderStatus,
-  OverdueOrder,
-  PaymentStatus,
   DeliveryMethod,
   InvoiceDetail,
+  OrderAddress,
   OrderAdjustment,
+  OrderCancellation,
+  OrderStatus,
   PaymentMethod,
+  PaymentStatus,
   ReturnRequest,
   Totals,
 } from "../src/lib/api/types.ts";
@@ -29,95 +28,20 @@ export const settings = {
       { minOrderValue: 5000, fee: 0 },
     ],
   },
+  delivery: {
+    estimate: { en: "2 to 4 working days", de: "2 bis 4 Werktage" },
+  },
   returns: { windowDays: 14 },
+  /** How long a payment page stays open, in minutes (`payments.checkoutMinutes`). */
+  checkoutMinutes: 60,
 };
-
-// --- Cargo (doc 7) ----------------------------------------------------------
-
-export interface CargoRecord {
-  id: string;
-  code: string;
-  name: Translated | null;
-  message: Translated | null;
-  orderOpenAt: Date;
-  orderCloseAt: Date;
-  deliveryStart: string;
-  deliveryEnd: string;
-}
-
-/** `open`: a cargo takes orders. `closed`: none does, the next is scheduled. `none`: nothing is planned. */
-export type CargoMode = "open" | "closed" | "none";
-
-const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-function berlinDay(date: Date): string {
-  // en-CA prints YYYY-MM-DD.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(date);
-}
-
-function buildCargos(now: Date): { current: CargoRecord; next: CargoRecord } {
-  const close = new Date(now.getTime() + 2 * DAY + 14 * HOUR + 5 * MINUTE);
-  const nextClose = new Date(close.getTime() + 7 * DAY);
-  return {
-    current: {
-      id: "66f0a1b2c3d4e5f6a7b8c9d0",
-      code: "RF-C027",
-      name: { en: "October delivery", de: "Oktober-Lieferung" },
-      message: {
-        en: "Fresh Kesar mangoes are part of this delivery.",
-        de: "Frische Kesar-Mangos sind Teil dieser Lieferung.",
-      },
-      orderOpenAt: new Date(now.getTime() - 3 * DAY),
-      orderCloseAt: close,
-      deliveryStart: berlinDay(new Date(close.getTime() + 10 * DAY)),
-      deliveryEnd: berlinDay(new Date(close.getTime() + 12 * DAY)),
-    },
-    next: {
-      id: "66f0a1b2c3d4e5f6a7b8c9d1",
-      code: "RF-C028",
-      name: { en: "November delivery", de: "November-Lieferung" },
-      message: null,
-      orderOpenAt: new Date(close.getTime() + MINUTE),
-      orderCloseAt: nextClose,
-      deliveryStart: berlinDay(new Date(nextClose.getTime() + 10 * DAY)),
-      deliveryEnd: berlinDay(new Date(nextClose.getTime() + 12 * DAY)),
-    },
-  };
-}
-
-const startedAt = new Date();
-const cargos = buildCargos(startedAt);
-
-function initialCargoMode(): CargoMode {
-  const wanted = process.env.MOCK_CARGO;
-  return wanted === "closed" || wanted === "none" ? wanted : "open";
-}
-
-export const cargoState: { mode: CargoMode } = { mode: initialCargoMode() };
-
-/** The cargo that takes orders now, or null. */
-export function currentCargo(now = new Date()): CargoRecord | null {
-  if (cargoState.mode !== "open") return null;
-  return now < cargos.current.orderCloseAt ? cargos.current : null;
-}
-
-/** The scheduled cargo that opens first, or null. */
-export function nextCargo(): CargoRecord | null {
-  if (cargoState.mode === "none") return null;
-  if (cargoState.mode === "closed") {
-    // Nothing is open: pretend the next cargo opens in a day and six hours.
-    const opens = new Date(Date.now() + DAY + 6 * HOUR);
-    return { ...cargos.next, orderOpenAt: opens };
-  }
-  return cargos.next;
-}
 
 // --- Legal texts (doc 6) ----------------------------------------------------
 
+export type LegalType = "terms" | "privacy";
+
 export interface LegalRecord {
-  type: "terms" | "preorder_terms" | "privacy";
+  type: LegalType;
   version: number;
   title: Translated;
   content: Translated;
@@ -138,21 +62,8 @@ export const legalDocuments: LegalRecord[] = [
       de: "Allgemeine Geschäftsbedingungen",
     },
     content: {
-      en: `${SAMPLE_NOTE.en}\n\n## 1. Scope\n\nThese terms apply to all pre-orders placed in the Radhe Foods online shop.\n\n## 2. Conclusion of contract\n\nBy confirming a pre-order you make a binding order for the goods in your cart.\n\n## 3. Prices\n\nAll prices include VAT. Delivery fees are shown before you confirm.`,
-      de: `${SAMPLE_NOTE.de}\n\n## 1. Geltungsbereich\n\nDiese Bedingungen gelten für alle Vorbestellungen im Onlineshop von Radhe Foods.\n\n## 2. Vertragsschluss\n\nMit der Bestätigung einer Vorbestellung geben Sie eine verbindliche Bestellung der Waren in Ihrem Warenkorb ab.\n\n## 3. Preise\n\nAlle Preise enthalten die Mehrwertsteuer. Lieferkosten werden vor der Bestätigung angezeigt.`,
-    },
-    publishedAt: "2026-09-01T08:00:00.000Z",
-  },
-  {
-    type: "preorder_terms",
-    version: 1,
-    title: {
-      en: "Pre-Order and Payment Terms",
-      de: "Vorbestell- und Zahlungsbedingungen",
-    },
-    content: {
-      en: `${SAMPLE_NOTE.en}\n\n## Pre-order\n\nYour order belongs to the delivery that is open when you confirm it.\n\n## Payment after delivery\n\nNothing is charged when you confirm. After delivery you receive an invoice with a payment deadline.`,
-      de: `${SAMPLE_NOTE.de}\n\n## Vorbestellung\n\nIhre Bestellung gehört zu der Lieferung, die bei der Bestätigung geöffnet ist.\n\n## Zahlung nach Lieferung\n\nBei der Bestätigung wird nichts abgebucht. Nach der Lieferung erhalten Sie eine Rechnung mit Zahlungsfrist.`,
+      en: `${SAMPLE_NOTE.en}\n\n## 1. Scope\n\nThese terms apply to all orders placed in the Radhe Foods online shop.\n\n## 2. Conclusion of contract\n\nBy clicking "Buy now" you place a binding order for the goods in your cart. The contract is concluded when your payment is confirmed.\n\n## 3. Prices and payment\n\nAll prices include VAT. Delivery fees are shown before you order. You pay at checkout by card or PayPal.`,
+      de: `${SAMPLE_NOTE.de}\n\n## 1. Geltungsbereich\n\nDiese Bedingungen gelten für alle Bestellungen im Onlineshop von Radhe Foods.\n\n## 2. Vertragsschluss\n\nMit dem Klick auf „Zahlungspflichtig bestellen“ geben Sie eine verbindliche Bestellung der Waren in Ihrem Warenkorb ab. Der Vertrag kommt mit der Bestätigung Ihrer Zahlung zustande.\n\n## 3. Preise und Zahlung\n\nAlle Preise enthalten die Mehrwertsteuer. Lieferkosten werden vor der Bestellung angezeigt. Sie zahlen an der Kasse per Karte oder PayPal.`,
     },
     publishedAt: "2026-09-01T08:00:00.000Z",
   },
@@ -178,6 +89,7 @@ export interface CustomerRecord {
   phone: string | null;
   locale: Locale;
   hasGoogleLogin: boolean;
+  /** Blocked by Radhe Foods: cannot sign in or check out. */
   blocked: boolean;
   communication: {
     whatsappNumber: string | null;
@@ -190,10 +102,6 @@ export interface CustomerRecord {
   createdAt: string;
   cart: { productId: string; quantity: number }[];
   addresses: Address[];
-  /** Radhe Foods blocked ordering for this customer. */
-  orderingBlocked: boolean;
-  /** Unpaid orders past their deadline: they stop a new order. */
-  overdue: OverdueOrder[];
 }
 
 export interface SessionRecord {
@@ -202,6 +110,34 @@ export interface SessionRecord {
   accessExpiresAt: number;
   refreshToken: string;
   refreshExpiresAt: number;
+}
+
+/** The open payment page of an order, played by the mock itself. */
+export interface PaymentPageRecord {
+  url: string;
+  expiresAt: string;
+  /** Set when the customer paid with PayPal: the "webhook" settles at this moment. */
+  completesAt: string | null;
+}
+
+/** The payment of an order (doc 10.1), as stored. */
+export interface PaymentRecord {
+  /** The total to pay, agreed at checkout. */
+  amount: number;
+  paidAmount: number;
+  creditedAmount: number;
+  refundedAmount: number;
+  method: PaymentMethod | null;
+  paidAt: string | null;
+  receiptUrl: string | null;
+  invoiceNumber: string | null;
+  invoiceIssuedAt: string | null;
+  checkout: PaymentPageRecord | null;
+  /** How many payment pages were opened. */
+  attempts: number;
+  lastFailure: string | null;
+  /** The stock of the items was taken off the shelf. */
+  stockTaken: boolean;
 }
 
 /** An order as stored: snapshots, never references to the catalogue. */
@@ -229,15 +165,9 @@ export interface OrderRecord {
   totals: Totals;
   deliveryAddress: OrderAddress;
   note: string | null;
-  cargoCode: string;
-  promisedStart: string;
-  promisedEnd: string;
   consent: {
     at: string;
-    documents: {
-      type: "terms" | "preorder_terms" | "privacy";
-      version: number;
-    }[];
+    documents: { type: LegalType; version: number }[];
   };
   cancellation: OrderCancellation | null;
   delivery: {
@@ -247,22 +177,9 @@ export interface OrderRecord {
     deliveredAt: string | null;
   };
   adjustments: OrderAdjustment[];
-  /** `null` until the admin activates payment (the invoice is issued). */
-  payment: {
-    invoiceNumber: string;
-    issuedAt: string;
-    deadline: string;
-    paidAt: string | null;
-    method: PaymentMethod | null;
-    paymentType: "card" | "paypal" | null;
-    invoicedAmount: number;
-    creditedAmount: number;
-    paidAmount: number;
-    refundedAmount: number;
-    waived: boolean;
-    /** The token of the payment link in the emails (`/pay/<token>`). */
-    payLinkToken: string;
-  } | null;
+  payment: PaymentRecord;
+  /** When the cleanup gives an unpaid order up; `null` once paid or cancelled. */
+  pendingUntil: string | null;
 }
 
 /** Order numbers continue after this one: the first order is RF-1085. */
@@ -329,8 +246,6 @@ export function newCustomer(email: string, locale: Locale): CustomerRecord {
     createdAt: new Date().toISOString(),
     cart: [],
     addresses: [],
-    orderingBlocked: false,
-    overdue: [],
   };
   db.customers.set(customer.id, customer);
   return customer;
@@ -355,5 +270,4 @@ export function resetState(): void {
   db.creditSequence = 6;
   db.returns.clear();
   customerSequence = 0;
-  cargoState.mode = initialCargoMode();
 }

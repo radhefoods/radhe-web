@@ -37,10 +37,6 @@ export function useErrorText(): (error: unknown) => string {
         });
       case "CART_FULL":
         return t("CART_FULL", { maximum: numberOf(details.maximum) });
-      case "CARGO_PRODUCT_LIMIT_REACHED":
-        return t("CARGO_PRODUCT_LIMIT_REACHED", {
-          remaining: numberOf(details.remaining),
-        });
       case "RETURN_QUANTITY_INVALID":
         return t("RETURN_QUANTITY_INVALID", {
           available: numberOf(details.available),

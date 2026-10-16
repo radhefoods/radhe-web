@@ -1,16 +1,17 @@
-// Addresses and orders of the mock API (doc 3 and 9): the rules of placing
-// a pre-order, in the order the documentation lists the checks.
+// Addresses, checkout and orders of the mock API (doc 3 and 9): the checks
+// of a checkout in the order the documentation lists them, the order that
+// waits for its payment, and what the customer can do with it.
 
 import type {
   Address,
-  CancellationReason,
+  CheckoutResult,
   CursorPage,
+  CustomerCancellationReason,
   OrderAddress,
   OrderDetail,
   OrderSummary,
-  OrderingPermission,
 } from "../src/lib/api/types.ts";
-import { cargoProducts, products } from "./data/catalogue.ts";
+import { products } from "./data/catalogue.ts";
 import {
   HttpError,
   OBJECT_ID,
@@ -19,7 +20,6 @@ import {
   validationFailed,
 } from "./errors.ts";
 import {
-  currentCargo,
   db,
   legalDocuments,
   type CustomerRecord,
@@ -28,9 +28,11 @@ import {
 } from "./state.ts";
 import {
   finalTotalsOf,
-  overdueOrdersOf,
   paymentBlockOf,
+  paymentPage,
+  releaseStock,
   returnsInfo,
+  stripe,
 } from "./payments.ts";
 import { billOf, findProduct, packSize, productImageUrl } from "./views.ts";
 
@@ -38,9 +40,7 @@ const ADDRESS_LIMIT = 10;
 
 // --- Fixtures that orders and tests change, and how to restore them ----------
 
-const initialReserved = new Map(
-  cargoProducts.map((entry) => [entry.productId, entry.reservedQuantity]),
-);
+const initialStock = new Map(products.map((p) => [p.id, p.stock]));
 const initialPrices = new Map(
   products.map((p) => [p.id, [p.regularPrice, p.salePrice] as const]),
 );
@@ -50,13 +50,11 @@ const initialLegalVersions = new Map(
 
 /** Back to the fixtures as they were at start (`POST /__mock/reset`). */
 export function resetFixtures(): void {
-  for (const entry of cargoProducts) {
-    entry.reservedQuantity = initialReserved.get(entry.productId) ?? 0;
-  }
   for (const p of products) {
     const [regular, sale] = initialPrices.get(p.id)!;
     p.regularPrice = regular;
     p.salePrice = sale;
+    p.stock = initialStock.get(p.id) ?? p.stock;
   }
   for (const document of legalDocuments) {
     document.version = initialLegalVersions.get(document.type)!;
@@ -237,7 +235,7 @@ export const addresses = {
   },
 };
 
-// --- 9 Orders ---------------------------------------------------------------
+// --- 9 Orders and checkout --------------------------------------------------
 
 function trackingUrlOf(order: OrderRecord, locale: Locale): string | null {
   const number = order.delivery.trackingNumber;
@@ -271,11 +269,20 @@ function summaryOf(order: OrderRecord, locale: Locale): OrderSummary {
       trackingUrl: trackingUrlOf(order, locale),
       dispatchedAt: order.delivery.dispatchedAt,
       deliveredAt: order.delivery.deliveredAt,
-      promisedStart: order.promisedStart,
-      promisedEnd: order.promisedEnd,
-      cargo: order.cargoCode,
     },
   };
+}
+
+/**
+ * Whether the customer may cancel (doc 9.5): always while the order waits
+ * for its payment; a paid order until it is dispatched (the default rule).
+ */
+export function canCancelOf(order: OrderRecord): boolean {
+  return (
+    order.status === "pending_payment" ||
+    order.status === "confirmed" ||
+    order.status === "processing"
+  );
 }
 
 export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
@@ -314,16 +321,11 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
     deliveryAddress: order.deliveryAddress,
     note: order.note,
     payment: paymentBlockOf(order),
-    canCancel: order.status === "confirmed" || order.status === "preparing",
+    canCancel: canCancelOf(order),
     returns: returnsInfo(order),
     cancellation: order.cancellation,
     acceptedTerms: order.consent,
   };
-}
-
-/** Unpaid orders past their deadline: set by a test control, or real ones. */
-function overdueOf(customer: CustomerRecord) {
-  return [...customer.overdue, ...overdueOrdersOf(customer)];
 }
 
 function ordersOf(customer: CustomerRecord): OrderRecord[] {
@@ -344,79 +346,21 @@ export function findOrder(
   return order;
 }
 
-/** `GET /v1/store/me/ordering` */
-export function orderingPermission(
-  customer: CustomerRecord,
-): OrderingPermission {
-  if (customer.blocked) {
-    return { canOrder: false, reason: "account_blocked", overdue: [] };
-  }
-  if (customer.orderingBlocked) {
-    return { canOrder: false, reason: "ordering_blocked", overdue: [] };
-  }
-  if (overdueOf(customer).length > 0) {
-    return {
-      canOrder: false,
-      reason: "payment_overdue",
-      overdue: overdueOf(customer),
-    };
-  }
-  return { canOrder: true, reason: null, overdue: [] };
-}
-
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,64}$/;
-const LEGAL_TYPES = ["terms", "preorder_terms", "privacy"] as const;
+const LEGAL_TYPES = ["terms", "privacy"] as const;
 
-/** `POST /v1/store/orders`, with the checks in the documented order. */
-export function placeOrder(
+/**
+ * `POST /v1/store/checkout`, with the checks in the documented order. The
+ * order is created as `pending_payment` with a payment page on the mock;
+ * nothing is reserved and the cart is kept until the payment goes through.
+ */
+export function checkout(
   customer: CustomerRecord,
   key: string | undefined,
   raw: unknown,
   locale: Locale,
-  shopUrl: string,
-): { status: 200 | 201; body: { created: boolean; order: OrderDetail } } {
-  if (!key || !IDEMPOTENCY_KEY.test(key)) {
-    throw new HttpError(
-      400,
-      "IDEMPOTENCY_KEY_REQUIRED",
-      "Send an Idempotency-Key header: 8 to 64 letters, digits, hyphens or underscores, for example a UUID.",
-    );
-  }
-  // The same attempt again: the first order is answered, nothing else happens.
-  const existing = [...db.orders.values()].find(
-    (order) => order.customerId === customer.id && order.idempotencyKey === key,
-  );
-  if (existing) {
-    return {
-      status: 200,
-      body: { created: false, order: orderDetail(existing, locale) },
-    };
-  }
-
-  if (customer.blocked) {
-    throw new HttpError(403, "CUSTOMER_BLOCKED", "This account is blocked.");
-  }
-  if (customer.orderingBlocked) {
-    throw new HttpError(
-      403,
-      "ORDERING_BLOCKED",
-      "Ordering is blocked for this customer.",
-    );
-  }
-  if (overdueOf(customer).length > 0) {
-    throw new HttpError(
-      403,
-      "PAYMENT_OVERDUE",
-      "An earlier order is unpaid past its deadline.",
-      {
-        orders: overdueOf(customer).map((order) => ({
-          ...order,
-          orderUrl: `${shopUrl}/account/orders/${order.orderNumber}`,
-        })),
-      },
-    );
-  }
-
+  mockBase: string,
+): { status: 200 | 201; body: CheckoutResult } {
   const body = objectBody(raw, [
     "addressId",
     "expectedTotal",
@@ -468,6 +412,41 @@ export function placeOrder(
     throw validationFailed("language", "language must be one of: en, de");
   }
 
+  if (!key || !IDEMPOTENCY_KEY.test(key)) {
+    throw new HttpError(
+      400,
+      "IDEMPOTENCY_KEY_REQUIRED",
+      "Send an Idempotency-Key header: 8 to 64 letters, digits, hyphens or underscores, for example a UUID.",
+    );
+  }
+  if (!stripe.enabled) {
+    throw new HttpError(
+      503,
+      "PAYMENTS_NOT_CONFIGURED",
+      "Online payment is not set up on this server.",
+    );
+  }
+  // (409 COMPANY_DETAILS_MISSING: the seller of the mock is always complete.)
+
+  // The same attempt again: the first order and its page, nothing else happens.
+  const existing = [...db.orders.values()].find(
+    (order) => order.customerId === customer.id && order.idempotencyKey === key,
+  );
+  if (existing) {
+    const page = paymentPage(existing, mockBase);
+    return {
+      status: 200,
+      body: {
+        created: false,
+        order: orderDetail(existing, locale),
+        checkout: page,
+      },
+    };
+  }
+
+  if (customer.blocked) {
+    throw new HttpError(403, "CUSTOMER_BLOCKED", "This account is blocked.");
+  }
   const address = customer.addresses.find((a) => a.id === body.addressId);
   if (!address) {
     throw new HttpError(
@@ -478,9 +457,7 @@ export function placeOrder(
   }
 
   const published = new Map(legalDocuments.map((d) => [d.type, d.version]));
-  const missing = (["terms", "privacy"] as const).filter(
-    (type) => !published.has(type),
-  );
+  const missing = LEGAL_TYPES.filter((type) => !published.has(type));
   if (missing.length > 0) {
     throw new HttpError(
       409,
@@ -503,10 +480,6 @@ export function placeOrder(
   if (customer.cart.length === 0) {
     throw new HttpError(409, "CART_EMPTY", "The cart is empty.");
   }
-  const cargo = currentCargo();
-  if (!cargo) {
-    throw new HttpError(409, "ORDERING_CLOSED", "No cargo takes orders.");
-  }
   const bill = billOf(customer.cart, locale);
   const issues = bill.lines.filter((line) => line.issue !== null);
   if (issues.length > 0) {
@@ -517,11 +490,12 @@ export function placeOrder(
       {
         lines: issues.map((line) => ({
           productId: line.productId,
-          sku: line.product?.sku ?? "",
+          sku: line.product?.sku ?? null,
           quantity: line.quantity,
           issue: line.issue,
-          minQuantity: line.ordering?.minQuantity ?? 1,
+          minQuantity: line.ordering?.minQuantity ?? null,
           maxQuantity: line.ordering?.maxQuantity ?? null,
+          remaining: line.ordering?.remaining ?? null,
         })),
       },
     );
@@ -533,34 +507,6 @@ export function placeOrder(
       "The total has changed since the customer saw it.",
       { expectedTotal, total: bill.totals.total, totals: bill.totals },
     );
-  }
-
-  // Reserve the units; a limit that would be exceeded refuses the order.
-  for (const line of bill.lines) {
-    const entry = cargoProducts.find((c) => c.productId === line.productId);
-    if (!entry) {
-      throw new HttpError(
-        409,
-        "CARGO_PRODUCT_NOT_AVAILABLE",
-        "A product is not available in this cargo.",
-      );
-    }
-    const remaining =
-      entry.maxQuantity === null
-        ? Infinity
-        : entry.maxQuantity - entry.reservedQuantity;
-    if (line.quantity > remaining) {
-      throw new HttpError(
-        409,
-        "CARGO_PRODUCT_LIMIT_REACHED",
-        "Not enough units are left.",
-        { requested: line.quantity, remaining },
-      );
-    }
-  }
-  for (const line of bill.lines) {
-    const entry = cargoProducts.find((c) => c.productId === line.productId)!;
-    entry.reservedQuantity += line.quantity;
   }
 
   db.orderSequence += 1;
@@ -577,13 +523,14 @@ export function placeOrder(
     ...(address.additionalLine && { additionalLine: address.additionalLine }),
     ...(address.phone && { phone: address.phone }),
   };
+  const now = new Date().toISOString();
   const order: OrderRecord = {
     orderNumber: `RF-${db.orderSequence}`,
     customerId: customer.id,
     idempotencyKey: key,
-    status: "confirmed",
-    paymentStatus: "not_enabled",
-    placedAt: new Date().toISOString(),
+    status: "pending_payment",
+    paymentStatus: "pending",
+    placedAt: now,
     language: (body.language as Locale | undefined) ?? customer.locale,
     items: bill.lines.map((line) => {
       const product = findProduct(line.productId)!;
@@ -614,11 +561,8 @@ export function placeOrder(
     },
     deliveryAddress,
     note,
-    cargoCode: cargo.code,
-    promisedStart: cargo.deliveryStart,
-    promisedEnd: cargo.deliveryEnd,
     consent: {
-      at: new Date().toISOString(),
+      at: now,
       documents: [...published].map(([type, version]) => ({ type, version })),
     },
     cancellation: null,
@@ -629,13 +573,32 @@ export function placeOrder(
       deliveredAt: null,
     },
     adjustments: [],
-    payment: null,
+    payment: {
+      amount: bill.totals.total,
+      paidAmount: 0,
+      creditedAmount: 0,
+      refundedAmount: 0,
+      method: null,
+      paidAt: null,
+      receiptUrl: null,
+      invoiceNumber: null,
+      invoiceIssuedAt: null,
+      checkout: null,
+      attempts: 0,
+      lastFailure: null,
+      stockTaken: false,
+    },
+    pendingUntil: null,
   };
   db.orders.set(order.orderNumber, order);
-  customer.cart = [];
+  const page = paymentPage(order, mockBase);
   return {
     status: 201,
-    body: { created: true, order: orderDetail(order, locale) },
+    body: {
+      created: true,
+      order: orderDetail(order, locale),
+      checkout: page,
+    },
   };
 }
 
@@ -666,7 +629,7 @@ export function getOrder(
   return { order: orderDetail(findOrder(customer, orderNumber), locale) };
 }
 
-const CANCEL_REASONS: CancellationReason[] = [
+const CANCEL_REASONS: CustomerCancellationReason[] = [
   "changed_mind",
   "ordered_by_mistake",
   "wrong_items",
@@ -674,6 +637,11 @@ const CANCEL_REASONS: CancellationReason[] = [
   "other",
 ];
 
+/**
+ * `POST …/cancel`. An unpaid order is given up: its page is closed, nothing
+ * is charged. A paid one gives its units back; the refund is decided by
+ * Radhe Foods (a test control stands in for that).
+ */
 export function cancelOrder(
   customer: CustomerRecord,
   orderNumber: string,
@@ -682,7 +650,7 @@ export function cancelOrder(
 ) {
   const order = findOrder(customer, orderNumber);
   const body = objectBody(raw, ["reason", "text"]);
-  if (!CANCEL_REASONS.includes(body.reason as CancellationReason)) {
+  if (!CANCEL_REASONS.includes(body.reason as CustomerCancellationReason)) {
     throw validationFailed(
       "reason",
       `reason must be one of: ${CANCEL_REASONS.join(", ")}`,
@@ -698,7 +666,7 @@ export function cancelOrder(
   if (order.status === "cancelled") {
     return { order: orderDetail(order, locale) };
   }
-  if (order.status !== "confirmed" && order.status !== "preparing") {
+  if (!canCancelOf(order)) {
     throw new HttpError(
       409,
       "ORDER_CANNOT_BE_CANCELLED",
@@ -706,14 +674,12 @@ export function cancelOrder(
       { status: order.status },
     );
   }
-  // The reserved units are free again.
-  for (const item of order.items) {
-    const entry = cargoProducts.find((c) => c.productId === item.productId);
-    if (entry) entry.reservedQuantity -= item.quantity;
-  }
+  order.payment.checkout = null;
+  order.pendingUntil = null;
+  releaseStock(order);
   order.status = "cancelled";
   order.cancellation = {
-    reason: body.reason as CancellationReason,
+    reason: body.reason as CustomerCancellationReason,
     text: (body.text as string | undefined) ?? null,
     by: "customer",
     at: new Date().toISOString(),

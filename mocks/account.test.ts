@@ -9,8 +9,11 @@ import { startMockApi } from "./testing.ts";
 
 const mock = startMockApi();
 
-/** A customer with one delivered order: two bags of atta, 30.97. */
-async function deliveredOrder(email = "priya@example.com") {
+/**
+ * A customer with an address and two bags of atta (30.97) checked out: the
+ * order waits for its payment on the mock's payment page.
+ */
+async function pendingOrder(email = "priya@example.com") {
   const client = await mock.signIn(email);
   const { items } = await client.api.createAddress({
     firstName: "Priya",
@@ -22,7 +25,7 @@ async function deliveredOrder(email = "priya@example.com") {
   });
   const bill = await client.api.setCartItem(SKU.chakkiAtta5kg, 2);
   const legal = await client.api.listLegal();
-  const { order } = await client.api.placeOrder(
+  const result = await client.api.checkout(
     {
       addressId: items[0].id,
       expectedTotal: bill.totals.total,
@@ -35,119 +38,198 @@ async function deliveredOrder(email = "priya@example.com") {
     },
     "attempt-0001",
   );
-  await mock.control("order", {
-    orderNumber: order.orderNumber,
-    actions: ["deliver"],
-  });
-  return { ...client, orderNumber: order.orderNumber };
+  return {
+    ...client,
+    orderNumber: result.order.orderNumber,
+    page: result.checkout.url,
+  };
 }
 
-describe("payment after delivery", () => {
-  it("has nothing to pay until the invoice is issued", async () => {
-    const { api, orderNumber } = await deliveredOrder();
-    const { order } = await api.getOrder(orderNumber);
-    expect(order.status).toBe("delivered");
-    expect(order.payment).toEqual({
-      status: "not_enabled",
-      amountDue: 0,
-      invoice: null,
-      deadline: null,
-      paidAt: null,
-      method: null,
-      canPayOnline: false,
-    });
-    const error = await api.createOrderCheckout(orderNumber).catch((e) => e);
-    expect(hasErrorCode(error, "PAYMENT_NOT_ACTIVATED")).toBe(true);
+/** Pays on the mock's payment page, as the browser would. */
+function payOnPage(url: string, type: "card" | "paypal" = "card") {
+  return fetch(`${url}/pay?type=${type}`, { redirect: "manual" });
+}
+
+/** The same order, paid by card: confirmed. */
+async function paidOrder(email?: string) {
+  const pending = await pendingOrder(email);
+  await payOnPage(pending.page);
+  return pending;
+}
+
+/** The same order, paid and delivered. */
+async function deliveredOrder(email?: string) {
+  const paid = await paidOrder(email);
+  await mock.control("order", {
+    orderNumber: paid.orderNumber,
+    actions: ["deliver"],
   });
+  return paid;
+}
 
-  it("issues an invoice with a deadline and offers online and cash", async () => {
-    const { api, orderNumber } = await deliveredOrder();
-    await mock.control("order", { orderNumber, actions: ["activate"] });
-    const { payment, documents } = await api.getOrderPayment(orderNumber);
-    expect(payment).toMatchObject({
-      status: "due",
-      amountDue: 3097,
-      invoicedAmount: 3097,
-      isOverdue: false,
-      canPayOnline: true,
-      cashPossible: true,
-    });
-    expect(payment.invoice?.number).toMatch(/^INV-\d{4}-\d{6}$/);
-    expect(payment.invoice?.pdfPath).toBe(
-      invoicePdfPath(payment.invoice!.number),
-    );
-    expect(new Date(payment.deadline!).getTime()).toBeGreaterThan(Date.now());
-    expect(documents).toHaveLength(1);
-    expect(documents[0]).toMatchObject({ type: "invoice", total: 3097 });
-  });
-
-  it("is paid on the payment page and says how", async () => {
-    const { api, orderNumber } = await deliveredOrder();
-    await mock.control("order", { orderNumber, actions: ["activate"] });
-    const session = await api.createOrderCheckout(orderNumber);
-    expect(session.url).toContain(`/__mock/stripe/${orderNumber}`);
-
-    const back = await fetch(`${session.url}/pay?type=paypal`, {
-      redirect: "manual",
-    });
+describe("payment at checkout", () => {
+  it("is paid on the payment page and confirmed at once", async () => {
+    const { api, orderNumber, page } = await pendingOrder();
+    const back = await payOnPage(page);
     expect(back.status).toBe(302);
     expect(back.headers.get("location")).toBe(
       `http://localhost:3001/account/orders/${orderNumber}?payment=success`,
     );
 
-    const { payment } = await api.getOrderPayment(orderNumber);
-    expect(payment).toMatchObject({
+    const answer = await api.getOrderPayment(orderNumber);
+    expect(answer.status).toBe("confirmed");
+    expect(answer.payment).toMatchObject({
       status: "paid",
-      amountDue: 0,
-      method: "stripe",
-      paymentType: "paypal",
+      amount: 3097,
+      paidAmount: 3097,
+      creditedAmount: 0,
+      refundedAmount: 0,
+      method: "card",
+      checkout: null,
       canPayOnline: false,
+      lastFailure: null,
     });
-    const again = await api.createOrderCheckout(orderNumber).catch((e) => e);
-    expect(hasErrorCode(again, "PAYMENT_NOT_POSSIBLE")).toBe(true);
+    expect(answer.payment.paidAt).not.toBeNull();
+    expect(answer.payment.receiptUrl).toContain("stripe.com");
+    expect(answer.payment.invoice?.number).toMatch(/^INV-\d{4}-\d{6}$/);
+    expect(answer.payment.invoice?.pdfPath).toBe(
+      invoicePdfPath(answer.payment.invoice!.number),
+    );
+    expect(answer.documents).toHaveLength(1);
+    expect(answer.documents[0]).toMatchObject({ type: "invoice", total: 3097 });
+    expect(answer.documents[0].paidAt).not.toBeNull();
+  });
+
+  it("with PayPal the confirmation arrives a moment later", async () => {
+    const { api, orderNumber, page } = await pendingOrder();
+    const back = await payOnPage(page, "paypal");
+    expect(back.headers.get("location")).toContain(
+      `/account/orders/${orderNumber}?payment=success`,
+    );
+    // Back in the shop before Stripe's notification: still pending, the
+    // page still open.
+    const first = await api.getOrderPayment(orderNumber);
+    expect(first.payment.status).toBe("pending");
+    expect(first.payment.checkout).not.toBeNull();
+    // The notification arrives (a test control stands in for the wait).
+    await mock.control("payment", { orderNumber, action: "settle" });
+    const settled = await api.getOrderPayment(orderNumber);
+    expect(settled.status).toBe("confirmed");
+    expect(settled.payment).toMatchObject({ status: "paid", method: "paypal" });
+  });
+
+  it("a page that was left gets a new one", async () => {
+    const { api, orderNumber } = await pendingOrder();
+    await mock.control("payment", { orderNumber, action: "expire" });
+    const expired = await api.getOrderPayment(orderNumber);
+    expect(expired.payment).toMatchObject({
+      status: "pending",
+      checkout: null,
+      canPayOnline: true,
+    });
+    const fresh = await api.createPaymentPage(orderNumber);
+    expect(fresh.url).toContain(`/__mock/stripe/${orderNumber}`);
+    expect(new Date(fresh.expiresAt).getTime()).toBeGreaterThan(Date.now());
+    await payOnPage(fresh.url);
+    expect((await api.getOrderPayment(orderNumber)).payment.status).toBe(
+      "paid",
+    );
+  });
+
+  it("a failed attempt can be paid again", async () => {
+    const { api, orderNumber } = await pendingOrder();
+    await mock.control("payment", { orderNumber, action: "fail" });
+    const failed = (await api.getOrder(orderNumber)).order;
+    expect(failed).toMatchObject({
+      status: "pending_payment",
+      paymentStatus: "failed",
+      canCancel: true,
+    });
+    expect(failed.payment).toMatchObject({
+      status: "failed",
+      checkout: null,
+      canPayOnline: true,
+    });
+    expect(failed.payment.lastFailure).toEqual(expect.any(String));
+
+    const fresh = await api.createPaymentPage(orderNumber);
+    expect((await api.getOrder(orderNumber)).order.paymentStatus).toBe(
+      "pending",
+    );
+    await payOnPage(fresh.url);
+    expect((await api.getOrder(orderNumber)).order).toMatchObject({
+      status: "confirmed",
+      paymentStatus: "paid",
+    });
+  });
+
+  it("a product that sold out meanwhile cancels the order and charges nothing", async () => {
+    const { api, orderNumber, page } = await pendingOrder();
+    await mock.control("stock", { productId: SKU.chakkiAtta5kg, quantity: 1 });
+    const back = await payOnPage(page);
+    expect(back.headers.get("location")).toContain("?payment=success");
+
+    const { order } = await api.getOrder(orderNumber);
+    expect(order).toMatchObject({
+      status: "cancelled",
+      paymentStatus: "failed",
+      canCancel: false,
+    });
+    expect(order.cancellation).toMatchObject({
+      reason: "sold_out",
+      by: "system",
+    });
+    expect(order.payment).toMatchObject({
+      paidAmount: 0,
+      canPayOnline: false,
+      invoice: null,
+    });
+    const again = await api.createPaymentPage(orderNumber).catch((e) => e);
+    expect(hasErrorCode(again, "ORDER_NOT_PAYABLE")).toBe(true);
+    // The one unit that was left is still there, and the cart was kept.
+    expect(
+      (await api.getProduct("chakki-atta-5-kg")).product.ordering?.remaining,
+    ).toBe(1);
+    expect((await api.getCart()).lines).toHaveLength(1);
   });
 
   it("offers no online payment while it is not set up", async () => {
-    const { api, orderNumber } = await deliveredOrder();
-    await mock.control("order", { orderNumber, actions: ["activate"] });
+    const { api, orderNumber } = await pendingOrder();
     await mock.control("stripe", { enabled: false });
     const { payment } = await api.getOrderPayment(orderNumber);
     expect(payment.canPayOnline).toBe(false);
-    expect(payment.cashPossible).toBe(true);
-    const error = await api.createOrderCheckout(orderNumber).catch((e) => e);
-    expect(hasErrorCode(error, "PAYMENTS_NOT_CONFIGURED")).toBe(true);
+    const error = await api.createPaymentPage(orderNumber).catch((e) => e);
+    expect(hasErrorCode(error, "ORDER_NOT_PAYABLE")).toBe(true);
   });
 
-  it("an overdue payment stops new orders until it is paid", async () => {
-    const { api, orderNumber } = await deliveredOrder();
+  it("is moved along by Radhe Foods once it is paid", async () => {
+    const { api, orderNumber } = await paidOrder();
+    await mock.control("order", { orderNumber, actions: ["process"] });
+    expect((await api.getOrder(orderNumber)).order).toMatchObject({
+      status: "processing",
+      canCancel: true,
+    });
     await mock.control("order", {
       orderNumber,
-      actions: ["activate", "overdue"],
+      actions: ["dispatch"],
+      method: "dhl",
     });
-    const { order } = await api.getOrder(orderNumber);
-    expect(order.paymentStatus).toBe("overdue");
-    expect(order.payment.isOverdue).toBe(true);
-    const blocked = await api.getOrderingPermission();
-    expect(blocked).toMatchObject({
-      canOrder: false,
-      reason: "payment_overdue",
+    const dispatched = (await api.getOrder(orderNumber)).order;
+    expect(dispatched).toMatchObject({
+      status: "dispatched",
+      canCancel: false,
     });
-    expect(blocked.overdue[0]).toMatchObject({ orderNumber, amountDue: 3097 });
-
-    await mock.control("order", { orderNumber, actions: ["pay_cash"] });
-    expect((await api.getOrderingPermission()).canOrder).toBe(true);
-    const paid = await api.getOrder(orderNumber);
-    expect(paid.order.payment).toMatchObject({
-      status: "paid",
-      method: "cash",
-    });
+    expect(dispatched.delivery.trackingUrl).toContain("dhl.de");
+    await mock.control("order", { orderNumber, actions: ["deliver"] });
+    const delivered = (await api.getOrder(orderNumber)).order;
+    expect(delivered.status).toBe("delivered");
+    expect(delivered.returns.possible).toBe(true);
   });
 });
 
 describe("invoices", () => {
   it("lists own documents and serves the PDF only with the session", async () => {
-    const { api, orderNumber, transport } = await deliveredOrder();
-    await mock.control("order", { orderNumber, actions: ["activate"] });
+    const { api, transport } = await paidOrder();
     const list = await api.listInvoices();
     expect(list.items).toHaveLength(1);
     const number = list.items[0].number;
@@ -158,6 +240,7 @@ describe("invoices", () => {
       lineTotal: 2598,
     });
     expect(invoice.totals.total).toBe(3097);
+    expect(invoice.paidAt).toBe(invoice.issuedAt);
 
     const pdf = await transport.raw(invoicePdfPath(number));
     expect(pdf.headers.get("content-type")).toBe("application/pdf");
@@ -240,7 +323,6 @@ describe("returns", () => {
 
   it("a completed return lowers the bill and issues a credit note", async () => {
     const { api, orderNumber } = await deliveredOrder();
-    await mock.control("order", { orderNumber, actions: ["activate"] });
     const { return: request } = await api.createReturn(orderNumber, {
       items: [{ productId: SKU.chakkiAtta5kg, quantity: 1, reason: "quality" }],
     });
@@ -262,8 +344,9 @@ describe("returns", () => {
       finalLineTotal: 1299,
     });
     expect(order.payment).toMatchObject({
+      status: "paid",
+      paidAmount: 3097,
       creditedAmount: 1299,
-      amountDue: 1798,
     });
     const documents = await api.listInvoices({ orderNumber });
     expect(documents.items.map((d) => d.type)).toEqual([
@@ -274,6 +357,8 @@ describe("returns", () => {
       creditReason: "return",
       total: 1299,
     });
+    const { invoice: credit } = await api.getInvoice(documents.items[0].number);
+    expect(credit.creditReference).toBe(request.returnNumber);
   });
 
   it("is not possible before delivery", async () => {
@@ -295,18 +380,28 @@ describe("the demo account", () => {
     expect(customer.firstName).toBe("Priya");
     const { items } = await api.listOrders();
     expect(items.map((order) => [order.status, order.paymentStatus])).toEqual([
-      ["confirmed", "not_enabled"],
-      ["cancelled", "not_enabled"],
-      ["dispatched", "not_enabled"],
-      ["delivered", "due"],
+      ["cancelled", "failed"],
+      ["confirmed", "paid"],
+      ["cancelled", "refunded"],
+      ["dispatched", "paid"],
+      ["pending_payment", "pending"],
       ["delivered", "paid"],
     ]);
-    const onItsWay = items[2];
+    const soldOut = (await api.getOrder(items[0].orderNumber)).order;
+    expect(soldOut.cancellation).toMatchObject({
+      reason: "sold_out",
+      by: "system",
+    });
+    expect(soldOut.payment.paidAmount).toBe(0);
+    const onItsWay = items[3];
     expect(onItsWay.delivery).toMatchObject({ method: "dhl" });
     expect(onItsWay.delivery.trackingUrl).toContain("dhl.de");
-    const paid = await api.getOrderReturns(items[4].orderNumber);
+    const pending = (await api.getOrder(items[4].orderNumber)).order;
+    expect(pending.payment.checkout).not.toBeNull();
+    expect(pending.payment.canPayOnline).toBe(true);
+    const paid = await api.getOrderReturns(items[5].orderNumber);
     expect(paid.items[0].status).toBe("requested");
-    // The demo orders do not stop the demo customer from ordering.
-    expect((await api.getOrderingPermission()).canOrder).toBe(true);
+    // The demo orders leave the demo customer with an empty cart.
+    expect((await api.getCart()).lines).toHaveLength(0);
   });
 });

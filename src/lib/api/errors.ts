@@ -20,6 +20,7 @@ export const API_ERROR_CODES = [
   "VALIDATION_FAILED",
   "BAD_REQUEST",
   "AUTH_TOKEN_INVALID",
+  "UNAUTHENTICATED",
   "FORBIDDEN",
   "ORIGIN_NOT_ALLOWED",
   "NOT_FOUND",
@@ -48,27 +49,19 @@ export const API_ERROR_CODES = [
   // cart (8)
   "CART_PRODUCT_NOT_FOUND",
   "CART_FULL",
-  // orders (9)
+  // checkout and orders (9)
   "IDEMPOTENCY_KEY_REQUIRED",
-  "ORDERING_BLOCKED",
-  "PAYMENT_OVERDUE",
+  "PAYMENTS_NOT_CONFIGURED",
+  "COMPANY_DETAILS_MISSING",
   "LEGAL_DOCUMENTS_MISSING",
   "LEGAL_VERSION_CHANGED",
   "CART_EMPTY",
-  "ORDERING_CLOSED",
   "ORDER_ITEMS_NOT_ORDERABLE",
   "ORDER_TOTAL_CHANGED",
-  "CARGO_PRODUCT_NOT_AVAILABLE",
-  "CARGO_PRODUCT_LIMIT_REACHED",
+  "ORDER_NOT_PAYABLE",
+  "PAYMENT_PROVIDER_ERROR",
   "ORDER_NOT_FOUND",
   "ORDER_CANNOT_BE_CANCELLED",
-  // payments (10)
-  "PAYMENT_NOT_ACTIVATED",
-  "PAYMENT_NOT_POSSIBLE",
-  "PAYMENT_NOTHING_DUE",
-  "PAYMENTS_NOT_CONFIGURED",
-  "PAYMENT_PROVIDER_ERROR",
-  "PAY_LINK_INVALID",
   // invoices (11)
   "INVOICE_NOT_FOUND",
   // returns (12)
@@ -106,31 +99,24 @@ export interface ErrorDetails {
   OTP_INVALID: { attemptsRemaining: number } | undefined;
   ADDRESS_LIMIT_REACHED: { maximum: number };
   CART_FULL: { maximum: number };
-  PAYMENT_OVERDUE: {
-    orders: {
-      orderNumber: string;
-      invoiceNumber: string;
-      amountDue: Cents;
-      deadlineAt: IsoDateTime;
-      orderUrl: string;
-    }[];
-  };
+  COMPANY_DETAILS_MISSING: { missing: string[] };
   LEGAL_DOCUMENTS_MISSING: { missing: LegalType[] };
   LEGAL_VERSION_CHANGED: { current: ConsentVersions };
+  /** `sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`. */
   ORDER_ITEMS_NOT_ORDERABLE: {
     lines: {
       productId: Id;
-      sku: string;
+      sku: string | null;
       quantity: number;
       issue: CartLineIssue;
-      minQuantity: number;
+      minQuantity: number | null;
       maxQuantity: number | null;
+      remaining: number | null;
     }[];
   };
   ORDER_TOTAL_CHANGED: { expectedTotal: Cents; total: Cents; totals: Totals };
-  CARGO_PRODUCT_LIMIT_REACHED: { requested: number; remaining: number };
+  ORDER_NOT_PAYABLE: { status: OrderStatus; paymentStatus: PaymentStatus };
   ORDER_CANNOT_BE_CANCELLED: { status: OrderStatus };
-  PAYMENT_NOT_POSSIBLE: { paymentStatus: PaymentStatus };
   RETURN_NOT_POSSIBLE: { status: OrderStatus };
   RETURN_WINDOW_CLOSED: { until: IsoDateTime | null; windowDays: number };
   ORDER_ITEM_NOT_FOUND: { productId: Id };

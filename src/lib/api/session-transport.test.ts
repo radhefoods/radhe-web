@@ -53,16 +53,15 @@ describe("buildUrl", () => {
 describe("plain requester", () => {
   it("sends the locale and parses the answer", async () => {
     const { fetch, calls } = scriptedFetch({
-      "/v1/store/cargo": [() => json(200, { acceptingOrders: true })],
+      "/v1/store/settings": [() => json(200, { currency: "EUR" })],
     });
     const request = createRequester({ baseUrl: BASE, fetch });
-    const result = await request<{ acceptingOrders: boolean }>(
-      "/v1/store/cargo",
-      { locale: "de" },
-    );
-    expect(result.acceptingOrders).toBe(true);
+    const result = await request<{ currency: string }>("/v1/store/settings", {
+      locale: "de",
+    });
+    expect(result.currency).toBe("EUR");
     expect(fetch).toHaveBeenCalledWith(
-      `${BASE}/v1/store/cargo?locale=de`,
+      `${BASE}/v1/store/settings?locale=de`,
       expect.objectContaining({ method: "GET" }),
     );
     expect(calls[0].init.credentials).toBeUndefined();
@@ -128,7 +127,7 @@ describe("plain requester", () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof globalThis.fetch;
     const error = (await createRequester({ baseUrl: BASE, fetch })(
-      "/v1/store/cargo",
+      "/v1/store/settings",
     ).catch((e: unknown) => e)) as ApiError;
     expect(error.code).toBe("NETWORK_ERROR");
     expect(error.status).toBe(0);

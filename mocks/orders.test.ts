@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { hasErrorCode } from "../src/lib/api/errors.ts";
-import type { AddressInput, PlaceOrderInput } from "../src/lib/api/types.ts";
+import type { AddressInput, CheckoutInput } from "../src/lib/api/types.ts";
 import { SKU } from "./data/catalogue.ts";
 import { startMockApi } from "./testing.ts";
 
-// Addresses and orders of the mock, exercised through the shop's API client.
+// Addresses, checkout and orders of the mock, exercised through the shop's
+// API client.
 
 const mock = startMockApi();
 
@@ -23,7 +24,7 @@ async function readyToOrder(email = "priya@example.com") {
   const { items } = await client.api.createAddress(home);
   const bill = await client.api.setCartItem(SKU.chakkiAtta5kg, 2);
   const legal = await client.api.listLegal();
-  const input: PlaceOrderInput = {
+  const input: CheckoutInput = {
     addressId: items[0].id,
     expectedTotal: bill.totals.total,
     consent: {
@@ -32,6 +33,11 @@ async function readyToOrder(email = "priya@example.com") {
     },
   };
   return { ...client, input, bill };
+}
+
+/** Pays on the mock's payment page, as the browser would. */
+function payOnPage(url: string, type: "card" | "paypal" = "card") {
+  return fetch(`${url}/pay?type=${type}`, { redirect: "manual" });
 }
 
 describe("addresses", () => {
@@ -108,25 +114,30 @@ describe("addresses", () => {
   });
 });
 
-describe("placing a pre-order", () => {
-  it("confirms the cart, empties it and collects nothing", async () => {
+describe("checkout", () => {
+  it("turns the cart into an order that waits for its payment", async () => {
     const { api, input } = await readyToOrder();
-    const result = await api.placeOrder(input, "attempt-0001");
+    const result = await api.checkout(input, "attempt-0001");
     expect(result.created).toBe(true);
     const { order } = result;
     expect(order.orderNumber).toBe("RF-1085");
     expect(order).toMatchObject({
-      status: "confirmed",
-      paymentStatus: "not_enabled",
+      status: "pending_payment",
+      paymentStatus: "pending",
       total: 3097,
       itemCount: 2,
       canCancel: true,
     });
     expect(order.payment).toMatchObject({
-      status: "not_enabled",
-      amountDue: 0,
-      canPayOnline: false,
+      status: "pending",
+      amount: 3097,
+      paidAmount: 0,
+      invoice: null,
+      canPayOnline: true,
+      lastFailure: null,
     });
+    expect(result.checkout.url).toContain("/__mock/stripe/RF-1085");
+    expect(order.payment.checkout).toEqual(result.checkout);
     expect(order.items[0]).toMatchObject({
       name: "Chakki Atta",
       quantity: 2,
@@ -135,41 +146,45 @@ describe("placing a pre-order", () => {
     });
     // Optional address fields are absent on the order, not null.
     expect(order.deliveryAddress).not.toHaveProperty("company");
-    expect(order.acceptedTerms.documents).toContainEqual({
-      type: "terms",
-      version: 3,
-    });
+    expect(order.acceptedTerms.documents).toEqual([
+      { type: "terms", version: 3 },
+      { type: "privacy", version: 2 },
+    ]);
+    // Nothing is reserved and the cart is kept until the payment goes through.
     const cart = await api.getCart();
-    expect(cart.lines).toHaveLength(0);
+    expect(cart.lines).toHaveLength(1);
+    const product = await api.getProduct("chakki-atta-5-kg");
+    expect(product.product.ordering?.remaining).toBe(120);
   });
 
-  it("answers the first order when the same key is sent again", async () => {
+  it("answers the first order and its page when the same key is sent again", async () => {
     const { api, input } = await readyToOrder();
-    const first = await api.placeOrder(input, "attempt-0001");
-    const again = await api.placeOrder(input, "attempt-0001");
+    const first = await api.checkout(input, "attempt-0001");
+    const again = await api.checkout(input, "attempt-0001");
     expect(again.created).toBe(false);
     expect(again.order.orderNumber).toBe(first.order.orderNumber);
+    expect(again.checkout.url).toBe(first.checkout.url);
     const { items } = await api.listOrders();
     expect(items).toHaveLength(1);
   });
 
   it("needs an idempotency key", async () => {
     const { api, input } = await readyToOrder();
-    const error = await api.placeOrder(input, "short").catch((e) => e);
+    const error = await api.checkout(input, "short").catch((e) => e);
     expect(hasErrorCode(error, "IDEMPOTENCY_KEY_REQUIRED")).toBe(true);
   });
 
   it("refuses when the total is not the one the customer saw", async () => {
     const { api, input } = await readyToOrder();
     await mock.control("price", { productId: SKU.chakkiAtta5kg, price: 1399 });
-    const error = await api.placeOrder(input, "attempt-0001").catch((e) => e);
+    const error = await api.checkout(input, "attempt-0001").catch((e) => e);
     expect(hasErrorCode(error, "ORDER_TOTAL_CHANGED")).toBe(true);
     if (hasErrorCode(error, "ORDER_TOTAL_CHANGED")) {
       expect(error.details).toMatchObject({ expectedTotal: 3097, total: 3297 });
       expect(error.details.totals.subtotal).toBe(2798);
     }
     // Nothing was created: the same key works once the customer agrees.
-    const agreed = await api.placeOrder(
+    const agreed = await api.checkout(
       { ...input, expectedTotal: 3297 },
       "attempt-0001",
     );
@@ -179,7 +194,7 @@ describe("placing a pre-order", () => {
   it("refuses when a legal text was republished meanwhile", async () => {
     const { api, input } = await readyToOrder();
     await mock.control("legal/republish", { type: "terms" });
-    const error = await api.placeOrder(input, "attempt-0001").catch((e) => e);
+    const error = await api.checkout(input, "attempt-0001").catch((e) => e);
     expect(hasErrorCode(error, "LEGAL_VERSION_CHANGED")).toBe(true);
     if (hasErrorCode(error, "LEGAL_VERSION_CHANGED")) {
       expect(error.details.current.terms).toBe(4);
@@ -190,10 +205,7 @@ describe("placing a pre-order", () => {
     const { api, input } = await readyToOrder();
     const bill = await api.setCartItem(SKU.kesarMango, 1);
     const error = await api
-      .placeOrder(
-        { ...input, expectedTotal: bill.totals.total },
-        "attempt-0001",
-      )
+      .checkout({ ...input, expectedTotal: bill.totals.total }, "attempt-0001")
       .catch((e) => e);
     expect(hasErrorCode(error, "ORDER_ITEMS_NOT_ORDERABLE")).toBe(true);
     if (hasErrorCode(error, "ORDER_ITEMS_NOT_ORDERABLE")) {
@@ -201,81 +213,79 @@ describe("placing a pre-order", () => {
         expect.objectContaining({
           productId: SKU.kesarMango,
           issue: "sold_out",
+          remaining: 0,
         }),
       ]);
     }
   });
 
-  it("refuses when ordering closed, the cart is empty or the address is gone", async () => {
+  it("refuses when the address is gone, payment is not set up, or the cart is empty", async () => {
     const { api, input } = await readyToOrder();
     const gone = await api
-      .placeOrder(
+      .checkout(
         { ...input, addressId: "66e100000000000000000099" },
         "attempt-0001",
       )
       .catch((e) => e);
     expect(hasErrorCode(gone, "ADDRESS_NOT_FOUND")).toBe(true);
 
-    await mock.control("cargo", { mode: "closed" });
-    const closed = await api.placeOrder(input, "attempt-0001").catch((e) => e);
-    expect(hasErrorCode(closed, "ORDERING_CLOSED")).toBe(true);
+    await mock.control("stripe", { enabled: false });
+    const off = await api.checkout(input, "attempt-0001").catch((e) => e);
+    expect(hasErrorCode(off, "PAYMENTS_NOT_CONFIGURED")).toBe(true);
 
-    await mock.control("cargo", { mode: "open" });
+    await mock.control("stripe", { enabled: true });
     await api.clearCart();
-    const empty = await api.placeOrder(input, "attempt-0001").catch((e) => e);
+    const empty = await api.checkout(input, "attempt-0001").catch((e) => e);
     expect(hasErrorCode(empty, "CART_EMPTY")).toBe(true);
   });
 
-  it("stops a customer with an overdue payment, and says what to pay", async () => {
+  it("is paid on the payment page: the stock is taken, the invoice issued, the cart emptied", async () => {
     const { api, input } = await readyToOrder();
-    await mock.control("customer", {
-      email: "priya@example.com",
-      overdue: true,
-    });
-    const permission = await api.getOrderingPermission();
-    expect(permission).toMatchObject({
-      canOrder: false,
-      reason: "payment_overdue",
-    });
-    const error = await api.placeOrder(input, "attempt-0001").catch((e) => e);
-    expect(hasErrorCode(error, "PAYMENT_OVERDUE")).toBe(true);
-    if (hasErrorCode(error, "PAYMENT_OVERDUE")) {
-      expect(error.details.orders[0]).toMatchObject({
-        orderNumber: "RF-1001",
-        amountDue: 3193,
-      });
-      expect(error.details.orders[0].orderUrl).toContain(
-        "/account/orders/RF-1001",
-      );
-    }
-  });
+    // 37 bags of bhujia are in stock, at most 12 per order.
+    const bill = await api.setCartItem(SKU.bhujia, 12);
+    const result = await api.checkout(
+      { ...input, expectedTotal: bill.totals.total },
+      "attempt-0001",
+    );
+    const back = await payOnPage(result.checkout.url);
+    expect(back.status).toBe(302);
+    expect(back.headers.get("location")).toBe(
+      "http://localhost:3001/account/orders/RF-1085?payment=success",
+    );
 
-  it("reserves units, so the last ones cannot be ordered twice", async () => {
-    const first = await readyToOrder("a@example.com");
-    // 37 bags of bhujia are left, at most 12 per order.
-    for (const key of ["attempt-a1", "attempt-a2", "attempt-a3"]) {
-      await first.api.setCartItem(SKU.chakkiAtta5kg, 0);
-      const bill = await first.api.setCartItem(SKU.bhujia, 12);
-      await first.api.placeOrder(
-        { ...first.input, expectedTotal: bill.totals.total },
-        key,
-      );
-    }
-    const second = await readyToOrder("b@example.com");
-    const product = await second.api.getProduct("aloo-bhujia-400-g");
-    expect(product.product.ordering).toMatchObject({
-      remaining: 1,
-      maxQuantity: 1,
+    const { order } = await api.getOrder("RF-1085");
+    expect(order).toMatchObject({
+      status: "confirmed",
+      paymentStatus: "paid",
+      canCancel: true,
     });
+    expect(order.payment).toMatchObject({
+      status: "paid",
+      paidAmount: bill.totals.total,
+      method: "card",
+      checkout: null,
+      canPayOnline: false,
+    });
+    expect(order.payment.invoice?.number).toMatch(/^INV-\d{4}-\d{6}$/);
+    expect(
+      (await api.getProduct("aloo-bhujia-400-g")).product.ordering,
+    ).toMatchObject({ remaining: 25, maxQuantity: 12 });
+    expect((await api.getCart()).lines).toHaveLength(0);
+
+    // The key of a paid order opens no new page.
+    const again = await api
+      .checkout({ ...input, expectedTotal: bill.totals.total }, "attempt-0001")
+      .catch((e) => e);
+    expect(hasErrorCode(again, "ORDER_NOT_PAYABLE")).toBe(true);
   });
 });
 
 describe("orders of a customer", () => {
   it("lists own orders newest first and reads one", async () => {
     const { api, input } = await readyToOrder();
-    await api.placeOrder(input, "attempt-0001");
+    await api.checkout(input, "attempt-0001");
     const bill = await api.setCartItem(SKU.toorDal1kg, 1);
-    await api.placeOrder(
+    await api.checkout(
       { ...input, expectedTotal: bill.totals.total },
       "attempt-0002",
     );
@@ -293,22 +303,51 @@ describe("orders of a customer", () => {
     expect(hasErrorCode(error, "ORDER_NOT_FOUND")).toBe(true);
   });
 
-  it("cancels a confirmed order and frees its units", async () => {
+  it("gives an unpaid order up: the page is closed, nothing is charged", async () => {
+    const { api, input } = await readyToOrder();
+    const result = await api.checkout(input, "attempt-0001");
+    const { order } = await api.cancelOrder("RF-1085", {
+      reason: "changed_mind",
+    });
+    expect(order).toMatchObject({
+      status: "cancelled",
+      paymentStatus: "pending",
+      canCancel: false,
+    });
+    expect(order.payment).toMatchObject({ checkout: null, paidAmount: 0 });
+    expect(order.cancellation).toMatchObject({
+      reason: "changed_mind",
+      by: "customer",
+    });
+    // The page was closed: paying on it leads back without a payment.
+    const back = await payOnPage(result.checkout.url);
+    expect(back.headers.get("location")).toContain("?payment=cancelled");
+    expect((await api.getOrder("RF-1085")).order.paymentStatus).toBe("pending");
+  });
+
+  it("cancels a paid order and puts its units back", async () => {
     const { api, input } = await readyToOrder();
     const bill = await api.setCartItem(SKU.bhujia, 10);
-    await api.placeOrder(
+    const result = await api.checkout(
       { ...input, expectedTotal: bill.totals.total },
       "attempt-0001",
     );
+    await payOnPage(result.checkout.url);
     expect(
       (await api.getProduct("aloo-bhujia-400-g")).product.ordering?.remaining,
     ).toBe(27);
     const { order } = await api.cancelOrder("RF-1085", {
-      reason: "changed_mind",
+      reason: "ordered_by_mistake",
+      text: "Wrong size.",
     });
-    expect(order).toMatchObject({ status: "cancelled", canCancel: false });
+    expect(order).toMatchObject({
+      status: "cancelled",
+      paymentStatus: "paid",
+      canCancel: false,
+    });
     expect(order.cancellation).toMatchObject({
-      reason: "changed_mind",
+      reason: "ordered_by_mistake",
+      text: "Wrong size.",
       by: "customer",
     });
     expect(

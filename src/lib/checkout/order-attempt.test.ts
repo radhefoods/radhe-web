@@ -72,16 +72,6 @@ describe("consent", () => {
     });
   });
 
-  it("includes the pre-order terms when they are published", () => {
-    expect(
-      consentVersions([
-        legal("terms", 3),
-        legal("preorder_terms", 1),
-        legal("privacy", 2),
-      ]),
-    ).toEqual({ terms: 3, preorder_terms: 1, privacy: 2 });
-  });
-
   it("names the texts that must be published before ordering", () => {
     expect(missingLegalTypes([legal("terms", 1)])).toEqual(["privacy"]);
     expect(missingLegalTypes([])).toEqual(["terms", "privacy"]);

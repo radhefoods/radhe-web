@@ -7,8 +7,6 @@ import type {
   ApiImage,
   Bill,
   BillLine,
-  Cargo,
-  CargoStatus,
   CartItemInput,
   CartLineIssue,
   Category,
@@ -30,7 +28,6 @@ import type {
   VatGroup,
 } from "../src/lib/api/types.ts";
 import {
-  cargoProducts,
   categories,
   products,
   type CategoryRecord,
@@ -39,11 +36,8 @@ import {
 } from "./data/catalogue.ts";
 import {
   TIMEZONE,
-  currentCargo,
   legalDocuments,
-  nextCargo,
   settings,
-  type CargoRecord,
   type CustomerRecord,
   type LegalRecord,
   type Locale,
@@ -56,13 +50,12 @@ const pickOrNull = (value: Translated | null, locale: Locale): string | null =>
 
 const productById = new Map(products.map((p) => [p.id, p]));
 const categoryById = new Map(categories.map((c) => [c.id, c]));
-const cargoProductById = new Map(cargoProducts.map((c) => [c.productId, c]));
 
 export function findProduct(id: string): ProductRecord | undefined {
   return productById.get(id);
 }
 
-// --- Settings, legal, cargo -------------------------------------------------
+// --- Settings and legal texts -----------------------------------------------
 
 export function freeDeliveryFrom(): number | null {
   const free = settings.deliveryFee.tiers
@@ -81,6 +74,7 @@ export function settingsView(): ShopSettings {
       ),
       freeFrom: freeDeliveryFrom(),
     },
+    delivery: { estimate: { ...settings.delivery.estimate } },
     returns: { windowDays: settings.returns.windowDays },
   };
 }
@@ -110,35 +104,6 @@ export function legalDocument(
   return {
     ...legalSummary(record, locale),
     content: pick(record.content, locale),
-  };
-}
-
-function cargoView(record: CargoRecord, locale: Locale, now: Date): Cargo {
-  const seconds = (to: Date) =>
-    Math.max(0, Math.floor((to.getTime() - now.getTime()) / 1000));
-  return {
-    id: record.id,
-    code: record.code,
-    name: pickOrNull(record.name, locale),
-    message: pickOrNull(record.message, locale),
-    orderOpenAt: record.orderOpenAt.toISOString(),
-    orderCloseAt: record.orderCloseAt.toISOString(),
-    opensInSeconds: seconds(record.orderOpenAt),
-    closesInSeconds: seconds(record.orderCloseAt),
-    delivery: { start: record.deliveryStart, end: record.deliveryEnd },
-  };
-}
-
-export function cargoStatus(locale: Locale): CargoStatus {
-  const now = new Date();
-  const current = currentCargo(now);
-  const next = nextCargo();
-  return {
-    acceptingOrders: current !== null,
-    current: current ? cargoView(current, locale, now) : null,
-    next: next ? cargoView(next, locale, now) : null,
-    serverTime: now.toISOString(),
-    timezone: TIMEZONE,
   };
 }
 
@@ -234,32 +199,39 @@ function imageView(p: ProductRecord, locale: Locale): ApiImage {
 }
 
 /** Whether, and how much of, a product can be ordered right now (doc 7.1). */
+/**
+ * Whether a product can be ordered right now (doc 7.1): switched on by the
+ * admin, and the stock covers the smallest order. `maxQuantity` is the
+ * product's limit per order capped by the stock, 0 when sold out. Nothing
+ * is reserved before a payment, so `remaining` is what everyone sees.
+ */
 export function orderingOf(p: ProductRecord): Ordering {
-  const closed = (reason: Ordering["reason"]): Ordering => ({
-    canOrder: false,
-    reason,
-    minQuantity: p.minQuantity,
-    maxQuantity: p.maxQuantity,
-    remaining: null,
-  });
-  if (!currentCargo()) return closed("ordering_closed");
-  if (!p.isAvailable) return closed("product_unavailable");
-  const inCargo = cargoProductById.get(p.id);
-  if (!inCargo) return closed("not_in_this_cargo");
-  const remaining =
-    inCargo.maxQuantity === null
-      ? null
-      : Math.max(0, inCargo.maxQuantity - inCargo.reservedQuantity);
-  if (remaining === 0)
-    return { ...closed("sold_out"), remaining: 0, maxQuantity: 0 };
-  const limits = [p.maxQuantity, remaining].filter(
-    (n): n is number => n !== null,
-  );
+  const remaining = p.stock;
+  const cap =
+    p.maxQuantity === null ? remaining : Math.min(p.maxQuantity, remaining);
+  if (!p.isAvailable) {
+    return {
+      canOrder: false,
+      reason: "product_unavailable",
+      minQuantity: p.minQuantity,
+      maxQuantity: cap,
+      remaining,
+    };
+  }
+  if (remaining < p.minQuantity) {
+    return {
+      canOrder: false,
+      reason: "sold_out",
+      minQuantity: p.minQuantity,
+      maxQuantity: 0,
+      remaining,
+    };
+  }
   return {
     canOrder: true,
     reason: null,
     minQuantity: p.minQuantity,
-    maxQuantity: limits.length ? Math.min(...limits) : null,
+    maxQuantity: cap,
     remaining,
   };
 }
@@ -794,17 +766,12 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
 }
 
 export function billOf(items: CartItemInput[], locale: Locale): Bill {
-  const now = new Date();
-  const cargo = currentCargo(now);
   const lines = items.map((item) => lineOf(item, locale));
   const totals = totalsOf(lines);
   const freeFrom = freeDeliveryFrom();
   return {
-    canOrder:
-      cargo !== null &&
-      lines.length > 0 &&
-      lines.every((line) => line.issue === null),
-    cargo: cargo ? cargoView(cargo, locale, now) : null,
+    // The checkout button: a cart with products and no issue on any line.
+    canOrder: lines.length > 0 && lines.every((line) => line.issue === null),
     lines,
     totals,
     delivery: {

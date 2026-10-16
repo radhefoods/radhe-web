@@ -1,16 +1,19 @@
-// What happens to an order after it was placed, in the mock API: delivery
-// statuses, the final bill, payment (doc 10), invoices and credit notes
-// (doc 11) and returns (doc 12). The real API does these through its admin
-// side; here the test controls of `server.ts` and the demo data stand in.
+// What happens to an order after the checkout, in the mock API: the payment
+// page and its settlement (doc 10), the stock, delivery statuses, the final
+// bill, invoices and credit notes (doc 11) and returns (doc 12). The real
+// API hears from Stripe through webhooks and from Radhe Foods through its
+// admin side; here the stand-in payment page and the test controls of
+// `server.ts` do that.
 
-import { randomBytes } from "node:crypto";
 import type {
+  CheckoutSession,
   CursorPage,
   InvoiceDetail,
   InvoiceSummary,
   OrderPayment,
   OrderReturns,
   PaymentBlock,
+  PaymentMethod,
   ReturnReason,
   ReturnRequest,
   Totals,
@@ -23,7 +26,6 @@ import {
   validationFailed,
 } from "./errors.ts";
 import {
-  TIMEZONE,
   db,
   settings,
   type CustomerRecord,
@@ -88,79 +90,241 @@ export function finalTotalsOf(order: OrderRecord): Totals {
   };
 }
 
+// --- Stock ------------------------------------------------------------------
+
+/** Takes the units of every item off the shelf, or nothing when one is short. */
+function takeStock(order: OrderRecord): boolean {
+  const short = order.items.some(
+    (item) => (findProduct(item.productId)?.stock ?? 0) < item.quantity,
+  );
+  if (short) return false;
+  for (const item of order.items) {
+    findProduct(item.productId)!.stock -= item.quantity;
+  }
+  order.payment.stockTaken = true;
+  return true;
+}
+
+/** Puts the units of a cancelled order back on the shelf. */
+export function releaseStock(order: OrderRecord): void {
+  if (!order.payment.stockTaken) return;
+  for (const item of order.items) {
+    const product = findProduct(item.productId);
+    if (product) product.stock += item.quantity;
+  }
+  order.payment.stockTaken = false;
+}
+
 // --- 10 Payments ------------------------------------------------------------
 
-export function amountDueOf(order: OrderRecord): number {
-  const payment = order.payment;
-  if (!payment || payment.waived) return 0;
-  return Math.max(
-    0,
-    payment.invoicedAmount - payment.creditedAmount - payment.paidAmount,
-  );
+const MINUTE = 60_000;
+/** A page with more than this left is handed out again instead of a new one. */
+const REUSE_PAGE_MS = 5 * MINUTE;
+/** PayPal in the mock: Stripe's "webhook" settles this long after the return. */
+export const ASYNC_SETTLE_MS = 4_000;
+
+function pageIsOpen(order: OrderRecord): boolean {
+  const page = order.payment.checkout;
+  return page !== null && Date.parse(page.expiresAt) > Date.now();
+}
+
+/** An expired page is forgotten, as the API does when it asks Stripe. */
+function forgetExpiredPage(order: OrderRecord): void {
+  if (order.payment.checkout && !pageIsOpen(order)) {
+    order.payment.checkout = null;
+  }
 }
 
 /** The payment block of an order (doc 10.1). */
 export function paymentBlockOf(order: OrderRecord): PaymentBlock {
+  forgetExpiredPage(order);
   const payment = order.payment;
-  if (!payment) {
-    return {
-      status: "not_enabled",
-      amountDue: 0,
-      invoice: null,
-      deadline: null,
-      paidAt: null,
-      method: null,
-      canPayOnline: false,
-    };
-  }
-  const amountDue = amountDueOf(order);
-  const owing =
-    order.paymentStatus === "due" || order.paymentStatus === "overdue";
+  const page = payment.checkout;
   return {
     status: order.paymentStatus,
-    amountDue,
-    invoicedAmount: payment.invoicedAmount,
-    creditedAmount: payment.creditedAmount,
+    amount: payment.amount,
     paidAmount: payment.paidAmount,
+    creditedAmount: payment.creditedAmount,
     refundedAmount: payment.refundedAmount,
-    invoice: {
-      number: payment.invoiceNumber,
-      issuedAt: payment.issuedAt,
-      pdfPath: `/v1/store/invoices/${payment.invoiceNumber}/pdf`,
-    },
-    deadline: payment.deadline,
-    isOverdue: owing && new Date(payment.deadline).getTime() < Date.now(),
-    paidAt: payment.paidAt,
     method: payment.method,
-    paymentType: payment.paymentType,
-    receiptUrl:
-      payment.method === "stripe"
-        ? `https://pay.stripe.com/receipts/mock/${order.orderNumber}`
+    paidAt: payment.paidAt,
+    receiptUrl: payment.receiptUrl,
+    invoice:
+      payment.invoiceNumber && payment.invoiceIssuedAt
+        ? {
+            number: payment.invoiceNumber,
+            issuedAt: payment.invoiceIssuedAt,
+            pdfPath: `/v1/store/invoices/${payment.invoiceNumber}/pdf`,
+          }
         : null,
-    canPayOnline: stripe.enabled && owing && amountDue > 0,
-    cashPossible: order.delivery.method === "radhe_delivery" && owing,
+    checkout: page ? { url: page.url, expiresAt: page.expiresAt } : null,
+    canPayOnline:
+      stripe.enabled &&
+      order.status === "pending_payment" &&
+      (order.paymentStatus === "pending" || order.paymentStatus === "failed"),
+    lastFailure: payment.lastFailure,
   };
 }
 
-/** The end of a day in German time, `days` from now, as the API sets deadlines. */
-function deadlineIn(days: number): string {
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(
-    new Date(Date.now() + days * 86_400_000),
+function notPayable(order: OrderRecord): HttpError {
+  return new HttpError(
+    409,
+    "ORDER_NOT_PAYABLE",
+    order.paymentStatus === "paid"
+      ? "This order is paid."
+      : "This order can no longer be paid.",
+    { status: order.status, paymentStatus: order.paymentStatus },
   );
-  // 23:59:59 in Berlin is 21:59:59 or 22:59:59 UTC; the mock asks the offset.
-  const probe = new Date(`${day}T12:00:00Z`);
-  const berlinHour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: TIMEZONE,
-      hour: "2-digit",
-      hourCycle: "h23",
-    }).format(probe),
-  );
-  const offsetHours = berlinHour - 12;
-  return new Date(
-    Date.parse(`${day}T23:59:59Z`) - offsetHours * 3_600_000,
-  ).toISOString();
 }
+
+/**
+ * `POST …/pay`, and the page of a repeated checkout key: the open page while
+ * it has more than five minutes left, else a new one. The page is served by
+ * the mock itself at `mockBase`.
+ */
+export function paymentPage(
+  order: OrderRecord,
+  mockBase: string,
+): CheckoutSession {
+  if (order.status !== "pending_payment" || !stripe.enabled) {
+    throw notPayable(order);
+  }
+  forgetExpiredPage(order);
+  const open = order.payment.checkout;
+  if (open && Date.parse(open.expiresAt) - Date.now() > REUSE_PAGE_MS) {
+    return { url: open.url, expiresAt: open.expiresAt };
+  }
+  const expiresAt = new Date(
+    Date.now() + settings.checkoutMinutes * MINUTE,
+  ).toISOString();
+  const url = `${mockBase}/__mock/stripe/${order.orderNumber}`;
+  order.payment.checkout = { url, expiresAt, completesAt: null };
+  order.payment.attempts += 1;
+  // A new page after a failed attempt: the payment waits again.
+  order.paymentStatus = "pending";
+  order.pendingUntil = new Date(
+    Date.parse(expiresAt) + 10 * MINUTE,
+  ).toISOString();
+  return { url, expiresAt };
+}
+
+/**
+ * The bank approved the amount (architecture 7.2): the stock is taken, the
+ * money captured, the invoice issued, the order confirmed, the cart emptied.
+ * When an item sold out meanwhile, nothing is charged and the order is
+ * cancelled with `sold_out`.
+ */
+export function settlePayment(order: OrderRecord, method: PaymentMethod): void {
+  // An order that no longer waits lets the approval go: nothing is charged.
+  if (order.status !== "pending_payment") return;
+  const customer = db.customers.get(order.customerId);
+  if (!customer) return;
+  order.paymentStatus = "authorized";
+  if (!takeStock(order)) {
+    cancelSoldOut(order);
+    return;
+  }
+  const now = new Date().toISOString();
+  const invoice = documentFor(
+    order,
+    customer,
+    "invoice",
+    order.totals,
+    linesOf(order, (index) => order.items[index].quantity),
+    { paidAt: now },
+  );
+  order.payment = {
+    ...order.payment,
+    paidAmount: order.payment.amount,
+    paidAt: now,
+    method,
+    receiptUrl: `https://pay.stripe.com/receipts/mock/${order.orderNumber}`,
+    invoiceNumber: invoice.number,
+    invoiceIssuedAt: invoice.issuedAt,
+    checkout: null,
+    lastFailure: null,
+  };
+  order.paymentStatus = "paid";
+  order.status = "confirmed";
+  order.pendingUntil = null;
+  customer.cart = [];
+}
+
+/** A product sold out before the payment was captured: nothing is charged. */
+export function cancelSoldOut(order: OrderRecord): void {
+  releaseStock(order);
+  order.paymentStatus = "failed";
+  order.payment.lastFailure =
+    "A product sold out before the payment was captured.";
+  order.payment.checkout = null;
+  order.status = "cancelled";
+  order.cancellation = {
+    reason: "sold_out",
+    text: null,
+    by: "system",
+    at: new Date().toISOString(),
+  };
+  order.pendingUntil = null;
+}
+
+/** The bank declined, or the amount did not match: the attempt failed. */
+export function failPayment(
+  order: OrderRecord,
+  reason = "Stripe: the payment failed",
+): void {
+  if (order.status !== "pending_payment") return;
+  order.paymentStatus = "failed";
+  order.payment.lastFailure = reason;
+  order.payment.checkout = null;
+}
+
+/** The payment page expired without a payment. */
+export function expirePaymentPage(order: OrderRecord): void {
+  order.payment.checkout = null;
+}
+
+/** The customer paid with PayPal: Stripe tells a moment later (the webhook). */
+export function settleLater(order: OrderRecord): void {
+  if (order.payment.checkout) {
+    order.payment.checkout.completesAt = new Date(
+      Date.now() + ASYNC_SETTLE_MS,
+    ).toISOString();
+  }
+}
+
+/** Radhe Foods refunded everything that was paid (a cancelled paid order). */
+export function refundOrder(order: OrderRecord): void {
+  if (order.payment.paidAmount === 0) return;
+  order.payment.refundedAmount = order.payment.paidAmount;
+  order.paymentStatus = "refunded";
+}
+
+/** What asking Stripe finds: a completed page is settled, an expired one forgotten. */
+function askStripe(order: OrderRecord): void {
+  const page = order.payment.checkout;
+  if (page?.completesAt && Date.parse(page.completesAt) <= Date.now()) {
+    settlePayment(order, "paypal");
+  }
+  forgetExpiredPage(order);
+}
+
+/** `GET /v1/store/orders/{orderNumber}/payment` */
+export function orderPayment(
+  customer: CustomerRecord,
+  order: OrderRecord,
+): OrderPayment {
+  askStripe(order);
+  return {
+    orderNumber: order.orderNumber,
+    status: order.status,
+    payment: paymentBlockOf(order),
+    documents: documentsOf(customer, order.orderNumber)
+      .map(summaryOf)
+      .reverse(),
+  };
+}
+
+// --- 11 Invoices ------------------------------------------------------------
 
 const SELLER: InvoiceDetail["seller"] = {
   name: "Radhe Foods (mock)",
@@ -192,7 +356,6 @@ function documentFor(
     type,
     orderNumber: order.orderNumber,
     issuedAt: new Date().toISOString(),
-    dueAt: null,
     paidAt: null,
     total: totals.total,
     currency: "EUR",
@@ -201,8 +364,6 @@ function documentFor(
     creditReason: null,
     orderId: "66f100000000000000000001",
     customerId: customer.id,
-    cargoId: "66f0a1b2c3d4e5f6a7b8c9d0",
-    deliveredOn: order.delivery.deliveredAt?.slice(0, 10) ?? null,
     creditReference: null,
     seller: SELLER,
     customer: {
@@ -243,77 +404,6 @@ function linesOf(order: OrderRecord, quantityOf: (index: number) => number) {
     .filter((line) => line.quantity > 0);
 }
 
-/** The admin activates payment: the invoice is issued, the order is `due`. */
-export function activatePayment(order: OrderRecord, days = 5): void {
-  const customer = db.customers.get(order.customerId);
-  if (!customer || order.payment || order.delivery.deliveredAt === null) return;
-  const totals = finalTotalsOf(order);
-  const deadline = deadlineIn(days);
-  const invoice = documentFor(
-    order,
-    customer,
-    "invoice",
-    totals,
-    linesOf(order, (index) => keptQuantity(order, index)),
-    { dueAt: deadline },
-  );
-  order.payment = {
-    invoiceNumber: invoice.number,
-    issuedAt: invoice.issuedAt,
-    deadline,
-    paidAt: null,
-    method: null,
-    paymentType: null,
-    invoicedAmount: totals.total,
-    creditedAmount: 0,
-    paidAmount: 0,
-    refundedAmount: 0,
-    waived: false,
-    payLinkToken: randomBytes(32).toString("base64url"),
-  };
-  order.paymentStatus = "due";
-}
-
-export function markPaid(
-  order: OrderRecord,
-  method: "stripe" | "cash",
-  paymentType: "card" | "paypal" | null = null,
-): void {
-  if (!order.payment) return;
-  const paidAt = new Date().toISOString();
-  order.payment.paidAmount += amountDueOf(order);
-  order.payment.paidAt = paidAt;
-  order.payment.method = method;
-  order.payment.paymentType =
-    method === "stripe" ? (paymentType ?? "card") : null;
-  order.paymentStatus = "paid";
-  const invoice = db.invoices.get(order.payment.invoiceNumber);
-  if (invoice) invoice.paidAt = paidAt;
-}
-
-/** The deadline passed: the order is overdue and stops new orders. */
-export function markOverdue(order: OrderRecord): void {
-  if (!order.payment || order.paymentStatus !== "due") return;
-  order.payment.deadline = new Date(Date.now() - 86_400_000).toISOString();
-  order.paymentStatus = "overdue";
-  const invoice = db.invoices.get(order.payment.invoiceNumber);
-  if (invoice) invoice.dueAt = order.payment.deadline;
-}
-
-/** Unpaid orders past their deadline, for the overdue rule (doc 9). */
-export function overdueOrdersOf(customer: CustomerRecord) {
-  return [...db.orders.values()]
-    .filter(
-      (o) => o.customerId === customer.id && o.paymentStatus === "overdue",
-    )
-    .map((order) => ({
-      orderNumber: order.orderNumber,
-      invoiceNumber: order.payment!.invoiceNumber,
-      amountDue: amountDueOf(order),
-      deadlineAt: order.payment!.deadline,
-    }));
-}
-
 function summaryOf(document: InvoiceDetail): InvoiceSummary {
   return {
     id: document.id,
@@ -321,7 +411,6 @@ function summaryOf(document: InvoiceDetail): InvoiceSummary {
     type: document.type,
     orderNumber: document.orderNumber,
     issuedAt: document.issuedAt,
-    dueAt: document.dueAt,
     paidAt: document.paidAt,
     total: document.total,
     currency: "EUR",
@@ -341,50 +430,6 @@ function documentsOf(customer: CustomerRecord, orderNumber?: string) {
     )
     .reverse();
 }
-
-/** `GET /v1/store/orders/{orderNumber}/payment` */
-export function orderPayment(
-  customer: CustomerRecord,
-  order: OrderRecord,
-): OrderPayment {
-  return {
-    orderNumber: order.orderNumber,
-    payment: paymentBlockOf(order),
-    documents: documentsOf(customer, order.orderNumber).map(summaryOf),
-  };
-}
-
-/** `POST …/checkout`: the address of the (mock) payment page. */
-export function createCheckout(order: OrderRecord, mockBase: string) {
-  if (!stripe.enabled) {
-    throw new HttpError(
-      503,
-      "PAYMENTS_NOT_CONFIGURED",
-      "Online payment is not set up on this server.",
-    );
-  }
-  if (!order.payment) {
-    throw new HttpError(
-      409,
-      "PAYMENT_NOT_ACTIVATED",
-      "No invoice was issued yet.",
-    );
-  }
-  if (order.paymentStatus !== "due" && order.paymentStatus !== "overdue") {
-    throw new HttpError(409, "PAYMENT_NOT_POSSIBLE", "Nothing can be paid.", {
-      paymentStatus: order.paymentStatus,
-    });
-  }
-  if (amountDueOf(order) === 0) {
-    throw new HttpError(409, "PAYMENT_NOTHING_DUE", "Nothing is due.");
-  }
-  return {
-    url: `${mockBase}/__mock/stripe/${order.orderNumber}`,
-    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-  };
-}
-
-// --- 11 Invoices ------------------------------------------------------------
 
 export function listInvoices(
   customer: CustomerRecord,
@@ -749,7 +794,7 @@ export function decideReturn(
   request.completedAt = now;
   request.creditAmount = credit;
   if (after.subtotal === 0) order.status = "returned";
-  if (order.payment && credit > 0) {
+  if (credit > 0) {
     order.payment.creditedAmount += credit;
     documentFor(
       order,
@@ -769,33 +814,24 @@ export function decideReturn(
             700) / 100,
         lineTotal: (item.approvedQuantity ?? item.quantity) * item.unitPrice,
       })),
-      { invoiceNumber: order.payment.invoiceNumber, creditReason: "return" },
+      {
+        invoiceNumber: order.payment.invoiceNumber,
+        creditReason: "return",
+        creditReference: request.returnNumber,
+      },
     );
-    // An unpaid invoice with nothing left is settled by the credit note.
-    if (order.paymentStatus !== "paid" && amountDueOf(order) === 0) {
-      order.paymentStatus = "paid";
-      order.payment.method = "credit";
-      order.payment.paidAt = now;
-    }
   }
 }
 
 // --- Moving an order along (what the admin does) -----------------------------
 
-export type OrderAction =
-  | "prepare"
-  | "dispatch"
-  | "deliver"
-  | "fail"
-  | "activate"
-  | "pay_cash"
-  | "overdue";
+export type OrderAction = "process" | "dispatch" | "deliver" | "refund";
 
 export function advanceOrder(order: OrderRecord, action: OrderAction): void {
   const now = new Date().toISOString();
   switch (action) {
-    case "prepare":
-      order.status = "preparing";
+    case "process":
+      order.status = "processing";
       break;
     case "dispatch":
       order.status = "dispatched";
@@ -810,17 +846,8 @@ export function advanceOrder(order: OrderRecord, action: OrderAction): void {
       order.delivery.deliveredAt = now;
       for (const item of order.items) item.deliveredQuantity = item.quantity;
       break;
-    case "fail":
-      order.status = "delivery_failed";
-      break;
-    case "activate":
-      activatePayment(order);
-      break;
-    case "pay_cash":
-      markPaid(order, "cash");
-      break;
-    case "overdue":
-      markOverdue(order);
+    case "refund":
+      refundOrder(order);
       break;
   }
 }

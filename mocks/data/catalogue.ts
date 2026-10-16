@@ -40,6 +40,8 @@ export interface ProductRecord {
   isFeatured: boolean;
   minQuantity: number;
   maxQuantity: number | null;
+  /** Units in stock; 0 is sold out. Nothing is reserved before a payment. */
+  stock: number;
   storageType: "ambient" | "chilled" | "frozen";
   tags: string[];
   keywords: string[];
@@ -59,13 +61,6 @@ export interface ProductRecord {
   sortOrder: number;
   /** Tint of the generated placeholder picture. */
   tint: string;
-}
-
-/** Availability of a product in the cargo that takes orders. */
-export interface CargoProductRecord {
-  productId: string;
-  maxQuantity: number | null;
-  reservedQuantity: number;
 }
 
 let sequence = 0;
@@ -231,6 +226,8 @@ interface ProductSeed {
   isFeatured?: boolean;
   minQuantity?: number;
   maxQuantity?: number;
+  /** Units in stock; plenty when not said. */
+  stock?: number;
   storageType?: ProductRecord["storageType"];
   tags?: string[];
   keywords?: string[];
@@ -270,6 +267,7 @@ function product(seed: ProductSeed): ProductRecord {
     isFeatured: seed.isFeatured ?? false,
     minQuantity: seed.minQuantity ?? 1,
     maxQuantity: seed.maxQuantity ?? null,
+    stock: seed.stock ?? 120,
     storageType: seed.storageType ?? "ambient",
     tags: seed.tags ?? [],
     keywords: seed.keywords ?? [],
@@ -630,6 +628,7 @@ export const products: ProductRecord[] = [
   }),
   product({
     sku: "RF-00410",
+    stock: 37,
     group: "aloo-bhujia",
     slug: t("aloo-bhujia-400-g", "aloo-bhujia-400-g"),
     name: t("Aloo Bhujia", "Aloo Bhujia"),
@@ -672,6 +671,7 @@ export const products: ProductRecord[] = [
   }),
   product({
     sku: "RF-00501",
+    stock: 0,
     group: "kesar-mango",
     slug: t("kesar-mango-box-3-kg", "kesar-mango-kiste-3-kg"),
     name: t("Kesar Mango, Box", "Kesar-Mango, Kiste"),
@@ -829,23 +829,6 @@ const idOf = (sku: string): string => {
   if (!found) throw new Error(`Unknown SKU in fixtures: ${sku}`);
   return found.id;
 };
-
-/**
- * What the open cargo offers. Everything is in the cargo without a limit,
- * except: the Kesar mangoes are sold out, the bhujia has 37 units left, and
- * the Alphonso mangoes are not offered in this cargo.
- */
-export const cargoProducts: CargoProductRecord[] = products
-  .filter((p) => p.sku !== "RF-00502")
-  .map((p) => {
-    if (p.sku === "RF-00501") {
-      return { productId: p.id, maxQuantity: 40, reservedQuantity: 40 };
-    }
-    if (p.sku === "RF-00410") {
-      return { productId: p.id, maxQuantity: 50, reservedQuantity: 13 };
-    }
-    return { productId: p.id, maxQuantity: null, reservedQuantity: 0 };
-  });
 
 /** Product ids by SKU, for tests and for the seeded demo data. */
 export const SKU = {
