@@ -41,6 +41,7 @@
   "product": {
     "addToCart": "In den Warenkorb",
     "addNamed": "In den Warenkorb: {name}",
+    "added": "Hinzugefügt",
     "quantityNamed": "Menge von {name}",
     "increase": "Eins mehr",
     "decrease": "Eins weniger",

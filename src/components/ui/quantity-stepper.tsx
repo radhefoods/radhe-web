@@ -69,7 +69,10 @@ export function QuantityStepper({
         )}
       </button>
       <span aria-live="polite" className="min-w-8 text-center tabular-nums">
-        {value}
+        {/* Mounted afresh on every change, so the number pops each time. */}
+        <span key={value} className="animate-count-pop inline-block">
+          {value}
+        </span>
       </span>
       <button
         type="button"
