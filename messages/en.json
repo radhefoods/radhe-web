@@ -72,21 +72,20 @@
     "regularPrice": "Regular price",
     "currentPrice": "Price",
     "reason": {
-      "ordering_closed": "Ordering is closed right now",
       "product_unavailable": "Currently not available",
-      "not_in_this_cargo": "Not part of this delivery",
-      "sold_out": "Sold out for this delivery"
+      "sold_out": "Sold out"
     },
     "badge": {
       "sold_out": "Sold out",
+      "fewLeft": "Only {count} left",
       "chilled": "Chilled",
       "frozen": "Frozen"
     },
-    "onlyLeft": "Only {count} left for this delivery",
+    "onlyLeft": "Only {count} left in stock",
     "maxPerOrder": "At most {count} per order",
     "minPerOrder": "Minimum order: {count}",
     "noPicture": "Picture follows",
-    "inStock": "In stock for this delivery",
+    "inStock": "In stock",
     "cartFull": "Your cart is full. Remove a product to add another.",
     "highlights": "At a glance",
     "description": "About this product",
@@ -220,7 +219,7 @@
     "title": "Your cart",
     "metaTitle": "Cart",
     "emptyTitle": "Your cart is empty",
-    "emptyText": "Put something in it: everything you add stays here until you confirm your pre-order.",
+    "emptyText": "Put something in it: everything you add stays here until you order.",
     "emptyCta": "Browse the range",
     "unitPrice": "{price} each",
     "remove": "Remove",
@@ -230,11 +229,9 @@
     "issue": {
       "product_not_found": "This product is no longer available. Please remove it.",
       "quantity_below_minimum": "The minimum order for this product is {min}.",
-      "quantity_above_maximum": "Only {max} can be ordered for this delivery.",
-      "ordering_closed": "Ordering is closed right now. It stays in your cart for the next pre-order.",
+      "quantity_above_maximum": "Only {max} can be ordered right now.",
       "product_unavailable": "Currently not available. Please remove it to order the rest.",
-      "not_in_this_cargo": "Not part of this delivery. Please remove it to order the rest.",
-      "sold_out": "Sold out for this delivery. Please remove it to order the rest."
+      "sold_out": "Sold out. Please remove it to order the rest."
     },
     "summary": "Summary",
     "subtotal": "Subtotal",
@@ -243,13 +240,12 @@
     "vatIncluded": "includes {percent} VAT",
     "total": "Total",
     "totalNote": "incl. VAT and delivery",
-    "dueToday": "Due today",
     "freeMissing": "Add {amount} more for free delivery",
     "freeReached": "Delivery is free for this order",
     "checkout": "Go to checkout",
     "signInHint": "In the next step you sign in with your email address. No password needed.",
+    "payNote": "You pay in the next step, by card or PayPal.",
     "fixIssues": "Please sort out the marked products first.",
-    "closedHint": "Ordering is closed right now. Your cart stays saved for the next pre-order.",
     "continue": "Keep shopping",
     "updating": "Updating prices …",
     "barItems": "{count, plural, one {# item} other {# items}}",

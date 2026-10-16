@@ -2,7 +2,6 @@ import { Check } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
-import { PayLaterNote } from "@/components/cargo/pay-later-note";
 import { Breadcrumbs } from "@/components/catalogue/breadcrumbs";
 import { Price } from "@/components/catalogue/price";
 import { ProductGrid } from "@/components/catalogue/product-grid";
@@ -233,8 +232,6 @@ export default async function ProductPage({ params }: Props) {
               pricing={product.pricing}
               ordering={product.ordering}
             />
-
-            <PayLaterNote />
           </div>
 
           {product.highlights.length > 0 && (

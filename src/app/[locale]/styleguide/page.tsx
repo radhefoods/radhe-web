@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { PayLaterNote } from "@/components/cargo/pay-later-note";
 import { ProductGrid } from "@/components/catalogue/product-grid";
 import { Logo } from "@/components/shell/logo";
 import { Alert } from "@/components/ui/alert";
@@ -96,7 +95,12 @@ async function sampleProducts(locale: "en" | "de"): Promise<ProductSummary[]> {
     return [
       wanted((p) => p.pricing.onSale && p.packSizes.length > 1),
       wanted((p) => p.ordering?.reason === "sold_out"),
-      wanted((p) => p.ordering?.reason === "not_in_this_cargo"),
+      wanted(
+        (p) =>
+          p.ordering !== null &&
+          p.ordering.canOrder &&
+          p.ordering.remaining <= 10,
+      ),
       wanted((p) => p.storageType === "frozen"),
     ].filter((p): p is ProductSummary => Boolean(p));
   } catch {
@@ -193,25 +197,26 @@ export default async function StyleguidePage({
 
       <Section title="Status chips">
         <div className="flex flex-wrap gap-2">
+          <Chip tone="wheat">Waiting for payment</Chip>
           <Chip tone="leaf">Confirmed</Chip>
-          <Chip tone="wheat">Preparing</Chip>
+          <Chip tone="leaf">Being prepared</Chip>
           <Chip tone="forest">On its way</Chip>
           <Chip tone="green">Delivered</Chip>
-          <Chip tone="red">Delivery failed</Chip>
+          <Chip tone="mute">Returned</Chip>
           <Chip tone="mute">Cancelled</Chip>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Chip tone="mute">Pay after delivery</Chip>
-          <Chip tone="wheat">Payment due</Chip>
-          <Chip tone="red">Overdue</Chip>
+          <Chip tone="wheat">Not paid yet</Chip>
           <Chip tone="green">Paid</Chip>
+          <Chip tone="red">Payment failed</Chip>
+          <Chip tone="mute">Refunded</Chip>
         </div>
       </Section>
 
       <Section title="Messages">
         <div className="grid gap-3 md:grid-cols-2">
           <Alert tone="info" title="Information">
-            The next pre-order opens on Monday.
+            Your order is on its way.
           </Alert>
           <Alert tone="good" title="Good news">
             Your payment has arrived.
@@ -223,7 +228,6 @@ export default async function StyleguidePage({
             Try again. Reference: 3f0c1a2e-8b1d-4c2e
           </Alert>
         </div>
-        <PayLaterNote className="max-w-xl" />
       </Section>
 
       <Section title="Forms">

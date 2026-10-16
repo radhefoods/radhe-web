@@ -72,21 +72,20 @@
     "regularPrice": "Bisheriger Preis",
     "currentPrice": "Preis",
     "reason": {
-      "ordering_closed": "Bestellungen sind gerade geschlossen",
       "product_unavailable": "Derzeit nicht verfügbar",
-      "not_in_this_cargo": "Nicht Teil dieser Lieferung",
-      "sold_out": "Für diese Lieferung ausverkauft"
+      "sold_out": "Ausverkauft"
     },
     "badge": {
       "sold_out": "Ausverkauft",
+      "fewLeft": "Nur noch {count}",
       "chilled": "Gekühlt",
       "frozen": "Tiefgekühlt"
     },
-    "onlyLeft": "Nur noch {count} für diese Lieferung",
+    "onlyLeft": "Nur noch {count} auf Lager",
     "maxPerOrder": "Höchstens {count} pro Bestellung",
     "minPerOrder": "Mindestbestellmenge: {count}",
     "noPicture": "Bild folgt",
-    "inStock": "Für diese Lieferung verfügbar",
+    "inStock": "Auf Lager",
     "cartFull": "Ihr Warenkorb ist voll. Entfernen Sie ein Produkt, um ein weiteres hinzuzufügen.",
     "highlights": "Auf einen Blick",
     "description": "Über dieses Produkt",
@@ -220,7 +219,7 @@
     "title": "Ihr Warenkorb",
     "metaTitle": "Warenkorb",
     "emptyTitle": "Ihr Warenkorb ist leer",
-    "emptyText": "Legen Sie etwas hinein: Alles bleibt hier, bis Sie Ihre Vorbestellung bestätigen.",
+    "emptyText": "Legen Sie etwas hinein: Alles bleibt hier, bis Sie bestellen.",
     "emptyCta": "Sortiment ansehen",
     "unitPrice": "je {price}",
     "remove": "Entfernen",
@@ -230,11 +229,9 @@
     "issue": {
       "product_not_found": "Dieses Produkt ist nicht mehr verfügbar. Bitte entfernen Sie es.",
       "quantity_below_minimum": "Die Mindestbestellmenge für dieses Produkt ist {min}.",
-      "quantity_above_maximum": "Für diese Lieferung können nur {max} bestellt werden.",
-      "ordering_closed": "Bestellungen sind gerade geschlossen. Das Produkt bleibt für die nächste Vorbestellung im Warenkorb.",
+      "quantity_above_maximum": "Derzeit können nur {max} bestellt werden.",
       "product_unavailable": "Derzeit nicht verfügbar. Bitte entfernen Sie es, um den Rest zu bestellen.",
-      "not_in_this_cargo": "Nicht Teil dieser Lieferung. Bitte entfernen Sie es, um den Rest zu bestellen.",
-      "sold_out": "Für diese Lieferung ausverkauft. Bitte entfernen Sie es, um den Rest zu bestellen."
+      "sold_out": "Ausverkauft. Bitte entfernen Sie es, um den Rest zu bestellen."
     },
     "summary": "Übersicht",
     "subtotal": "Zwischensumme",
@@ -243,13 +240,12 @@
     "vatIncluded": "enthaltene MwSt. {percent}",
     "total": "Gesamtsumme",
     "totalNote": "inkl. MwSt. und Lieferung",
-    "dueToday": "Heute zu zahlen",
     "freeMissing": "Noch {amount} bis zur kostenlosen Lieferung",
     "freeReached": "Die Lieferung ist für diese Bestellung kostenlos",
     "checkout": "Zur Kasse",
     "signInHint": "Im nächsten Schritt melden Sie sich mit Ihrer E-Mail-Adresse an. Kein Passwort nötig.",
+    "payNote": "Sie zahlen im nächsten Schritt, mit Karte oder PayPal.",
     "fixIssues": "Bitte klären Sie zuerst die markierten Produkte.",
-    "closedHint": "Bestellungen sind gerade geschlossen. Ihr Warenkorb bleibt für die nächste Vorbestellung gespeichert.",
     "continue": "Weiter einkaufen",
     "updating": "Preise werden aktualisiert …",
     "barItems": "{count, plural, one {# Artikel} other {# Artikel}}",

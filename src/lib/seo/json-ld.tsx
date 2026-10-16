@@ -94,16 +94,13 @@ function productUrl(slug: string, locale: Locale): string {
 }
 
 /**
- * The offer of a product. A pre-order shop: what can be ordered now is
- * `PreOrder`, what is sold out for this delivery is `SoldOut`, everything
- * else is out of stock for the moment.
+ * The offer of a product: in stock when it can be ordered now, out of stock
+ * otherwise (switched off, or sold out). From the ordering block (doc 7.1).
  */
 function availability(product: ProductSummary): string {
-  if (product.ordering?.canOrder) return "https://schema.org/PreOrder";
-  if (product.ordering?.reason === "sold_out") {
-    return "https://schema.org/SoldOut";
-  }
-  return "https://schema.org/OutOfStock";
+  return product.ordering?.canOrder
+    ? "https://schema.org/InStock"
+    : "https://schema.org/OutOfStock";
 }
 
 export function productJsonLd(

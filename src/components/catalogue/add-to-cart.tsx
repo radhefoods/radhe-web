@@ -4,35 +4,17 @@ import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
-import { useOrderingOpen } from "@/features/cargo/cargo";
+import { orderingReason } from "@/features/catalogue/availability";
 import { useCart } from "@/features/cart/cart";
-import type { Id, Ordering, OrderingReason } from "@/lib/api/types";
+import type { Id, Ordering } from "@/lib/api/types";
 import { clampToOrdering } from "@/lib/cart/guest-cart";
 import { cn } from "@/lib/cn";
 
 /**
- * Why a product cannot be ordered right now, or `null` when it can.
- *
- * The product's own answer comes from a page that may be a few minutes old;
- * whether ordering is open at all is known live. The live answer wins in
- * both directions: a closed shop offers nothing, and an open shop does not
- * repeat a stale "ordering is closed".
- */
-export function orderingReason(
-  ordering: Ordering | null,
-  open: "open" | "closed" | "unknown",
-): OrderingReason | null {
-  if (open === "closed") return "ordering_closed";
-  if (!ordering || ordering.canOrder) return null;
-  if (ordering.reason === "ordering_closed" && open === "open") return null;
-  return ordering.reason;
-}
-
-/**
  * The one control that puts a product into the cart: a button first (a
  * full pill, or on a card the round "+"), then minus, number, plus. When
- * the product cannot be ordered it says why, in the same place and the
- * same height, so the grid never jumps.
+ * the product cannot be ordered (switched off, or sold out) it says why, in
+ * the same place and the same height, so the grid never jumps.
  */
 export function AddToCart({
   productId,
@@ -53,8 +35,7 @@ export function AddToCart({
 }) {
   const t = useTranslations("product");
   const cart = useCart();
-  const open = useOrderingOpen();
-  const reason = orderingReason(ordering, open);
+  const reason = orderingReason(ordering);
   const height = size === "sm" ? "min-h-11" : "min-h-12";
 
   if (reason) {

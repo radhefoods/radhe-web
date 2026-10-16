@@ -2,13 +2,13 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
-import { useOrderingOpen } from "@/features/cargo/cargo";
+import { fewLeft, orderingReason } from "@/features/catalogue/availability";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { ProductSummary } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDiscount } from "@/lib/format/money";
-import { AddToCart, orderingReason } from "./add-to-cart";
+import { AddToCart } from "./add-to-cart";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
 
@@ -36,7 +36,6 @@ export function ProductCard({
 }) {
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
-  const open = useOrderingOpen();
   const [selectedId, setSelectedId] = useState(product.id);
 
   const sizes = product.packSizes;
@@ -55,8 +54,9 @@ export function ProductCard({
     params: { slug: current.slug },
   };
   const fullName = `${product.name}, ${current.packSize.label}`;
-  const reason = orderingReason(current.ordering, open);
+  const reason = orderingReason(current.ordering);
   const soldOut = reason === "sold_out";
+  const left = fewLeft(current.ordering);
   const Heading = headingLevel;
 
   return (
@@ -86,6 +86,11 @@ export function ProductCard({
                 {formatDiscount(current.pricing.discountPercent, locale)}
               </span>
             )
+          )}
+          {left !== null && (
+            <span className={cn(badge, "bg-wheat-100 text-wheat-800")}>
+              {t("badge.fewLeft", { count: left })}
+            </span>
           )}
           {product.storageType !== "ambient" && (
             <span className={cn(badge, "bg-leaf-50 text-leaf-700")}>

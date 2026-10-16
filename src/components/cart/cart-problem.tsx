@@ -12,7 +12,7 @@ const VISIBLE_MS = 8000;
 
 /**
  * Says why a product did not get into the cart (the cart is full, the
- * limit of this delivery is reached, the shop cannot be reached), wherever
+ * product is gone, the shop cannot be reached), wherever
  * the customer tapped "add": on a product list, a product page, the home
  * page. The cart page shows the same message in its own place.
  */

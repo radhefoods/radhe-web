@@ -2,8 +2,6 @@
 
 import { ShoppingBag, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { CountdownText } from "@/components/cargo/countdown-text";
-import { PayLaterNote } from "@/components/cargo/pay-later-note";
 import { ProductImage } from "@/components/catalogue/product-image";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
@@ -16,7 +14,6 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { BillLine } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { formatDayRange, formatDeadline } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { BillTotals, FreeDeliveryProgress } from "./bill-summary";
 
@@ -32,6 +29,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
     ? `${product.name}, ${product.packSize.label}`
     : tProduct("reason.product_unavailable");
   const min = ordering?.minQuantity ?? 1;
+  // The stock and the product's limit, whichever is lower (doc 7.1).
   const max = ordering?.maxQuantity ?? null;
   const href = product && {
     pathname: "/products/[slug]" as const,
@@ -166,11 +164,10 @@ function CartSkeleton() {
 
 /**
  * The cart page: the products with their quantities, the bill from the API,
- * when it will be delivered, and that nothing is paid today.
+ * and the way to the checkout, which follows the bill's `canOrder`.
  */
 export function CartView() {
   const t = useTranslations("cart");
-  const tCargo = useTranslations("cargo");
   const tProduct = useTranslations("product");
   const locale = useLocale() as Locale;
   const cart = useCart();
@@ -202,7 +199,6 @@ export function CartView() {
     (line) => cart.quantityOf(line.productId) > 0,
   );
   const hasIssues = lines.some((line) => line.issue !== null);
-  const closed = bill.cargo === null;
 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[1fr_23rem] lg:gap-12">
@@ -222,27 +218,9 @@ export function CartView() {
 
       <aside
         aria-label={t("summary")}
-        className="bg-mist flex flex-col gap-4 rounded-xl p-5 sm:p-6 lg:sticky lg:top-44"
+        className="bg-mist flex flex-col gap-4 rounded-xl p-5 sm:p-6 lg:sticky lg:top-28"
       >
         <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
-
-        {bill.cargo && (
-          <div className="flex flex-col gap-1 rounded-md bg-white px-3.5 py-3 text-sm">
-            <p>
-              <span className="font-bold">{tCargo("orderBy")}</span>{" "}
-              {formatDeadline(bill.cargo.orderCloseAt, locale)}
-            </p>
-            <p>
-              <span className="font-bold">{tCargo("delivery")}</span>{" "}
-              {formatDayRange(
-                bill.cargo.delivery.start,
-                bill.cargo.delivery.end,
-                locale,
-              )}
-            </p>
-            <CountdownText className="text-leaf-700 font-bold tabular-nums" />
-          </div>
-        )}
 
         <FreeDeliveryProgress
           delivery={bill.delivery}
@@ -259,11 +237,7 @@ export function CartView() {
           {updating ? t("updating") : ""}
         </p>
 
-        {closed ? (
-          <Alert tone="warn">{t("closedHint")}</Alert>
-        ) : (
-          hasIssues && <Alert tone="warn">{t("fixIssues")}</Alert>
-        )}
+        {hasIssues && <Alert tone="warn">{t("fixIssues")}</Alert>}
 
         {bill.canOrder && !updating ? (
           <Link
@@ -282,8 +256,7 @@ export function CartView() {
             {t("signInHint")}
           </p>
         )}
-
-        <PayLaterNote />
+        <p className="text-ink-muted text-center text-sm">{t("payNote")}</p>
 
         <Link
           href="/products"

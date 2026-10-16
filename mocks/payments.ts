@@ -231,7 +231,7 @@ export function settlePayment(order: OrderRecord, method: PaymentMethod): void {
     "invoice",
     order.totals,
     linesOf(order, (index) => order.items[index].quantity),
-    { paidAt: now },
+    { issuedAt: now, paidAt: now },
   );
   order.payment = {
     ...order.payment,

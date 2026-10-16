@@ -650,6 +650,7 @@ export const products: ProductRecord[] = [
   }),
   product({
     sku: "RF-00420",
+    stock: 8,
     group: "methi-khakhra",
     slug: t("methi-khakhra-200-g", "methi-khakhra-200-g"),
     name: t("Methi Khakhra", "Methi Khakhra"),
