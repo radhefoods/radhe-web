@@ -91,11 +91,6 @@ export async function Footer({ categories }: { categories: Category[] }) {
           links={[
             { key: "terms", href: "/legal/terms", label: t("terms") },
             {
-              key: "preorder",
-              href: "/legal/preorder-terms",
-              label: t("preorderTerms"),
-            },
-            {
               key: "withdrawal",
               href: "/legal/withdrawal",
               label: t("withdrawal"),

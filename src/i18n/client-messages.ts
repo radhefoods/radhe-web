@@ -14,7 +14,6 @@ const BASE = [
   "language",
   "common",
   "nav",
-  "cargo",
   "product",
   "cart",
   "cookieNotice",
@@ -34,7 +33,7 @@ const AREAS = {
     "profile",
     "returns",
   ],
-  emailLinks: ["payLink", "payment", "unsubscribe"],
+  emailLinks: ["unsubscribe"],
 } as const satisfies Record<string, readonly Namespace[]>;
 
 export type ClientArea = keyof typeof AREAS;

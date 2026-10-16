@@ -9,9 +9,9 @@ export const defaultLocale: Locale = "en";
  * internal names used in code (`<Link href="/cart">`); customers see the
  * localized address (`/en/cart`, `/de/warenkorb`).
  *
- * Links in the emails of the API carry no language (`/pay/<token>`,
- * `/unsubscribe/<token>`, `/account/orders/<number>`, `/products/<slug>`):
- * the proxy sends them to the customer's language and keeps path and query.
+ * Links in the emails of the API carry no language (`/unsubscribe/<token>`,
+ * `/account/orders/<number>`, `/products/<slug>`): the proxy sends them to
+ * the customer's language and keeps path and query.
  */
 export const routing = defineRouting({
   locales,
@@ -43,13 +43,8 @@ export const routing = defineRouting({
     "/account/invoices": { en: "/account/invoices", de: "/konto/rechnungen" },
     "/account/addresses": { en: "/account/addresses", de: "/konto/adressen" },
     "/account/profile": { en: "/account/profile", de: "/konto/profil" },
-    "/pay/[token]": "/pay/[token]",
     "/unsubscribe/[token]": "/unsubscribe/[token]",
     "/legal/terms": { en: "/legal/terms", de: "/rechtliches/agb" },
-    "/legal/preorder-terms": {
-      en: "/legal/preorder-terms",
-      de: "/rechtliches/vorbestellbedingungen",
-    },
     "/legal/privacy": { en: "/legal/privacy", de: "/rechtliches/datenschutz" },
     "/legal/imprint": { en: "/legal/imprint", de: "/rechtliches/impressum" },
     "/legal/withdrawal": {

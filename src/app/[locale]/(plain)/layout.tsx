@@ -5,9 +5,9 @@ import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 
 /**
- * The frame of the pages behind links in emails (payment link, unsubscribe):
- * the logo and the page. No navigation, no cart, no language switch: these
- * pages do one thing, in the language the link belongs to.
+ * The frame of the page behind the link in marketing emails (unsubscribe):
+ * the logo and the page. No navigation, no cart, no language switch: the
+ * page does one thing, in the language the link belongs to.
  */
 export default async function PlainLayout({
   children,

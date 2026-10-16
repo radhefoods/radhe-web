@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PayLaterNote } from "@/components/cargo/pay-later-note";
-import { getCargo, getSettings } from "@/features/catalogue/data";
+import { getSettings } from "@/features/catalogue/data";
 import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
-import { formatDayRange, formatDeadline } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 
@@ -24,16 +22,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /**
  * Delivery and payment in one place. The numbers (delivery fee steps,
- * return window, current deadline) come from the API, so the page says what
+ * delivery time, return window) come from the API, so the page says what
  * the shop really charges; German price law wants the delivery costs
  * reachable from every price.
  */
 export default async function DeliveryPage({ params }: Props) {
   const locale = await localeOf(params);
-  const [t, settings, cargo] = await Promise.all([
+  const [t, settings] = await Promise.all([
     getTranslations("help.delivery"),
     getSettings(),
-    getCargo(locale),
   ]);
   const tiers = [...(settings?.deliveryFee.tiers ?? [])].sort(
     (a, b) => a.minOrderValue - b.minOrderValue,
@@ -48,8 +45,10 @@ export default async function DeliveryPage({ params }: Props) {
       to: formatMoney(next, locale),
     });
   };
+  const estimate = settings?.delivery.estimate[locale] ?? null;
   const returnDays = settings?.returns.windowDays ?? 0;
   const title = "font-display text-xl text-ink";
+  const section = "border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6";
 
   return (
     <article className="container-page max-w-3xl space-y-6 py-6 sm:py-10">
@@ -60,20 +59,14 @@ export default async function DeliveryPage({ params }: Props) {
         <p className="text-lg">{t("intro")}</p>
       </header>
 
-      <section
-        aria-labelledby="delivery-area"
-        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
-      >
+      <section aria-labelledby="delivery-area" className={section}>
         <h2 id="delivery-area" className={title}>
           {t("areaTitle")}
         </h2>
         <p>{t("areaText")}</p>
       </section>
 
-      <section
-        aria-labelledby="delivery-fee"
-        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
-      >
+      <section aria-labelledby="delivery-fee" className={section}>
         <h2 id="delivery-fee" className={title}>
           {t("feeTitle")}
         </h2>
@@ -119,48 +112,34 @@ export default async function DeliveryPage({ params }: Props) {
         )}
       </section>
 
-      <section
-        aria-labelledby="delivery-days"
-        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
-      >
-        <h2 id="delivery-days" className={title}>
-          {t("daysTitle")}
+      <section aria-labelledby="delivery-time" className={section}>
+        <h2 id="delivery-time" className={title}>
+          {t("timeTitle")}
         </h2>
-        <p>
-          {cargo?.current
-            ? t("daysOpen", {
-                deadline: formatDeadline(cargo.current.orderCloseAt, locale),
-                delivery: formatDayRange(
-                  cargo.current.delivery.start,
-                  cargo.current.delivery.end,
-                  locale,
-                ),
-              })
-            : t("daysClosed")}
-        </p>
-        <p className="text-ink-muted">{t("daysNote")}</p>
+        <p>{estimate ? t("timeText", { estimate }) : t("timeUnknown")}</p>
+        <p className="text-ink-muted">{t("timeNote")}</p>
       </section>
 
-      <section
-        aria-labelledby="delivery-pay"
-        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
-      >
+      <section aria-labelledby="delivery-pay" className={section}>
         <h2 id="delivery-pay" className={title}>
           {t("payTitle")}
         </h2>
         <p>{t("payText")}</p>
         <ul className="list-disc space-y-1 pl-6">
           <li>{t("payCard")}</li>
-          <li>{t("payCash")}</li>
+          <li>{t("payPaypal")}</li>
         </ul>
-        <p>{t("payDeadline")}</p>
-        <PayLaterNote />
+        <p>{t("payConfirm")}</p>
       </section>
 
-      <section
-        aria-labelledby="delivery-returns"
-        className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
-      >
+      <section aria-labelledby="delivery-cancel" className={section}>
+        <h2 id="delivery-cancel" className={title}>
+          {t("cancelTitle")}
+        </h2>
+        <p>{t("cancelText")}</p>
+      </section>
+
+      <section aria-labelledby="delivery-returns" className={section}>
         <h2 id="delivery-returns" className={title}>
           {t("returnsTitle")}
         </h2>

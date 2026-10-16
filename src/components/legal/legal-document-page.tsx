@@ -14,12 +14,11 @@ import { formatDate } from "@/lib/format/dates";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 import { LegalText } from "./legal-text";
 
-// The legal texts of the API (terms, pre-order terms, privacy): the version
-// that applies now, as the admin wrote it (plain text or Markdown).
+// The legal texts of the API (terms, privacy): the version that applies
+// now, as the admin wrote it (plain text or Markdown).
 
 const PATHS = {
   terms: "/legal/terms",
-  preorder_terms: "/legal/preorder-terms",
   privacy: "/legal/privacy",
 } as const;
 

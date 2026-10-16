@@ -12,7 +12,6 @@ export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/how-it-works", priority: 0.6 },
   { href: "/delivery-and-payment", priority: 0.6 },
   { href: "/legal/terms", priority: 0.2 },
-  { href: "/legal/preorder-terms", priority: 0.2 },
   { href: "/legal/privacy", priority: 0.2 },
   { href: "/legal/imprint", priority: 0.2 },
   { href: "/legal/withdrawal", priority: 0.2 },

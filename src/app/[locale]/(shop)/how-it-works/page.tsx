@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PayLaterNote } from "@/components/cargo/pay-later-note";
 import { buttonStyles } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
@@ -21,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** The pre-order explained: three steps, then the questions customers ask. */
+/** The shop explained: three steps, then the questions customers ask. */
 export default async function HowItWorksPage({ params }: Props) {
   await localeOf(params);
   const [t, tHome] = await Promise.all([
@@ -75,8 +74,6 @@ export default async function HowItWorksPage({ params }: Props) {
           </li>
         ))}
       </ol>
-
-      <PayLaterNote className="max-w-2xl" />
 
       <section aria-labelledby="how-faq" className="space-y-4">
         <h2 id="how-faq" className="font-display text-ink text-2xl sm:text-3xl">

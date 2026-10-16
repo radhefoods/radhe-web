@@ -3,8 +3,8 @@ import { cn } from "@/lib/cn";
 
 /**
  * leaf: confirmed, in progress. forest: on its way. wheat: needs attention
- * (preparing, payment due). green: a good outcome (delivered, paid), solid
- * so it stands apart from leaf. red: failed, overdue. mute: over.
+ * (waiting for payment). green: a good outcome (delivered, paid), solid so
+ * it stands apart from leaf. red: a payment that failed. mute: over.
  */
 export type ChipTone = "leaf" | "forest" | "wheat" | "green" | "red" | "mute";
 

@@ -6,8 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Radhe Foods",
     short_name: "Radhe Foods",
-    description:
-      "Indian groceries, pre-ordered online and delivered across Germany.",
+    description: "Indian groceries, in stock and delivered across Germany.",
     start_url: "/",
     display: "browser",
     background_color: "#ffffff",

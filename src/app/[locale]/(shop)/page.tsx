@@ -9,13 +9,12 @@ import {
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ComponentProps, ReactNode } from "react";
-import { NextDeliveryCard } from "@/components/cargo/next-delivery-card";
 import { ProductGrid } from "@/components/catalogue/product-grid";
 import { ProductImage } from "@/components/catalogue/product-image";
+import { DeliveryPromiseCard } from "@/components/home/delivery-promise-card";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
-  getCargo,
   getCategories,
   getSettings,
   listProducts,
@@ -89,30 +88,16 @@ function SectionHeader({
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const locale = await localeOf(params);
-  const [
-    t,
-    tSite,
-    tCargo,
-    tCart,
-    tNav,
-    cargo,
-    settings,
-    categories,
-    popular,
-    offers,
-  ] = await Promise.all([
-    getTranslations("home"),
-    getTranslations("site"),
-    getTranslations("cargo"),
-    getTranslations("cart"),
-    getTranslations("nav"),
-    getCargo(locale),
-    getSettings(),
-    getCategories(locale),
-    products({ featured: true, limit: 8 }, locale),
-    products({ onSale: true, limit: 4 }, locale),
-  ]);
-  const open = cargo?.acceptingOrders ?? false;
+  const [t, tSite, tNav, settings, categories, popular, offers] =
+    await Promise.all([
+      getTranslations("home"),
+      getTranslations("site"),
+      getTranslations("nav"),
+      getSettings(),
+      getCategories(locale),
+      products({ featured: true, limit: 8 }, locale),
+      products({ onSale: true, limit: 4 }, locale),
+    ]);
   const freeFrom = settings?.deliveryFee.freeFrom ?? null;
   // Full rows only: four per row on wide screens, two on phones.
   const featured = popular.slice(0, popular.length >= 8 ? 8 : 4);
@@ -145,7 +130,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       />
 
       {/* The hero: the woven band with the promise of the shop, and next to
-          it the countdown card. The pre-order at a glance. */}
+          it the ticket with delivery and payment at a glance. */}
       <section aria-labelledby="home-title" className="hero-band text-white">
         <div className="container-page grid items-center gap-10 py-10 sm:py-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14 lg:py-16">
           <div>
@@ -169,7 +154,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 href="/products"
                 className={buttonStyles({ variant: "wheat", size: "lg" })}
               >
-                {open ? t("ctaShop") : t("ctaBrowse")}
+                {t("ctaShop")}
                 <ArrowRight aria-hidden="true" className="size-5" />
               </Link>
               <a
@@ -180,7 +165,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               </a>
             </div>
           </div>
-          <NextDeliveryCard freeFrom={freeFrom} />
+          <DeliveryPromiseCard settings={settings} locale={locale} />
         </div>
       </section>
 
@@ -308,14 +293,14 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           className="hero-band grid gap-8 rounded-xl p-7 text-white sm:p-10 md:grid-cols-2 md:gap-10"
         >
           <div>
-            <Eyebrow>{tCart("dueToday")}</Eyebrow>
+            <Eyebrow>{t("payEyebrow")}</Eyebrow>
             <h2 id="home-pay" className={bandTitle}>
-              {tCargo("payLaterTitle")}
+              {t("payTitle")}
             </h2>
-            <p className={bandText}>{tCargo("payLaterText")}</p>
+            <p className={bandText}>{t("payText")}</p>
           </div>
           <div>
-            <Eyebrow>{tCargo("nextDelivery")}</Eyebrow>
+            <Eyebrow>{t("newsEyebrow")}</Eyebrow>
             <h2 className={bandTitle}>{t("newsTitle")}</h2>
             <p className={bandText}>{t("newsText")}</p>
             <Link

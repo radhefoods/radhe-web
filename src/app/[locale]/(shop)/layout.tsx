@@ -1,4 +1,3 @@
-import { CargoStrip } from "@/components/cargo/cargo-strip";
 import { CartProblem } from "@/components/cart/cart-problem";
 import { CartSummaryBar } from "@/components/cart/cart-summary-bar";
 import { Footer } from "@/components/shell/footer";
@@ -7,7 +6,7 @@ import { TabBar } from "@/components/shell/tab-bar";
 import { getCategories, getSettings } from "@/features/catalogue/data";
 import { localeOf } from "@/i18n/locale";
 
-/** The frame of every shop page: header, pre-order strip, footer, tab bar. */
+/** The frame of every shop page: header, footer, tab bar. */
 export default async function ShopLayout({
   children,
   params,
@@ -25,7 +24,6 @@ export default async function ShopLayout({
         categories={categories}
         freeFrom={settings?.deliveryFee.freeFrom ?? null}
       />
-      <CargoStrip />
       <main id="main" className="flex-1">
         {children}
       </main>

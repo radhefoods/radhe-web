@@ -2,12 +2,10 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
-import { CargoProvider } from "@/features/cargo/cargo";
 import { CartProvider } from "@/features/cart/cart";
 import { SESSION_QUERY_KEY, setSessionHint } from "@/features/session/session";
 import { session } from "@/lib/api/browser";
 import { isRetryable } from "@/lib/api/errors";
-import type { CargoStatus } from "@/lib/api/types";
 
 function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -23,14 +21,8 @@ function createQueryClient(): QueryClient {
   });
 }
 
-/** Everything that lives in the browser: data cache, session, cargo, cart. */
-export function Providers({
-  cargo,
-  children,
-}: {
-  cargo: CargoStatus | null;
-  children: ReactNode;
-}) {
+/** Everything that lives in the browser: data cache, session, cart. */
+export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(createQueryClient);
 
   useEffect(
@@ -45,9 +37,7 @@ export function Providers({
 
   return (
     <QueryClientProvider client={client}>
-      <CargoProvider initial={cargo}>
-        <CartProvider>{children}</CartProvider>
-      </CargoProvider>
+      <CartProvider>{children}</CartProvider>
     </QueryClientProvider>
   );
 }

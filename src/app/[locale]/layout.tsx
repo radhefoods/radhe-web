@@ -9,7 +9,6 @@ import {
 import { LocaleAlternatesProvider } from "@/components/shell/locale-switcher";
 import { NavigationProgress } from "@/components/shell/navigation-progress";
 import { env } from "@/config/env";
-import { getCargo } from "@/features/catalogue/data";
 import { Providers } from "@/features/providers";
 import { clientMessages } from "@/i18n/client-messages";
 import { localeOf } from "@/i18n/locale";
@@ -64,9 +63,8 @@ export default async function LocaleLayout({
   params,
 }: LayoutProps<"/[locale]">) {
   const locale = await localeOf(params);
-  const [messages, cargo, t] = await Promise.all([
+  const [messages, t] = await Promise.all([
     getMessages(),
-    getCargo(locale),
     getTranslations("common"),
   ]);
 
@@ -90,7 +88,7 @@ export default async function LocaleLayout({
           <Suspense fallback={null}>
             <NavigationProgress />
           </Suspense>
-          <Providers cargo={cargo}>
+          <Providers>
             <LocaleAlternatesProvider>{children}</LocaleAlternatesProvider>
             <CookieNotice />
           </Providers>
