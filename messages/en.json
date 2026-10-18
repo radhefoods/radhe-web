@@ -230,6 +230,7 @@
     "remove": "Remove",
     "removeNamed": "Remove {name} from the cart",
     "lineTotal": "Total for {name}",
+    "lineTotalLabel": "Total",
     "setTo": "Set to {count}",
     "issue": {
       "product_not_found": "This product is no longer available. Please remove it.",

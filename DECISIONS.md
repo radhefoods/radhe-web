@@ -148,6 +148,8 @@ The owner's brief of 2026-10-19 with six screenshots of the deployed shop: centr
 
 Removed: the white ring of the "+" and the stepper, the price per kilogram in the cart, the "Only N left in stock" line under the buy box (the chip next to the price says it), and the wheat variant of the language switch.
 
+Later the same day, from a screenshot of the new cart: the line total moves to the left under the texts, as the one big number of the card in the display cut with a small "Total" over it, and the stepper to the right where the total was. What is paid stands in the reading column with the name and the price per pack; the control that changes it sits where the hand expects it, at the end of the row.
+
 ## Design (redesign approved by the owner on 2026-10-14)
 
 On 2026-10-14 the owner compared ten design directions, built as standalone prototypes, and chose a combination: the palette and the store anatomy of the direction "Quick Basket" (a fresh grocer app), the hero section of "Haldi & Clay" translated into that palette, the shop's own fonts kept, and the logo recoloured to match. The merged proposal the owner approved: https://claude.ai/artifact/D3fMLJrc8juzuJCWqGShHZ. It replaces the design of 2026-10-11 (summarised at the end of this section) and keeps every function and rule of the shop. It was built the same day in six phases: 1 tokens and base components, 2 shell (header, footer, menu, tab bar, logo), 3 home page, 4 catalogue, 5 the remaining pages, 6 quality (end-to-end and axe checks, documentation). The design system in code: `/en/styleguide`.

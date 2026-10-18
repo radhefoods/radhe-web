@@ -27,8 +27,11 @@ import {
  * One pack size in the cart (owner, 2026-10-19): the picture on a mist
  * tile; the brand, the name with the size in a quieter tone, and the
  * price per pack with the regular price crossed out when reduced (no
- * price per kilogram here); the stepper and, in bold, what the line
- * costs. A line the API objects to carries its message and a one-tap fix.
+ * price per kilogram here); under them, on the left, what the line costs
+ * as the one big number of the card with a small "Total" over it, and on
+ * the right the stepper (owner, later the same day: the total left, the
+ * controls right). A line the API objects to carries its message and a
+ * one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -55,7 +58,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="border-line shadow-card grid grid-cols-[5.5rem_1fr] gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[7rem_1fr] sm:gap-x-5 sm:p-5">
+    <li className="border-line shadow-card grid grid-cols-[5.5rem_1fr] gap-x-4 gap-y-4 rounded-xl border bg-white p-4 sm:grid-cols-[7rem_1fr] sm:gap-x-5 sm:p-5">
       <div className="bg-mist row-span-2 aspect-square self-start overflow-hidden rounded-md p-2">
         <ProductImage
           image={product?.image ?? null}
@@ -117,15 +120,36 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {product && issue !== "product_not_found" ? (
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        {issue === null ? (
+          <p
+            className={cn(
+              "flex flex-col gap-0.5 transition-opacity",
+              updating && "opacity-50",
+            )}
+          >
+            <span className="sr-only">{t("lineTotal", { name })}: </span>
+            <span
+              aria-hidden="true"
+              className="text-ink-subtle text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase"
+            >
+              {t("lineTotalLabel")}
+            </span>
+            <span className="font-display text-ink text-2xl leading-none tabular-nums sm:text-[1.75rem]">
+              {formatMoney(line.lineTotal, locale)}
+            </span>
+          </p>
+        ) : (
+          <span />
+        )}
+        {product && issue !== "product_not_found" && (
           <QuantityStepper
             value={quantity}
             min={1}
             max={max}
             removeAtMin={false}
             size="sm"
-            className="w-32"
+            className="w-32 sm:w-36"
             onChange={(next) => cart.setQuantity(line.variantId, next)}
             labels={{
               quantity: tProduct("quantityNamed", { name }),
@@ -134,19 +158,6 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
               remove: tProduct("remove"),
             }}
           />
-        ) : (
-          <span />
-        )}
-        {issue === null && (
-          <p
-            aria-label={t("lineTotal", { name })}
-            className={cn(
-              "font-display text-ink text-xl tabular-nums transition-opacity",
-              updating && "opacity-50",
-            )}
-          >
-            {formatMoney(line.lineTotal, locale)}
-          </p>
         )}
       </div>
 
