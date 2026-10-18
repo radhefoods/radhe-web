@@ -33,7 +33,7 @@ type Href = ComponentProps<typeof Link>["href"];
 // answers of the API (five minutes, `REVALIDATE.catalogue`). A page cached
 // on top of cached data showed the admin's price changes long after the
 // category pages (owner, 2026-10-18); now both lag by the same five minutes
-// at most.
+// at most. The banners of the hero are asked for afresh at every visit.
 export const revalidate = 0;
 
 export async function generateMetadata({
@@ -143,49 +143,13 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         data={[organizationJsonLd(tSite("tagline")), websiteJsonLd(locale)]}
       />
 
-      {/* The hero: the woven band with the promise of the shop, and next to
-          it the ticket with delivery and payment at a glance. */}
-      <section aria-labelledby="home-title" className="hero-band text-white">
-        <div className="container-page grid items-center gap-10 py-10 sm:py-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14 lg:py-16">
-          <div>
-            <Eyebrow>{t("eyebrow")}</Eyebrow>
-            <h1
-              id="home-title"
-              // No hyphens in the headline: "Lebensmittel" breaks whole.
-              className="font-display headline-no-hyphens mt-4 max-w-[14ch] text-[2.25rem] leading-[1.04] sm:text-[2.75rem] lg:text-[3.5rem]"
-            >
-              {t.rich("title", {
-                em: (chunks) => (
-                  <em className="text-wheat-400 not-italic">{chunks}</em>
-                ),
-              })}
-            </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed font-medium text-white/85">
-              {t("lead")}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/products"
-                className={buttonStyles({ variant: "wheat", size: "lg" })}
-              >
-                {t("ctaShop")}
-                <ArrowRight aria-hidden="true" className="size-5" />
-              </Link>
-              <a
-                href="#how-it-works"
-                className={buttonStyles({ variant: "ghost", size: "lg" })}
-              >
-                {t("stepsTitle")}
-              </a>
-            </div>
-          </div>
-          <DeliveryPromiseCard settings={settings} locale={locale} />
-        </div>
-      </section>
-
-      <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
-        {/* The promotions of the admin, when there are any (doc 17). */}
-        {banners.length > 0 && (
+      {/* The hero (owner, 2026-10-19): the carousel of the admin's banners.
+          While no banner is live, the woven band with the promise of the
+          shop and the ticket with delivery and payment at a glance stands
+          in, so the page never opens empty. */}
+      {banners.length > 0 ? (
+        <div className="container-page pt-3 sm:pt-5 lg:pt-6">
+          <h1 className="sr-only">{t("metaTitle")}</h1>
           <HeroCarousel
             banners={banners}
             labels={{
@@ -205,8 +169,48 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               ),
             }}
           />
-        )}
+        </div>
+      ) : (
+        <section aria-labelledby="home-title" className="hero-band text-white">
+          <div className="container-page grid items-center gap-10 py-10 sm:py-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14 lg:py-16">
+            <div>
+              <Eyebrow>{t("eyebrow")}</Eyebrow>
+              <h1
+                id="home-title"
+                // No hyphens in the headline: "Lebensmittel" breaks whole.
+                className="font-display headline-no-hyphens mt-4 max-w-[14ch] text-[2.25rem] leading-[1.04] sm:text-[2.75rem] lg:text-[3.5rem]"
+              >
+                {t.rich("title", {
+                  em: (chunks) => (
+                    <em className="text-wheat-400 not-italic">{chunks}</em>
+                  ),
+                })}
+              </h1>
+              <p className="mt-5 max-w-xl text-lg leading-relaxed font-medium text-white/85">
+                {t("lead")}
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/products"
+                  className={buttonStyles({ variant: "wheat", size: "lg" })}
+                >
+                  {t("ctaShop")}
+                  <ArrowRight aria-hidden="true" className="size-5" />
+                </Link>
+                <a
+                  href="#how-it-works"
+                  className={buttonStyles({ variant: "ghost", size: "lg" })}
+                >
+                  {t("stepsTitle")}
+                </a>
+              </div>
+            </div>
+            <DeliveryPromiseCard settings={settings} locale={locale} />
+          </div>
+        </section>
+      )}
 
+      <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
         {popular.length > 0 && (
           <ProductRow
             id="home-featured"

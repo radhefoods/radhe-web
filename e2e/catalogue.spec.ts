@@ -66,10 +66,18 @@ test.describe("the category navigation", () => {
 });
 
 test.describe("the shop at a glance", () => {
-  test("home says what the shop promises, in both languages", async ({
+  test("without a live banner the home page says what the shop promises, in both languages", async ({
     page,
+    request,
   }) => {
+    await request.post(`${MOCK}/__mock/banners`, {
+      data: { enabled: false },
+    });
     await page.goto("/en");
+    // No carousel at all; the woven band with its ticket stands in.
+    await expect(
+      page.getByRole("region", { name: "Offers and news" }),
+    ).toHaveCount(0);
     // The ticket in the hero: delivery, payment and returns from the settings.
     const card = page.getByRole("region", {
       name: "Delivery and payment at a glance",
@@ -124,7 +132,7 @@ test.describe("the shop at a glance", () => {
     ).toHaveAttribute("href", "/de/kategorie/reis");
   });
 
-  test("the home page opens with the banners of the admin, each in its own ratio, linked as the API says", async ({
+  test("the home page opens with the banners of the admin as its hero, each in its own ratio, linked as the API says", async ({
     page,
     isMobile,
   }) => {
@@ -132,6 +140,17 @@ test.describe("the shop at a glance", () => {
     const carousel = page.getByRole("region", { name: "Offers and news" });
     const slides = carousel.getByRole("group");
     await expect(slides).toHaveCount(4);
+    // The carousel took the place of the woven band (owner, 2026-10-19).
+    await expect(page.getByRole("link", { name: "Shop now" })).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Delivery and payment at a glance" }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Indian groceries, delivered across Germany",
+    );
+    await expect(
+      page.getByRole("region", { name: "Popular right now" }),
+    ).toBeVisible();
     // The ratio of the upload, from the API; never a fixed height.
     const first = slides.first();
     await expect(first.locator("[style*='aspect-ratio']")).toHaveAttribute(
@@ -171,22 +190,6 @@ test.describe("the shop at a glance", () => {
     }
     await expect(
       carousel.getByRole("button", { name: "Pause the slideshow" }),
-    ).toBeVisible();
-  });
-
-  test("without banners the home page shows no carousel at all", async ({
-    page,
-    request,
-  }) => {
-    await request.post(`${MOCK}/__mock/banners`, {
-      data: { enabled: false },
-    });
-    await page.goto("/en");
-    await expect(
-      page.getByRole("region", { name: "Offers and news" }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("region", { name: "Delivery and payment at a glance" }),
     ).toBeVisible();
   });
 

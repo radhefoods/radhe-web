@@ -10,7 +10,6 @@ import {
   useSyncExternalStore,
   type FocusEvent,
   type PointerEvent,
-  type ReactNode,
 } from "react";
 import { Link } from "@/i18n/navigation";
 import type { Banner } from "@/lib/api/types";
@@ -46,9 +45,12 @@ function subscribeVisibility(onChange: () => void): () => void {
   return () => document.removeEventListener("visibilitychange", onChange);
 }
 
-/** How wide the carousel is shown: the page's container at every width. */
+/**
+ * How wide the carousel is shown: edge to edge on phones, the page's
+ * container from small screens on.
+ */
 const SIZES =
-  "(min-width: 84rem) 1280px, (min-width: 64rem) calc(100vw - 4rem), (min-width: 40rem) calc(100vw - 3rem), calc(100vw - 2rem)";
+  "(min-width: 84rem) 1280px, (min-width: 64rem) calc(100vw - 4rem), (min-width: 40rem) calc(100vw - 3rem), 100vw";
 
 /**
  * One banner: the picture in a box of its own ratio, never cropped, so the
@@ -82,7 +84,7 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
     </span>
   );
   // The outline of a focused link stays inside the rounded box.
-  const link = "block rounded-xl focus-visible:outline-offset-[-4px]";
+  const link = "block focus-visible:outline-offset-[-4px] sm:rounded-xl";
   if (!linkUrl) return picture;
   if (isExternal) {
     return (
@@ -110,15 +112,19 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
 }
 
 /**
- * The hero carousel of the home page (doc 17): one slide per live banner,
- * in the admin's order, each keeping its picture's ratio. It scrolls and
- * snaps slide by slide, so a swipe on a phone works as it does on the
- * product rows; two round arrows (wide screens) and the dots turn it, and
- * it moves on by itself every six seconds, except while the pointer rests
- * on it, while something in it has the focus, while the tab is hidden,
- * when the visitor asked for less motion, or after the pause button. With
- * one slide there is nothing to turn: no arrows, no dots, no autoplay. Not
- * rendered at all when there is no banner (the page decides).
+ * The hero of the home page (doc 17; owner, 2026-10-19: in the place of
+ * the woven band): one slide per live banner, in the admin's order, each
+ * keeping its picture's ratio, edge to edge on phones and a rounded panel
+ * from small screens on. It scrolls and snaps slide by slide, so a swipe
+ * on a phone works as it does on the product rows; two round arrows (wide
+ * screens) turn it, and so do the dots laid over the foot of the picture,
+ * where the dot of the shown slide fills up while the next one is on its
+ * way. It moves on by itself every six seconds, except while the pointer
+ * rests on it, while something in it has the focus, while the tab is
+ * hidden, when the visitor asked for less motion, or after the pause
+ * button next to the dots. With one slide there is nothing to turn: no
+ * arrows, no dots, no autoplay. Not rendered at all when there is no
+ * banner (the page decides).
  */
 export function HeroCarousel({
   banners,
@@ -193,53 +199,7 @@ export function HeroCarousel({
   };
 
   const arrow =
-    "border-line-strong hover:border-leaf-600 hover:text-leaf-700 shadow-card absolute top-1/2 z-10 hidden size-11 -translate-y-1/2 place-items-center rounded-full border-[1.5px] bg-white transition-[border-color,color] duration-150 md:grid";
-  let dots: ReactNode = null;
-  if (count > 1) {
-    dots = (
-      <div className="mt-3 flex items-center justify-center gap-3">
-        <ul className="flex items-center">
-          {banners.map((banner, position) => {
-            const current = position === index;
-            return (
-              <li key={banner.id}>
-                <button
-                  type="button"
-                  aria-label={labels.goTo[position]}
-                  aria-current={current ? "true" : undefined}
-                  onClick={() => goTo(position)}
-                  className="grid h-6 min-w-6 place-items-center px-0.5"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "block h-2.5 rounded-full transition-[width,background-color] duration-200",
-                      current
-                        ? "bg-leaf-600 w-6"
-                        : "bg-line-strong hover:bg-ink-subtle w-2.5",
-                    )}
-                  />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        <button
-          type="button"
-          aria-pressed={paused}
-          aria-label={paused ? labels.play : labels.pause}
-          onClick={() => setPaused((current) => !current)}
-          className="border-line-strong text-ink-muted hover:border-leaf-600 hover:text-leaf-700 grid size-9 place-items-center rounded-full border-[1.5px] bg-white transition-[border-color,color] duration-150"
-        >
-          {paused ? (
-            <Play aria-hidden="true" className="size-4" />
-          ) : (
-            <Pause aria-hidden="true" className="size-4" />
-          )}
-        </button>
-      </div>
-    );
-  }
+    "border-line-strong hover:border-leaf-600 hover:text-leaf-700 shadow-card absolute top-1/2 z-10 hidden size-11 -translate-y-1/2 place-items-center rounded-full border-[1.5px] bg-white/90 backdrop-blur-sm transition-[border-color,color,background-color] duration-150 hover:bg-white md:grid";
 
   return (
     <section
@@ -250,12 +210,12 @@ export function HeroCarousel({
       onPointerDown={(event) => onPointer(event, true)}
       onFocus={(event) => onFocusChange(event, true)}
       onBlur={(event) => onFocusChange(event, false)}
-      className={cn("relative", className)}
+      className={cn("relative -mx-4 sm:mx-0", className)}
     >
       <ul
         ref={scroller}
         onScroll={measure}
-        className="no-scrollbar flex snap-x snap-mandatory items-center overflow-x-auto rounded-xl"
+        className="no-scrollbar bg-mist flex snap-x snap-mandatory items-center overflow-x-auto sm:rounded-xl"
       >
         {banners.map((banner, position) => (
           <li
@@ -269,13 +229,14 @@ export function HeroCarousel({
           </li>
         ))}
       </ul>
+
       {count > 1 && (
         <>
           <button
             type="button"
             aria-label={labels.previous}
             onClick={() => goTo(index - 1)}
-            className={cn(arrow, "left-3")}
+            className={cn(arrow, "left-3 lg:left-4")}
           >
             <ChevronLeft aria-hidden="true" className="size-5" />
           </button>
@@ -283,13 +244,68 @@ export function HeroCarousel({
             type="button"
             aria-label={labels.next}
             onClick={() => goTo(index + 1)}
-            className={cn(arrow, "right-3")}
+            className={cn(arrow, "right-3 lg:right-4")}
           >
             <ChevronRight aria-hidden="true" className="size-5" />
           </button>
+
+          {/* The dots and the pause button, on a dark glass pill over the
+              foot of the picture, where the admin keeps no text (doc 17). */}
+          <div className="bg-ink/45 absolute bottom-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full py-1 pr-1 pl-1.5 text-white backdrop-blur-sm sm:bottom-4">
+            <ul className="flex items-center">
+              {banners.map((banner, position) => {
+                const current = position === index;
+                return (
+                  <li key={banner.id}>
+                    <button
+                      type="button"
+                      aria-label={labels.goTo[position]}
+                      aria-current={current ? "true" : undefined}
+                      onClick={() => goTo(position)}
+                      className="grid h-6 min-w-6 place-items-center px-0.5"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "relative block h-2 overflow-hidden rounded-full transition-[width,background-color] duration-300",
+                          current
+                            ? "w-7 bg-white/35"
+                            : "w-2 bg-white/60 hover:bg-white",
+                        )}
+                      >
+                        {/* Fills up while the next slide is on its way. */}
+                        {current && playing && (
+                          <span
+                            key={index}
+                            className="animate-dot-fill absolute inset-0 origin-left rounded-full bg-white"
+                            style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+                          />
+                        )}
+                        {current && !playing && (
+                          <span className="absolute inset-0 rounded-full bg-white" />
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <button
+              type="button"
+              aria-pressed={paused}
+              aria-label={paused ? labels.play : labels.pause}
+              onClick={() => setPaused((current) => !current)}
+              className="grid size-7 place-items-center rounded-full text-white/85 transition-colors duration-150 hover:bg-white/20 hover:text-white"
+            >
+              {paused ? (
+                <Play aria-hidden="true" className="size-3.5" />
+              ) : (
+                <Pause aria-hidden="true" className="size-3.5" />
+              )}
+            </button>
+          </div>
         </>
       )}
-      {dots}
     </section>
   );
 }
