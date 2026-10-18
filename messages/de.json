@@ -230,7 +230,6 @@
     "remove": "Entfernen",
     "removeNamed": "{name} aus dem Warenkorb entfernen",
     "lineTotal": "Summe für {name}",
-    "lineTotalLabel": "Summe",
     "setTo": "Auf {count} setzen",
     "issue": {
       "product_not_found": "Dieses Produkt ist nicht mehr verfügbar. Bitte entfernen Sie es.",

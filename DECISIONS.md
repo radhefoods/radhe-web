@@ -148,7 +148,7 @@ The owner's brief of 2026-10-19 with six screenshots of the deployed shop: centr
 
 Removed: the white ring of the "+" and the stepper, the price per kilogram in the cart, the "Only N left in stock" line under the buy box (the chip next to the price says it), and the wheat variant of the language switch.
 
-Later the same day, from a screenshot of the new cart: the line total moves to the left under the texts, as the one big number of the card in the display cut with a small "Total" over it, and the stepper to the right where the total was. What is paid stands in the reading column with the name and the price per pack; the control that changes it sits where the hand expects it, at the end of the row.
+Later the same day, from a screenshot of the new cart: the line total moves to the left under the texts, as the one big number of the card in the display cut, and the stepper to the right where the total was, level with it. What is paid stands in the reading column with the name and the price per pack; the control that changes it sits where the hand expects it, at the end of the row. A "Total" label first stood over the number and was taken off at the owner's wish: the number is the largest thing on the card, directly under "€4.89 each" and beside the quantity, which says what it is without a word.
 
 ## Design (redesign approved by the owner on 2026-10-14)
 

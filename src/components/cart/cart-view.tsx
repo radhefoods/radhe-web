@@ -28,10 +28,10 @@ import {
  * tile; the brand, the name with the size in a quieter tone, and the
  * price per pack with the regular price crossed out when reduced (no
  * price per kilogram here); under them, on the left, what the line costs
- * as the one big number of the card with a small "Total" over it, and on
- * the right the stepper (owner, later the same day: the total left, the
- * controls right). A line the API objects to carries its message and a
- * one-tap fix.
+ * as the one big number of the card, and level with it on the right the
+ * stepper (owner, later the same day: the total left, the controls right,
+ * and no label over the number). A line the API objects to carries its
+ * message and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -120,24 +120,19 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+      {/* The bottom row: what the line costs, the one big number of the
+          card, level with the stepper that changes it. No label: its size
+          and its place say what it is (owner, 2026-10-19). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         {issue === null ? (
           <p
             className={cn(
-              "flex flex-col gap-0.5 transition-opacity",
+              "font-display text-ink text-[1.625rem] leading-none tabular-nums transition-opacity sm:text-[1.875rem]",
               updating && "opacity-50",
             )}
           >
             <span className="sr-only">{t("lineTotal", { name })}: </span>
-            <span
-              aria-hidden="true"
-              className="text-ink-subtle text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase"
-            >
-              {t("lineTotalLabel")}
-            </span>
-            <span className="font-display text-ink text-2xl leading-none tabular-nums sm:text-[1.75rem]">
-              {formatMoney(line.lineTotal, locale)}
-            </span>
+            {formatMoney(line.lineTotal, locale)}
           </p>
         ) : (
           <span />
