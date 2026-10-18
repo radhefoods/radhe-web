@@ -193,13 +193,6 @@
       "slide": "Slide {index} of {count}",
       "goTo": "Go to slide {index}"
     },
-    "payEyebrow": "Payment",
-    "payTitle": "Pay securely at checkout.",
-    "payText": "Card or PayPal on the secure page of Stripe. Nothing is charged before you confirm, and your invoice comes with the confirmation email.",
-    "newsEyebrow": "News",
-    "newsTitle": "Hear about new products and offers first",
-    "newsText": "Switch on news in your account. We write when something new arrives or an offer starts, and not more often than that.",
-    "newsCta": "To my profile",
     "card": {
       "ariaLabel": "Delivery and payment at a glance",
       "label": "In stock now",

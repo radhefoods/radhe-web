@@ -193,13 +193,6 @@
       "slide": "Folie {index} von {count}",
       "goTo": "Zu Folie {index}"
     },
-    "payEyebrow": "Zahlung",
-    "payTitle": "Sicher bezahlen an der Kasse.",
-    "payText": "Karte oder PayPal auf der sicheren Seite von Stripe. Vor Ihrer Bestätigung wird nichts abgebucht, und Ihre Rechnung kommt mit der Bestätigungs-E-Mail.",
-    "newsEyebrow": "Neuigkeiten",
-    "newsTitle": "Als Erste von neuen Produkten und Angeboten erfahren",
-    "newsText": "Schalten Sie in Ihrem Konto die Neuigkeiten ein. Wir schreiben, wenn etwas Neues eintrifft oder ein Angebot startet, und nicht öfter.",
-    "newsCta": "Zu meinem Profil",
     "card": {
       "ariaLabel": "Lieferung und Zahlung auf einen Blick",
       "label": "Jetzt auf Lager",

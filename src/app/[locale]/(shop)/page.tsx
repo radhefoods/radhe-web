@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import type { ComponentProps, ReactNode } from "react";
 import { ProductCard } from "@/components/catalogue/product-card";
 import { DeliveryPromiseCard } from "@/components/home/delivery-promise-card";
 import { HeroCarousel } from "@/components/home/hero-carousel";
@@ -26,8 +25,6 @@ import type { Locale } from "@/i18n/routing";
 import type { ProductSummary } from "@/lib/api/types";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 import { JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
-
-type Href = ComponentProps<typeof Link>["href"];
 
 // Rendered at every visit, like the category pages, from the same cached
 // answers of the API (five minutes, `REVALIDATE.catalogue`). A page cached
@@ -59,36 +56,6 @@ async function products(
     // The home page still explains the shop when the catalogue is away.
     return [];
   }
-}
-
-/** The title of a section of the home page, with the way to the full list. */
-function SectionHeader({
-  id,
-  title,
-  href,
-  link,
-}: {
-  id: string;
-  title: string;
-  href?: Href;
-  link?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-      <h2 id={id} className="font-display text-ink text-[1.75rem] sm:text-3xl">
-        {title}
-      </h2>
-      {href && (
-        <Link
-          href={href}
-          className="bg-leaf-50 text-leaf-700 hover:text-ink hover:bg-wheat-400 inline-flex min-h-10 items-center gap-1 rounded-full px-4 text-[0.9375rem] font-bold whitespace-nowrap transition-colors duration-150"
-        >
-          {link}
-          <ArrowRight aria-hidden="true" className="size-4" />
-        </Link>
-      )}
-    </div>
-  );
 }
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
@@ -127,15 +94,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   // A card of a row: two and a sliver on phones, then three, four, five.
   const cardSizes =
     "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
-
-  const steps = [
-    { title: t("step1Title"), text: t("step1Text") },
-    { title: t("step2Title"), text: t("step2Text") },
-    { title: t("step3Title"), text: t("step3Text") },
-  ];
-
-  const bandTitle = "font-display mt-3 text-[1.75rem] sm:text-3xl";
-  const bandText = "mt-2.5 max-w-md text-white/80";
 
   return (
     <>
@@ -193,12 +151,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                   {t("ctaShop")}
                   <ArrowRight aria-hidden="true" className="size-5" />
                 </Link>
-                <a
-                  href="#how-it-works"
+                <Link
+                  href="/how-it-works"
                   className={buttonStyles({ variant: "ghost", size: "lg" })}
                 >
                   {t("stepsTitle")}
-                </a>
+                </Link>
               </div>
             </div>
             <DeliveryPromiseCard settings={settings} locale={locale} />
@@ -249,56 +207,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             ))}
           </ProductRow>
         ))}
-
-        <section
-          id="how-it-works"
-          aria-labelledby="home-steps"
-          className="scroll-mt-28"
-        >
-          <SectionHeader id="home-steps" title={t("stepsTitle")} />
-          <ol className="mt-5 grid gap-3 md:grid-cols-3">
-            {steps.map((step, index) => (
-              <li
-                key={step.title}
-                className="bg-mist flex flex-col gap-3 rounded-lg p-6"
-              >
-                <span
-                  aria-hidden="true"
-                  className="font-display text-ink bg-wheat-400 grid size-10 place-items-center rounded-full text-lg"
-                >
-                  {index + 1}
-                </span>
-                <h3 className="font-display text-xl">{step.title}</h3>
-                <p className="text-ink-muted text-[0.9375rem]">{step.text}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* The promise and the news, on an echo of the hero's weave. */}
-        <section
-          aria-labelledby="home-pay"
-          className="hero-band grid gap-8 rounded-xl p-7 text-white sm:p-10 md:grid-cols-2 md:gap-10"
-        >
-          <div>
-            <Eyebrow>{t("payEyebrow")}</Eyebrow>
-            <h2 id="home-pay" className={bandTitle}>
-              {t("payTitle")}
-            </h2>
-            <p className={bandText}>{t("payText")}</p>
-          </div>
-          <div>
-            <Eyebrow>{t("newsEyebrow")}</Eyebrow>
-            <h2 className={bandTitle}>{t("newsTitle")}</h2>
-            <p className={bandText}>{t("newsText")}</p>
-            <Link
-              href="/account/profile"
-              className={buttonStyles({ variant: "wheat", className: "mt-5" })}
-            >
-              {t("newsCta")}
-            </Link>
-          </div>
-        </section>
       </div>
     </>
   );
