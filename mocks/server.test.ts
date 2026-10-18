@@ -61,10 +61,18 @@ function customerApi() {
   };
 }
 
+const PASSWORD = "Mangoes-in-May-2026";
+const NAME = { firstName: "Anna", lastName: "Schmidt" };
+
+/** A signed-in customer; the account is created when it is new. */
 async function signIn(email: string) {
   const client = customerApi();
-  await client.api.requestOtp({ email });
-  const result = await client.api.verifyOtp({ email, code: "123456" });
+  const result = await client.api
+    .signUp({ ...NAME, email, password: PASSWORD })
+    .catch((error: unknown) => {
+      if (!hasErrorCode(error, "CUSTOMER_EMAIL_TAKEN")) throw error;
+      return client.api.login({ email, password: PASSWORD });
+    });
   return { ...client, customer: result.customer };
 }
 
@@ -422,10 +430,12 @@ describe("the bill", () => {
   });
 });
 
-describe("sign-in and the stored cart", () => {
-  it("creates the account at first sign-in and keeps the session in cookies", async () => {
+describe("sign-up, sign-in and the stored cart", () => {
+  it("creates the account with the sign-up and keeps the session in cookies", async () => {
     const { api, customer, jar } = await signIn("anna@example.com");
     expect(customer.email).toBe("anna@example.com");
+    expect(customer.firstName).toBe("Anna");
+    expect(customer).not.toHaveProperty("hasGoogleLogin");
     expect(jar.map((c) => `${c.name} ${c.path}`).sort()).toEqual([
       "rf_customer_access /",
       "rf_customer_refresh /v1/store/auth",
@@ -434,25 +444,114 @@ describe("sign-in and the stored cart", () => {
     expect(me.customer.id).toBe(customer.id);
   });
 
-  it("counts wrong codes and refuses a code after a resend too soon", async () => {
+  it("refuses a second account for the address and a password that is easy to guess", async () => {
     const { api } = customerApi();
-    await api.requestOtp({ email: "max@example.com", locale: "de" });
-    const wrong = await api
-      .verifyOtp({ email: "max@example.com", code: "000000" })
-      .catch((e) => e);
-    expect(hasErrorCode(wrong, "OTP_INVALID")).toBe(true);
-    if (hasErrorCode(wrong, "OTP_INVALID")) {
-      expect(wrong.details?.attemptsRemaining).toBe(4);
-    }
-    const again = await api
-      .requestOtp({ email: "max@example.com" })
-      .catch((e) => e);
-    expect(hasErrorCode(again, "OTP_COOLDOWN")).toBe(true);
-    const session = await api.verifyOtp({
-      email: "max@example.com",
-      code: "123456",
+    await api.signUp({
+      ...NAME,
+      email: "Anna@Example.com",
+      password: PASSWORD,
     });
-    expect(session.customer.locale).toBe("de");
+    const taken = await api
+      .signUp({ ...NAME, email: "anna@example.com", password: "Another-1" })
+      .catch((e) => e);
+    expect(hasErrorCode(taken, "CUSTOMER_EMAIL_TAKEN")).toBe(true);
+    expect(taken.status).toBe(409);
+
+    for (const password of ["password1", "aaaaaaaaaa", "my-max-2026"]) {
+      const weak = await api
+        .signUp({ ...NAME, email: "max@example.com", password })
+        .catch((e) => e);
+      expect(hasErrorCode(weak, "PASSWORD_TOO_WEAK")).toBe(true);
+    }
+    const short = await api
+      .signUp({ ...NAME, email: "max@example.com", password: "short" })
+      .catch((e) => e);
+    expect(hasErrorCode(short, "VALIDATION_FAILED")).toBe(true);
+    const unknownField = await api
+      .signUp({
+        ...NAME,
+        email: "max@example.com",
+        password: PASSWORD,
+        hasGoogleLogin: false,
+      } as never)
+      .catch((e) => e);
+    expect(hasErrorCode(unknownField, "VALIDATION_FAILED")).toBe(true);
+  });
+
+  it("signs in with email and password, and says the same for a wrong password and an unknown address", async () => {
+    await signIn("anna@example.com");
+    const { api } = customerApi();
+    const wrong = await api
+      .login({ email: "anna@example.com", password: "not-the-one" })
+      .catch((e) => e);
+    const unknown = await api
+      .login({ email: "nobody@example.com", password: PASSWORD })
+      .catch((e) => e);
+    expect(hasErrorCode(wrong, "CUSTOMER_CREDENTIALS_INVALID")).toBe(true);
+    expect(hasErrorCode(unknown, "CUSTOMER_CREDENTIALS_INVALID")).toBe(true);
+    expect(unknown.status).toBe(wrong.status);
+    expect(unknown.message).toBe(wrong.message);
+
+    const session = await api.login({
+      email: " Anna@Example.com ",
+      password: PASSWORD,
+    });
+    expect(session.customer.email).toBe("anna@example.com");
+
+    const blocked = await api
+      .login({ email: "blocked@example.com", password: PASSWORD })
+      .catch((e) => e);
+    expect(hasErrorCode(blocked, "CUSTOMER_BLOCKED")).toBe(true);
+  });
+
+  it("resets a forgotten password by the link of the email and ends every session", async () => {
+    const first = await signIn("anna@example.com");
+    const { api } = customerApi();
+    // The same answer whether or not the address has an account.
+    await expect(
+      api.forgotPassword({ email: "nobody@example.com" }),
+    ).resolves.toBeUndefined();
+    await api.forgotPassword({ email: "anna@example.com", locale: "de" });
+    const tokens = (await (
+      await fetch(`${base}/__mock/tokens?email=anna@example.com`)
+    ).json()) as { passwordReset: string | null };
+    expect(tokens.passwordReset).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const resetToken = tokens.passwordReset!;
+
+    const weak = await api
+      .resetPassword({ token: resetToken, password: "password1" })
+      .catch((e) => e);
+    expect(hasErrorCode(weak, "PASSWORD_TOO_WEAK")).toBe(true);
+    await api.resetPassword({
+      token: resetToken,
+      password: "Coriander-and-Cumin-7",
+    });
+
+    // The link worked once; the old password is gone; the new one works.
+    const again = await api
+      .resetPassword({ token: resetToken, password: "Coriander-and-Cumin-8" })
+      .catch((e) => e);
+    expect(hasErrorCode(again, "PASSWORD_RESET_INVALID")).toBe(true);
+    const old = await api
+      .login({ email: "anna@example.com", password: PASSWORD })
+      .catch((e) => e);
+    expect(hasErrorCode(old, "CUSTOMER_CREDENTIALS_INVALID")).toBe(true);
+    const fresh = await api.login({
+      email: "anna@example.com",
+      password: "Coriander-and-Cumin-7",
+    });
+    expect(fresh.customer.id).toBe(first.customer.id);
+    // The earlier session is over: its refresh is refused as well.
+    const ended = await first.api.getMe().catch((e) => e);
+    expect(hasErrorCode(ended, "AUTH_TOKEN_INVALID")).toBe(true);
+
+    const unknownLink = await api
+      .resetPassword({
+        token: "not-a-link-anyone-was-sent-0000",
+        password: "Coriander-and-Cumin-7",
+      })
+      .catch((e) => e);
+    expect(hasErrorCode(unknownLink, "PASSWORD_RESET_INVALID")).toBe(true);
   });
 
   it("refuses protected calls without a session", async () => {

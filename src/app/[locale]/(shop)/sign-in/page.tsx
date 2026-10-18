@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { GoogleSignIn } from "@/components/auth/google-sign-in";
+import { AuthPage } from "@/components/auth/auth-page";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { AreaMessages } from "@/i18n/area-messages";
 import { localeOf } from "@/i18n/locale";
@@ -21,26 +21,13 @@ export default async function SignInPage({ params, searchParams }: Props) {
   const returnTo = parseReturnTo((await searchParams).returnTo);
 
   return (
-    <div className="container-page py-10 sm:py-16">
-      <div className="mx-auto flex max-w-md flex-col gap-6">
-        <header className="space-y-3">
-          <h1 className="font-display text-ink text-3xl sm:text-4xl">
-            {t("title")}
-          </h1>
-          <p className="text-ink-muted">
-            {returnTo === "/checkout" ? t("checkoutNote") : t("intro")}
-          </p>
-        </header>
-        <div className="border-line shadow-card rounded-xl border bg-white p-5 sm:p-7">
-          <AreaMessages area="signIn">
-            <GoogleSignIn returnTo={returnTo} divider={t("or")} />
-            <SignInForm returnTo={returnTo} />
-          </AreaMessages>
-        </div>
-        {returnTo === "/checkout" && (
-          <p className="text-ink-muted text-sm">{t("intro")}</p>
-        )}
-      </div>
-    </div>
+    <AuthPage
+      title={t("title")}
+      intro={returnTo === "/checkout" ? t("checkoutNote") : t("intro")}
+    >
+      <AreaMessages area="signIn">
+        <SignInForm returnTo={returnTo} />
+      </AreaMessages>
+    </AuthPage>
   );
 }

@@ -13,13 +13,18 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
 });
 
+const PASSWORD = "Mangoes-in-May-2026";
+
+/** Signs the browser in through the API; the account is created when new. */
 async function signIn(page: Page, email = DEMO) {
-  await page.request.post(`${MOCK}/v1/store/auth/otp/request`, {
-    data: { email },
+  const created = await page.request.post(`${MOCK}/v1/store/auth/signup`, {
+    data: { firstName: "Priya", lastName: "Shah", email, password: PASSWORD },
   });
-  await page.request.post(`${MOCK}/v1/store/auth/otp/verify`, {
-    data: { email, code: "123456" },
-  });
+  if (created.status() === 409) {
+    await page.request.post(`${MOCK}/v1/store/auth/login`, {
+      data: { email, password: PASSWORD },
+    });
+  }
 }
 
 async function expectNoBarriers(page: Page) {
@@ -67,6 +72,12 @@ test.describe("public pages have no barriers axe can find", () => {
     "/de/produkte/basmati-reis-5kg",
     "/en/cart",
     "/en/sign-in",
+    "/de/anmelden",
+    "/en/sign-up",
+    "/de/registrieren",
+    "/en/forgot-password",
+    "/en/reset-password?token=0123456789abcdefghijklmnopqrstuvwxyzABCDEFG",
+    "/de/reset-password",
     "/de/so-funktionierts",
     "/en/delivery-and-payment",
     "/en/legal/terms",

@@ -49,16 +49,27 @@ export interface Customer {
   lastName: string | null;
   phone: string | null;
   locale: Locale;
-  hasGoogleLogin: boolean;
   communication: Communication;
   createdAt: IsoDateTime;
 }
 
-export interface OtpRequestResult {
-  expiresInSeconds: number;
-  resendAfterSeconds: number;
+/** `POST /v1/store/auth/signup` (1): the account, signed in at once. */
+export interface SignUpInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  /** Language of the account and its emails; else the request's language. */
+  locale?: Locale;
 }
 
+/** `POST /v1/store/auth/login` (1). */
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+/** The answer of `signup`, `login` and `refresh`: the cookies carry the session. */
 export interface SessionResult {
   customer: Customer;
   accessTokenExpiresInSeconds: number;

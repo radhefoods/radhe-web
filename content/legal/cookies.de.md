@@ -23,7 +23,6 @@ Die beiden Anmelde-Cookies werden erst gesetzt, wenn Sie sich anmelden.
 ## Dienste anderer Anbieter
 
 - **Zahlung:** Wenn Sie online bezahlen, wechseln Sie auf die Zahlungsseite von Stripe. Dort gelten die Cookies und die Datenschutzhinweise von Stripe.
-- **Anmeldung mit Google:** Nur wenn Sie auf der Anmeldeseite „Mit Google fortfahren“ wählen, wird ein Skript von Google geladen, das eigene Cookies setzen kann.
 
 ## Speicher löschen
 

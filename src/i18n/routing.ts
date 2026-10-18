@@ -10,8 +10,10 @@ export const defaultLocale: Locale = "en";
  * localized address (`/en/cart`, `/de/warenkorb`).
  *
  * Links in the emails of the API carry no language (`/unsubscribe/<token>`,
- * `/account/orders/<number>`, `/products/<slug>`): the proxy sends them to
- * the customer's language and keeps path and query.
+ * `/reset-password?token=<token>`, `/account/orders/<number>`,
+ * `/products/<slug>`): the proxy sends them to the customer's language and
+ * keeps path and query. The two pages that exist only for such a link have
+ * one address in both languages, so the link in the email is the address.
  */
 export const routing = defineRouting({
   locales,
@@ -30,6 +32,9 @@ export const routing = defineRouting({
     "/cart": { en: "/cart", de: "/warenkorb" },
     "/checkout": { en: "/checkout", de: "/kasse" },
     "/sign-in": { en: "/sign-in", de: "/anmelden" },
+    "/sign-up": { en: "/sign-up", de: "/registrieren" },
+    "/forgot-password": { en: "/forgot-password", de: "/passwort-vergessen" },
+    "/reset-password": "/reset-password",
     "/account": { en: "/account", de: "/konto" },
     "/account/orders": { en: "/account/orders", de: "/konto/bestellungen" },
     "/account/orders/[orderNumber]": {

@@ -15,14 +15,18 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
 });
 
-/** Signs the browser in through the API: the session cookies are set. */
+const PASSWORD = "Mangoes-in-May-2026";
+
+/** Signs the browser in through the API; the account is created when new. */
 async function signIn(page: Page, email = DEMO) {
-  await page.request.post(`${MOCK}/v1/store/auth/otp/request`, {
-    data: { email },
+  const created = await page.request.post(`${MOCK}/v1/store/auth/signup`, {
+    data: { firstName: "Priya", lastName: "Shah", email, password: PASSWORD },
   });
-  await page.request.post(`${MOCK}/v1/store/auth/otp/verify`, {
-    data: { email, code: "123456" },
-  });
+  if (created.status() === 409) {
+    await page.request.post(`${MOCK}/v1/store/auth/login`, {
+      data: { email, password: PASSWORD },
+    });
+  }
 }
 
 const payButton = (page: Page) =>
@@ -55,14 +59,24 @@ test.describe("the account", () => {
 
   test("a visitor is sent to sign in and comes back to the same order", async ({
     page,
+    request,
   }) => {
+    // The account exists; this browser has no session yet.
+    await request.post(`${MOCK}/v1/store/auth/signup`, {
+      data: {
+        firstName: "Priya",
+        lastName: "Shah",
+        email: DEMO,
+        password: PASSWORD,
+      },
+    });
     await page.goto("/en/account/orders/RF-1087");
     await expect(page).toHaveURL(
       /\/en\/sign-in\?returnTo=%2Faccount%2Forders%2FRF-1087$/,
     );
     await page.getByLabel("Email address").fill(DEMO);
-    await page.getByRole("button", { name: "Send code" }).click();
-    await page.getByLabel("6-digit code").fill("123456");
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/en\/account\/orders\/RF-1087$/);
     await expect(
       page.getByRole("heading", { level: 1, name: "Order RF-1087" }),

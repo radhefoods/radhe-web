@@ -22,11 +22,11 @@ import type {
   LegalDocument,
   LegalSummary,
   LegalType,
+  LoginInput,
   OrderDetail,
   OrderPayment,
   OrderReturns,
   OrderSummary,
-  OtpRequestResult,
   Page,
   ProductDetail,
   ProductFacets,
@@ -35,6 +35,7 @@ import type {
   ReturnRequest,
   SessionResult,
   ShopSettings,
+  SignUpInput,
   UnsubscribeResult,
   UpdateCommunicationInput,
   UpdateProfileInput,
@@ -56,26 +57,41 @@ const seg = encodeURIComponent;
 export function createStoreApi(request: Requester) {
   return {
     // --- 1 Authentication ---------------------------------------------------
-    requestOtp: (input: { email: string; locale?: Locale }, o?: CallOptions) =>
-      request<OtpRequestResult>("/v1/store/auth/otp/request", {
+    /** Creates the account and signs it in on this device (201). */
+    signUp: (input: SignUpInput, o?: CallOptions) =>
+      request<SessionResult>("/v1/store/auth/signup", {
         ...o,
         method: "POST",
         body: input,
       }),
-    verifyOtp: (
-      input: { email: string; code: string; locale?: Locale },
-      o?: CallOptions,
-    ) =>
-      request<SessionResult>("/v1/store/auth/otp/verify", {
+    login: (input: LoginInput, o?: CallOptions) =>
+      request<SessionResult>("/v1/store/auth/login", {
         ...o,
         method: "POST",
         body: input,
       }),
-    signInWithGoogle: (
-      input: { idToken: string; locale?: Locale },
+    /**
+     * Emails a link to choose a new password. Answers 204 whether or not
+     * the address has an account: nothing here says which.
+     */
+    forgotPassword: (
+      input: { email: string; locale?: Locale },
       o?: CallOptions,
     ) =>
-      request<SessionResult>("/v1/store/auth/google", {
+      request<void>("/v1/store/auth/password/forgot", {
+        ...o,
+        method: "POST",
+        body: input,
+      }),
+    /**
+     * Sets the new password with the token of the link and ends every
+     * session of the customer (204). The customer signs in afterwards.
+     */
+    resetPassword: (
+      input: { token: string; password: string },
+      o?: CallOptions,
+    ) =>
+      request<void>("/v1/store/auth/password/reset", {
         ...o,
         method: "POST",
         body: input,

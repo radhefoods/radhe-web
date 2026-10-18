@@ -16,21 +16,6 @@ export function useErrorText(): (error: unknown) => string {
     if (!isApiError(error)) return t("INTERNAL_ERROR");
     const details = (error.details ?? {}) as Record<string, unknown>;
     switch (error.code) {
-      case "OTP_COOLDOWN":
-        return t("OTP_COOLDOWN", {
-          seconds: numberOf(details.retryAfterSeconds),
-        });
-      case "OTP_LIMIT_REACHED":
-        return t("OTP_LIMIT_REACHED", {
-          minutes: Math.max(
-            1,
-            Math.ceil(numberOf(details.retryAfterSeconds) / 60),
-          ),
-        });
-      case "OTP_INVALID":
-        return typeof details.attemptsRemaining === "number"
-          ? t("OTP_INVALID_ATTEMPTS", { count: details.attemptsRemaining })
-          : t("OTP_INVALID");
       case "ADDRESS_LIMIT_REACHED":
         return t("ADDRESS_LIMIT_REACHED", {
           maximum: numberOf(details.maximum),

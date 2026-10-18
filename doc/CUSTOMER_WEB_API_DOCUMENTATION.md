@@ -121,70 +121,38 @@ Two styles exist:
 
 ## 1. Customer authentication
 
-Sign-in is passwordless: a 6-digit code by email, or Google sign-in. There is no separate sign-up: the first successful sign-in creates the account. Guests can browse and price a cart; they must sign in to check out.
+Sign-up and sign-in with **email and password**. There is no email code and no Google sign-in. Guests can browse and price a cart; they must sign in to check out. `doc/CUSTOMER_AUTH.md` is the long version of this section, with the flows screen by screen.
 
-### `POST /v1/store/auth/otp/request`
+### `POST /v1/store/auth/signup`
 
-**Purpose:** Email a 6-digit login code.
+**Purpose:** Create the account and sign it in on this device. A welcome email follows in the customer's language.
 
-**Authentication:** none. Rate limit 10 per minute per IP; per email: one code per 60 s, 5 per hour.
-
-**Request Body:**
-
-```json
-{ "email": "customer@example.com", "locale": "de" }
-```
-
-| Field | Type | Required | Validation |
-| ----- | ---- | -------- | ---------- |
-| `email` | string | yes | valid email, ≤254 chars; normalized to lower case |
-| `locale` | `en` \| `de` | no | Language of the email. Defaults to `Accept-Language`. |
-
-**Success Response (200):**
-
-```json
-{ "expiresInSeconds": 600, "resendAfterSeconds": 60 }
-```
-
-Requesting a new code invalidates the previous one.
-
-**Possible Errors:**
-
-- `429 OTP_COOLDOWN` – `details: { retryAfterSeconds }` (a code was sent less than 60 s ago).
-- `429 OTP_LIMIT_REACHED` – `details: { retryAfterSeconds }` (5 codes in the last hour).
-- `503 MAIL_DELIVERY_FAILED` – the email could not be sent; ask to try again.
-- `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
-
-### `POST /v1/store/auth/otp/verify`
-
-**Purpose:** Sign in with the code. Creates the account on first sign-in.
-
-**Authentication:** none. Rate limit 20 per minute.
+**Authentication:** none. Rate limit 5 per minute per IP.
 
 **Request Body:**
 
 ```json
-{ "email": "customer@example.com", "code": "123456", "locale": "de" }
+{ "firstName": "Anna", "lastName": "Schmidt", "email": "anna@example.com", "password": "Mangoes-in-May-2026", "locale": "de" }
 ```
 
 | Field | Type | Required | Validation |
 | ----- | ---- | -------- | ---------- |
-| `email` | string | yes | |
-| `code` | string | yes | exactly 6 digits |
-| `locale` | `en` \| `de` | no | Language of a **new** account. Defaults to the language of the code request. |
+| `firstName`, `lastName` | string | yes | 1 to 80 characters after trimming |
+| `email` | string | yes | valid email, ≤254 chars; stored lower-case |
+| `password` | string | yes | 8 to 128 characters; not a common password, not one repeated character, not the own email name |
+| `locale` | `en` \| `de` | no | Language of the account and its emails. Defaults to `Accept-Language`. |
 
-**Success Response (200)** + both cookies set:
+**Success Response (201)** + both cookies set:
 
 ```json
 {
   "customer": {
     "id": "66f1a2b3c4d5e6f7a8b9c0d1",
-    "email": "customer@example.com",
-    "firstName": null,
-    "lastName": null,
+    "email": "anna@example.com",
+    "firstName": "Anna",
+    "lastName": "Schmidt",
     "phone": null,
     "locale": "de",
-    "hasGoogleLogin": false,
     "communication": {
       "whatsappNumber": null,
       "whatsappOptIn": false,
@@ -193,7 +161,7 @@ Requesting a new code invalidates the previous one.
       "marketingOptInAt": null,
       "marketingOptOutAt": null
     },
-    "createdAt": "2026-09-01T10:00:00.000Z"
+    "createdAt": "2026-10-18T10:00:00.000Z"
   },
   "accessTokenExpiresInSeconds": 900
 }
@@ -201,34 +169,70 @@ Requesting a new code invalidates the previous one.
 
 **Possible Errors:**
 
-- `401 OTP_INVALID` – wrong, expired, or no open code. With `details: { attemptsRemaining }` after a wrong code (5 attempts per code); without details when no code is open.
-- `403 CUSTOMER_BLOCKED` – the account is blocked by Radhe Foods.
+- `409 CUSTOMER_EMAIL_TAKEN` – an account with this email exists; offer sign-in and "forgot password".
+- `400 PASSWORD_TOO_WEAK` – too easy to guess; the customer chooses another one.
 - `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
 
-### `POST /v1/store/auth/google`
+### `POST /v1/store/auth/login`
 
-**Purpose:** Sign in with Google (Google Identity Services). Links the Google account to the customer with the same verified email, or creates the account.
+**Purpose:** Sign in with email and password.
 
-**Authentication:** none. Rate limit 20 per minute.
+**Authentication:** none. Rate limit 10 per minute per IP.
 
 **Request Body:**
 
 ```json
-{ "idToken": "<credential from Google Identity Services>", "locale": "en" }
+{ "email": "anna@example.com", "password": "Mangoes-in-May-2026" }
+```
+
+**Success Response (200):** same as `signup`, both cookies set.
+
+**Possible Errors:**
+
+- `401 CUSTOMER_CREDENTIALS_INVALID` – wrong password **or** unknown email; the answer is the same in both cases. Show one message.
+- `403 CUSTOMER_BLOCKED` – the password was right, but the account is blocked by Radhe Foods.
+- `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
+
+### `POST /v1/store/auth/password/forgot`
+
+**Purpose:** Email a link to choose a new password.
+
+**Authentication:** none. Rate limit 5 per minute per IP; per account at most 3 links per hour (further requests answer the same and send nothing).
+
+**Request Body:**
+
+```json
+{ "email": "anna@example.com", "locale": "de" }
+```
+
+**Success Response (204)**, always, whether or not the address has an account. Show "If an account exists for this address, we have sent an email." The email links to `<SHOP_URL>/reset-password?token=<token>`; **the shop must serve this page**. The link is valid for 60 minutes and works once.
+
+**Possible Errors:** `400 VALIDATION_FAILED`, `429 RATE_LIMITED` only.
+
+### `POST /v1/store/auth/password/reset`
+
+**Purpose:** Set the new password with the token from the link. Every session of the customer is revoked; the customer signs in again.
+
+**Authentication:** none. Rate limit 10 per minute per IP.
+
+**Request Body:**
+
+```json
+{ "token": "<token from the link>", "password": "Coriander-and-Cumin-7" }
 ```
 
 | Field | Type | Required | Validation |
 | ----- | ---- | -------- | ---------- |
-| `idToken` | string | yes | ≤4096 chars; the `credential` Google returns |
-| `locale` | `en` \| `de` | no | Language of a new account. Defaults to `Accept-Language`. |
+| `token` | string | yes | 20 to 200 characters, as in the link |
+| `password` | string | yes | as in `signup` |
 
-**Success Response (200):** same as `otp/verify` (`hasGoogleLogin: true`; first/last name copied from Google when the profile had none).
+**Success Response (204).** Lead to the sign-in page.
 
 **Possible Errors:**
 
-- `503 GOOGLE_NOT_CONFIGURED` – Google sign-in is not set up on the server; hide the button when you get this.
-- `401 GOOGLE_TOKEN_INVALID`, `401 GOOGLE_EMAIL_NOT_VERIFIED`.
-- `403 CUSTOMER_BLOCKED`, `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
+- `400 PASSWORD_RESET_INVALID` – unknown, used, replaced or expired link; offer a new one.
+- `400 PASSWORD_TOO_WEAK` – the link stays valid.
+- `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
 
 ### `POST /v1/store/auth/refresh`
 
@@ -236,11 +240,11 @@ Requesting a new code invalidates the previous one.
 
 **Authentication:** the `rf_customer_refresh` cookie (sent automatically to this path). No body. Rate limit 30 per minute.
 
-**Success Response (200):** same as `otp/verify` (current profile + `accessTokenExpiresInSeconds`), cookies replaced.
+**Success Response (200):** same as `login` (current profile + `accessTokenExpiresInSeconds`), cookies replaced.
 
 **Possible Errors (both clear the cookies):**
 
-- `401 AUTH_REFRESH_INVALID` – cookie missing, expired, already used, or revoked (also when a stolen token was reused: the whole session is revoked). Show sign-in.
+- `401 AUTH_REFRESH_INVALID` – cookie missing, expired, already used, or revoked (also when a stolen token was reused: the whole session is revoked; also after a password reset). Show sign-in.
 - `403 CUSTOMER_BLOCKED`.
 
 Refresh tokens rotate on every call. Two parallel refreshes within 10 seconds are tolerated (tabs racing); later reuse of an old token revokes the session.
@@ -259,9 +263,10 @@ Refresh tokens rotate on every call. Two parallel refreshes within 10 seconds ar
 
 ### 1.7 Sign-in flow for the shop
 
-1. Ask for the email → `otp/request` → show "code sent", a resend button after `resendAfterSeconds`.
-2. Ask for the code → `otp/verify` → store `customer` in app state. If a guest cart exists, call `POST /v1/store/cart/merge` (section 8).
+1. New customer: the sign-up form → `signup` → signed in. Existing customer: email and password → `login`. In both cases store `customer` in app state and, if a guest cart exists, call `POST /v1/store/cart/merge` (section 8).
+2. Forgotten password: `password/forgot` → the neutral confirmation; the email leads to `/reset-password?token=…` → `password/reset` → sign-in page.
 3. On page load, `GET /v1/store/me` tells whether a session exists (`401` = signed out).
+4. There is no "change password" for a signed-in customer; point to "forgot password".
 
 ---
 
@@ -1710,13 +1715,12 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 | Seller details and legal texts | Set by Radhe Foods in the admin panel. Until then checkout answers `409 COMPANY_DETAILS_MISSING` or `409 LEGAL_DOCUMENTS_MISSING`. | Show "ordering is not possible yet". |
 | Emails | Sent by the API through the configured provider (log in development, Amazon SES or SMTP in production). | Nothing to do; email content is the API's. |
 | WhatsApp messages | Only the dispatch message and announcements go by WhatsApp, and only with the WhatsApp Business credentials on the server; without them those messages are recorded as skipped. The preference (`whatsappOptIn`) can be stored in any case. | Offer the WhatsApp opt-in; explain that messages come by WhatsApp "as soon as the service is available", or hide the toggle until Radhe Foods confirms. |
-| Google sign-in | Needs the Google client id on the server (`503 GOOGLE_NOT_CONFIGURED` until then). | Hide the button on that error. |
 
 ---
 
 ## 15. Integration checklist
 
-1. `fetch` with `credentials: 'include'`; shop origin in `CORS_ORIGINS`; handle `401` → refresh once → sign-in.
+1. `fetch` with `credentials: 'include'`; shop origin in `CORS_ORIGINS`; handle `401` → refresh once → sign-in. Sign-up and sign-in with email and password, forgot and reset password pages (section 1 and `doc/CUSTOMER_AUTH.md`).
 2. Pass `?locale=` on every store call (or rely on `Accept-Language`).
 3. Layout: `GET /v1/store/settings` for the delivery-fee hint, the delivery estimate and the return window; `GET /v1/store/categories` for navigation.
 4. Catalogue: one list entry per product, shown as one pack size (`displayName` as the title, `pricing.basePrice` next to every price); product pages by the URL of a pack size or the base slug (either language); `variants` for the size chooser (switch from the same answer and set the URL to the chosen `slug` with the history API); `ordering` per size for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
@@ -1725,6 +1729,6 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 7. The way back from Stripe: `/account/orders/<orderNumber>?payment=success|cancelled` (sign-in required) → `GET …/payment`; poll while a page is still open after `?payment=success`; "Pay now" → `POST …/pay` → redirect.
 8. Order page while `pending_payment`: "Pay now" when `canPayOnline` (the open `payment.checkout.url`, else `POST …/pay`), "Cancel order" (`canCancel`); `?pay=1` from the payment-failed email opens the payment page at once.
 9. Account: orders list/detail (status, `delivery` with the tracking link, items with `displayName`, `adjustments`, `finalTotal`), cancel when `canCancel`; the `payment` block with `invoice.pdfPath`; invoices and PDFs; returns within `returns.until`, requested by the item's `variantId`.
-10. Pages without sign-in: `/unsubscribe/<token>` (link in marketing emails); announcement emails also link to `/products/<slug>` (English slug) and the shop root.
+10. Pages without sign-in: `/unsubscribe/<token>` (link in marketing emails) and `/reset-password?token=<token>` (link in the password reset email); announcement emails also link to `/products/<slug>` (English slug) and the shop root.
 11. Emails the API sends, all linking to `/account/orders/<orderNumber>`: order confirmed (with the invoice PDF), cancelled, dispatched (tracking), delivered (return window), payment failed (`?pay=1`), refund completed, return requested / approved / rejected / completed. Announcements go to customers with `marketingOptIn`.
 12. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.

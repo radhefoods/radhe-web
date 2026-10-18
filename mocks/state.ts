@@ -1,5 +1,6 @@
 // Everything the mock API remembers, in memory. A restart forgets it all.
 
+import { createHash } from "node:crypto";
 import type {
   Address,
   DeliveryMethod,
@@ -88,7 +89,8 @@ export interface CustomerRecord {
   lastName: string | null;
   phone: string | null;
   locale: Locale;
-  hasGoogleLogin: boolean;
+  /** The password, hashed; the mock never keeps it as typed. */
+  passwordHash: string;
   /** Blocked by Radhe Foods: cannot sign in or check out. */
   blocked: boolean;
   communication: {
@@ -189,19 +191,20 @@ export interface OrderRecord {
 /** Order numbers continue after this one: the first order is RF-1085. */
 const FIRST_ORDER_SEQUENCE = 1084;
 
-export interface OtpRecord {
-  code: string;
-  locale: Locale;
-  attempts: number;
-  sentAt: number;
+/** An open link of the password reset email (doc 1), by its token. */
+export interface PasswordResetRecord {
+  customerId: string;
+  createdAt: number;
   expiresAt: number;
-  sentInLastHour: number[];
 }
 
 export const db = {
   customers: new Map<string, CustomerRecord>(),
   sessions: new Set<SessionRecord>(),
-  otps: new Map<string, OtpRecord>(),
+  /** Open links of the password reset email, by token. */
+  passwordResets: new Map<string, PasswordResetRecord>(),
+  /** When each customer asked for a link, for the limit of three per hour. */
+  passwordResetRequests: new Map<string, number[]>(),
   /** By order number. Insertion order is the order of placement. */
   orders: new Map<string, OrderRecord>(),
   orderSequence: FIRST_ORDER_SEQUENCE,
@@ -213,8 +216,6 @@ export const db = {
   returns: new Map<string, ReturnRequest>(),
 };
 
-/** The login code of the mock: every email gets this one. */
-export const MOCK_OTP_CODE = "123456";
 /** Signing in with this address answers `CUSTOMER_BLOCKED`. */
 export const BLOCKED_EMAIL = "blocked@example.com";
 
@@ -222,22 +223,63 @@ export const ACCESS_TTL_SECONDS = Number(
   process.env.MOCK_ACCESS_TTL_SECONDS || 900,
 );
 export const REFRESH_TTL_SECONDS = 30 * 24 * 3600;
-export const OTP_TTL_SECONDS = 600;
-export const OTP_COOLDOWN_SECONDS = 60;
-export const OTP_MAX_PER_HOUR = 5;
-export const OTP_MAX_ATTEMPTS = 5;
+/** A password reset link is valid this long and works once (doc 1). */
+export const RESET_TTL_SECONDS = 3600;
+export const RESET_MAX_PER_HOUR = 3;
+
+/** The way the mock keeps passwords: never as typed, like the real API. */
+export function hashPassword(password: string): string {
+  return createHash("sha256").update(password).digest("hex");
+}
+
+const COMMON_PASSWORDS = new Set([
+  "password",
+  "password1",
+  "passwort1",
+  "12345678",
+  "123456789",
+  "1234567890",
+  "qwertyui",
+  "qwertyuiop",
+  "iloveyou",
+  "letmein1",
+  "welcome1",
+  "admin123",
+  "abcd1234",
+]);
+
+/**
+ * Too easy to guess (doc 1, `PASSWORD_TOO_WEAK`): a common password, one
+ * character repeated, or the customer's own address or its name part.
+ */
+export function isWeakPassword(password: string, email: string): boolean {
+  const lower = password.toLowerCase();
+  const name = email.split("@")[0].toLowerCase();
+  return (
+    COMMON_PASSWORDS.has(lower) ||
+    /^(.)\1*$/.test(password) ||
+    lower === email.toLowerCase() ||
+    (name.length >= 3 && lower.includes(name))
+  );
+}
 
 let customerSequence = 0;
-export function newCustomer(email: string, locale: Locale): CustomerRecord {
+export function newCustomer(input: {
+  email: string;
+  locale: Locale;
+  firstName: string;
+  lastName: string;
+  passwordHash: string;
+}): CustomerRecord {
   customerSequence += 1;
   const customer: CustomerRecord = {
     id: `66f1${customerSequence.toString(16).padStart(20, "0")}`,
-    email,
-    firstName: null,
-    lastName: null,
+    email: input.email,
+    firstName: input.firstName,
+    lastName: input.lastName,
     phone: null,
-    locale,
-    hasGoogleLogin: false,
+    locale: input.locale,
+    passwordHash: input.passwordHash,
     blocked: false,
     communication: {
       whatsappNumber: null,
@@ -266,7 +308,8 @@ export function customerByEmail(email: string): CustomerRecord | undefined {
 export function resetState(): void {
   db.customers.clear();
   db.sessions.clear();
-  db.otps.clear();
+  db.passwordResets.clear();
+  db.passwordResetRequests.clear();
   db.orders.clear();
   db.orderSequence = FIRST_ORDER_SEQUENCE;
   db.invoices.clear();

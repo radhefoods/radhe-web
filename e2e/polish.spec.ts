@@ -7,13 +7,18 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
 });
 
+const PASSWORD = "Mangoes-in-May-2026";
+
+/** Signs the browser in through the API; the account is created when new. */
 async function signIn(page: Page, email = DEMO) {
-  await page.request.post(`${MOCK}/v1/store/auth/otp/request`, {
-    data: { email },
+  const created = await page.request.post(`${MOCK}/v1/store/auth/signup`, {
+    data: { firstName: "Priya", lastName: "Shah", email, password: PASSWORD },
   });
-  await page.request.post(`${MOCK}/v1/store/auth/otp/verify`, {
-    data: { email, code: "123456" },
-  });
+  if (created.status() === 409) {
+    await page.request.post(`${MOCK}/v1/store/auth/login`, {
+      data: { email, password: PASSWORD },
+    });
+  }
 }
 
 test.describe("a change of the cart that fails", () => {

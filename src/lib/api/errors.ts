@@ -29,13 +29,10 @@ export const API_ERROR_CODES = [
   "SERVICE_UNAVAILABLE",
   "INTERNAL_ERROR",
   // authentication (1)
-  "OTP_COOLDOWN",
-  "OTP_LIMIT_REACHED",
-  "OTP_INVALID",
-  "MAIL_DELIVERY_FAILED",
-  "GOOGLE_NOT_CONFIGURED",
-  "GOOGLE_TOKEN_INVALID",
-  "GOOGLE_EMAIL_NOT_VERIFIED",
+  "CUSTOMER_EMAIL_TAKEN",
+  "CUSTOMER_CREDENTIALS_INVALID",
+  "PASSWORD_TOO_WEAK",
+  "PASSWORD_RESET_INVALID",
   "AUTH_REFRESH_INVALID",
   "CUSTOMER_BLOCKED",
   // account (2, 3)
@@ -94,9 +91,6 @@ export interface FieldProblem {
 /** `details` per code, as documented with each endpoint. */
 export interface ErrorDetails {
   VALIDATION_FAILED: FieldProblem[];
-  OTP_COOLDOWN: { retryAfterSeconds: number };
-  OTP_LIMIT_REACHED: { retryAfterSeconds: number };
-  OTP_INVALID: { attemptsRemaining: number } | undefined;
   ADDRESS_LIMIT_REACHED: { maximum: number };
   CART_FULL: { maximum: number };
   COMPANY_DETAILS_MISSING: { missing: string[] };

@@ -23,7 +23,6 @@ The two sign-in cookies are only set when you sign in.
 ## Services of other providers
 
 - **Payment:** when you pay online you move to the payment page of Stripe. The cookies and the privacy notice of Stripe apply there.
-- **Sign-in with Google:** only if you choose "Continue with Google" on the sign-in page, a script of Google is loaded, which can set cookies of its own.
 
 ## Clearing the storage
 

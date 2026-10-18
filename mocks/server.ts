@@ -5,10 +5,10 @@
 //   npm run dev:mock        starts it on http://localhost:3000
 //
 // Built so far: settings, legal texts, categories, products with their
-// stock, cart (preview, stored cart, merge), sign-in with a login code,
-// addresses, checkout with a stand-in payment page, orders and payments,
-// invoices and credit notes with PDF, and returns. `demo@radhefoods.de`
-// gets a filled demo account.
+// stock, cart (preview, stored cart, merge), sign-up and sign-in with email
+// and password, the password reset by link, addresses, checkout with a
+// stand-in payment page, orders and payments, invoices and credit notes
+// with PDF, and returns. `demo@radhefoods.de` gets a filled demo account.
 //
 // Runs on the project's Node (24, see .nvmrc) and needs at least 22.18, which
 // reads TypeScript directly; no build step.
@@ -38,7 +38,7 @@ import {
   listOrders,
   resetFixtures,
 } from "./orders.ts";
-import { DEMO_EMAIL, seedDemoAccount } from "./demo.ts";
+import { DEMO_EMAIL, DEMO_PASSWORD, seedDemoAccount } from "./demo.ts";
 import {
   advanceOrder,
   cancelReturn,
@@ -61,14 +61,13 @@ import {
 import {
   ACCESS_TTL_SECONDS,
   BLOCKED_EMAIL,
-  MOCK_OTP_CODE,
-  OTP_COOLDOWN_SECONDS,
-  OTP_MAX_ATTEMPTS,
-  OTP_MAX_PER_HOUR,
-  OTP_TTL_SECONDS,
   REFRESH_TTL_SECONDS,
+  RESET_MAX_PER_HOUR,
+  RESET_TTL_SECONDS,
   customerByEmail,
   db,
+  hashPassword,
+  isWeakPassword,
   legalDocuments,
   newCustomer,
   resetState,
@@ -344,100 +343,189 @@ route("GET", "/health", () => ({
 
 // --- 1 Authentication -------------------------------------------------------
 
-route("POST", "/v1/store/auth/otp/request", (ctx) => {
-  const body = objectBody(ctx.body, ["email", "locale"]);
-  const email = emailOf(body.email);
-  const locale = optionalLocale(body.locale, ctx.locale);
-  const now = Date.now();
-  const previous = db.otps.get(email);
-  const lastHour = (previous?.sentInLastHour ?? []).filter(
-    (sent) => now - sent < 3_600_000,
-  );
-  if (previous && now - previous.sentAt < OTP_COOLDOWN_SECONDS * 1000) {
-    throw new HttpError(429, "OTP_COOLDOWN", "A code was sent a moment ago.", {
-      retryAfterSeconds: Math.ceil(
-        (previous.sentAt + OTP_COOLDOWN_SECONDS * 1000 - now) / 1000,
-      ),
-    });
+/** First or last name: 1 to 80 characters after trimming (doc 1). */
+function nameOf(
+  body: Record<string, unknown>,
+  field: "firstName" | "lastName",
+): string {
+  const value = body[field];
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (trimmed.length < 1 || trimmed.length > 80) {
+    throw validationFailed(field, `${field} must be 1 to 80 characters`);
   }
-  if (lastHour.length >= OTP_MAX_PER_HOUR) {
-    throw new HttpError(429, "OTP_LIMIT_REACHED", "Too many codes were sent.", {
-      retryAfterSeconds: Math.ceil((lastHour[0] + 3_600_000 - now) / 1000),
-    });
+  return trimmed;
+}
+
+/** A password of 8 to 128 characters, else `VALIDATION_FAILED` (doc 4). */
+function passwordOf(value: unknown): string {
+  if (typeof value !== "string" || value.length < 8 || value.length > 128) {
+    throw validationFailed("password", "password must be 8 to 128 characters");
   }
-  db.otps.set(email, {
-    code: MOCK_OTP_CODE,
-    locale,
-    attempts: 0,
-    sentAt: now,
-    expiresAt: now + OTP_TTL_SECONDS * 1000,
-    sentInLastHour: [...lastHour, now],
-  });
-  console.log(`[mock] login code for ${email}: ${MOCK_OTP_CODE}`);
-  return {
-    body: {
-      expiresInSeconds: OTP_TTL_SECONDS,
-      resendAfterSeconds: OTP_COOLDOWN_SECONDS,
-    },
-  };
-});
+  return value;
+}
+
+function assertNotWeak(password: string, email: string): void {
+  if (isWeakPassword(password, email)) {
+    throw new HttpError(
+      400,
+      "PASSWORD_TOO_WEAK",
+      "This password is too easy to guess. Choose another one.",
+    );
+  }
+}
 
 function createAccount(
-  email: string,
-  locale: Locale,
+  input: Parameters<typeof newCustomer>[0],
   mockBase: string,
 ): CustomerRecord {
-  const customer = newCustomer(email, locale);
-  if (email === DEMO_EMAIL) seedDemoAccount(customer, mockBase);
+  const customer = newCustomer(input);
+  if (customer.email === DEMO_EMAIL) seedDemoAccount(customer, mockBase);
+  if (customer.email === BLOCKED_EMAIL) customer.blocked = true;
   return customer;
 }
 
-route("POST", "/v1/store/auth/otp/verify", (ctx) => {
-  const body = objectBody(ctx.body, ["email", "code", "locale"]);
+route("POST", "/v1/store/auth/signup", (ctx) => {
+  const body = objectBody(ctx.body, [
+    "firstName",
+    "lastName",
+    "email",
+    "password",
+    "locale",
+  ]);
+  const firstName = nameOf(body, "firstName");
+  const lastName = nameOf(body, "lastName");
   const email = emailOf(body.email);
-  if (typeof body.code !== "string" || !/^\d{6}$/.test(body.code)) {
-    throw validationFailed("code", "code must be exactly 6 digits");
-  }
-  const otp = db.otps.get(email);
-  if (!otp || otp.expiresAt < Date.now() || otp.attempts >= OTP_MAX_ATTEMPTS) {
+  const password = passwordOf(body.password);
+  const locale = optionalLocale(body.locale, ctx.locale);
+  assertNotWeak(password, email);
+  if (customerByEmail(email)) {
     throw new HttpError(
-      401,
-      "OTP_INVALID",
-      "The code is wrong or has expired.",
+      409,
+      "CUSTOMER_EMAIL_TAKEN",
+      "An account with this email already exists.",
     );
   }
-  if (otp.code !== body.code) {
-    otp.attempts += 1;
-    throw new HttpError(
-      401,
-      "OTP_INVALID",
-      "The code is wrong or has expired.",
-      {
-        attemptsRemaining: OTP_MAX_ATTEMPTS - otp.attempts,
-      },
-    );
-  }
-  db.otps.delete(email);
-  if (email === BLOCKED_EMAIL) {
-    throw new HttpError(403, "CUSTOMER_BLOCKED", "This account is blocked.");
-  }
-  const customer =
-    customerByEmail(email) ??
-    createAccount(
+  const customer = createAccount(
+    {
       email,
-      optionalLocale(body.locale, otp.locale),
+      locale,
+      firstName,
+      lastName,
+      passwordHash: hashPassword(password),
+    },
+    mockBaseOf(ctx),
+  );
+  console.log(`[mock] welcome email (${locale}) to ${email}`);
+  return { ...startSession(customer), status: 201 };
+});
+
+route("POST", "/v1/store/auth/login", (ctx) => {
+  const body = objectBody(ctx.body, ["email", "password"]);
+  const email = emailOf(body.email);
+  const password = body.password;
+  if (
+    typeof password !== "string" ||
+    password.length < 1 ||
+    password.length > 128
+  ) {
+    throw validationFailed("password", "password must be 1 to 128 characters");
+  }
+  let customer = customerByEmail(email);
+  // Not in the real API: the two accounts the mock knows by name exist the
+  // moment someone signs in as them, so nobody has to sign up for them. The
+  // blocked one takes whatever password its first sign-in brings.
+  if (
+    !customer &&
+    (email === BLOCKED_EMAIL ||
+      (email === DEMO_EMAIL && password === DEMO_PASSWORD))
+  ) {
+    customer = createAccount(
+      {
+        email,
+        locale: ctx.locale,
+        firstName: "Demo",
+        lastName: "Customer",
+        passwordHash: hashPassword(password),
+      },
       mockBaseOf(ctx),
     );
+  }
+  if (!customer || customer.passwordHash !== hashPassword(password)) {
+    // The same answer for an unknown address and a wrong password (doc 1).
+    throw new HttpError(
+      401,
+      "CUSTOMER_CREDENTIALS_INVALID",
+      "The email or password is incorrect.",
+    );
+  }
+  if (customer.blocked) {
+    throw new HttpError(403, "CUSTOMER_BLOCKED", "This account is blocked.");
+  }
   return startSession(customer);
 });
 
-route("POST", "/v1/store/auth/google", (ctx) => {
-  objectBody(ctx.body, ["idToken", "locale"]);
-  throw new HttpError(
-    503,
-    "GOOGLE_NOT_CONFIGURED",
-    "Google sign-in is not set up on this server.",
-  );
+route("POST", "/v1/store/auth/password/forgot", (ctx) => {
+  const body = objectBody(ctx.body, ["email", "locale"]);
+  const email = emailOf(body.email);
+  const locale = optionalLocale(body.locale, ctx.locale);
+  const customer = customerByEmail(email);
+  // The answer is the same whether or not the address has an account, and
+  // whether or not a link went out: at most three per account and hour.
+  if (customer) {
+    const now = Date.now();
+    const sent = (db.passwordResetRequests.get(customer.id) ?? []).filter(
+      (at) => now - at < 3_600_000,
+    );
+    if (sent.length < RESET_MAX_PER_HOUR) {
+      // A newer link replaces the older ones.
+      for (const [token, reset] of db.passwordResets) {
+        if (reset.customerId === customer.id) db.passwordResets.delete(token);
+      }
+      const resetToken = randomBytes(32).toString("base64url");
+      db.passwordResets.set(resetToken, {
+        customerId: customer.id,
+        createdAt: now,
+        expiresAt: now + RESET_TTL_SECONDS * 1000,
+      });
+      db.passwordResetRequests.set(customer.id, [...sent, now]);
+      console.log(
+        `[mock] password reset email (${locale}) to ${email}: ${SHOP_URL}/reset-password?token=${resetToken}`,
+      );
+    }
+  }
+  return { status: 204 };
+});
+
+route("POST", "/v1/store/auth/password/reset", (ctx) => {
+  const body = objectBody(ctx.body, ["token", "password"]);
+  const resetToken = body.token;
+  if (
+    typeof resetToken !== "string" ||
+    resetToken.length < 20 ||
+    resetToken.length > 200
+  ) {
+    throw validationFailed("token", "token must be 20 to 200 characters");
+  }
+  const password = passwordOf(body.password);
+  const reset = db.passwordResets.get(resetToken);
+  const customer = reset && db.customers.get(reset.customerId);
+  if (!reset || !customer || reset.expiresAt < Date.now()) {
+    throw new HttpError(
+      400,
+      "PASSWORD_RESET_INVALID",
+      "The link is unknown, already used, replaced or expired.",
+    );
+  }
+  // The link stays valid when the password is too easy to guess.
+  assertNotWeak(password, customer.email);
+  customer.passwordHash = hashPassword(password);
+  db.passwordResets.delete(resetToken);
+  // Every session of the customer ends. (The real API lets an access token
+  // run out by itself, up to 15 minutes; the mock is stricter.)
+  for (const session of db.sessions) {
+    if (session.customerId === customer.id) db.sessions.delete(session);
+  }
+  return { status: 204 };
 });
 
 route("POST", "/v1/store/auth/refresh", (ctx) => {
@@ -986,11 +1074,18 @@ route("POST", "/v1/unsubscribe/:token", (ctx) => {
   return { body: { email: customer.email, marketingOptIn: false } };
 });
 
-// Not part of the real API: the token the emails would carry, for tests.
+// Not part of the real API: the tokens the emails would carry, for tests.
+// `passwordReset` is the open link of the password reset email, or null.
 route("GET", "/__mock/tokens", (ctx) => {
   const customer = customerByEmail(ctx.url.searchParams.get("email") ?? "");
   if (!customer) throw validationFailed("email", "unknown customer");
-  return { body: { unsubscribe: unsubscribeTokenOf(customer) } };
+  const passwordReset =
+    [...db.passwordResets].find(
+      ([, reset]) => reset.customerId === customer.id,
+    )?.[0] ?? null;
+  return {
+    body: { unsubscribe: unsubscribeTokenOf(customer), passwordReset },
+  };
 });
 
 // --- 11 Invoices and credit notes -------------------------------------------
@@ -1355,6 +1450,6 @@ if (
   }).listen(port, () => {
     console.log(`[mock] Radhe Foods mock API on http://localhost:${port}`);
     console.log(`[mock] allowed origins: ${allowedOrigins.join(", ")}`);
-    console.log(`[mock] login code for every email: ${MOCK_OTP_CODE}`);
+    console.log(`[mock] demo account: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   });
 }

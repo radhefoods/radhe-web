@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const MOCK = "http://localhost:3000";
+const PASSWORD = "Mangoes-in-May-2026";
 
 test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
@@ -19,9 +20,8 @@ async function variantId(page: Page, slug: string): Promise<string> {
  */
 async function seedCustomer(page: Page, email = "priya@example.com") {
   const api = page.request;
-  await api.post(`${MOCK}/v1/store/auth/otp/request`, { data: { email } });
-  await api.post(`${MOCK}/v1/store/auth/otp/verify`, {
-    data: { email, code: "123456" },
+  await api.post(`${MOCK}/v1/store/auth/signup`, {
+    data: { firstName: "Priya", lastName: "Shah", email, password: PASSWORD },
   });
   await api.post(`${MOCK}/v1/store/me/addresses`, {
     data: {
@@ -75,12 +75,20 @@ test.describe("from the cart to the paid order", () => {
     await expect(summary).toContainText("Add €24.02 more for free delivery");
     await expect(summary).toContainText("You pay in the next step");
 
-    // Checkout needs an account: sign-in, then back to the checkout.
+    // Checkout needs an account: a new customer creates one from the
+    // sign-in page and comes back to the checkout.
     await summary.getByRole("link", { name: "Go to checkout" }).click();
     await expect(page).toHaveURL(/\/en\/sign-in\?returnTo=%2Fcheckout$/);
+    await page.getByRole("link", { name: "Create an account" }).click();
+    await expect(page).toHaveURL(/\/en\/sign-up\?returnTo=%2Fcheckout$/);
+    await expect(
+      page.getByText("Create your account to pay for your order."),
+    ).toBeVisible();
+    await page.getByLabel("First name").fill("Priya");
+    await page.getByLabel("Last name").fill("Shah");
     await page.getByLabel("Email address").fill("priya@example.com");
-    await page.getByRole("button", { name: "Send code" }).click();
-    await page.getByLabel("6-digit code").fill("123456");
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "Create account" }).click();
     await expect(page).toHaveURL(/\/en\/checkout$/);
 
     // No address yet: the form is there at once.
@@ -363,37 +371,170 @@ test.describe("the cart", () => {
   });
 });
 
-test.describe("signing in", () => {
-  test("a wrong code counts down the attempts; a new code has to wait", async ({
+test.describe("signing in and the password", () => {
+  const anna = {
+    firstName: "Anna",
+    lastName: "Schmidt",
+    email: "anna@example.com",
+    password: PASSWORD,
+  };
+  const password = (page: Page) => page.getByLabel("Password", { exact: true });
+
+  test("a wrong password gets one message that names neither part; the right one signs in", async ({
     page,
+    request,
   }) => {
+    await request.post(`${MOCK}/v1/store/auth/signup`, { data: anna });
     await page.goto("/en/sign-in");
     await page.getByLabel("Email address").fill("not-an-email");
-    await page.getByRole("button", { name: "Send code" }).click();
+    await password(page).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(
       page.getByText("Please enter a valid email address."),
     ).toBeVisible();
 
-    await page.getByLabel("Email address").fill("Max@Example.com");
-    await page.getByRole("button", { name: "Send code" }).click();
-    await expect(page.getByText(/code to max@example\.com/)).toBeVisible();
+    await page.getByLabel("Email address").fill("Anna@Example.com");
+    await password(page).fill("not-the-one");
+    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(
-      page.getByRole("button", { name: /New code possible in \d+s/ }),
-    ).toBeDisabled();
-
-    await page.getByLabel("6-digit code").fill("000000");
-    await expect(
-      page.getByText("This code is not correct. You have 4 attempts left."),
+      page.getByText("The email address or the password is incorrect."),
     ).toBeVisible();
-    await page.getByLabel("6-digit code").fill("123456");
+    // The address stays, the password is typed again.
+    await expect(page.getByLabel("Email address")).toHaveValue(
+      "Anna@Example.com",
+    );
+    await expect(password(page)).toHaveValue("");
+
+    await password(page).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/en\/account$/);
   });
 
-  test("the way back after sign-in never leaves the shop", async ({ page }) => {
+  test("an unknown address gets the same message as a wrong password", async ({
+    page,
+  }) => {
+    await page.goto("/en/sign-in");
+    await page.getByLabel("Email address").fill("nobody@example.com");
+    await password(page).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(
+      page.getByText("The email address or the password is incorrect."),
+    ).toBeVisible();
+  });
+
+  test("a new customer creates an account and lands where they wanted to go; an address is taken once", async ({
+    page,
+  }) => {
+    await page.goto("/en/sign-up?returnTo=%2Fcart");
+    await page.getByLabel("First name").fill("Anna");
+    await page.getByLabel("Last name").fill("Schmidt");
+    await page.getByLabel("Email address").fill("anna@example.com");
+    await password(page).fill("short");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(
+      page.getByText("Please use at least 8 characters."),
+    ).toBeVisible();
+    await password(page).fill(PASSWORD);
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page).toHaveURL(/\/en\/cart$/);
+    await page.goto("/en/account");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Hello Anna" }),
+    ).toBeVisible();
+
+    // Signed out again, the same address cannot get a second account.
+    await page.request.post(`${MOCK}/v1/store/auth/logout`);
+    await page.goto("/en/sign-up");
+    await page.getByLabel("First name").fill("Anna");
+    await page.getByLabel("Last name").fill("Schmidt");
+    await page.getByLabel("Email address").fill("anna@example.com");
+    await password(page).fill(PASSWORD);
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(
+      page.getByText("An account with this email address already exists."),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Forgot password?" }).click();
+    await expect(page).toHaveURL(/\/en\/forgot-password$/);
+  });
+
+  test("a forgotten password is replaced by the link of the email", async ({
+    page,
+    request,
+  }) => {
+    await request.post(`${MOCK}/v1/store/auth/signup`, { data: anna });
+    await page.goto("/en/sign-in");
+    await page.getByRole("link", { name: "Forgot password?" }).click();
+    await expect(page).toHaveURL(/\/en\/forgot-password$/);
+    await page.getByLabel("Email address").fill("anna@example.com");
+    await page.getByRole("button", { name: "Send link" }).click();
+    await expect(
+      page.getByText(
+        "If an account exists for this address, we have sent an email with a link.",
+      ),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Send again" }).click();
+    await expect(page.getByText("We have sent the email again.")).toBeVisible();
+
+    // The link of the email carries no language and keeps its token.
+    const tokens = (await (
+      await request.get(`${MOCK}/__mock/tokens?email=anna%40example.com`)
+    ).json()) as { passwordReset: string };
+    await page.goto(`/reset-password?token=${tokens.passwordReset}`);
+    await expect(page).toHaveURL(
+      new RegExp(`/en/reset-password\\?token=${tokens.passwordReset}$`),
+    );
+    const fresh = page.getByLabel("New password", { exact: true });
+    const repeat = page.getByLabel("Repeat the new password", { exact: true });
+    await fresh.fill("Coriander-and-Cumin-7");
+    await repeat.fill("Coriander-and-Cumin-8");
+    await page.getByRole("button", { name: "Save password" }).click();
+    await expect(page.getByText("The passwords do not match.")).toBeVisible();
+    await repeat.fill("Coriander-and-Cumin-7");
+    await page.getByRole("button", { name: "Save password" }).click();
+    await expect(
+      page.getByText("Your password has been changed"),
+    ).toBeVisible();
+
+    await page.getByRole("main").getByRole("link", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/en\/sign-in$/);
+    await page.getByLabel("Email address").fill("anna@example.com");
+    await password(page).fill("Coriander-and-Cumin-7");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/en\/account$/);
+
+    // The link worked once.
+    await page.goto(`/en/reset-password?token=${tokens.passwordReset}`);
+    await fresh.fill("Coriander-and-Cumin-9");
+    await repeat.fill("Coriander-and-Cumin-9");
+    await page.getByRole("button", { name: "Save password" }).click();
+    await expect(page.getByText("This link is no longer valid")).toBeVisible();
+    await page.getByRole("link", { name: "Request a new link" }).click();
+    await expect(page).toHaveURL(/\/en\/forgot-password$/);
+  });
+
+  test("a link without a token is not valid, in German too", async ({
+    page,
+  }) => {
+    await page.goto("/de/reset-password");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Neues Passwort wählen" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Dieser Link ist nicht mehr gültig"),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Neuen Link anfordern" }).click();
+    await expect(page).toHaveURL(/\/de\/passwort-vergessen$/);
+  });
+
+  test("the way back after sign-in never leaves the shop", async ({
+    page,
+    request,
+  }) => {
+    await request.post(`${MOCK}/v1/store/auth/signup`, { data: anna });
     await page.goto("/en/sign-in?returnTo=https://evil.example/");
-    await page.getByLabel("Email address").fill("max@example.com");
-    await page.getByRole("button", { name: "Send code" }).click();
-    await page.getByLabel("6-digit code").fill("123456");
+    await page.getByLabel("Email address").fill("anna@example.com");
+    await password(page).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/localhost:3001\/en\/account$/);
   });
 

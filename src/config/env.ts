@@ -28,8 +28,6 @@ export const env = {
    * variable is not exposed to the browser, where this equals `apiUrl`.
    */
   apiInternalUrl: withoutTrailingSlash(process.env.API_INTERNAL_URL || apiUrl),
-  /** Empty: the Google sign-in button is not shown. */
-  googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "",
   features: {
     /**

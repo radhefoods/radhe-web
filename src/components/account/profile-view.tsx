@@ -9,6 +9,7 @@ import { TextField, controlStyles } from "@/components/ui/field";
 import { isFeatureEnabled } from "@/config/env";
 import { normalizePhone } from "@/features/checkout/address-schema";
 import { useSession, useSessionActions } from "@/features/session/session";
+import { Link } from "@/i18n/navigation";
 import { locales, type Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import { fieldProblems } from "@/lib/api/errors";
@@ -306,6 +307,20 @@ export function ProfileView() {
           <SignOutButton everywhere variant="quiet" />
         </div>
         <Alert tone="info">{t("signOutAllHint")}</Alert>
+        {/* No password section: a new password comes by the link of the
+            email, signed in or not (doc 1). */}
+        <p className="text-ink-muted text-[0.9375rem]">
+          {t.rich("passwordHint", {
+            link: (chunks) => (
+              <Link
+                href="/forgot-password"
+                className="text-leaf-700 rounded-xs font-semibold underline underline-offset-4"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
+        </p>
       </section>
     </div>
   );

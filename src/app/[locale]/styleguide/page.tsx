@@ -237,7 +237,7 @@ export default async function StyleguidePage({
             label="Email address"
             type="email"
             defaultValue="priya@example.com"
-            hint="We email you a 6-digit code. No password needed."
+            hint="You sign in with this address."
           />
           <TextField
             id="sg-postcode"

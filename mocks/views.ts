@@ -903,7 +903,6 @@ export function customerView(record: CustomerRecord): Customer {
     lastName: record.lastName,
     phone: record.phone,
     locale: record.locale,
-    hasGoogleLogin: record.hasGoogleLogin,
     communication: { ...record.communication },
     createdAt: record.createdAt,
   };

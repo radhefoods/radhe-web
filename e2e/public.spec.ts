@@ -12,9 +12,13 @@ test.beforeEach(async ({ request }) => {
  * email. Answers the token the marketing emails would carry.
  */
 async function tokensOf(request: APIRequestContext, email: string) {
-  await request.post(`${MOCK}/v1/store/auth/otp/request`, { data: { email } });
-  await request.post(`${MOCK}/v1/store/auth/otp/verify`, {
-    data: { email, code: "123456" },
+  await request.post(`${MOCK}/v1/store/auth/signup`, {
+    data: {
+      firstName: "Anna",
+      lastName: "Schmidt",
+      email,
+      password: "Mangoes-in-May-2026",
+    },
   });
   const response = await request.get(
     `${MOCK}/__mock/tokens?email=${encodeURIComponent(email)}`,

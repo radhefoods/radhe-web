@@ -1,6 +1,7 @@
 // A demo account for looking at the account pages: signing in as
-// demo@radhefoods.de (code 123456) gives a profile, an address and orders in
-// the states a customer meets. Invented data, created at the first sign-in.
+// demo@radhefoods.de with the password below gives a profile, an address and
+// orders in the states a customer meets. Invented data, created the first
+// time someone signs up or signs in as the demo customer.
 
 import { SKU } from "./data/catalogue.ts";
 import { addresses, checkout } from "./orders.ts";
@@ -21,6 +22,8 @@ import {
 import { billOf } from "./views.ts";
 
 export const DEMO_EMAIL = "demo@radhefoods.de";
+/** Not a secret: the mock creates the account with it at the first sign-in. */
+export const DEMO_PASSWORD = "Radhe-Foods-2026";
 
 const DAY = 86_400_000;
 const daysAgo = (days: number) =>

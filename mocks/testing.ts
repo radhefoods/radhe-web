@@ -1,11 +1,16 @@
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach } from "vitest";
+import { hasErrorCode } from "../src/lib/api/errors.ts";
 import { createRequester } from "../src/lib/api/http.ts";
 import { createSessionTransport } from "../src/lib/api/session-transport.ts";
 import { createStoreApi } from "../src/lib/api/store-api.ts";
 import { createMockServer } from "./server.ts";
 
 // Helpers for tests that run the shop's API client against the mock API.
+
+/** The password and the name of every account a test creates. */
+export const TEST_PASSWORD = "Mangoes-in-May-2026";
+export const TEST_NAME = { firstName: "Anna", lastName: "Schmidt" };
 
 /** A fetch that keeps cookies like a browser does, including their paths. */
 export function browserLikeFetch() {
@@ -76,11 +81,15 @@ export function startMockApi() {
     base: () => base,
     guestApi: () => createStoreApi(createRequester({ baseUrl: base })),
     customerApi,
-    /** A signed-in customer; the account is created at first sign-in. */
+    /** A signed-in customer; the account is created when it is new. */
     async signIn(email: string) {
       const client = customerApi();
-      await client.api.requestOtp({ email });
-      const result = await client.api.verifyOtp({ email, code: "123456" });
+      const result = await client.api
+        .signUp({ ...TEST_NAME, email, password: TEST_PASSWORD })
+        .catch((error: unknown) => {
+          if (!hasErrorCode(error, "CUSTOMER_EMAIL_TAKEN")) throw error;
+          return client.api.login({ email, password: TEST_PASSWORD });
+        });
       return { ...client, customer: result.customer };
     },
     /** A test control of the mock (`/__mock/...`). */
