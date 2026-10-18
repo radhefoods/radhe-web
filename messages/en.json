@@ -51,9 +51,7 @@
     },
     "badge": {
       "sold_out": "Sold out",
-      "fewLeft": "Only {count} left",
-      "chilled": "Chilled",
-      "frozen": "Frozen"
+      "fewLeft": "Only {count} left"
     },
     "onlyLeft": "Only {count} left in stock",
     "maxPerOrder": "At most {count} per order",

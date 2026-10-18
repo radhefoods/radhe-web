@@ -516,6 +516,11 @@ test.describe("the cart of a visitor", () => {
     await expect(rice.getByRole("button", { name: "5 kg" })).toHaveCount(0);
     await expect(rice).not.toContainText("In stock");
     await expect(rice).not.toContainText(/radhe/i);
+    // No card says how its product is kept (owner, 2026-10-18).
+    await expect(page.getByRole("article")).not.toHaveCount(0);
+    await expect(
+      page.getByRole("article").filter({ hasText: /Chilled|Frozen/ }),
+    ).toHaveCount(0);
     await rice
       .getByRole("button", { name: "Add to cart: Basmati Rice (1 kg)" })
       .click();

@@ -51,9 +51,7 @@
     },
     "badge": {
       "sold_out": "Ausverkauft",
-      "fewLeft": "Nur noch {count}",
-      "chilled": "Gekühlt",
-      "frozen": "Tiefgekühlt"
+      "fewLeft": "Nur noch {count}"
     },
     "onlyLeft": "Nur noch {count} auf Lager",
     "maxPerOrder": "Höchstens {count} pro Bestellung",

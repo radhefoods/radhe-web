@@ -102,7 +102,6 @@ async function sampleProducts(locale: "en" | "de"): Promise<ProductSummary[]> {
           p.ordering.canOrder &&
           p.ordering.remaining <= 10,
       ),
-      wanted((p) => p.storageType === "frozen"),
     ].filter((p): p is ProductSummary => Boolean(p));
   } catch {
     return [];

@@ -12,6 +12,12 @@ import {
   getSettings,
   listProducts,
 } from "@/features/catalogue/data";
+import {
+  ROW_SIZE,
+  featuredQuery,
+  popularProducts,
+  rowQuery,
+} from "@/features/catalogue/home";
 import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
@@ -21,7 +27,12 @@ import { JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
 
 type Href = ComponentProps<typeof Link>["href"];
 
-export const revalidate = 300;
+// Rendered at every visit, like the category pages, from the same cached
+// answers of the API (five minutes, `REVALIDATE.catalogue`). A page cached
+// on top of cached data showed the admin's price changes long after the
+// category pages (owner, 2026-10-18); now both lag by the same five minutes
+// at most.
+export const revalidate = 0;
 
 export async function generateMetadata({
   params,
@@ -80,27 +91,33 @@ function SectionHeader({
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const locale = await localeOf(params);
-  const [t, tSite, settings, categories, popular] = await Promise.all([
+  const [t, tSite, settings, categories, featured] = await Promise.all([
     getTranslations("home"),
     getTranslations("site"),
     getSettings(),
     getCategories(locale),
-    products({ featured: true, limit: 8 }, locale),
+    products(featuredQuery, locale),
   ]);
   // One row per main category that has products, in the order of the
   // admin, each with its first products in the recommended order (owner,
   // 2026-10-16). A category whose products do not arrive shows no row.
-  const rows = (
-    await Promise.all(
+  // While the admin has marked nothing as featured, "Popular right now"
+  // shows the first products of the whole catalogue (owner, 2026-10-18).
+  const [catalogue, rows] = await Promise.all([
+    featured.length > 0 ? [] : products(rowQuery(), locale),
+    Promise.all(
       categories
         .filter((category) => category.productCount > 0)
         .map(async (category) => ({
           category,
-          items: await products({ category: category.slug, limit: 8 }, locale),
+          items: (await products(rowQuery(category.slug), locale)).slice(
+            0,
+            ROW_SIZE,
+          ),
         })),
-    )
-  ).filter((row) => row.items.length > 0);
-  const featured = popular.slice(0, 8);
+    ).then((all) => all.filter((row) => row.items.length > 0)),
+  ]);
+  const popular = popularProducts(featured, catalogue);
   const rowLabels = { back: t("rowBack"), forward: t("rowForward") };
   // A card of a row: two and a sliver on phones, then three, four, five.
   const cardSizes =
@@ -162,7 +179,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
-        {featured.length > 0 && (
+        {popular.length > 0 && (
           <ProductRow
             id="home-featured"
             title={t("featuredTitle")}
@@ -171,7 +188,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             linkLabel={t("featuredAll")}
             labels={rowLabels}
           >
-            {featured.map((product, index) => (
+            {popular.map((product, index) => (
               <ProductRowItem key={product.id}>
                 <ProductCard
                   product={product}

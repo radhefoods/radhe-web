@@ -14,7 +14,8 @@ const badge =
 
 /**
  * A product in a list, as the one pack size the API shows it as (doc 7):
- * the picture on a mist tile with its badges, the name with the size as a
+ * the picture on a mist tile with its badges (the discount, sold out, few
+ * left; not how it is kept, owner 2026-10-18), the name with the size as a
  * link to that size's page, the price with the regular price crossed out
  * when reduced and the price per unit under it, and the round "+" that
  * puts it in the cart. Nothing else (owner, 2026-10-16): the other sizes
@@ -81,11 +82,6 @@ export function ProductCard({
           {left !== null && (
             <span className={cn(badge, "bg-wheat-100 text-wheat-800")}>
               {t("badge.fewLeft", { count: left })}
-            </span>
-          )}
-          {product.storageType !== "ambient" && (
-            <span className={cn(badge, "bg-leaf-50 text-leaf-700")}>
-              {t(`badge.${product.storageType}`)}
             </span>
           )}
         </span>
