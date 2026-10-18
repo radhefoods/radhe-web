@@ -26,6 +26,7 @@ import { cn } from "@/lib/cn";
 import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
 import { Price } from "./price";
+import { formatPackSize, productTitle } from "@/lib/format/product-name";
 
 // The product page is one page for every pack size of a product (doc 7). The
 // server renders it for the size its address names; choosing another size
@@ -112,13 +113,19 @@ export function PackSizes({
     variant.ordering;
 
   // The tab's title names the size; the rest of it (the shop) stays.
-  const titledAs = useRef(product.seo.title ?? product.displayName);
-  const select = useCallback((next: ProductVariant, href?: string) => {
-    setVariantId(next.id);
-    if (href) window.history.pushState(null, "", href);
-    document.title = document.title.replace(titledAs.current, next.displayName);
-    titledAs.current = next.displayName;
-  }, []);
+  const titledAs = useRef(
+    product.seo.title ?? productTitle(product.name, product.packSize),
+  );
+  const select = useCallback(
+    (next: ProductVariant, href?: string) => {
+      setVariantId(next.id);
+      if (href) window.history.pushState(null, "", href);
+      const title = productTitle(product.name, next.packSize);
+      document.title = document.title.replace(titledAs.current, title);
+      titledAs.current = title;
+    },
+    [product.name],
+  );
 
   // Back and forward move between the addresses of the sizes.
   useEffect(() => {
@@ -153,8 +160,12 @@ export function PackSizes({
 
 /** The headline: the name of the product with the chosen size. */
 export function PackSizeHeadline({ className }: { className?: string }) {
-  const { variant } = useSelection();
-  return <h1 className={className}>{variant.displayName}</h1>;
+  const { product, variant } = useSelection();
+  return (
+    <h1 className={className}>
+      {productTitle(product.name, variant.packSize)}
+    </h1>
+  );
 }
 
 /** The red pill on the main picture, when the chosen size is reduced. */
@@ -222,7 +233,7 @@ export function PackSizePicker() {
                   : "border-line-strong hover:border-ink-subtle bg-white",
               )}
             >
-              {size.packSize.label}
+              {formatPackSize(size.packSize)}
             </Link>
           </li>
         ))}
@@ -238,8 +249,8 @@ export function PackSizePicker() {
 export function ProductPurchase() {
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
-  const { variant, ordering } = useSelection();
-  const name = variant.displayName;
+  const { product, variant, ordering } = useSelection();
+  const name = productTitle(product.name, variant.packSize);
   const canOrder = orderingReason(ordering) === null;
 
   const hints: string[] = [];

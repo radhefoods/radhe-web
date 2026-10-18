@@ -35,6 +35,11 @@ import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { AddressBlock, DocumentRow, OrderStatusChips } from "./order-bits";
 import {
+  formatPackSize,
+  formatProductName,
+  productTitle,
+} from "@/lib/format/product-name";
+import {
   PaymentOutcome,
   PaymentPanel,
   usePaymentState,
@@ -291,7 +296,7 @@ function ReturnCard({
           <li key={item.variantId}>
             {t("itemLine", {
               quantity: item.quantity,
-              name: `${item.name} (${item.packSize.label})`,
+              name: productTitle(item.name, item.packSize),
             })}
             <span className="text-ink-muted">
               {" · "}
@@ -538,9 +543,9 @@ function OrderBody({
                 />
               )}
               <div className="min-w-0 flex-1">
-                <p className="font-bold">{item.name}</p>
+                <p className="font-bold">{formatProductName(item.name)}</p>
                 <p className="text-ink-muted text-sm tabular-nums">
-                  {item.packSize.label} · {item.quantity} ×{" "}
+                  {formatPackSize(item.packSize)} · {item.quantity} ×{" "}
                   {formatMoney(item.unitPrice, locale)}
                   {/* A size that was reduced: the regular price next to it. */}
                   {item.regularUnitPrice !== null && (

@@ -167,7 +167,7 @@ test.describe("the shop at a glance", () => {
     await expect(
       page
         .getByRole("main")
-        .getByRole("button", { name: "Add to cart: Chakki Atta (5 kg)" })
+        .getByRole("button", { name: "Add to cart: Chakki Atta (5kg)" })
         .first(),
     ).toBeVisible();
     await request.post(`${MOCK}/__mock/stock`, {
@@ -182,7 +182,7 @@ test.describe("the shop at a glance", () => {
       page.getByRole("main").getByText("Sold out").first(),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Add to cart: Chakki Atta (5 kg)" }),
+      page.getByRole("button", { name: "Add to cart: Chakki Atta (5kg)" }),
     ).toHaveCount(0);
   });
 });
@@ -195,13 +195,13 @@ test.describe("languages and addresses", () => {
     await page.goto("/de/produkte/basmati-rice-5kg");
     await expect(page).toHaveURL(/\/de\/produkte\/basmati-reis-5kg$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Basmati-Reis (5 kg)",
+      "Basmati-Reis (5kg)",
     );
     // The base slug of the product opens its default size.
     await page.goto("/en/products/basmati-rice");
     await expect(page).toHaveURL(/\/en\/products\/basmati-rice-1kg$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Basmati Rice (1 kg)",
+      "Basmati Rice (1kg)",
     );
   });
 
@@ -215,17 +215,17 @@ test.describe("languages and addresses", () => {
     await toEnglish.click();
     await expect(page).toHaveURL(/\/en\/products\/basmati-rice-5kg$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Basmati Rice (5 kg)",
+      "Basmati Rice (5kg)",
     );
 
     // A size chosen on the page is kept too.
     await page.goto("/de/produkte/basmati-reis-5kg");
-    await page.getByRole("link", { name: "1 kg" }).click();
+    await page.getByRole("link", { name: "1kg" }).click();
     await expect(page).toHaveURL(/\/de\/produkte\/basmati-reis-1kg$/);
     await toEnglish.click();
     await expect(page).toHaveURL(/\/en\/products\/basmati-rice-1kg$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Basmati Rice (1 kg)",
+      "Basmati Rice (1kg)",
     );
   });
 
@@ -235,7 +235,7 @@ test.describe("languages and addresses", () => {
     await page.goto("/en/products/basmati-rice-1kg");
     const heading = page.getByRole("heading", { level: 1 });
     const main = page.getByRole("main");
-    await expect(heading).toHaveText("Basmati Rice (1 kg)");
+    await expect(heading).toHaveText("Basmati Rice (1kg)");
     await expect(main.getByText("€5.99 / kg").first()).toBeVisible();
     await expect(main.getByText("RF-00041")).toBeVisible();
     // A mark that only a page that was not reloaded still carries.
@@ -243,20 +243,20 @@ test.describe("languages and addresses", () => {
       (window as unknown as { stayed: boolean }).stayed = true;
     });
 
-    await page.getByRole("link", { name: "5 kg" }).click();
-    await expect(heading).toHaveText("Basmati Rice (5 kg)");
+    await page.getByRole("link", { name: "5kg" }).click();
+    await expect(heading).toHaveText("Basmati Rice (5kg)");
     await expect(page).toHaveURL(/\/en\/products\/basmati-rice-5kg$/);
     await expect(page).toHaveTitle(/^Basmati Rice \(5 kg\)/);
     await expect(main.getByText("€19.99").first()).toBeVisible();
     await expect(main.getByText("€4.00 / kg").first()).toBeVisible();
     await expect(main.getByText("RF-00042")).toBeVisible();
-    await expect(page.getByRole("link", { name: "5 kg" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "5kg" })).toHaveAttribute(
       "aria-current",
       "page",
     );
     await expect(
       main
-        .getByRole("button", { name: "Add to cart: Basmati Rice (5 kg)" })
+        .getByRole("button", { name: "Add to cart: Basmati Rice (5kg)" })
         .first(),
     ).toBeVisible();
     expect(
@@ -268,7 +268,7 @@ test.describe("languages and addresses", () => {
     // Back leads to the size from before, still on the same page.
     await page.goBack();
     await expect(page).toHaveURL(/\/en\/products\/basmati-rice-1kg$/);
-    await expect(heading).toHaveText("Basmati Rice (1 kg)");
+    await expect(heading).toHaveText("Basmati Rice (1kg)");
     expect(
       await page.evaluate(
         () => (window as unknown as { stayed: boolean }).stayed,
@@ -372,9 +372,9 @@ test.describe("finding products", () => {
     await expect(
       page.getByRole("article").getByRole("heading", { level: 2 }),
     ).toHaveText([
-      "Chana Dal (1 kg)",
-      "Basmati Rice (1 kg)",
-      "Pure Ghee (500 ml)",
+      "Chana Dal (1kg)",
+      "Basmati Rice (1kg)",
+      "Pure Ghee (500ml)",
     ]);
   });
 
@@ -406,16 +406,13 @@ test.describe("finding products", () => {
     await expect(list.getByText("Lagerung", { exact: true })).toHaveCount(0);
     await expect(list.getByText("Angebote", { exact: true })).toHaveCount(0);
     await list.getByText("Packungsgr\u00f6\u00dfe", { exact: true }).click();
-    await page.getByLabel("400 g").check();
+    await page.getByLabel("400g").check();
     await expect(page).toHaveURL(/packSize=400g/);
     await expect(page.getByText("2 Produkte")).toBeVisible();
     // The matching size stands for its product.
     await expect(
-      card(page, "Kurkuma, gemahlen").getByRole("button", {
-        name: "400 g",
-        pressed: true,
-      }),
-    ).toBeVisible();
+      card(page, "Kurkuma, gemahlen").getByRole("heading"),
+    ).toContainText("(400g)");
   });
 
   test("on a phone the filters live in a sheet that counts as you choose", async ({
@@ -466,10 +463,10 @@ test.describe("the cart of a visitor", () => {
     await page.goto("/en/products");
     const atta = card(page, "Chakki Atta");
     await atta
-      .getByRole("button", { name: "Add to cart: Chakki Atta (5 kg)" })
+      .getByRole("button", { name: "Add to cart: Chakki Atta (5kg)" })
       .click();
     const quantity = atta.getByRole("group", {
-      name: "Quantity of Chakki Atta (5 kg)",
+      name: "Quantity of Chakki Atta (5kg)",
     });
     await expect(quantity).toContainText("1");
     await quantity.getByRole("button", { name: "One more" }).click();
@@ -481,7 +478,7 @@ test.describe("the cart of a visitor", () => {
     await page.reload();
     await expect(
       card(page, "Chakki Atta").getByRole("group", {
-        name: "Quantity of Chakki Atta (5 kg)",
+        name: "Quantity of Chakki Atta (5kg)",
       }),
     ).toContainText("2");
 
@@ -490,7 +487,7 @@ test.describe("the cart of a visitor", () => {
     await again.getByRole("button", { name: "One less" }).click();
     await again.getByRole("button", { name: "Remove from cart" }).click();
     await expect(
-      again.getByRole("button", { name: "Add to cart: Chakki Atta (5 kg)" }),
+      again.getByRole("button", { name: "Add to cart: Chakki Atta (5kg)" }),
     ).toBeVisible();
   });
 
@@ -502,7 +499,7 @@ test.describe("the cart of a visitor", () => {
     // The smallest size in stock stands for the product; its name links to
     // the page of that size.
     const heading = rice.getByRole("heading");
-    await expect(heading).toHaveText("Basmati Rice (1 kg)");
+    await expect(heading).toHaveText("Basmati Rice (1kg)");
     await expect(heading.getByRole("link")).toHaveAttribute(
       "href",
       "/en/products/basmati-rice-1kg",
@@ -513,7 +510,7 @@ test.describe("the cart of a visitor", () => {
     );
     // Nothing else: the sizes are chosen on the product page, and the card
     // does not say "in stock" or name the brand.
-    await expect(rice.getByRole("button", { name: "5 kg" })).toHaveCount(0);
+    await expect(rice.getByRole("button", { name: "5kg" })).toHaveCount(0);
     await expect(rice).not.toContainText("In stock");
     await expect(rice).not.toContainText(/radhe/i);
     // No card says how its product is kept (owner, 2026-10-18).
@@ -522,10 +519,10 @@ test.describe("the cart of a visitor", () => {
       page.getByRole("article").filter({ hasText: /Chilled|Frozen/ }),
     ).toHaveCount(0);
     await rice
-      .getByRole("button", { name: "Add to cart: Basmati Rice (1 kg)" })
+      .getByRole("button", { name: "Add to cart: Basmati Rice (1kg)" })
       .click();
     await expect(
-      rice.getByRole("group", { name: "Quantity of Basmati Rice (1 kg)" }),
+      rice.getByRole("group", { name: "Quantity of Basmati Rice (1kg)" }),
     ).toBeVisible();
     // The picture flew to the one cart pill on screen: the header's, or on
     // phones the cart tab.
@@ -542,12 +539,15 @@ test.describe("the cart of a visitor", () => {
     // The product page too, in both languages.
     await dal.getByRole("heading").getByRole("link").click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Moong Dal (1 kg)",
+      "Moong Dal / Green Gram (1kg)",
     );
     const main = page.getByRole("main");
     await expect(main.locator('img[src*="radhe-logo"]').first()).toBeVisible();
     await expect(main).toContainText("coming soon");
     await page.goto("/de/produkte/moong-dal-1kg");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Moong Dal / Mungbohnen (1kg)",
+    );
     await expect(page.getByRole("main")).toContainText("Bild folgt in Kürze");
   });
 
@@ -580,7 +580,7 @@ test.describe("the cart of a visitor", () => {
     await page.goto("/en/products/aloo-bhujia-400g");
     await expect(page.getByText("At most 12 per order")).toBeVisible();
     await page
-      .getByRole("button", { name: "Add to cart: Aloo Bhujia (400 g)" })
+      .getByRole("button", { name: "Add to cart: Aloo Bhujia (400g)" })
       .filter({ visible: true })
       .first()
       .click();

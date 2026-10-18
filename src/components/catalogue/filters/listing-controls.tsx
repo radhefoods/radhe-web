@@ -32,6 +32,7 @@ import type { ProductFacets, ProductSort } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { FacetOptions, type FacetOption } from "./facet-options";
 import { FacetPopover, pill, pillActive, pillIdle } from "./facet-popover";
+import { formatPackSize } from "@/lib/format/product-name";
 
 type Href = ComponentProps<typeof Link>["href"];
 
@@ -212,7 +213,7 @@ export function ListingControls({
       type: "checkbox",
       options: facets.packSizes.map((s) => ({
         value: s.value,
-        label: s.packSize.label,
+        label: formatPackSize(s.packSize),
         count: s.count,
       })),
       selected: view.packSizes,

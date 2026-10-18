@@ -50,7 +50,6 @@
       "sold_out": "Sold out"
     },
     "badge": {
-      "sold_out": "Sold out",
       "fewLeft": "Only {count} left"
     },
     "onlyLeft": "Only {count} left in stock",

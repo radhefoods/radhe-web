@@ -17,12 +17,13 @@ const ANNOUNCED_FOR_MS = 1500;
 
 /**
  * The one control that puts a pack size into the cart: a button first (a
- * full pill, or on a card the round "+"), then minus, number, plus. On the
- * tap the picture flies into the cart (`flyToCart`), the stepper unfolds
- * in the button's place and its number pops as it changes (owner,
+ * full pill, or on a card the round "+" on the corner of the tile), then
+ * minus, number, plus. On the tap the picture flies into the cart
+ * (`flyToCart`), the stepper unfolds in the button's place (on a card to
+ * the left, over the tile) and its number pops as it changes (owner,
  * 2026-10-16). When the size cannot be ordered (sold out, or switched
- * off) a quiet pill with an icon says so, in the same place and the same
- * height, so the grid never jumps and nothing looks like a button.
+ * off) a quiet pill with an icon says so in the same place, so nothing
+ * jumps and nothing looks like a button.
  */
 export function AddToCart({
   variantId,
@@ -38,7 +39,7 @@ export function AddToCart({
   name: string;
   ordering: Ordering | null;
   size?: "sm" | "md";
-  /** `round`: the "+" of a product card; the stepper then fills the row. */
+  /** `round`: the "+" on the tile of a product card, a white ring around it. */
   look?: "button" | "round";
   className?: string;
 }) {
@@ -64,8 +65,10 @@ export function AddToCart({
     return (
       <p
         className={cn(
-          "border-line bg-mist text-ink-muted flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-4 py-2 text-center text-[0.8125rem] leading-tight font-semibold",
-          look === "round" ? "min-h-11 w-full" : height,
+          "border-line text-ink-muted flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-4 py-2 text-center text-[0.8125rem] leading-tight font-semibold",
+          look === "round"
+            ? "shadow-card min-h-10 bg-white px-3 text-xs"
+            : cn("bg-mist", height),
           className,
         )}
       >
@@ -101,7 +104,7 @@ export function AddToCart({
           aria-label={t("addNamed", { name })}
           onClick={add}
           className={cn(
-            "bg-leaf-600 hover:bg-leaf-700 hover:ring-leaf-100 grid size-11 shrink-0 place-items-center rounded-full text-white shadow-[0_6px_14px_-6px_rgb(21_122_75_/_0.6)] transition-[background-color,box-shadow,transform] duration-150 hover:scale-105 hover:ring-4 active:scale-95",
+            "bg-leaf-600 hover:bg-leaf-700 hover:ring-leaf-100 grid size-11 shrink-0 place-items-center rounded-full text-white shadow-[0_6px_14px_-6px_rgb(21_122_75_/_0.6)] ring-2 ring-white transition-[background-color,box-shadow,transform] duration-150 hover:scale-105 hover:ring-4 active:scale-95",
             className,
           )}
         >
@@ -138,7 +141,7 @@ export function AddToCart({
         size={size === "sm" ? "sm" : "md"}
         className={cn(
           look === "round"
-            ? "min-h-11 origin-right"
+            ? "shadow-float min-h-11 w-auto origin-right ring-2 ring-white"
             : cn(height, "origin-left"),
           unfolds && "animate-stepper-in",
           className,

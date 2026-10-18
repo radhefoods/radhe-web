@@ -218,7 +218,7 @@ test.describe("for search engines", () => {
     );
     expect(size).toMatchObject({
       "@type": "Product",
-      name: "Basmati-Reis (5 kg)",
+      name: "Basmati-Reis (5kg)",
       sku: "RF-00042",
       weight: { value: 5, unitCode: "KGM" },
     });

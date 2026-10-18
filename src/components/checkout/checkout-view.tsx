@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
 import { AddressForm } from "./address-form";
+import { productTitle } from "@/lib/format/product-name";
 
 function AddressLines({ address }: { address: Address }) {
   return (
@@ -178,7 +179,9 @@ export function CheckoutView({
     bill.canOrder && !billQuery.isFetching && unavailable === null && !keyUsed;
   const nameOf = (variantId: Id) => {
     const line = bill.lines.find((entry) => entry.variantId === variantId);
-    return line?.product?.displayName ?? variantId;
+    return line?.product
+      ? productTitle(line.product.name, line.product.packSize)
+      : variantId;
   };
 
   async function saveAddress(values: AddressFormValues) {
@@ -456,7 +459,9 @@ export function CheckoutView({
                   <span className="text-ink-muted tabular-nums">
                     {t("quantityTimes", { quantity: line.quantity })}
                   </span>{" "}
-                  {line.product?.displayName ?? line.variantId}
+                  {line.product
+                    ? productTitle(line.product.name, line.product.packSize)
+                    : line.variantId}
                   {reduced && (
                     <span className="text-ink-muted block text-sm tabular-nums">
                       <span className="sr-only">

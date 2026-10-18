@@ -16,6 +16,7 @@ import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import type { Id, ReturnReason } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
+import { productTitle } from "@/lib/format/product-name";
 
 const REASONS: ReturnReason[] = [
   "damaged",
@@ -174,7 +175,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
           <ul className="flex flex-col gap-3">
             {rows.map(({ item, available }) => {
               const choice = choices[item.variantId] ?? NOTHING;
-              const name = item.displayName;
+              const name = productTitle(item.name, item.packSize);
               const active = choice.quantity > 0;
               const reasonId = `return-reason-${item.variantId}`;
               const commentId = `return-comment-${item.variantId}`;

@@ -2,6 +2,7 @@ import type { Locale } from "@/i18n/routing";
 import type { ProductFacets, StorageType } from "@/lib/api/types";
 import { formatMoney } from "@/lib/format/money";
 import type { ActiveFilter, PriceRange } from "./listing-state";
+import { formatPackSize } from "@/lib/format/product-name";
 
 // The words of the filter panel, for the server (chips, the empty state)
 // and the browser (the panel) alike. `t` is the `filters` namespace.
@@ -36,9 +37,10 @@ export function filterLabels(
       (KNOWN_TAGS as readonly string[]).includes(value)
         ? t(`tag.${value}`)
         : value.charAt(0).toLocaleUpperCase(locale) + value.slice(1),
-    size: (value) =>
-      facets.packSizes.find((size) => size.value === value)?.packSize.label ??
-      value,
+    size: (value) => {
+      const found = facets.packSizes.find((size) => size.value === value);
+      return found ? formatPackSize(found.packSize) : value;
+    },
     band: (range) =>
       range.max === null
         ? t("priceFrom", { min: money(range.min) })

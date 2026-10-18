@@ -537,7 +537,7 @@ const SEEDS: ProductSeed[] = [
     sku: "RF-00210",
     group: "moong-dal",
     slug: t("moong-dal-1-kg", "moong-dal-1-kg"),
-    name: t("Moong Dal", "Moong Dal"),
+    name: t("Moong Dal (Green Gram)", "Moong Dal (Mungbohnen)"),
     subtitle: t("Split mung beans", "Geschälte Mungbohnen"),
     shortDescription: t("Light and quick to cook", "Leicht und schnell gar"),
     brand: "Radhe",

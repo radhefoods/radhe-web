@@ -9,6 +9,7 @@ import type {
 } from "@/lib/api/types";
 import { centsToDecimalString } from "@/lib/format/money";
 import { absoluteUrl, pageUrl } from "./alternates";
+import { formatProductName, productTitle } from "@/lib/format/product-name";
 
 // Structured data for search engines (schema.org as JSON-LD).
 
@@ -152,7 +153,7 @@ export function productJsonLd(
     "@type": "ProductGroup",
     "@id": `${url}#product`,
     productGroupID: product.id,
-    name: product.name,
+    name: formatProductName(product.name),
     url,
     ...(product.brand && {
       brand: { "@type": "Brand", name: product.brand },
@@ -162,7 +163,7 @@ export function productJsonLd(
       product.seo.description ??
       product.shortDescription ??
       product.description ??
-      product.name,
+      formatProductName(product.name),
     ...(product.images.length > 0 && {
       image: product.images.map((image) => image.sizes.large.url),
     }),
@@ -172,7 +173,7 @@ export function productJsonLd(
       return {
         "@type": "Product",
         "@id": `${variantUrl}#size`,
-        name: variant.displayName,
+        name: productTitle(product.name, variant.packSize),
         url: variantUrl,
         sku: variant.sku,
         ...(variant.id === product.variantId &&
@@ -206,7 +207,7 @@ export function itemListJsonLd(
     itemListElement: products.map((product, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      name: product.displayName,
+      name: productTitle(product.name, product.packSize),
       url: productUrl(product.slug, locale),
     })),
   };

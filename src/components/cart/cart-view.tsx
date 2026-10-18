@@ -16,6 +16,11 @@ import type { BillLine } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatBasePrice, formatMoney } from "@/lib/format/money";
 import { BillTotals, FreeDeliveryProgress } from "./bill-summary";
+import {
+  formatPackSize,
+  formatProductName,
+  productTitle,
+} from "@/lib/format/product-name";
 
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -25,7 +30,9 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const { product, ordering, issue } = line;
   // The number the customer chose shows at once; prices follow from the API.
   const quantity = cart.quantityOf(line.variantId);
-  const name = product?.displayName ?? tProduct("reason.product_unavailable");
+  const name = product
+    ? productTitle(product.name, product.packSize)
+    : tProduct("reason.product_unavailable");
   // The line's price is what the customer pays per pack; next to it the
   // regular price when the size is reduced, and the price per unit.
   const reduced =
@@ -59,7 +66,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           <p className="leading-snug font-bold">
             {href ? (
               <Link href={href} className="rounded-xs hover:underline">
-                {product?.name}
+                {product && formatProductName(product.name)}
               </Link>
             ) : (
               name
@@ -68,7 +75,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           {product && (
             <>
               <p className="text-ink-muted text-sm tabular-nums">
-                {product.packSize.label} ·{" "}
+                {formatPackSize(product.packSize)} ·{" "}
                 {reduced && (
                   <span className="sr-only">{tProduct("currentPrice")}: </span>
                 )}

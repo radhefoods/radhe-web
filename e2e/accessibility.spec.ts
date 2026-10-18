@@ -99,16 +99,16 @@ test.describe("cart, checkout and account have no barriers axe can find", () => 
     await signIn(page);
     await open(page, "/en/products");
     await page
-      .getByRole("button", { name: "Add to cart: Chakki Atta (5 kg)" })
+      .getByRole("button", { name: "Add to cart: Chakki Atta (5kg)" })
       .click();
     await expect(
-      page.getByRole("group", { name: "Quantity of Chakki Atta (5 kg)" }),
+      page.getByRole("group", { name: "Quantity of Chakki Atta (5kg)" }),
     ).toBeVisible();
     await expectNoBarriers(page);
 
     await open(page, "/en/cart");
     await expect(
-      page.getByRole("group", { name: "Quantity of Chakki Atta (5 kg)" }),
+      page.getByRole("group", { name: "Quantity of Chakki Atta (5kg)" }),
     ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Summary" })).toBeVisible();
     await expectNoBarriers(page);
@@ -163,12 +163,12 @@ test.describe("with the keyboard", () => {
     await open(page, "/en/products/basmati-rice-5kg");
     const add = page
       .getByRole("main")
-      .getByRole("button", { name: "Add to cart: Basmati Rice (5 kg)" })
+      .getByRole("button", { name: "Add to cart: Basmati Rice (5kg)" })
       .first();
     await add.focus();
     await page.keyboard.press("Enter");
     const quantity = page
-      .getByRole("group", { name: "Quantity of Basmati Rice (5 kg)" })
+      .getByRole("group", { name: "Quantity of Basmati Rice (5kg)" })
       .first();
     await expect(quantity).toContainText("1");
     // The control that replaced the button can be reached and used.

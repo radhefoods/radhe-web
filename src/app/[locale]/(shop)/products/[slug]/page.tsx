@@ -27,6 +27,7 @@ import type {
 import { cn } from "@/lib/cn";
 import { alternates, pageUrl } from "@/lib/seo/alternates";
 import { JsonLd, breadcrumbJsonLd, productJsonLd } from "@/lib/seo/json-ld";
+import { formatProductName, productTitle } from "@/lib/format/product-name";
 
 type Props = PageProps<"/[locale]/products/[slug]">;
 
@@ -56,7 +57,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getProduct(slug, locale);
   if (!product) return {};
   // The title names the pack size the address stands for.
-  const title = product.seo.title ?? product.displayName;
+  const title =
+    product.seo.title ?? productTitle(product.name, product.packSize);
   const description =
     product.seo.description ?? product.shortDescription ?? undefined;
   const image = product.images[0]?.sizes.large;
@@ -144,7 +146,10 @@ export default async function ProductPage({ params }: Props) {
           }),
         ]}
       />
-      <Breadcrumbs categories={product.breadcrumbs} current={product.name} />
+      <Breadcrumbs
+        categories={product.breadcrumbs}
+        current={formatProductName(product.name)}
+      />
 
       <PackSizes product={product}>
         <div

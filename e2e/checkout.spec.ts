@@ -98,7 +98,7 @@ test.describe("from the cart to the paid order", () => {
 
     // The visitor's cart came along; the customer pays now.
     const order = page.getByRole("complementary", { name: "Your order" });
-    await expect(order).toContainText("Chakki Atta (5 kg)");
+    await expect(order).toContainText("Chakki Atta (5kg)");
     await expect(order).toContainText("€30.97");
     await expect(order).toContainText("2 to 4 working days");
     await expect(order).toContainText("You pay now.");
@@ -243,7 +243,7 @@ test.describe("when something changed since the page was loaded", () => {
       hasText: "Some products cannot be ordered right now.",
     });
     await expect(issues).toBeVisible();
-    await expect(issues).toContainText("Chakki Atta (5 kg)");
+    await expect(issues).toContainText("Chakki Atta (5kg)");
     await expect(
       issues.getByRole("link", { name: "To the cart" }),
     ).toBeVisible();
@@ -309,7 +309,7 @@ test.describe("the cart", () => {
 
     await page
       .getByRole("button", {
-        name: "Remove Kesar Mango, Box (3 kg) from the cart",
+        name: "Remove Kesar Mango, Box (3kg) from the cart",
       })
       .click();
     await expect(

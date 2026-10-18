@@ -288,7 +288,7 @@ test.describe("an order", () => {
     await expect(page.getByText("Choose at least one product.")).toBeVisible();
 
     const rice = page.getByRole("group", {
-      name: "Units of Basmati Rice (5 kg) to return",
+      name: "Units of Basmati Rice (5kg) to return",
     });
     await rice.getByRole("button", { name: "One more" }).click();
     await page.getByRole("button", { name: "Send the request" }).click();
@@ -307,7 +307,7 @@ test.describe("an order", () => {
       .getByRole("listitem")
       .filter({ hasText: "Return RF-1085-R2" });
     await expect(request).toContainText("Waiting for our answer");
-    await expect(request).toContainText("1 × Basmati Rice (5 kg)");
+    await expect(request).toContainText("1 × Basmati Rice (5kg)");
 
     await request.getByRole("button", { name: "Withdraw the request" }).click();
     await expect(request).toContainText("Withdrawn");
