@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type FocusEvent,
   type MouseEvent,
   type PointerEvent,
@@ -18,13 +19,14 @@ import { shopHref } from "@/lib/navigation/shop-link";
 
 /** The slideshow moves on by itself every six seconds (doc 17). */
 const AUTOPLAY_MS = 6000;
-/** A mouse that moved this far is dragging, not clicking. */
+/** How long a slide takes to glide into place, and its easing (expo out). */
+const GLIDE_MS = 700;
+const GLIDE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+/** A pointer that moved this far is dragging, not clicking. */
 const DRAG_PX = 6;
 /** A drag of a fifth of the width, or a quick flick, turns the slide. */
 const TURN_SHARE = 0.2;
 const FLICK_PX_PER_MS = 0.5;
-/** How long the smooth scroll to the snapped slide takes, roughly. */
-const SETTLE_MS = 450;
 
 export interface CarouselLabels {
   /** The spoken name of the carousel. */
@@ -115,20 +117,32 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
   );
 }
 
+/** Where the track stands: at a slide, gliding or not, with the hand's offset. */
+interface Track {
+  /** -1 is the copy of the last slide before the first, `count` the copy of the first after the last. */
+  position: number;
+  /** Whether a change of position glides (transition) or jumps (none). */
+  glide: boolean;
+}
+
 /**
  * The hero of the home page (doc 17; owner, 2026-10-19: in the place of
  * the woven band): one slide per live banner, in the admin's order, each
  * keeping its picture's ratio, edge to edge on phones and a rounded panel
- * from small screens on. It is a scroll-snap row: a finger swipes it as
- * the browser does, and a mouse drags it (owner, later that night: no
- * arrows, no pause button, only the dots); on release it settles on the
- * next, the previous or the same slide, and a drag never counts as a
- * click on the banner's link. It moves on by itself every six seconds,
- * except while the pointer rests on it, while a drag or a swipe is under
- * way, while something in it has the focus, while the tab is hidden, or
- * when the visitor asked for less motion; the dot of the shown slide fills
- * up while the next one is on its way. With one slide there is nothing to
- * turn. Not rendered at all when there is no banner (the page decides).
+ * from small screens on. The slides sit on one track that moves by a
+ * transform (owner, later that night: a fluid, premium slide): a change
+ * glides with an expo easing, a finger or a mouse drags the track one to
+ * one and lets it settle on the next, the previous or the same slide, and
+ * a drag never counts as a click on the banner's link. The track loops
+ * without a seam: a copy of the last slide stands before the first and
+ * one of the first after the last, and the moment the track reaches a
+ * copy it jumps, unseen, to the real slide. The dots turn it; the dot of
+ * the shown slide fills up while the next one is on its way. It moves on
+ * by itself every six seconds, except while the pointer rests on it, while
+ * a drag is under way, while something in it has the focus, while the tab
+ * is hidden, or when the visitor asked for less motion (then every change
+ * jumps). With one slide there is nothing to turn. Not rendered at all
+ * when there is no banner (the page decides).
  */
 export function HeroCarousel({
   banners,
@@ -139,20 +153,22 @@ export function HeroCarousel({
   labels: CarouselLabels;
   className?: string;
 }) {
-  const scroller = useRef<HTMLUListElement>(null);
   const count = banners.length;
-  const [index, setIndex] = useState(0);
-  // Resting under a pointer, a finger or a focus: the autoplay waits.
-  const [resting, setResting] = useState(false);
-  // A mouse drag under way: the row follows the pointer, snapping off.
+  const viewport = useRef<HTMLDivElement>(null);
+  const [track, setTrack] = useState<Track>({ position: 0, glide: true });
+  /** The hand's offset while dragging, in pixels. */
+  const [dragPx, setDragPx] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // Resting under a pointer or a focus: the autoplay waits.
+  const [resting, setResting] = useState(false);
   const drag = useRef<{
+    pointerId: number;
     startX: number;
-    startLeft: number;
+    startY: number;
     startedAt: number;
     moved: boolean;
+    gaveUp: boolean;
   } | null>(null);
-  const settling = useRef<number | null>(null);
   const reducedMotion = useSyncExternalStore(
     subscribeMotion,
     () => window.matchMedia(REDUCED_MOTION).matches,
@@ -164,108 +180,110 @@ export function HeroCarousel({
     () => true,
   );
 
-  const goTo = useCallback(
-    (wanted: number) => {
-      const element = scroller.current;
-      if (!element || count === 0) return;
-      const target = ((wanted % count) + count) % count;
-      element.scrollTo({
-        left: target * element.clientWidth,
-        behavior: reducedMotion ? "auto" : "smooth",
-      });
-    },
-    [count, reducedMotion],
-  );
+  /** The slide the dots name: the position brought back into the range. */
+  const index = count ? ((track.position % count) + count) % count : 0;
 
-  /** The slide the scroll box shows right now. */
-  const shownIndex = () => {
-    const element = scroller.current;
-    if (!element || element.clientWidth === 0) return 0;
-    return Math.round(element.scrollLeft / element.clientWidth);
+  const glideTo = useCallback((position: number) => {
+    setTrack({ position, glide: true });
+  }, []);
+
+  // At a copy, jump to the real slide without anyone seeing it; the next
+  // change glides again.
+  const settle = () => {
+    setTrack((current) => {
+      if (current.position === count) return { position: 0, glide: false };
+      if (current.position === -1) return { position: count - 1, glide: false };
+      return current;
+    });
   };
-  const measure = () => setIndex(shownIndex());
+  useEffect(() => {
+    if (track.glide) return;
+    const frame = window.requestAnimationFrame(() =>
+      setTrack((current) => ({ ...current, glide: true })),
+    );
+    return () => window.cancelAnimationFrame(frame);
+  }, [track.glide]);
 
   const playing =
     count > 1 && !resting && !dragging && !reducedMotion && visible;
   useEffect(() => {
     if (!playing) return;
-    const timer = window.setInterval(() => {
-      const element = scroller.current;
-      if (!element || element.clientWidth === 0) return;
-      goTo(Math.round(element.scrollLeft / element.clientWidth) + 1);
-    }, AUTOPLAY_MS);
+    const timer = window.setInterval(
+      () =>
+        setTrack((current) => ({
+          position: current.position + 1,
+          glide: true,
+        })),
+      AUTOPLAY_MS,
+    );
     return () => window.clearInterval(timer);
-  }, [playing, goTo]);
-  useEffect(
-    () => () => {
-      if (settling.current) window.clearTimeout(settling.current);
-    },
-    [],
-  );
+  }, [playing]);
 
-  // --- The mouse drags the row; a finger swipes it natively ---------------
+  // --- The hand drags the track ------------------------------------------
 
-  const onPointerDown = (event: PointerEvent<HTMLUListElement>) => {
-    setResting(true);
-    if (event.pointerType !== "mouse" || event.button !== 0 || count < 2) {
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (count < 2 || (event.pointerType === "mouse" && event.button !== 0)) {
       return;
     }
-    const element = event.currentTarget;
-    if (settling.current) window.clearTimeout(settling.current);
     drag.current = {
+      pointerId: event.pointerId,
       startX: event.clientX,
-      startLeft: element.scrollLeft,
+      startY: event.clientY,
       startedAt: event.timeStamp,
       moved: false,
+      gaveUp: false,
     };
-    element.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResting(true);
     setDragging(true);
+    // Wherever the track is on its way, it now follows the hand from here.
+    setTrack((current) => ({ ...current, glide: false }));
   };
 
-  const onPointerMove = (event: PointerEvent<HTMLUListElement>) => {
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const state = drag.current;
-    if (!state) return;
+    if (!state || state.gaveUp || state.pointerId !== event.pointerId) return;
     const dx = event.clientX - state.startX;
-    if (!state.moved && Math.abs(dx) < DRAG_PX) return;
-    state.moved = true;
-    event.currentTarget.scrollLeft = state.startLeft - dx;
+    const dy = event.clientY - state.startY;
+    if (!state.moved) {
+      if (Math.abs(dx) < DRAG_PX && Math.abs(dy) < DRAG_PX) return;
+      // A finger that goes up or down wants the page, not the slides.
+      if (Math.abs(dy) > Math.abs(dx)) {
+        state.gaveUp = true;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        setDragging(false);
+        setTrack((current) => ({ ...current, glide: true }));
+        return;
+      }
+      state.moved = true;
+    }
+    setDragPx(dx);
   };
 
-  const endDrag = (event: PointerEvent<HTMLUListElement>) => {
+  const endDrag = (event: PointerEvent<HTMLDivElement>) => {
     const state = drag.current;
-    if (event.pointerType !== "mouse") {
-      // The finger lifted: the autoplay may go on after a moment.
-      setResting(false);
-      return;
-    }
-    if (!state) return;
+    if (!state || state.pointerId !== event.pointerId) return;
     drag.current = null;
     const element = event.currentTarget;
     if (element.hasPointerCapture(event.pointerId)) {
       element.releasePointerCapture(event.pointerId);
     }
-    const width = element.clientWidth;
+    if (event.pointerType !== "mouse") setResting(false);
+    if (state.gaveUp) return;
+    const width = element.clientWidth || 1;
     const dx = event.clientX - state.startX;
     const elapsed = Math.max(1, event.timeStamp - state.startedAt);
-    const from = Math.round(state.startLeft / width);
-    let target = from;
+    let step = 0;
     if (
-      Math.abs(dx) > width * TURN_SHARE ||
-      Math.abs(dx) / elapsed > FLICK_PX_PER_MS
+      state.moved &&
+      (Math.abs(dx) > width * TURN_SHARE ||
+        Math.abs(dx) / elapsed > FLICK_PX_PER_MS)
     ) {
-      target = from + (dx < 0 ? 1 : -1);
+      step = dx < 0 ? 1 : -1;
     }
-    // Settle on the slide before the snapping comes back, so the row
-    // glides there instead of jumping.
-    const clamped = Math.min(count - 1, Math.max(0, target));
-    element.scrollTo({
-      left: clamped * width,
-      behavior: reducedMotion ? "auto" : "smooth",
-    });
-    settling.current = window.setTimeout(() => {
-      setDragging(false);
-      settling.current = null;
-    }, SETTLE_MS);
+    setDragPx(0);
+    setDragging(false);
+    setTrack((current) => ({ position: current.position + step, glide: true }));
     // A click that was really a drag must not open the banner's link.
     if (state.moved) {
       element.dataset.dragged = "";
@@ -273,7 +291,7 @@ export function HeroCarousel({
     }
   };
 
-  const onClickCapture = (event: MouseEvent<HTMLUListElement>) => {
+  const onClickCapture = (event: MouseEvent<HTMLDivElement>) => {
     if (event.currentTarget.dataset.dragged !== undefined) {
       event.preventDefault();
       event.stopPropagation();
@@ -291,6 +309,31 @@ export function HeroCarousel({
     }
   };
 
+  // The copies that make the loop seamless, only when there is a loop.
+  const looped = count > 1;
+  const trackStyle: CSSProperties = {
+    transform: `translate3d(calc(${-(track.position + (looped ? 1 : 0)) * 100}% + ${dragPx}px), 0, 0)`,
+    transition:
+      track.glide && !dragging
+        ? `transform ${GLIDE_MS}ms ${GLIDE_EASING}`
+        : "none",
+  };
+
+  const slide = (banner: Banner, position: number, copy: boolean) => (
+    <li
+      key={copy ? `copy-${banner.id}-${position}` : banner.id}
+      role={copy ? undefined : "group"}
+      aria-roledescription={copy ? undefined : "slide"}
+      aria-label={copy ? undefined : labels.slides[position]}
+      aria-hidden={copy || undefined}
+      // Only the shown slide can be tabbed into; the others wait for the dots.
+      inert={copy || position !== index}
+      className="w-full shrink-0"
+    >
+      <Slide banner={banner} first={!copy && position === 0} />
+    </li>
+  );
+
   return (
     <section
       aria-roledescription="carousel"
@@ -301,36 +344,30 @@ export function HeroCarousel({
       onBlur={(event) => onFocusChange(event, false)}
       className={cn("relative -mx-4 sm:mx-0", className)}
     >
-      <ul
-        ref={scroller}
-        onScroll={measure}
+      <div
+        ref={viewport}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onClickCapture={onClickCapture}
         className={cn(
-          "no-scrollbar bg-mist flex snap-x items-center overflow-x-auto sm:rounded-xl",
-          // Off while the mouse drags, so the row follows the hand.
-          dragging
-            ? "cursor-grabbing snap-none select-none"
-            : "snap-mandatory md:cursor-grab",
+          "bg-mist touch-pan-y overflow-hidden select-none sm:rounded-xl",
+          looped && (dragging ? "cursor-grabbing" : "md:cursor-grab"),
         )}
       >
-        {banners.map((banner, position) => (
-          <li
-            key={banner.id}
-            role="group"
-            aria-roledescription="slide"
-            aria-label={labels.slides[position]}
-            className="w-full shrink-0 snap-center"
-          >
-            <Slide banner={banner} first={position === 0} />
-          </li>
-        ))}
-      </ul>
+        <ul
+          onTransitionEnd={settle}
+          style={trackStyle}
+          className="flex items-center will-change-transform"
+        >
+          {looped && slide(banners[count - 1], count - 1, true)}
+          {banners.map((banner, position) => slide(banner, position, false))}
+          {looped && slide(banners[0], 0, true)}
+        </ul>
+      </div>
 
-      {count > 1 && (
+      {looped && (
         /* The dots on a dark glass pill over the foot of the picture, where
            the admin keeps no text (doc 17). */
         <ul className="bg-ink/45 absolute bottom-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center rounded-full px-1.5 py-1 backdrop-blur-sm sm:bottom-4">
@@ -342,7 +379,7 @@ export function HeroCarousel({
                   type="button"
                   aria-label={labels.goTo[position]}
                   aria-current={current ? "true" : undefined}
-                  onClick={() => goTo(position)}
+                  onClick={() => glideTo(position)}
                   className="grid h-6 min-w-6 place-items-center px-0.5"
                 >
                   <span
@@ -357,7 +394,7 @@ export function HeroCarousel({
                     {/* Fills up while the next slide is on its way. */}
                     {current && playing && (
                       <span
-                        key={index}
+                        key={track.position}
                         className="animate-dot-fill absolute inset-0 origin-left rounded-full bg-white"
                         style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
                       />

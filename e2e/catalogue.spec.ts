@@ -169,14 +169,15 @@ test.describe("the shop at a glance", () => {
       "href",
       "/en/category/snacks",
     );
-    await expect(slides.nth(1).getByRole("link")).toHaveAttribute(
+    // Slides that are not shown are inert: look at the elements themselves.
+    await expect(slides.nth(1).locator("a")).toHaveAttribute(
       "href",
       "/en/products/basmati-rice-1kg",
     );
-    const external = slides.nth(2).getByRole("link");
+    const external = slides.nth(2).locator("a");
     await expect(external).toHaveAttribute("target", "_blank");
     await expect(external).toHaveAttribute("rel", /noopener/);
-    await expect(slides.nth(3).getByRole("link")).toHaveCount(0);
+    await expect(slides.nth(3).locator("a")).toHaveCount(0);
     // The dots turn it; the arrows exist on wide screens.
     await carousel.getByRole("button", { name: "Go to slide 4" }).click();
     await expect(
