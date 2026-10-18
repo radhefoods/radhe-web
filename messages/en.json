@@ -191,11 +191,7 @@
     "carousel": {
       "label": "Offers and news",
       "slide": "Slide {index} of {count}",
-      "previous": "Previous slide",
-      "next": "Next slide",
-      "goTo": "Go to slide {index}",
-      "pause": "Pause the slideshow",
-      "play": "Play the slideshow"
+      "goTo": "Go to slide {index}"
     },
     "payEyebrow": "Payment",
     "payTitle": "Pay securely at checkout.",

@@ -182,15 +182,28 @@ test.describe("the shop at a glance", () => {
     await expect(
       carousel.getByRole("button", { name: "Go to slide 4" }),
     ).toHaveAttribute("aria-current", "true");
+    // No arrows and no pause button: the dots, a swipe or a mouse drag
+    // (owner, 2026-10-19). A drag turns the slide and is not a click.
+    await expect(carousel.getByRole("button", { name: /slide/ })).toHaveCount(
+      4,
+    );
     if (!isMobile) {
-      await carousel.getByRole("button", { name: "Next slide" }).click();
+      await carousel.getByRole("button", { name: "Go to slide 1" }).click();
       await expect(
         carousel.getByRole("button", { name: "Go to slide 1" }),
       ).toHaveAttribute("aria-current", "true");
+      const box = (await slides.first().boundingBox())!;
+      const y = box.y + box.height / 2;
+      await page.mouse.move(box.x + box.width * 0.7, y);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * 0.5, y, { steps: 8 });
+      await page.mouse.move(box.x + box.width * 0.3, y, { steps: 8 });
+      await page.mouse.up();
+      await expect(
+        carousel.getByRole("button", { name: "Go to slide 2" }),
+      ).toHaveAttribute("aria-current", "true");
+      await expect(page).toHaveURL(/\/en$/);
     }
-    await expect(
-      carousel.getByRole("button", { name: "Pause the slideshow" }),
-    ).toBeVisible();
   });
 
   test("a product row turns by its arrows on wide screens", async ({

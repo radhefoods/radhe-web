@@ -191,11 +191,7 @@
     "carousel": {
       "label": "Angebote und Neuigkeiten",
       "slide": "Folie {index} von {count}",
-      "previous": "Vorherige Folie",
-      "next": "Nächste Folie",
-      "goTo": "Zu Folie {index}",
-      "pause": "Diashow anhalten",
-      "play": "Diashow fortsetzen"
+      "goTo": "Zu Folie {index}"
     },
     "payEyebrow": "Zahlung",
     "payTitle": "Sicher bezahlen an der Kasse.",

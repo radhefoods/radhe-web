@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import NextLink from "next/link";
 import {
   useCallback,
@@ -9,6 +8,7 @@ import {
   useState,
   useSyncExternalStore,
   type FocusEvent,
+  type MouseEvent,
   type PointerEvent,
 } from "react";
 import { Link } from "@/i18n/navigation";
@@ -18,14 +18,17 @@ import { shopHref } from "@/lib/navigation/shop-link";
 
 /** The slideshow moves on by itself every six seconds (doc 17). */
 const AUTOPLAY_MS = 6000;
+/** A mouse that moved this far is dragging, not clicking. */
+const DRAG_PX = 6;
+/** A drag of a fifth of the width, or a quick flick, turns the slide. */
+const TURN_SHARE = 0.2;
+const FLICK_PX_PER_MS = 0.5;
+/** How long the smooth scroll to the snapped slide takes, roughly. */
+const SETTLE_MS = 450;
 
 export interface CarouselLabels {
   /** The spoken name of the carousel. */
   region: string;
-  previous: string;
-  next: string;
-  pause: string;
-  play: string;
   /** "Slide 1 of 3", one per banner. */
   slides: string[];
   /** "Go to slide 1", one per banner. */
@@ -92,6 +95,7 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
         href={linkUrl}
         target="_blank"
         rel="noopener noreferrer"
+        draggable={false}
         className={link}
       >
         {picture}
@@ -100,12 +104,12 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
   }
   const href = shopHref(linkUrl);
   return href ? (
-    <Link href={href} className={link}>
+    <Link href={href} draggable={false} className={link}>
       {picture}
     </Link>
   ) : (
     // A path the shop does not know by name: the proxy adds the language.
-    <NextLink href={linkUrl} className={link}>
+    <NextLink href={linkUrl} draggable={false} className={link}>
       {picture}
     </NextLink>
   );
@@ -115,16 +119,16 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
  * The hero of the home page (doc 17; owner, 2026-10-19: in the place of
  * the woven band): one slide per live banner, in the admin's order, each
  * keeping its picture's ratio, edge to edge on phones and a rounded panel
- * from small screens on. It scrolls and snaps slide by slide, so a swipe
- * on a phone works as it does on the product rows; two round arrows (wide
- * screens) turn it, and so do the dots laid over the foot of the picture,
- * where the dot of the shown slide fills up while the next one is on its
- * way. It moves on by itself every six seconds, except while the pointer
- * rests on it, while something in it has the focus, while the tab is
- * hidden, when the visitor asked for less motion, or after the pause
- * button next to the dots. With one slide there is nothing to turn: no
- * arrows, no dots, no autoplay. Not rendered at all when there is no
- * banner (the page decides).
+ * from small screens on. It is a scroll-snap row: a finger swipes it as
+ * the browser does, and a mouse drags it (owner, later that night: no
+ * arrows, no pause button, only the dots); on release it settles on the
+ * next, the previous or the same slide, and a drag never counts as a
+ * click on the banner's link. It moves on by itself every six seconds,
+ * except while the pointer rests on it, while a drag or a swipe is under
+ * way, while something in it has the focus, while the tab is hidden, or
+ * when the visitor asked for less motion; the dot of the shown slide fills
+ * up while the next one is on its way. With one slide there is nothing to
+ * turn. Not rendered at all when there is no banner (the page decides).
  */
 export function HeroCarousel({
   banners,
@@ -138,9 +142,17 @@ export function HeroCarousel({
   const scroller = useRef<HTMLUListElement>(null);
   const count = banners.length;
   const [index, setIndex] = useState(0);
-  // Paused by the button (stays), or resting under a pointer or a focus.
-  const [paused, setPaused] = useState(false);
+  // Resting under a pointer, a finger or a focus: the autoplay waits.
   const [resting, setResting] = useState(false);
+  // A mouse drag under way: the row follows the pointer, snapping off.
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{
+    startX: number;
+    startLeft: number;
+    startedAt: number;
+    moved: boolean;
+  } | null>(null);
+  const settling = useRef<number | null>(null);
   const reducedMotion = useSyncExternalStore(
     subscribeMotion,
     () => window.matchMedia(REDUCED_MOTION).matches,
@@ -173,7 +185,8 @@ export function HeroCarousel({
   };
   const measure = () => setIndex(shownIndex());
 
-  const playing = count > 1 && !paused && !resting && !reducedMotion && visible;
+  const playing =
+    count > 1 && !resting && !dragging && !reducedMotion && visible;
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(() => {
@@ -183,12 +196,92 @@ export function HeroCarousel({
     }, AUTOPLAY_MS);
     return () => window.clearInterval(timer);
   }, [playing, goTo]);
+  useEffect(
+    () => () => {
+      if (settling.current) window.clearTimeout(settling.current);
+    },
+    [],
+  );
+
+  // --- The mouse drags the row; a finger swipes it natively ---------------
+
+  const onPointerDown = (event: PointerEvent<HTMLUListElement>) => {
+    setResting(true);
+    if (event.pointerType !== "mouse" || event.button !== 0 || count < 2) {
+      return;
+    }
+    const element = event.currentTarget;
+    if (settling.current) window.clearTimeout(settling.current);
+    drag.current = {
+      startX: event.clientX,
+      startLeft: element.scrollLeft,
+      startedAt: event.timeStamp,
+      moved: false,
+    };
+    element.setPointerCapture(event.pointerId);
+    setDragging(true);
+  };
+
+  const onPointerMove = (event: PointerEvent<HTMLUListElement>) => {
+    const state = drag.current;
+    if (!state) return;
+    const dx = event.clientX - state.startX;
+    if (!state.moved && Math.abs(dx) < DRAG_PX) return;
+    state.moved = true;
+    event.currentTarget.scrollLeft = state.startLeft - dx;
+  };
+
+  const endDrag = (event: PointerEvent<HTMLUListElement>) => {
+    const state = drag.current;
+    if (event.pointerType !== "mouse") {
+      // The finger lifted: the autoplay may go on after a moment.
+      setResting(false);
+      return;
+    }
+    if (!state) return;
+    drag.current = null;
+    const element = event.currentTarget;
+    if (element.hasPointerCapture(event.pointerId)) {
+      element.releasePointerCapture(event.pointerId);
+    }
+    const width = element.clientWidth;
+    const dx = event.clientX - state.startX;
+    const elapsed = Math.max(1, event.timeStamp - state.startedAt);
+    const from = Math.round(state.startLeft / width);
+    let target = from;
+    if (
+      Math.abs(dx) > width * TURN_SHARE ||
+      Math.abs(dx) / elapsed > FLICK_PX_PER_MS
+    ) {
+      target = from + (dx < 0 ? 1 : -1);
+    }
+    // Settle on the slide before the snapping comes back, so the row
+    // glides there instead of jumping.
+    const clamped = Math.min(count - 1, Math.max(0, target));
+    element.scrollTo({
+      left: clamped * width,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+    settling.current = window.setTimeout(() => {
+      setDragging(false);
+      settling.current = null;
+    }, SETTLE_MS);
+    // A click that was really a drag must not open the banner's link.
+    if (state.moved) {
+      element.dataset.dragged = "";
+      window.setTimeout(() => delete element.dataset.dragged, 0);
+    }
+  };
+
+  const onClickCapture = (event: MouseEvent<HTMLUListElement>) => {
+    if (event.currentTarget.dataset.dragged !== undefined) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
 
   const onPointer = (event: PointerEvent<HTMLElement>, inside: boolean) => {
-    // A finger that rests on the slide holds it; a mouse that rests, too.
-    if (event.pointerType === "mouse" || event.type !== "pointerleave") {
-      setResting(inside);
-    }
+    if (event.pointerType === "mouse") setResting(inside);
   };
   const onFocusChange = (event: FocusEvent<HTMLElement>, inside: boolean) => {
     const next = event.relatedTarget;
@@ -198,16 +291,12 @@ export function HeroCarousel({
     }
   };
 
-  const arrow =
-    "border-line-strong hover:border-leaf-600 hover:text-leaf-700 shadow-card absolute top-1/2 z-10 hidden size-11 -translate-y-1/2 place-items-center rounded-full border-[1.5px] bg-white/90 backdrop-blur-sm transition-[border-color,color,background-color] duration-150 hover:bg-white md:grid";
-
   return (
     <section
       aria-roledescription="carousel"
       aria-label={labels.region}
       onPointerEnter={(event) => onPointer(event, true)}
       onPointerLeave={(event) => onPointer(event, false)}
-      onPointerDown={(event) => onPointer(event, true)}
       onFocus={(event) => onFocusChange(event, true)}
       onBlur={(event) => onFocusChange(event, false)}
       className={cn("relative -mx-4 sm:mx-0", className)}
@@ -215,7 +304,18 @@ export function HeroCarousel({
       <ul
         ref={scroller}
         onScroll={measure}
-        className="no-scrollbar bg-mist flex snap-x snap-mandatory items-center overflow-x-auto sm:rounded-xl"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={onClickCapture}
+        className={cn(
+          "no-scrollbar bg-mist flex snap-x items-center overflow-x-auto sm:rounded-xl",
+          // Off while the mouse drags, so the row follows the hand.
+          dragging
+            ? "cursor-grabbing snap-none select-none"
+            : "snap-mandatory md:cursor-grab",
+        )}
       >
         {banners.map((banner, position) => (
           <li
@@ -231,80 +331,46 @@ export function HeroCarousel({
       </ul>
 
       {count > 1 && (
-        <>
-          <button
-            type="button"
-            aria-label={labels.previous}
-            onClick={() => goTo(index - 1)}
-            className={cn(arrow, "left-3 lg:left-4")}
-          >
-            <ChevronLeft aria-hidden="true" className="size-5" />
-          </button>
-          <button
-            type="button"
-            aria-label={labels.next}
-            onClick={() => goTo(index + 1)}
-            className={cn(arrow, "right-3 lg:right-4")}
-          >
-            <ChevronRight aria-hidden="true" className="size-5" />
-          </button>
-
-          {/* The dots and the pause button, on a dark glass pill over the
-              foot of the picture, where the admin keeps no text (doc 17). */}
-          <div className="bg-ink/45 absolute bottom-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full py-1 pr-1 pl-1.5 text-white backdrop-blur-sm sm:bottom-4">
-            <ul className="flex items-center">
-              {banners.map((banner, position) => {
-                const current = position === index;
-                return (
-                  <li key={banner.id}>
-                    <button
-                      type="button"
-                      aria-label={labels.goTo[position]}
-                      aria-current={current ? "true" : undefined}
-                      onClick={() => goTo(position)}
-                      className="grid h-6 min-w-6 place-items-center px-0.5"
-                    >
+        /* The dots on a dark glass pill over the foot of the picture, where
+           the admin keeps no text (doc 17). */
+        <ul className="bg-ink/45 absolute bottom-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center rounded-full px-1.5 py-1 backdrop-blur-sm sm:bottom-4">
+          {banners.map((banner, position) => {
+            const current = position === index;
+            return (
+              <li key={banner.id}>
+                <button
+                  type="button"
+                  aria-label={labels.goTo[position]}
+                  aria-current={current ? "true" : undefined}
+                  onClick={() => goTo(position)}
+                  className="grid h-6 min-w-6 place-items-center px-0.5"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "relative block h-2 overflow-hidden rounded-full transition-[width,background-color] duration-300",
+                      current
+                        ? "w-7 bg-white/35"
+                        : "w-2 bg-white/60 hover:bg-white",
+                    )}
+                  >
+                    {/* Fills up while the next slide is on its way. */}
+                    {current && playing && (
                       <span
-                        aria-hidden="true"
-                        className={cn(
-                          "relative block h-2 overflow-hidden rounded-full transition-[width,background-color] duration-300",
-                          current
-                            ? "w-7 bg-white/35"
-                            : "w-2 bg-white/60 hover:bg-white",
-                        )}
-                      >
-                        {/* Fills up while the next slide is on its way. */}
-                        {current && playing && (
-                          <span
-                            key={index}
-                            className="animate-dot-fill absolute inset-0 origin-left rounded-full bg-white"
-                            style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
-                          />
-                        )}
-                        {current && !playing && (
-                          <span className="absolute inset-0 rounded-full bg-white" />
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            <button
-              type="button"
-              aria-pressed={paused}
-              aria-label={paused ? labels.play : labels.pause}
-              onClick={() => setPaused((current) => !current)}
-              className="grid size-7 place-items-center rounded-full text-white/85 transition-colors duration-150 hover:bg-white/20 hover:text-white"
-            >
-              {paused ? (
-                <Play aria-hidden="true" className="size-3.5" />
-              ) : (
-                <Pause aria-hidden="true" className="size-3.5" />
-              )}
-            </button>
-          </div>
-        </>
+                        key={index}
+                        className="animate-dot-fill absolute inset-0 origin-left rounded-full bg-white"
+                        style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+                      />
+                    )}
+                    {current && !playing && (
+                      <span className="absolute inset-0 rounded-full bg-white" />
+                    )}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </section>
   );

@@ -16,8 +16,9 @@ import { WishlistLink } from "./wishlist-link";
 /**
  * The top of every shop page, in three tiers like the stores people know:
  * the wheat strip with the promises of the shop, centred (wide screens
- * only); the white bar with the logo, the large pill search and, at its
- * right end, the language switch, the wishlist heart with its count, the
+ * only); the white bar with the logo, the pill search that fills the bar
+ * up to the language switch (owner, 2026-10-19), and at its right end the
+ * language switch, the wishlist heart with its count, the
  * account and the cart (owner, 2026-10-19: in this order); and the centred
  * category bar with its dropdowns. On phones the search moves under the
  * logo, the categories sit behind the menu button, and the tab bar at the
@@ -80,7 +81,7 @@ export async function Header({
           <SearchForm
             locale={locale}
             id="header-search"
-            className="order-last w-full lg:order-none lg:w-auto lg:max-w-3xl lg:flex-1"
+            className="order-last w-full lg:order-none lg:w-auto lg:flex-1"
           />
 
           {/* The right end: language, wishlist, account, cart; the menu

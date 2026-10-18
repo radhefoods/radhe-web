@@ -154,10 +154,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             banners={banners}
             labels={{
               region: t("carousel.label"),
-              previous: t("carousel.previous"),
-              next: t("carousel.next"),
-              pause: t("carousel.pause"),
-              play: t("carousel.play"),
               slides: banners.map((_, index) =>
                 t("carousel.slide", {
                   index: index + 1,
