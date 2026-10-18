@@ -17,7 +17,7 @@ import { WishlistLink } from "./wishlist-link";
  * The top of every shop page, in three tiers like the stores people know:
  * the wheat strip with the promises of the shop, centred (wide screens
  * only); the white bar with the logo, the large pill search and, at its
- * right end, the language switch, the wishlist (signed-in customers), the
+ * right end, the language switch, the wishlist heart with its count, the
  * account and the cart (owner, 2026-10-19: in this order); and the centred
  * category bar with its dropdowns. On phones the search moves under the
  * logo, the categories sit behind the menu button, and the tab bar at the
@@ -87,7 +87,7 @@ export async function Header({
               button on screens without the category bar. */}
           <div className="flex items-center gap-1 sm:gap-1.5 lg:ml-auto lg:gap-2">
             <LocaleSwitcher />
-            <WishlistLink className="hidden md:grid" />
+            <WishlistLink />
             <AccountLink className="hidden md:grid" />
             <CartLink className="hidden md:grid" />
             <MobileMenu categories={categories} />

@@ -15,7 +15,7 @@ const SECTIONS = [
   { href: "/account/invoices", key: "invoices" },
   { href: "/account/addresses", key: "addresses" },
   { href: "/account/profile", key: "profile" },
-  { href: "/account/wishlist", key: "wishlist" },
+  { href: "/wishlist", key: "wishlist" },
 ] as const;
 
 /**

@@ -14,6 +14,7 @@ import {
 import { AddToCart } from "./add-to-cart";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
+import { WishlistButton } from "./wishlist-button";
 
 const badge =
   "rounded-full px-2 py-1 text-[0.6875rem] leading-none font-bold tabular-nums";
@@ -21,8 +22,9 @@ const badge =
 /**
  * A product in a list, as the one pack size the API shows it as (doc 7).
  * The picture on a mist tile, the discount and "only N left" badges in its
- * top corner and the round "+" in its bottom corner, where the stepper
- * unfolds in its place; under the tile the brand as a small tracked line
+ * top left corner, the heart of the wishlist in its top right corner (doc
+ * 16) and the round "+" in its bottom corner, where the stepper unfolds in
+ * its place; under the tile the brand as a small tracked line
  * (owner, 2026-10-19; nothing when the admin left none), the name with
  * the size (the size in a quieter tone), then the price with the regular
  * price crossed out when reduced and the price per unit. Nothing else
@@ -97,6 +99,11 @@ export function ProductCard({
             </span>
           )}
         </Link>
+        <WishlistButton
+          productId={product.id}
+          name={title}
+          className="absolute top-2 right-2"
+        />
         {/* The tile's lower corner: the "+", the stepper that unfolds to
             the left in its place, or the pill of a size that cannot be
             ordered. */}

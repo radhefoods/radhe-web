@@ -71,6 +71,7 @@ test.describe("public pages have no barriers axe can find", () => {
     "/en/products/basmati-rice-5kg",
     "/de/produkte/basmati-reis-5kg",
     "/en/cart",
+    "/en/wishlist",
     "/en/sign-in",
     "/de/anmelden",
     "/en/sign-up",
@@ -117,6 +118,18 @@ test.describe("cart, checkout and account have no barriers axe can find", () => 
     ).toBeVisible();
     await expectNoBarriers(page);
 
+    // The wishlist with a saved product, as a customer.
+    await page
+      .getByRole("button", { name: "Save to wishlist: Chakki Atta (5kg)" })
+      .click();
+    await open(page, "/en/wishlist");
+    await expect(
+      page.getByRole("button", {
+        name: "Remove from wishlist: Chakki Atta (5kg)",
+      }),
+    ).toBeVisible();
+    await expectNoBarriers(page);
+
     await open(page, "/en/cart");
     await expect(
       page.getByRole("group", { name: "Quantity of Chakki Atta (5kg)" }),
@@ -140,7 +153,6 @@ test.describe("cart, checkout and account have no barriers axe can find", () => 
     "/en/account/invoices",
     "/en/account/addresses",
     "/en/account/profile",
-    "/en/account/wishlist",
   ]) {
     test(path, async ({ page }) => {
       await signIn(page);

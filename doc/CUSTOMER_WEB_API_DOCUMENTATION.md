@@ -24,6 +24,8 @@ A product comes in one or more **pack sizes** (`variants`): the product holds th
 13. Status reference
 14. What depends on the server configuration
 15. Integration checklist
+16. Wishlist
+17. Homepage banners
 
 ---
 
@@ -1732,3 +1734,71 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 10. Pages without sign-in: `/unsubscribe/<token>` (link in marketing emails) and `/reset-password?token=<token>` (link in the password reset email); announcement emails also link to `/products/<slug>` (English slug) and the shop root.
 11. Emails the API sends, all linking to `/account/orders/<orderNumber>`: order confirmed (with the invoice PDF), cancelled, dispatched (tracking), delivered (return window), payment failed (`?pay=1`), refund completed, return requested / approved / rejected / completed. Announcements go to customers with `marketingOptIn`.
 12. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.
+13. Wishlist (section 16, `doc/WISHLIST.md`): heart on cards and product pages; visitors keep `{ productId, variantId? }` in local storage and use `POST /v1/store/wishlist/preview`; signed-in customers use `GET`/`PUT`/`DELETE /v1/store/wishlist…`; `POST …/merge` once after sign-in and sign-up.
+14. Homepage carousel (section 17, `doc/BANNERS.md`): `GET /v1/store/banners`; nothing rendered when empty; the picture's ratio kept on every screen; `srcset` from `sizes`; external links in a new tab.
+
+---
+
+## 16. Wishlist
+
+Products a customer wants to find again: one entry per **product** (not per pack size), with the pack size the customer had open remembered as a preference. Visitors keep the list in the browser and ask for a preview; signed-in customers have it on the server; after sign-in or sign-up the shop merges the visitor's list once. At most 200 products. `doc/WISHLIST.md` has the flows in full.
+
+Every answer is the whole list, newest first:
+
+```json
+{
+  "items": [
+    { "productId": "66f1…", "variantId": "66f2…", "addedAt": "2026-10-19T09:30:00.000Z", "product": { "…as in GET /v1/store/products, with the remembered size selected…" } }
+  ],
+  "count": 1
+}
+```
+
+`variantId` is `null` when no size is remembered or that size is gone (`product.variantId` is then the size listings show); `addedAt` is `null` in a preview. Products that left the shop are left out and dropped from a stored list; sold-out products stay, with `ordering.canOrder: false`.
+
+| Endpoint | Auth | Body | Answer |
+| --- | --- | --- | --- |
+| `POST /v1/store/wishlist/preview` | none (60/min per IP) | `{ "items": [{ "productId", "variantId"? }] }`, 1 to 200, unique products | 200, the list, nothing stored |
+| `GET /v1/store/wishlist` | customer | | 200, the list |
+| `PUT /v1/store/wishlist/items/{productId}` | customer | `{ "variantId"? }` | 200, the list. Adds the product or changes its remembered size |
+| `DELETE /v1/store/wishlist/items/{productId}` | customer | | 200, the list |
+| `DELETE /v1/store/wishlist` | customer | | 200, `{ "items": [], "count": 0 }` |
+| `POST /v1/store/wishlist/merge` | customer | as `preview` | 200, the merged list; existing entries keep their size, nothing is doubled |
+
+**Errors:** `404 PRODUCT_NOT_FOUND` (unknown or not in the shop), `404 PRODUCT_VARIANT_NOT_FOUND` (not a sold size of this product), `400 WISHLIST_FULL` (`details: { maximum: 200 }`), `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
+
+---
+
+## 17. Homepage banners
+
+The hero carousel of the homepage: pictures the admin uploads, each with everything already on it (no titles or buttons from the API), optionally linked, switched on and scheduled. `doc/BANNERS.md` has the rendering rules in full.
+
+### `GET /v1/store/banners`
+
+**Authentication:** none. `?locale=en|de` for the descriptions. Answers only the banners that are switched on and inside their period, in display order; `Cache-Control: public, max-age=60`. An empty array means: show no carousel.
+
+```json
+{
+  "banners": [
+    {
+      "id": "66f3…",
+      "image": {
+        "id": "66f4…",
+        "alt": "Diwali offer",
+        "url": "https://cdn.radhefoods.de/…/large.webp",
+        "sizes": {
+          "small": { "url": "…/small.webp", "width": 768, "height": 320 },
+          "medium": { "url": "…/medium.webp", "width": 1536, "height": 640 },
+          "large": { "url": "…/large.webp", "width": 2400, "height": 1000 }
+        },
+        "width": 2400,
+        "height": 1000
+      },
+      "linkUrl": "/products/basmati-rice-1kg",
+      "isExternal": false
+    }
+  ]
+}
+```
+
+`sizes` are the three stored widths of the one upload (never enlarged, same ratio); `width` and `height` are those of the largest. The shop keeps the picture's ratio on every screen (`aspect-ratio: width / height`, never cropped) and builds a `srcset` from `sizes`. `linkUrl` is a shop path or an `https://` address; `isExternal: true` opens in a new tab with `rel="noopener noreferrer"`. `linkUrl` is `null` when the banner is not clickable.

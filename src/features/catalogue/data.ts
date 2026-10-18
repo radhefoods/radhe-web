@@ -3,6 +3,7 @@ import type { Locale } from "@/i18n/routing";
 import { hasErrorCode } from "@/lib/api/errors";
 import { REVALIDATE, TAGS, serverApi } from "@/lib/api/server";
 import type {
+  Banner,
   Category,
   CategoryDetail,
   Page,
@@ -104,3 +105,21 @@ export function getProductFacets(
 ): Promise<ProductFacets> {
   return serverApi.getProductFacets(query, { locale, next: catalogue });
 }
+
+/**
+ * The live banners of the home page (doc 17), asked for at every visit of
+ * the page: a banner the admin switches on or off, or whose period starts
+ * or ends, shows at once (the API answers from its own 60-second cache).
+ * None when the API cannot be reached: the page then shows no carousel.
+ */
+export const getBanners = cache(async (locale: Locale): Promise<Banner[]> => {
+  try {
+    const { banners } = await serverApi.listBanners({
+      locale,
+      cache: "no-store",
+    });
+    return banners;
+  } catch {
+    return [];
+  }
+});

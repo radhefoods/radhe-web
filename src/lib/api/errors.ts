@@ -43,6 +43,7 @@ export const API_ERROR_CODES = [
   "LEGAL_DOCUMENT_NOT_FOUND",
   "CATEGORY_NOT_FOUND",
   "PRODUCT_NOT_FOUND",
+  "PRODUCT_VARIANT_NOT_FOUND",
   // cart (8)
   "CART_PRODUCT_NOT_FOUND",
   "CART_FULL",
@@ -68,6 +69,8 @@ export const API_ERROR_CODES = [
   "RETURN_QUANTITY_INVALID",
   "RETURN_NOT_FOUND",
   "RETURN_TRANSITION_NOT_ALLOWED",
+  // wishlist (16)
+  "WISHLIST_FULL",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
@@ -117,6 +120,7 @@ export interface ErrorDetails {
   ORDER_ITEM_NOT_FOUND: { variantId: Id };
   RETURN_QUANTITY_INVALID: { variantId: Id; sku: string; available: number };
   RETURN_TRANSITION_NOT_ALLOWED: { from: string; to: string };
+  WISHLIST_FULL: { maximum: number };
 }
 
 export class ApiError extends Error {

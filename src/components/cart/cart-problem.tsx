@@ -1,8 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
+import { ProblemToast } from "@/components/shell/problem-toast";
 import { useCart } from "@/features/cart/cart";
 import { usePathname } from "@/i18n/navigation";
 import { useErrorText } from "@/lib/api/error-text";
@@ -31,21 +31,8 @@ export function CartProblem() {
 
   if (!problem || pathname === "/cart") return null;
   return (
-    <div
-      role="alert"
-      className="shadow-float fixed inset-x-3 top-3 z-50 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 py-3 pr-2 pl-4 text-[0.9375rem] font-semibold text-red-800 sm:right-5 sm:left-auto sm:max-w-sm"
-    >
-      <p className="min-w-0 flex-1 py-1.5">
-        {problem === "cart_full" ? t("cartFull") : errorText(problem)}
-      </p>
-      <button
-        type="button"
-        aria-label={tCommon("close")}
-        onClick={clearProblem}
-        className="grid size-9 shrink-0 place-items-center rounded-sm hover:bg-red-100"
-      >
-        <X aria-hidden="true" className="size-5" />
-      </button>
-    </div>
+    <ProblemToast closeLabel={tCommon("close")} onClose={clearProblem}>
+      {problem === "cart_full" ? t("cartFull") : errorText(problem)}
+    </ProblemToast>
   );
 }

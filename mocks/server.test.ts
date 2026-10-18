@@ -659,3 +659,140 @@ describe("sign-up, sign-in and the stored cart", () => {
     expect((await response.json()).error.code).toBe("ORIGIN_NOT_ALLOWED");
   });
 });
+
+describe("the wishlist", () => {
+  async function rice() {
+    const page = await guestApi().listProducts({ q: "basmati" });
+    const product = page.items.find((p) =>
+      p.variants.some((v) => v.id === SKU.basmati1kg),
+    )!;
+    return { product, oneKg: SKU.basmati1kg, fiveKg: SKU.basmati5kg };
+  }
+
+  it("renders a visitor's list without storing it; unknown products are left out, the remembered size is selected", async () => {
+    const { product, fiveKg } = await rice();
+    const list = await guestApi().previewWishlist([
+      { productId: product.id, variantId: fiveKg },
+      { productId: "000000000000000000000000" },
+    ]);
+    expect(list.count).toBe(1);
+    expect(list.items[0]).toMatchObject({
+      productId: product.id,
+      variantId: fiveKg,
+      addedAt: null,
+    });
+    expect(list.items[0].product.variantId).toBe(fiveKg);
+    // A size that is not the product's: the size listings show, nothing remembered.
+    const other = await guestApi().previewWishlist([
+      { productId: product.id, variantId: "000000000000000000000001" },
+    ]);
+    expect(other.items[0].variantId).toBeNull();
+    expect(other.items[0].product.variantId).toBe(product.variantId);
+    const twice = await guestApi()
+      .previewWishlist([{ productId: product.id }, { productId: product.id }])
+      .catch((e) => e);
+    expect(hasErrorCode(twice, "VALIDATION_FAILED")).toBe(true);
+  });
+
+  it("a customer saves a product, changes its size, removes it and empties the list", async () => {
+    const { api } = await signIn("anna@example.com");
+    const { product, oneKg, fiveKg } = await rice();
+    expect((await api.getWishlist()).count).toBe(0);
+    let list = await api.saveWishlistItem(product.id);
+    expect(list.count).toBe(1);
+    expect(list.items[0].variantId).toBeNull();
+    expect(list.items[0].addedAt).not.toBeNull();
+    list = await api.saveWishlistItem(product.id, fiveKg);
+    expect(list.count).toBe(1);
+    expect(list.items[0].variantId).toBe(fiveKg);
+    expect(list.items[0].product.variantId).toBe(fiveKg);
+    expect(list.items[0].product.variants.map((v) => v.id)).toContain(oneKg);
+
+    const unknown = await api
+      .saveWishlistItem("000000000000000000000000")
+      .catch((e) => e);
+    expect(hasErrorCode(unknown, "PRODUCT_NOT_FOUND")).toBe(true);
+    expect(unknown.status).toBe(404);
+    const wrongSize = await api
+      .saveWishlistItem(product.id, "000000000000000000000001")
+      .catch((e) => e);
+    expect(hasErrorCode(wrongSize, "PRODUCT_VARIANT_NOT_FOUND")).toBe(true);
+    expect((await api.getWishlist()).count).toBe(1);
+
+    expect((await api.removeWishlistItem(product.id)).count).toBe(0);
+    expect((await api.removeWishlistItem(product.id)).count).toBe(0);
+    await api.saveWishlistItem(product.id);
+    expect((await api.clearWishlist()).items).toEqual([]);
+    expect((await api.getWishlist()).count).toBe(0);
+  });
+
+  it("merges the visitor's list once: saved products keep their size, nothing is doubled", async () => {
+    const { api } = await signIn("anna@example.com");
+    const { product, oneKg, fiveKg } = await rice();
+    const dal = (await guestApi().listProducts({ q: "toor" })).items[0];
+    await api.saveWishlistItem(product.id, oneKg);
+    const merged = await api.mergeWishlist([
+      { productId: dal.id },
+      { productId: product.id, variantId: fiveKg },
+      { productId: "000000000000000000000000" },
+    ]);
+    expect(merged.items.map((i) => i.productId)).toEqual([dal.id, product.id]);
+    expect(merged.items[1].variantId).toBe(oneKg);
+    const again = await api.mergeWishlist([{ productId: dal.id }]);
+    expect(again.count).toBe(2);
+    expect(
+      hasErrorCode(
+        await api.mergeWishlist([]).catch((e) => e),
+        "VALIDATION_FAILED",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("the banners of the home page", () => {
+  it("answers the live ones in order, each in three widths of one ratio, linked as the admin said", async () => {
+    const { banners } = await guestApi().listBanners();
+    expect(banners.map((b) => b.linkUrl)).toEqual([
+      "/category/snacks",
+      "/products/basmati-rice-1kg",
+      "https://example.com/radhe-foods",
+      null,
+    ]);
+    expect(banners.map((b) => b.isExternal)).toEqual([
+      false,
+      false,
+      true,
+      false,
+    ]);
+    const first = banners[0].image;
+    expect(first.sizes.small.width).toBe(768);
+    expect(first.sizes.medium.width).toBe(1536);
+    expect(first.sizes.large).toMatchObject({ width: 2400, height: 1000 });
+    expect(first.width / first.height).toBeCloseTo(
+      first.sizes.small.width / first.sizes.small.height,
+      1,
+    );
+    expect(first.alt).toBe("Diwali offer: sweets and snacks reduced");
+    const german = await guestApi().listBanners({ locale: "de" });
+    expect(german.banners[0].image.alt).toBe(
+      "Diwali-Angebot: Süßes und Snacks reduziert",
+    );
+    expect(banners[2].image.alt).toBeNull();
+    // A picture that was uploaded smaller than 2560 is never enlarged.
+    expect(banners[3].image.sizes.large.width).toBe(1800);
+    // The picture lives on the mock itself (the address is set when it starts).
+    const picture = await fetch(
+      `${base}${new URL(first.sizes.small.url).pathname}`,
+    );
+    expect(picture.headers.get("content-type")).toBe("image/svg+xml");
+  });
+
+  it("answers no banner at all when the control says so", async () => {
+    await fetch(`${base}/__mock/banners`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect((await guestApi().listBanners()).banners).toEqual([]);
+  });
+});

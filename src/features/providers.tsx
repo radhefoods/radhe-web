@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { CartProvider } from "@/features/cart/cart";
+import { WishlistProvider } from "@/features/wishlist/wishlist";
 import { SESSION_QUERY_KEY, setSessionHint } from "@/features/session/session";
 import { session } from "@/lib/api/browser";
 import { isRetryable } from "@/lib/api/errors";
@@ -21,7 +22,7 @@ function createQueryClient(): QueryClient {
   });
 }
 
-/** Everything that lives in the browser: data cache, session, cart. */
+/** Everything that lives in the browser: data cache, session, cart, wishlist. */
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(createQueryClient);
 
@@ -37,7 +38,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={client}>
-      <CartProvider>{children}</CartProvider>
+      <CartProvider>
+        <WishlistProvider>{children}</WishlistProvider>
+      </CartProvider>
     </QueryClientProvider>
   );
 }

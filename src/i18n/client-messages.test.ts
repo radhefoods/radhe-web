@@ -21,6 +21,7 @@ const AREA_OF_FOLDER: Record<string, ClientArea> = {
   "components/catalogue": "catalogue",
   "components/checkout": "checkout",
   "components/public": "emailLinks",
+  "components/wishlist": "wishlist",
 };
 
 function sourceFiles(dir: string, found: string[] = []): string[] {

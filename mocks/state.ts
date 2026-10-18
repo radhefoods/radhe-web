@@ -82,6 +82,13 @@ export const legalDocuments: LegalRecord[] = [
 
 // --- Customers, sessions, carts (doc 1, 2, 8) --------------------------------
 
+/** One product on the wishlist (doc 16), with the size it was saved from. */
+export interface WishlistRecord {
+  productId: string;
+  variantId: string | null;
+  addedAt: string;
+}
+
 export interface CustomerRecord {
   id: string;
   email: string;
@@ -105,6 +112,8 @@ export interface CustomerRecord {
   /** One line per pack size. */
   cart: { variantId: string; quantity: number }[];
   addresses: Address[];
+  /** Newest first, at most 200. */
+  wishlist: WishlistRecord[];
 }
 
 export interface SessionRecord {
@@ -214,6 +223,8 @@ export const db = {
   creditSequence: 6,
   /** Returns by return number. */
   returns: new Map<string, ReturnRequest>(),
+  /** A test control: `false` answers no banners at all (doc 17). */
+  bannersEnabled: true,
 };
 
 /** Signing in with this address answers `CUSTOMER_BLOCKED`. */
@@ -292,6 +303,7 @@ export function newCustomer(input: {
     createdAt: new Date().toISOString(),
     cart: [],
     addresses: [],
+    wishlist: [],
   };
   db.customers.set(customer.id, customer);
   return customer;
@@ -316,5 +328,6 @@ export function resetState(): void {
   db.invoiceSequence = 122;
   db.creditSequence = 6;
   db.returns.clear();
+  db.bannersEnabled = true;
   customerSequence = 0;
 }

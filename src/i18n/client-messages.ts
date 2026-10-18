@@ -34,6 +34,7 @@ const AREAS = {
     "returns",
   ],
   emailLinks: ["unsubscribe"],
+  wishlist: ["wishlist"],
 } as const satisfies Record<string, readonly Namespace[]>;
 
 export type ClientArea = keyof typeof AREAS;

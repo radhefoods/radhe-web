@@ -4,6 +4,7 @@ import type {
   Address,
   AddressInput,
   AddressList,
+  Banner,
   Bill,
   CartItemInput,
   Category,
@@ -39,6 +40,8 @@ import type {
   UnsubscribeResult,
   UpdateCommunicationInput,
   UpdateProfileInput,
+  Wishlist,
+  WishlistEntryInput,
 } from "./types";
 
 /** What a single call may set besides its own parameters. */
@@ -295,6 +298,43 @@ export function createStoreApi(request: Requester) {
         `/v1/store/returns/${seg(returnNumber)}/cancel`,
         { ...o, method: "POST" },
       ),
+
+    // --- 16 Wishlist --------------------------------------------------------
+    /** A visitor's list, rendered; nothing is stored (16). */
+    previewWishlist: (items: WishlistEntryInput[], o?: CallOptions) =>
+      request<Wishlist>("/v1/store/wishlist/preview", {
+        ...o,
+        method: "POST",
+        body: { items },
+      }),
+    getWishlist: (o?: CallOptions) =>
+      request<Wishlist>("/v1/store/wishlist", o),
+    /** Saves the product, or changes its remembered pack size. */
+    saveWishlistItem: (productId: Id, variantId?: Id, o?: CallOptions) =>
+      request<Wishlist>(`/v1/store/wishlist/items/${seg(productId)}`, {
+        ...o,
+        method: "PUT",
+        body: variantId ? { variantId } : {},
+      }),
+    removeWishlistItem: (productId: Id, o?: CallOptions) =>
+      request<Wishlist>(`/v1/store/wishlist/items/${seg(productId)}`, {
+        ...o,
+        method: "DELETE",
+      }),
+    clearWishlist: (o?: CallOptions) =>
+      request<Wishlist>("/v1/store/wishlist", { ...o, method: "DELETE" }),
+    /** The visitor's list, taken over once after sign-in or sign-up (16). */
+    mergeWishlist: (items: WishlistEntryInput[], o?: CallOptions) =>
+      request<Wishlist>("/v1/store/wishlist/merge", {
+        ...o,
+        method: "POST",
+        body: { items },
+      }),
+
+    // --- 17 Homepage banners ------------------------------------------------
+    /** The live banners in display order; an empty list means no carousel (17). */
+    listBanners: (o?: CallOptions) =>
+      request<{ banners: Banner[] }>("/v1/store/banners", o),
   };
 }
 

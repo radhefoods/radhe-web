@@ -1,5 +1,6 @@
 import { CartProblem } from "@/components/cart/cart-problem";
 import { CartSummaryBar } from "@/components/cart/cart-summary-bar";
+import { WishlistProblem } from "@/components/catalogue/wishlist-problem";
 import { Footer } from "@/components/shell/footer";
 import { Header } from "@/components/shell/header";
 import { TabBar } from "@/components/shell/tab-bar";
@@ -29,6 +30,7 @@ export default async function ShopLayout({
       </main>
       <Footer categories={categories} />
       <CartProblem />
+      <WishlistProblem />
       <CartSummaryBar />
       <TabBar />
     </>

@@ -169,23 +169,21 @@ test.describe("on a phone", () => {
     await expect(dot).toHaveCount(1);
   });
 
-  test("the header shows the wishlist to a signed-in customer only", async ({
+  test("the header carries the heart of the wishlist for everyone and leads to it", async ({
     page,
-    isMobile,
   }) => {
-    test.skip(isMobile, "The header icons exist from medium screens on.");
-    const banner = page.getByRole("banner");
     await page.goto("/en");
-    await expect(banner.getByRole("link", { name: "Account" })).toBeVisible();
-    await expect(banner.getByRole("link", { name: "Wishlist" })).toHaveCount(0);
-    await signIn(page);
-    await page.goto("/en");
-    const wishlist = banner.getByRole("link", { name: "Wishlist" });
+    const wishlist = page
+      .getByRole("banner")
+      .getByRole("link", { name: "Wishlist, empty" });
     await expect(wishlist).toBeVisible();
     await wishlist.click();
-    await expect(page).toHaveURL(/\/en\/account\/wishlist$/);
+    await expect(page).toHaveURL(/\/en\/wishlist$/);
     await expect(
-      page.getByRole("heading", { level: 1, name: "Wishlist" }),
+      page.getByRole("heading", { level: 1, name: "Your wishlist" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Nothing saved yet" }),
     ).toBeVisible();
   });
 });

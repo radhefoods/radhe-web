@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const MOCK = "http://localhost:3000";
+const PASSWORD = "Mangoes-in-May-2026";
 
 test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
@@ -121,6 +122,72 @@ test.describe("the shop at a glance", () => {
           name: "Alle in Reis ansehen",
         }),
     ).toHaveAttribute("href", "/de/kategorie/reis");
+  });
+
+  test("the home page opens with the banners of the admin, each in its own ratio, linked as the API says", async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto("/en");
+    const carousel = page.getByRole("region", { name: "Offers and news" });
+    const slides = carousel.getByRole("group");
+    await expect(slides).toHaveCount(4);
+    // The ratio of the upload, from the API; never a fixed height.
+    const first = slides.first();
+    await expect(first.locator("[style*='aspect-ratio']")).toHaveAttribute(
+      "style",
+      /aspect-ratio: 2400 \/ 1000/,
+    );
+    await expect(
+      slides.nth(3).locator("[style*='aspect-ratio']"),
+    ).toHaveAttribute("style", /aspect-ratio: 1800 \/ 750/);
+    await expect(first.getByRole("img")).toHaveAttribute(
+      "srcset",
+      /768w.*1536w.*2400w/,
+    );
+    // A path of the shop navigates in the shop; an address opens a new tab.
+    await expect(first.getByRole("link")).toHaveAttribute(
+      "href",
+      "/en/category/snacks",
+    );
+    await expect(slides.nth(1).getByRole("link")).toHaveAttribute(
+      "href",
+      "/en/products/basmati-rice-1kg",
+    );
+    const external = slides.nth(2).getByRole("link");
+    await expect(external).toHaveAttribute("target", "_blank");
+    await expect(external).toHaveAttribute("rel", /noopener/);
+    await expect(slides.nth(3).getByRole("link")).toHaveCount(0);
+    // The dots turn it; the arrows exist on wide screens.
+    await carousel.getByRole("button", { name: "Go to slide 4" }).click();
+    await expect(
+      carousel.getByRole("button", { name: "Go to slide 4" }),
+    ).toHaveAttribute("aria-current", "true");
+    if (!isMobile) {
+      await carousel.getByRole("button", { name: "Next slide" }).click();
+      await expect(
+        carousel.getByRole("button", { name: "Go to slide 1" }),
+      ).toHaveAttribute("aria-current", "true");
+    }
+    await expect(
+      carousel.getByRole("button", { name: "Pause the slideshow" }),
+    ).toBeVisible();
+  });
+
+  test("without banners the home page shows no carousel at all", async ({
+    page,
+    request,
+  }) => {
+    await request.post(`${MOCK}/__mock/banners`, {
+      data: { enabled: false },
+    });
+    await page.goto("/en");
+    await expect(
+      page.getByRole("region", { name: "Offers and news" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Delivery and payment at a glance" }),
+    ).toBeVisible();
   });
 
   test("a product row turns by its arrows on wide screens", async ({
@@ -631,5 +698,103 @@ test.describe("the cart of a visitor", () => {
     await expect(
       page.getByRole("link", { name: "Cart, 1 item" }).first(),
     ).toBeAttached();
+  });
+});
+
+test.describe("the wishlist", () => {
+  test("a visitor saves a product with the heart, sees it counted and on the wishlist page, and takes it off again", async ({
+    page,
+  }) => {
+    await page.goto("/en/products");
+    const rice = card(page, "Basmati Rice");
+    await rice
+      .getByRole("button", { name: "Save to wishlist: Basmati Rice (1kg)" })
+      .click();
+    await expect(
+      rice.getByRole("button", {
+        name: "Remove from wishlist: Basmati Rice (1kg)",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const heart = page.getByRole("link", { name: "Wishlist, 1 product" });
+    await expect(heart).toBeVisible();
+
+    // Remembered by the browser.
+    await page.reload();
+    await expect(
+      card(page, "Basmati Rice").getByRole("button", {
+        name: /Remove from wishlist/,
+      }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "Wishlist, 1 product" }).click();
+    await expect(page).toHaveURL(/\/en\/wishlist$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Your wishlist" }),
+    ).toBeVisible();
+    await expect(page.getByText("1 product", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Sign in to keep your wishlist on every device."),
+    ).toBeVisible();
+    const saved = card(page, "Basmati Rice");
+    await expect(saved.getByRole("heading")).toHaveText("Basmati Rice (1kg)");
+    await saved.getByRole("button", { name: /Remove from wishlist/ }).click();
+    await expect(
+      page.getByRole("heading", { name: "Nothing saved yet" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Wishlist, empty" }),
+    ).toBeVisible();
+  });
+
+  test("the product page remembers the open pack size; the list shows that size", async ({
+    page,
+  }) => {
+    await page.goto("/en/products/basmati-rice-5kg");
+    await page
+      .getByRole("main")
+      .getByRole("button", { name: "Save to wishlist: Basmati Rice (5kg)" })
+      .click();
+    await page.goto("/en/wishlist");
+    await expect(card(page, "Basmati Rice").getByRole("heading")).toHaveText(
+      "Basmati Rice (5kg)",
+    );
+    // "Remove all" asks once.
+    await page.getByRole("button", { name: "Remove all" }).click();
+    await page.getByRole("button", { name: "Keep" }).click();
+    await expect(card(page, "Basmati Rice")).toBeVisible();
+    await page.getByRole("button", { name: "Remove all" }).click();
+    await page.getByRole("button", { name: "Yes, remove" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Nothing saved yet" }),
+    ).toBeVisible();
+  });
+
+  test("after signing up the visitor's list is taken over by the account and the browser's copy goes", async ({
+    page,
+  }) => {
+    await page.goto("/en/products");
+    await card(page, "Chakki Atta")
+      .getByRole("button", { name: /Save to wishlist/ })
+      .click();
+    await page.goto("/en/wishlist");
+    await page.getByRole("link", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/en\/sign-in\?returnTo=%2Fwishlist$/);
+    await page.getByRole("link", { name: "Create an account" }).click();
+    await page.getByLabel("First name").fill("Priya");
+    await page.getByLabel("Last name").fill("Shah");
+    await page.getByLabel("Email address").fill("wish@example.com");
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page).toHaveURL(/\/en\/wishlist$/);
+    await expect(card(page, "Chakki Atta")).toBeVisible();
+    await expect(
+      page.getByText("Sign in to keep your wishlist on every device."),
+    ).toHaveCount(0);
+    // The server has it now; the browser's copy is gone.
+    const stored = await page.request.get(`${MOCK}/v1/store/wishlist`);
+    expect((await stored.json()).count).toBe(1);
+    expect(
+      await page.evaluate(() => window.localStorage.getItem("rf.wishlist.v1")),
+    ).toBeNull();
   });
 });

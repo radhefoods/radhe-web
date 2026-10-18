@@ -5,6 +5,7 @@
 
 import type {
   ApiImage,
+  Banner,
   Bill,
   BillLine,
   CartItemInput,
@@ -26,7 +27,10 @@ import type {
   ShopSettings,
   Totals,
   VatGroup,
+  Wishlist,
+  WishlistItem,
 } from "../src/lib/api/types.ts";
+import { banners, type BannerRecord } from "./data/banners.ts";
 import {
   baseQuantity,
   categories,
@@ -38,6 +42,7 @@ import {
 } from "./data/catalogue.ts";
 import {
   TIMEZONE,
+  db,
   legalDocuments,
   settings,
   type CustomerRecord,
@@ -919,4 +924,107 @@ export function placeholderSvg(productId: string, size: number): string | null {
     .join("")
     .toUpperCase();
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 400 400"><rect width="400" height="400" fill="${p.tint}"/><circle cx="200" cy="190" r="96" fill="#ffffff" fill-opacity="0.55"/><text x="200" y="212" font-family="Georgia, serif" font-size="64" text-anchor="middle" fill="#020E43" fill-opacity="0.7">${initials}</text><text x="200" y="352" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#020E43" fill-opacity="0.5">mock picture</text></svg>`;
+}
+
+// --- Wishlist (doc 16) ------------------------------------------------------
+
+/** A product that is still in the shop with at least one sold pack size. */
+export function soldProduct(productId: string): ProductRecord | undefined {
+  const p = findProduct(productId);
+  return p && enabledVariants(p).length > 0 ? p : undefined;
+}
+
+/**
+ * The list as every wishlist endpoint answers it: each product as the
+ * list entry of section 7, shown as the remembered size while it is still
+ * sold, else as the size listings show, with `variantId` then `null`.
+ * Products that left the shop are left out.
+ */
+export function wishlistView(
+  entries: {
+    productId: string;
+    variantId: string | null;
+    addedAt: string | null;
+  }[],
+  locale: Locale,
+): Wishlist {
+  const items: WishlistItem[] = [];
+  for (const entry of entries) {
+    const p = soldProduct(entry.productId);
+    if (!p) continue;
+    const remembered =
+      enabledVariants(p).find((v) => v.id === entry.variantId) ?? null;
+    items.push({
+      productId: p.id,
+      variantId: remembered?.id ?? null,
+      addedAt: entry.addedAt,
+      product: productSummary(
+        p,
+        locale,
+        remembered ? { selected: remembered } : {},
+      ),
+    });
+  }
+  return { items, count: items.length };
+}
+
+// --- Homepage banners (doc 17) ----------------------------------------------
+
+/** The banners that are switched on and inside their period, in display order. */
+export function liveBanners(now = Date.now()): BannerRecord[] {
+  if (!db.bannersEnabled) return [];
+  return banners
+    .filter(
+      (b) =>
+        b.isActive &&
+        (b.startsAt === null || Date.parse(b.startsAt) <= now) &&
+        (b.endsAt === null || Date.parse(b.endsAt) > now),
+    )
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/** The three stored widths of a banner's picture: 768, 1536 and 2560, never enlarged. */
+function bannerWidths(
+  b: BannerRecord,
+): Record<"small" | "medium" | "large", number> {
+  return {
+    small: Math.min(768, b.width),
+    medium: Math.min(1536, b.width),
+    large: Math.min(2560, b.width),
+  };
+}
+
+export function bannerView(b: BannerRecord, locale: Locale): Banner {
+  const widths = bannerWidths(b);
+  const size = (name: "small" | "medium" | "large") => ({
+    url: `${mediaBase}/media/banners/${b.id}/${name}.svg`,
+    width: widths[name],
+    height: Math.round((widths[name] * b.height) / b.width),
+  });
+  const large = size("large");
+  return {
+    id: b.id,
+    image: {
+      id: `${b.id.slice(0, 20)}0img`,
+      alt: b.alt ? pick(b.alt, locale) : null,
+      url: large.url,
+      sizes: { small: size("small"), medium: size("medium"), large },
+      width: large.width,
+      height: large.height,
+    },
+    linkUrl: b.linkUrl,
+    isExternal: b.linkUrl?.startsWith("https://") ?? false,
+  };
+}
+
+/** The placeholder picture of a banner in one of its widths, or `null`. */
+export function bannerSvg(bannerId: string, file: string): string | null {
+  const b = banners.find((record) => record.id === bannerId);
+  const name = file.replace(/\.svg$/, "") as "small" | "medium" | "large";
+  if (!b || !["small", "medium", "large"].includes(name)) return null;
+  const width = bannerWidths(b)[name];
+  const height = Math.round((width * b.height) / b.width);
+  const [from, to] = b.tint;
+  const fontSize = Math.round(b.height / 9);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${b.width} ${b.height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="${b.width}" height="${b.height}" fill="url(#g)"/><rect x="${Math.round(b.width * 0.15)}" y="${Math.round(b.height * 0.15)}" width="${Math.round(b.width * 0.7)}" height="${Math.round(b.height * 0.7)}" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-dasharray="24 16" stroke-width="4"/><text x="${b.width / 2}" y="${Math.round(b.height / 2 + fontSize / 3)}" font-family="Georgia, serif" font-size="${fontSize}" text-anchor="middle" fill="#ffffff">${b.headline}</text></svg>`;
 }

@@ -821,3 +821,54 @@ export interface CreateReturnInput {
   comment?: string;
   locale?: Locale;
 }
+
+// --- 16 Wishlist ------------------------------------------------------------
+
+/** One entry as the shop keeps it: the product, and the size it was saved from. */
+export interface WishlistEntryInput {
+  productId: Id;
+  /** The pack size the customer had open; a preference only. */
+  variantId?: Id;
+}
+
+export interface WishlistItem {
+  productId: Id;
+  /** `null` when no size is remembered or the remembered size is gone. */
+  variantId: Id | null;
+  /** `null` in a preview. */
+  addedAt: IsoDateTime | null;
+  /** The list entry of section 7, with the remembered size selected. */
+  product: ProductSummary;
+}
+
+/** The whole list at this moment, newest first: the answer of every wishlist endpoint. */
+export interface Wishlist {
+  items: WishlistItem[];
+  count: number;
+}
+
+// --- 17 Homepage banners ----------------------------------------------------
+
+/** One upload in three widths of the same ratio, never cropped. */
+export interface BannerImage {
+  id: Id;
+  /** For screen readers; `null` when the admin gave none. */
+  alt: string | null;
+  url: string;
+  sizes: {
+    small: ImageVariant;
+    medium: ImageVariant;
+    large: ImageVariant;
+  };
+  /** Of the largest size. */
+  width: number;
+  height: number;
+}
+
+export interface Banner {
+  id: Id;
+  image: BannerImage;
+  /** A path of the shop or an `https://` address; `null` when not clickable. */
+  linkUrl: string | null;
+  isExternal: boolean;
+}

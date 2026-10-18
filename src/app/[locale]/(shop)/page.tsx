@@ -4,10 +4,12 @@ import { getTranslations } from "next-intl/server";
 import type { ComponentProps, ReactNode } from "react";
 import { ProductCard } from "@/components/catalogue/product-card";
 import { DeliveryPromiseCard } from "@/components/home/delivery-promise-card";
+import { HeroCarousel } from "@/components/home/hero-carousel";
 import { ProductRow, ProductRowItem } from "@/components/home/product-row";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
+  getBanners,
   getCategories,
   getSettings,
   listProducts,
@@ -91,13 +93,16 @@ function SectionHeader({
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const locale = await localeOf(params);
-  const [t, tSite, settings, categories, featured] = await Promise.all([
-    getTranslations("home"),
-    getTranslations("site"),
-    getSettings(),
-    getCategories(locale),
-    products(featuredQuery, locale),
-  ]);
+  const [t, tSite, settings, categories, featured, banners] = await Promise.all(
+    [
+      getTranslations("home"),
+      getTranslations("site"),
+      getSettings(),
+      getCategories(locale),
+      products(featuredQuery, locale),
+      getBanners(locale),
+    ],
+  );
   // One row per main category that has products, in the order of the
   // admin, each with its first products in the recommended order (owner,
   // 2026-10-16). A category whose products do not arrive shows no row.
@@ -179,6 +184,29 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
+        {/* The promotions of the admin, when there are any (doc 17). */}
+        {banners.length > 0 && (
+          <HeroCarousel
+            banners={banners}
+            labels={{
+              region: t("carousel.label"),
+              previous: t("carousel.previous"),
+              next: t("carousel.next"),
+              pause: t("carousel.pause"),
+              play: t("carousel.play"),
+              slides: banners.map((_, index) =>
+                t("carousel.slide", {
+                  index: index + 1,
+                  count: banners.length,
+                }),
+              ),
+              goTo: banners.map((_, index) =>
+                t("carousel.goTo", { index: index + 1 }),
+              ),
+            }}
+          />
+        )}
+
         {popular.length > 0 && (
           <ProductRow
             id="home-featured"

@@ -27,6 +27,7 @@ import { cn } from "@/lib/cn";
 import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
 import { Price } from "./price";
+import { WishlistButton } from "./wishlist-button";
 import { formatPackSize, productTitle } from "@/lib/format/product-name";
 
 // The product page is one page for every pack size of a product (doc 7). The
@@ -265,8 +266,10 @@ export function PackSizePicker() {
 }
 
 /**
- * The buying part of the page: the add-to-cart control and the limits of
- * the chosen size, and on phones the same control fixed above the tab bar.
+ * The buying part of the page: the add-to-cart control with the heart of
+ * the wishlist beside it (which remembers the chosen size, doc 16), the
+ * limits of the chosen size, and on phones the add-to-cart control fixed
+ * above the tab bar.
  */
 export function ProductPurchase() {
   const t = useTranslations("product");
@@ -288,12 +291,20 @@ export function ProductPurchase() {
 
   return (
     <div className="flex flex-col gap-3">
-      <AddToCart
-        variantId={variant.id}
-        name={name}
-        ordering={ordering}
-        className="sm:max-w-xs"
-      />
+      <div className="flex items-center gap-3">
+        <AddToCart
+          variantId={variant.id}
+          name={name}
+          ordering={ordering}
+          className="min-w-0 flex-1 sm:max-w-xs"
+        />
+        <WishlistButton
+          productId={product.id}
+          variantId={variant.id}
+          name={name}
+          look="box"
+        />
+      </div>
 
       {hints.length > 0 && (
         <ul className="text-wheat-800 flex flex-col gap-0.5 text-sm font-semibold">

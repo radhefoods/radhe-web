@@ -8,7 +8,9 @@
 // stock, cart (preview, stored cart, merge), sign-up and sign-in with email
 // and password, the password reset by link, addresses, checkout with a
 // stand-in payment page, orders and payments, invoices and credit notes
-// with PDF, and returns. `demo@radhefoods.de` gets a filled demo account.
+// with PDF, returns, the wishlist (preview, stored list, merge) and the
+// banners of the home page. `demo@radhefoods.de` gets a filled demo
+// account.
 //
 // Runs on the project's Node (24, see .nvmrc) and needs at least 22.18, which
 // reads TypeScript directly; no build step.
@@ -76,21 +78,27 @@ import {
   type SessionRecord,
 } from "./state.ts";
 import {
+  bannerSvg,
+  bannerView,
   billOf,
   categoryBySlug,
   categoryDetail,
   categoryTree,
   customerView,
+  enabledVariants,
   findVariant,
   legalDocument,
   legalList,
   listProducts,
+  liveBanners,
   productFacets,
   placeholderSvg,
   productBySlug,
   productDetail,
   setMediaBase,
   settingsView,
+  soldProduct,
+  wishlistView,
 } from "./views.ts";
 
 const ACCESS_COOKIE = "rf_customer_access";
@@ -915,6 +923,166 @@ route("DELETE", "/v1/store/cart", (ctx) => {
   return { body: billOf(customer.cart, ctx.locale) };
 });
 
+// --- 16 Wishlist (doc 16) ---------------------------------------------------
+
+const WISHLIST_MAX = 200;
+
+/** The entries of a preview or a merge: 1 to 200, each product once. */
+function wishlistEntries(
+  value: unknown,
+): { productId: string; variantId: string | null }[] {
+  if (
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > WISHLIST_MAX
+  ) {
+    throw validationFailed("items", "items must contain 1 to 200 entries");
+  }
+  const seen = new Set<string>();
+  return value.map((entry, index) => {
+    const item = objectBody(entry, ["productId", "variantId"]);
+    if (typeof item.productId !== "string" || !OBJECT_ID.test(item.productId)) {
+      throw validationFailed(
+        `items.${index}.productId`,
+        "productId must be an id",
+      );
+    }
+    if (
+      item.variantId !== undefined &&
+      (typeof item.variantId !== "string" || !OBJECT_ID.test(item.variantId))
+    ) {
+      throw validationFailed(
+        `items.${index}.variantId`,
+        "variantId must be an id",
+      );
+    }
+    if (seen.has(item.productId)) {
+      throw validationFailed("items", "items must not contain a product twice");
+    }
+    seen.add(item.productId);
+    return {
+      productId: item.productId,
+      variantId: typeof item.variantId === "string" ? item.variantId : null,
+    };
+  });
+}
+
+/** The stored list, with products that left the shop dropped (doc 16). */
+function storedWishlist(customer: CustomerRecord, locale: Locale) {
+  customer.wishlist = customer.wishlist.filter((entry) =>
+    soldProduct(entry.productId),
+  );
+  return { body: wishlistView(customer.wishlist, locale) };
+}
+
+route("POST", "/v1/store/wishlist/preview", (ctx) => {
+  const body = objectBody(ctx.body, ["items"]);
+  const entries = wishlistEntries(body.items).map((entry) => ({
+    ...entry,
+    addedAt: null,
+  }));
+  return { body: wishlistView(entries, ctx.locale) };
+});
+
+route("GET", "/v1/store/wishlist", (ctx) =>
+  storedWishlist(requireCustomer(ctx), ctx.locale),
+);
+
+function productIdParam(ctx: Context): string {
+  if (!OBJECT_ID.test(ctx.params.productId)) {
+    throw validationFailed("productId", "The id in the URL is not valid.");
+  }
+  return ctx.params.productId;
+}
+
+route("PUT", "/v1/store/wishlist/items/:productId", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const productId = productIdParam(ctx);
+  const body = objectBody(ctx.body, ["variantId"]);
+  const product = soldProduct(productId);
+  if (!product) {
+    throw new HttpError(
+      404,
+      "PRODUCT_NOT_FOUND",
+      "No such product, or it is not in the shop.",
+    );
+  }
+  let variantId: string | null = null;
+  if (body.variantId !== undefined) {
+    if (typeof body.variantId !== "string" || !OBJECT_ID.test(body.variantId)) {
+      throw validationFailed("variantId", "variantId must be an id");
+    }
+    if (!enabledVariants(product).some((v) => v.id === body.variantId)) {
+      throw new HttpError(
+        404,
+        "PRODUCT_VARIANT_NOT_FOUND",
+        "The pack size is not one of this product's, or is switched off.",
+      );
+    }
+    variantId = body.variantId;
+  }
+  const existing = customer.wishlist.find((e) => e.productId === productId);
+  if (existing) {
+    existing.variantId = variantId;
+  } else if (customer.wishlist.length >= WISHLIST_MAX) {
+    throw new HttpError(400, "WISHLIST_FULL", "The wishlist is full.", {
+      maximum: WISHLIST_MAX,
+    });
+  } else {
+    customer.wishlist.unshift({
+      productId,
+      variantId,
+      addedAt: new Date().toISOString(),
+    });
+  }
+  return storedWishlist(customer, ctx.locale);
+});
+
+route("DELETE", "/v1/store/wishlist/items/:productId", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const productId = productIdParam(ctx);
+  customer.wishlist = customer.wishlist.filter(
+    (e) => e.productId !== productId,
+  );
+  return storedWishlist(customer, ctx.locale);
+});
+
+route("DELETE", "/v1/store/wishlist", (ctx) => {
+  const customer = requireCustomer(ctx);
+  customer.wishlist = [];
+  return { body: wishlistView([], ctx.locale) };
+});
+
+route("POST", "/v1/store/wishlist/merge", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const body = objectBody(ctx.body, ["items"]);
+  // The visitor's list is newest first: taken in reverse, each new product
+  // lands at the front, so the order stays. Saved products keep their
+  // size; a full list drops the rest silently.
+  for (const entry of wishlistEntries(body.items).reverse()) {
+    const product = soldProduct(entry.productId);
+    if (!product) continue;
+    if (customer.wishlist.some((e) => e.productId === entry.productId)) {
+      continue;
+    }
+    if (customer.wishlist.length >= WISHLIST_MAX) break;
+    const sold = enabledVariants(product).some((v) => v.id === entry.variantId);
+    customer.wishlist.unshift({
+      productId: entry.productId,
+      variantId: sold ? entry.variantId : null,
+      addedAt: new Date().toISOString(),
+    });
+  }
+  return storedWishlist(customer, ctx.locale);
+});
+
+// --- 17 Homepage banners (doc 17) -------------------------------------------
+
+route("GET", "/v1/store/banners", (ctx) => ({
+  body: { banners: liveBanners().map((b) => bannerView(b, ctx.locale)) },
+  headers: { "Cache-Control": "public, max-age=60" },
+}));
+
 // --- 3 Addresses ------------------------------------------------------------
 
 route("GET", "/v1/store/me/addresses", (ctx) => ({
@@ -1163,6 +1331,25 @@ route("GET", "/media/products/:productId/:file", (ctx) => {
       cacheControl: "public, max-age=31536000, immutable",
     },
   };
+});
+
+route("GET", "/media/banners/:id/:file", (ctx) => {
+  const svg = bannerSvg(ctx.params.id, ctx.params.file);
+  if (!svg) throw new HttpError(404, "NOT_FOUND", "Not found.");
+  return {
+    raw: {
+      contentType: "image/svg+xml",
+      content: svg,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+  };
+});
+
+// Not part of the real API: no banner at all, for the empty home page.
+route("POST", "/__mock/banners", (ctx) => {
+  const body = objectBody(ctx.body, ["enabled"]);
+  db.bannersEnabled = body.enabled !== false;
+  return { status: 204 };
 });
 
 // Not part of the real API: the admin sets the stock of a pack size.
