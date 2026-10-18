@@ -14,14 +14,22 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { BillLine } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { formatBasePrice, formatMoney } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 import { BillTotals, FreeDeliveryProgress } from "./bill-summary";
 import {
+  brandOf,
   formatPackSize,
   formatProductName,
   productTitle,
 } from "@/lib/format/product-name";
 
+/**
+ * One pack size in the cart (owner, 2026-10-19): the picture on a mist
+ * tile; the brand, the name with the size in a quieter tone, and the
+ * price per pack with the regular price crossed out when reduced (no
+ * price per kilogram here); the stepper and, in bold, what the line
+ * costs. A line the API objects to carries its message and a one-tap fix.
+ */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
   const tProduct = useTranslations("product");
@@ -33,8 +41,9 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const name = product
     ? productTitle(product.name, product.packSize)
     : tProduct("reason.product_unavailable");
+  const brand = brandOf(product?.brand);
   // The line's price is what the customer pays per pack; next to it the
-  // regular price when the size is reduced, and the price per unit.
+  // regular price when the size is reduced.
   const reduced =
     product !== null && line.unitPrice < product.pricing.regularPrice;
   const min = ordering?.minQuantity ?? 1;
@@ -46,61 +55,63 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="bg-mist grid grid-cols-[5rem_1fr] gap-x-4 gap-y-3 rounded-lg p-4 sm:grid-cols-[6.5rem_1fr] sm:p-5">
-      <div className="row-span-2 aspect-square self-start overflow-hidden rounded-md bg-white p-2">
+    <li className="border-line shadow-card grid grid-cols-[5.5rem_1fr] gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[7rem_1fr] sm:gap-x-5 sm:p-5">
+      <div className="bg-mist row-span-2 aspect-square self-start overflow-hidden rounded-md p-2">
         <ProductImage
           image={product?.image ?? null}
           alt=""
-          sizes="104px"
+          sizes="112px"
           fallbackLabel=""
         />
       </div>
 
       <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0">
-          {product?.brand && (
-            <p className="text-ink-muted text-[0.6875rem] font-bold tracking-wider uppercase">
-              {product.brand}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          {brand && (
+            <p className="text-ink-subtle truncate text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase">
+              {brand}
             </p>
           )}
-          <p className="leading-snug font-bold">
-            {href ? (
-              <Link href={href} className="rounded-xs hover:underline">
-                {product && formatProductName(product.name)}
-              </Link>
+          <p className="text-[1.0625rem] leading-snug font-bold">
+            {href && product ? (
+              <>
+                <Link
+                  href={href}
+                  className="hover:text-leaf-700 rounded-xs underline-offset-2 hover:underline"
+                >
+                  {formatProductName(product.name)}
+                </Link>{" "}
+                <span className="text-ink-muted font-medium whitespace-nowrap">
+                  ({formatPackSize(product.packSize)})
+                </span>
+              </>
             ) : (
               name
             )}
           </p>
           {product && (
-            <>
-              <p className="text-ink-muted text-sm tabular-nums">
-                {formatPackSize(product.packSize)} ·{" "}
-                {reduced && (
-                  <span className="sr-only">{tProduct("currentPrice")}: </span>
-                )}
-                {t("unitPrice", { price: formatMoney(line.unitPrice, locale) })}
-                {reduced && (
-                  <>
-                    {" "}
-                    <span className="sr-only">{tProduct("regularPrice")}:</span>
-                    <s className="text-ink-subtle">
-                      {formatMoney(product.pricing.regularPrice, locale)}
-                    </s>
-                  </>
-                )}
-              </p>
-              <p className="text-ink-subtle text-xs tabular-nums">
-                {formatBasePrice(product.pricing.basePrice, locale)}
-              </p>
-            </>
+            <p className="text-ink-muted text-sm tabular-nums">
+              {reduced && (
+                <span className="sr-only">{tProduct("currentPrice")}: </span>
+              )}
+              {t("unitPrice", { price: formatMoney(line.unitPrice, locale) })}
+              {reduced && (
+                <>
+                  {" "}
+                  <span className="sr-only">{tProduct("regularPrice")}:</span>
+                  <s className="text-ink-subtle">
+                    {formatMoney(product.pricing.regularPrice, locale)}
+                  </s>
+                </>
+              )}
+            </p>
           )}
         </div>
         <button
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full hover:bg-white"
+          className="text-ink-muted hover:text-ink hover:bg-mist -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors duration-150"
         >
           <Trash2 aria-hidden="true" className="size-5" />
         </button>
@@ -130,7 +141,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           <p
             aria-label={t("lineTotal", { name })}
             className={cn(
-              "font-display text-lg tabular-nums transition-opacity",
+              "font-display text-ink text-xl tabular-nums transition-opacity",
               updating && "opacity-50",
             )}
           >
@@ -170,8 +181,8 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
 
 function CartSkeleton() {
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_22rem]" aria-hidden="true">
-      <div className="space-y-5">
+    <div className="grid gap-8 lg:grid-cols-[1fr_23rem]" aria-hidden="true">
+      <div className="space-y-4">
         {[0, 1].map((row) => (
           <div key={row} className="flex gap-4">
             <Skeleton className="size-24 rounded-md" />
@@ -183,14 +194,15 @@ function CartSkeleton() {
           </div>
         ))}
       </div>
-      <Skeleton className="h-72 rounded-xl" />
+      <Skeleton className="h-80 rounded-xl" />
     </div>
   );
 }
 
 /**
- * The cart page: the products with their quantities, the bill from the API,
- * and the way to the checkout, which follows the bill's `canOrder`.
+ * The cart page: the products with their quantities, the bill from the API
+ * in a white summary card with the total as its one big number, and the
+ * way to the checkout, which follows the bill's `canOrder`.
  */
 export function CartView() {
   const t = useTranslations("cart");
@@ -244,7 +256,7 @@ export function CartView() {
 
       <aside
         aria-label={t("summary")}
-        className="bg-mist flex flex-col gap-4 rounded-xl p-5 sm:p-6 lg:sticky lg:top-28"
+        className="border-line shadow-card flex flex-col gap-5 rounded-xl border bg-white p-5 sm:p-6 lg:sticky lg:top-28"
       >
         <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
 
@@ -277,12 +289,10 @@ export function CartView() {
             {t("checkout")}
           </Button>
         )}
-        {cart.mode === "guest" && bill.canOrder && (
-          <p className="text-ink-muted text-center text-sm">
-            {t("signInHint")}
-          </p>
-        )}
-        <p className="text-ink-muted text-center text-sm">{t("payNote")}</p>
+        <div className="text-ink-muted flex flex-col gap-1.5 text-center text-sm">
+          {cart.mode === "guest" && bill.canOrder && <p>{t("signInHint")}</p>}
+          <p>{t("payNote")}</p>
+        </div>
 
         <Link
           href="/products"

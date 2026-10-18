@@ -1,3 +1,4 @@
+import { PackageCheck, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@/i18n/routing";
 import type { Bill, Totals } from "@/lib/api/types";
@@ -6,7 +7,8 @@ import { formatMoney, formatPercent } from "@/lib/format/money";
 
 /**
  * The bill in numbers: goods, delivery, the total, and the VAT inside it per
- * rate. Every number comes from the API; nothing is added up here.
+ * rate. Every number comes from the API; nothing is added up here. The
+ * total is the one big number of the panel (owner, 2026-10-19).
  */
 export function BillTotals({
   totals,
@@ -19,32 +21,37 @@ export function BillTotals({
   const locale = useLocale() as Locale;
   const row = "flex items-baseline justify-between gap-4";
   return (
-    <dl className={cn("flex flex-col gap-2 tabular-nums", className)}>
+    <dl className={cn("flex flex-col gap-2.5 tabular-nums", className)}>
       <div className={row}>
-        <dt>{t("subtotal")}</dt>
-        <dd>{formatMoney(totals.subtotal, locale)}</dd>
+        <dt className="text-ink-muted">{t("subtotal")}</dt>
+        <dd className="font-semibold">
+          {formatMoney(totals.subtotal, locale)}
+        </dd>
       </div>
       <div className={row}>
-        <dt>{t("delivery")}</dt>
+        <dt className="text-ink-muted">{t("delivery")}</dt>
         <dd
-          className={cn(totals.deliveryFee === 0 && "text-leaf-700 font-bold")}
+          className={cn(
+            "font-semibold",
+            totals.deliveryFee === 0 && "text-leaf-700 font-bold",
+          )}
         >
           {totals.deliveryFee === 0
             ? t("deliveryFree")
             : formatMoney(totals.deliveryFee, locale)}
         </dd>
       </div>
-      <div className={cn(row, "border-line mt-1 border-t pt-3")}>
+      <div className={cn(row, "border-line mt-1 border-t pt-3.5")}>
         <dt className="flex flex-col">
           <span className="text-lg font-bold">{t("total")}</span>
           <span className="text-ink-muted text-sm">{t("totalNote")}</span>
         </dt>
-        <dd className="font-display text-xl">
+        <dd className="font-display text-ink text-[1.75rem] leading-none">
           {formatMoney(totals.total, locale)}
         </dd>
       </div>
       {totals.vat.map((group) => (
-        <div key={group.vatRate} className={cn(row, "text-ink-muted text-sm")}>
+        <div key={group.vatRate} className={cn(row, "text-ink-subtle text-sm")}>
           <dt>
             {t("vatIncluded", {
               percent: formatPercent(group.vatRate / 100, locale),
@@ -59,7 +66,10 @@ export function BillTotals({
 
 /**
  * How much is missing for free delivery, with a bar; or that it is reached.
- * Nothing when the shop has no free tier.
+ * A wheat panel with the amount in bold and a dark leaf bar on a white
+ * track, the order value and the free-delivery threshold under its ends
+ * (owner, 2026-10-19: clearer and darker). Nothing when the shop has no
+ * free tier.
  */
 export function FreeDeliveryProgress({
   delivery,
@@ -78,25 +88,56 @@ export function FreeDeliveryProgress({
   const reached = missingForFree === 0;
   // Only how full the bar is; no amount is derived from this.
   const percent = Math.min(100, Math.round((subtotal / freeFrom) * 100));
+  const Icon = reached ? PackageCheck : Truck;
   return (
-    <div className={cn("flex flex-col gap-1.5 text-sm", className)}>
-      <p className={reached ? "text-leaf-700 font-bold" : "text-ink-muted"}>
-        {reached
-          ? t("freeReached")
-          : t("freeMissing", { amount: formatMoney(missingForFree, locale) })}
+    <div
+      className={cn(
+        "rounded-lg p-4",
+        reached ? "bg-leaf-50" : "bg-wheat-100",
+        className,
+      )}
+    >
+      <p
+        className={cn(
+          "flex items-start gap-2.5 text-[0.9375rem] leading-snug font-semibold",
+          reached ? "text-leaf-700" : "text-ink",
+        )}
+      >
+        <Icon
+          aria-hidden="true"
+          className={cn("mt-0.5 size-5 shrink-0", !reached && "text-wheat-800")}
+        />
+        <span>
+          {reached
+            ? t("freeReached")
+            : t.rich("freeMissing", {
+                amount: formatMoney(missingForFree, locale),
+                strong: (chunks) => (
+                  <strong className="font-display text-[1.0625rem]">
+                    {chunks}
+                  </strong>
+                ),
+              })}
+        </span>
       </p>
       <div
-        className="bg-cloud h-2.5 overflow-hidden rounded-full"
+        className="ring-ink/10 mt-3 h-3 overflow-hidden rounded-full bg-white ring-1 ring-inset"
         aria-hidden="true"
       >
         <div
-          className={cn(
-            "h-full rounded-full transition-[width] duration-300",
-            reached ? "bg-leaf-600" : "bg-wheat-400",
-          )}
+          className="bg-leaf-600 h-full rounded-full transition-[width] duration-300"
           style={{ width: `${percent}%` }}
         />
       </div>
+      <p
+        aria-hidden="true"
+        className="text-ink-muted mt-1.5 flex justify-between text-xs font-semibold tabular-nums"
+      >
+        <span>{formatMoney(subtotal, locale)}</span>
+        <span>
+          {t("freeFromLabel", { amount: formatMoney(freeFrom, locale) })}
+        </span>
+      </p>
     </div>
   );
 }

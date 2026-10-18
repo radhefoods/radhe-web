@@ -31,3 +31,29 @@ export function formatPackSize(packSize: PackSize): string {
 export function productTitle(name: string, packSize: PackSize): string {
   return `${formatProductName(name)} (${formatPackSize(packSize)})`;
 }
+
+/** What an admin types into the brand field when there is no brand. */
+const NO_BRAND = new Set([
+  "",
+  "n/a",
+  "na",
+  "n.a.",
+  "-",
+  "–",
+  "—",
+  "none",
+  "null",
+  "unknown",
+  "keine",
+  "ohne",
+]);
+
+/**
+ * The brand of a product as the shop shows it, or `null` when the admin
+ * left the field empty or wrote a placeholder ("N/A", "-"): a placeholder
+ * is not a brand and must never stand over a product name.
+ */
+export function brandOf(brand: string | null | undefined): string | null {
+  const trimmed = (brand ?? "").trim();
+  return NO_BRAND.has(trimmed.toLowerCase()) ? null : trimmed;
+}

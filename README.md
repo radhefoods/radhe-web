@@ -29,6 +29,7 @@ Built so far:
 - **Home page, second look (2026-10-18):** "Popular right now" shows the first products of the catalogue while nothing is marked featured; the home page renders at every visit from the same cached answers as the category pages, so a price or a discount can no longer differ between them; the "Chilled" and "Frozen" badges left the cards. The decisions and their reasons are in `DECISIONS.md`, "Home page, second look".
 - **Product names and the cards, second round (2026-10-18):** every product title is built by `src/lib/format/product-name.ts` from the API's `name` and `packSize`: "Guava / Jamfal (500g)", "Mango / Keri (1 pcs)", on the cards, the product page, the cart, the checkout, the orders, the returns, the filter chips and the structured data. The card ends with the price: the "+" sits on the lower corner of the picture tile (the stepper unfolds there, a white pill says "Sold out" there), the name keeps two lines with the size in a quieter tone, and the picture grows a little on hover. The decisions and their reasons are in `DECISIONS.md`, "Product names and the cards, second round".
 - **Email and password (2026-10-18, evening):** the API replaced the emailed code and Google sign-in by sign-up and sign-in with email and password (`doc/CUSTOMER_AUTH.md`, section 1 of the API documentation). The shop has a sign-up page (name, email, password), the sign-in page with email and password, "Forgot password?" (the API emails a link) and the page behind that link, `/reset-password?token=…`, in both languages; the code entry, the resend countdown, the Google button and `hasGoogleLogin` are gone. Sign-in and sign-up still return to the page the customer came from, and the cart still follows. The mock creates accounts with the sign-up and plays the reset link (printed in its terminal, and in `GET /__mock/tokens`). The decisions and their reasons are in `DECISIONS.md`, "Email and password".
+- **Header, cards, product page and cart, third round (2026-10-19):** from the owner's screenshots of the deployed shop. The header: the promises of the wheat strip and the category bar are centred, the search is a larger pill with a leaf button, and the right end holds, in this order, the language switch, the wishlist heart (signed-in customers only; it leads to `/account/wishlist`, a page that waits for the API's wishlist), the account and the cart. The cards: the brand as a small line over the name (an admin's "N/A" counts as no brand), the "+" without its white ring, and the rows of the home page give a hovered card room, so nothing is cut any more. The product page was rebuilt: the pictures with thumbnails on the left, kept in view; on the right the buy box with a stock chip, the highlights, "Delivery and payment" with the numbers of the settings and the four accepted payment methods as marks (Visa, Mastercard, American Express, PayPal), and the two texts as sections that fold open; under it the products of the category as a row with "View all", and the categories of the shop as tiles. The cart: white line cards in the order brand, name, size, price per pack (no price per kilogram), a white summary card with the total as its one big number, a clearer free-delivery bar with the amount in bold, and a checkout note that says sign in with email and password or create an account. The decisions and their reasons are in `DECISIONS.md`, "Header, cards, product page and cart, third round".
 
 All six phases of the original plan, the six phases of the redesign, the move to a shop that sells from stock and the pack sizes as variants are built. What is left is listed under "Before launch" and in the open items of `DECISIONS.md`.
 
@@ -139,12 +140,14 @@ src/
     (checkout)/      the checkout in its own quiet frame
     (plain)/         the unsubscribe page behind the link in emails
     styleguide/      the design system on one page
-  components/ui/     base components: button, chip, alert, field, stepper, sheet
-  components/shell/  header, footer, tab bar, language switch, search
+  components/ui/     base components: button, chip, alert, field, stepper, sheet,
+                     disclosure
+  components/shell/  header, footer, tab bar, language switch, search, wishlist
   components/home/   the ticket of the home page
   components/catalogue/  product card, picture (with its fallback), price,
-                     add to cart, the pack sizes of a product page, the list
-                     and its filter panel (filters/)
+                     add to cart, the pack sizes, the gallery, delivery and
+                     payment (with the payment marks) and the category tiles
+                     of a product page, the list and its filter panel (filters/)
   components/cart/   cart lines, the bill, the cart bar on phones
   components/checkout/   the checkout page and the address form
   components/account/    orders, the payment of an order, invoices, returns,

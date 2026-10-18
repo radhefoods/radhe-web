@@ -4,10 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/catalogue/breadcrumbs";
-import { ProductGrid } from "@/components/catalogue/product-grid";
-import { ProductImage } from "@/components/catalogue/product-image";
+import { CategoryTiles } from "@/components/catalogue/category-tiles";
+import { ProductCard } from "@/components/catalogue/product-card";
+import { ProductGallery } from "@/components/catalogue/product-gallery";
 import {
-  PackSizeDiscount,
+  PackSizeAvailability,
   PackSizeHeadline,
   PackSizePicker,
   PackSizePrice,
@@ -15,7 +16,15 @@ import {
   PackSizes,
   ProductPurchase,
 } from "@/components/catalogue/product-purchase";
-import { getProduct, listProducts } from "@/features/catalogue/data";
+import { PurchaseInfo } from "@/components/catalogue/purchase-info";
+import { ProductRow, ProductRowItem } from "@/components/home/product-row";
+import { Disclosure } from "@/components/ui/disclosure";
+import {
+  getCategories,
+  getProduct,
+  getSettings,
+  listProducts,
+} from "@/features/catalogue/data";
 import { Link, permanentRedirect } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
@@ -27,7 +36,11 @@ import type {
 import { cn } from "@/lib/cn";
 import { alternates, pageUrl } from "@/lib/seo/alternates";
 import { JsonLd, breadcrumbJsonLd, productJsonLd } from "@/lib/seo/json-ld";
-import { formatProductName, productTitle } from "@/lib/format/product-name";
+import {
+  brandOf,
+  formatProductName,
+  productTitle,
+} from "@/lib/format/product-name";
 
 type Props = PageProps<"/[locale]/products/[slug]">;
 
@@ -39,6 +52,9 @@ export function generateStaticParams() {
   return [];
 }
 
+/** How many related products the row under the product holds at most. */
+const RELATED_SIZE = 12;
+
 const productHref = (slug: string) => ({
   pathname: "/products/[slug]" as const,
   params: { slug },
@@ -49,7 +65,9 @@ const hrefsOf = (slugs: LocalizedSlugs) => ({
   de: productHref(slugs.de),
 });
 
-const panel = "border-line rounded-xl border bg-white";
+/** A card of a row: two and a sliver on phones, then three, four, five. */
+const cardSizes =
+  "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await localeOf(params);
@@ -79,12 +97,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /**
  * Other products near this one: from its own category, or, when that holds
- * nothing else, from the top-level category above it.
+ * nothing else, from the top-level category above it. Up to `RELATED_SIZE`
+ * for the row; the category itself is the way to all of them.
  */
 async function relatedProducts(
   product: ProductDetail,
   locale: Locale,
-): Promise<{ name: string; items: ProductSummary[] } | null> {
+): Promise<{ name: string; slug: string; items: ProductSummary[] } | null> {
   const candidates = [product.breadcrumbs.at(-1), product.breadcrumbs[0]];
   const tried = new Set<string>();
   for (const category of candidates) {
@@ -92,13 +111,15 @@ async function relatedProducts(
     tried.add(category.slug);
     try {
       const page = await listProducts(
-        { category: category.slug, limit: 9 },
+        { category: category.slug, limit: RELATED_SIZE + 1 },
         locale,
       );
       const items = page.items
         .filter((other) => other.id !== product.id)
-        .slice(0, 4);
-      if (items.length > 0) return { name: category.name, items };
+        .slice(0, RELATED_SIZE);
+      if (items.length > 0) {
+        return { name: category.name, slug: category.slug, items };
+      }
     } catch {
       return null;
     }
@@ -106,6 +127,15 @@ async function relatedProducts(
   return null;
 }
 
+/**
+ * The product page (redesigned 2026-10-19): the pictures on the left, kept
+ * in view while the right column scrolls; on the right the brand, the
+ * name with the chosen size and the subtitle, then the buy box (price,
+ * stock chip, pack sizes, add to cart), the highlights, delivery and
+ * payment at a glance, and the two texts of the product as sections that
+ * fold open. Under all that the products of the same category as a row
+ * and the categories of the shop as tiles.
+ */
 export default async function ProductPage({ params }: Props) {
   const locale = await localeOf(params);
   const { slug } = await params;
@@ -117,12 +147,21 @@ export default async function ProductPage({ params }: Props) {
     permanentRedirect({ href: productHref(product.slug), locale });
   }
 
-  const [t, tNav, tCommon, related] = await Promise.all([
-    getTranslations("product"),
-    getTranslations("nav"),
-    getTranslations("common"),
-    relatedProducts(product, locale),
-  ]);
+  const [t, tNav, tCommon, tHome, related, settings, categories] =
+    await Promise.all([
+      getTranslations("product"),
+      getTranslations("nav"),
+      getTranslations("common"),
+      getTranslations("home"),
+      relatedProducts(product, locale),
+      getSettings(),
+      getCategories(locale),
+    ]);
+  const brand = brandOf(product.brand);
+  const shopCategories = categories.filter(
+    (category) => category.productCount > 0,
+  );
+  const rowLabels = { back: tHome("rowBack"), forward: tHome("rowForward") };
 
   // The item number belongs to the chosen size and follows it.
   const facts: [string, ReactNode][] = [
@@ -131,12 +170,13 @@ export default async function ProductPage({ params }: Props) {
     [t("nutrition"), product.food.nutrition],
     [t("storage"), product.food.storageInstructions],
     [t("origin"), product.food.origin],
-    [t("manufacturer"), product.food.manufacturer ?? product.brand],
+    [t("manufacturer"), brandOf(product.food.manufacturer) ?? brand],
     [t("sku"), <PackSizeSku key="sku" />],
   ];
+  const hasAbout = Boolean(product.description) || product.uses.length > 0;
 
   return (
-    <div className="container-page space-y-6 py-5 sm:py-6 lg:space-y-8">
+    <div className="container-page py-5 sm:py-6">
       <JsonLd
         data={[
           productJsonLd(product, locale),
@@ -154,39 +194,22 @@ export default async function ProductPage({ params }: Props) {
       <PackSizes product={product}>
         <div
           data-fly-scope=""
-          className="grid gap-6 md:grid-cols-[1.1fr_1fr] lg:gap-10"
+          className="mt-5 grid gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-12"
         >
-          {/* Pictures: swipe on phones; the first one is the page's main picture. */}
-          <ul className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto md:sticky md:top-36 md:self-start">
-            {(product.images.length ? product.images : [null]).map(
-              (image, index) => (
-                <li
-                  key={image?.id ?? "none"}
-                  data-fly-source={index === 0 ? "" : undefined}
-                  className="bg-mist relative aspect-square w-full shrink-0 snap-center overflow-hidden rounded-xl p-6 sm:p-10"
-                >
-                  <ProductImage
-                    image={image}
-                    sizes="(min-width: 768px) 46vw, 92vw"
-                    priority={index === 0}
-                    fallbackLabel={t("noPicture")}
-                  />
-                  {index === 0 && (
-                    <PackSizeDiscount className="absolute top-3 left-3 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold text-white tabular-nums" />
-                  )}
-                </li>
-              ),
-            )}
-          </ul>
+          <ProductGallery
+            images={product.images}
+            fallbackLabel={t("noPicture")}
+            className="md:sticky md:top-36 md:self-start"
+          />
 
-          <div className="flex flex-col gap-5">
-            <header className="flex flex-col gap-1.5">
-              {product.brand && (
-                <p className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
-                  {product.brand}
+          <div className="flex flex-col gap-6">
+            <header className="flex flex-col gap-2">
+              {brand && (
+                <p className="text-leaf-700 text-xs font-bold tracking-[0.14em] uppercase">
+                  {brand}
                 </p>
               )}
-              <PackSizeHeadline className="font-display text-ink text-[1.75rem] leading-[1.15] sm:text-[2rem]" />
+              <PackSizeHeadline className="font-display text-ink text-[1.75rem] leading-[1.1] sm:text-[2.25rem]" />
               {(product.subtitle ?? product.shortDescription) && (
                 <p className="text-ink-muted text-[1.0625rem]">
                   {product.subtitle ?? product.shortDescription}
@@ -195,22 +218,20 @@ export default async function ProductPage({ params }: Props) {
             </header>
 
             {/* The buy box: everything a decision needs, in one card. */}
-            <div
-              className={cn(
-                panel,
-                "shadow-card flex flex-col gap-5 p-5 sm:p-6",
-              )}
-            >
-              <div>
-                <PackSizePrice />
-                <p className="text-ink-muted mt-1.5 text-sm">
-                  <Link
-                    href="/delivery-and-payment"
-                    className="hover:text-ink rounded-xs underline underline-offset-4"
-                  >
-                    {tCommon("priceNote")}
-                  </Link>
-                </p>
+            <div className="border-line shadow-card flex flex-col gap-5 rounded-xl border bg-white p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                <div>
+                  <PackSizePrice />
+                  <p className="text-ink-muted mt-1.5 text-sm">
+                    <Link
+                      href="/delivery-and-payment"
+                      className="hover:text-ink rounded-xs underline underline-offset-4"
+                    >
+                      {tCommon("priceNote")}
+                    </Link>
+                  </p>
+                </div>
+                <PackSizeAvailability className="mt-1" />
               </div>
 
               <PackSizePicker />
@@ -219,100 +240,123 @@ export default async function ProductPage({ params }: Props) {
             </div>
 
             {product.highlights.length > 0 && (
-              <section aria-labelledby="product-highlights">
-                <h2 id="product-highlights" className="sr-only">
+              <section
+                aria-labelledby="product-highlights"
+                className="bg-mist rounded-xl p-5"
+              >
+                <h2
+                  id="product-highlights"
+                  className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase"
+                >
                   {t("highlights")}
                 </h2>
-                <ul className="flex flex-col gap-1.5 text-[0.9375rem]">
+                <ul className="mt-3 grid gap-2 text-[0.9375rem] sm:grid-cols-2">
                   {product.highlights.map((highlight) => (
                     <li key={highlight} className="flex items-start gap-2.5">
-                      <Check
+                      <span
                         aria-hidden="true"
-                        className="text-leaf-600 mt-1 size-4 shrink-0"
-                        strokeWidth={3}
-                      />
+                        className="bg-leaf-100 text-leaf-700 mt-0.5 grid size-5 shrink-0 place-items-center rounded-full"
+                      >
+                        <Check className="size-3" strokeWidth={3.5} />
+                      </span>
                       {highlight}
                     </li>
                   ))}
                 </ul>
               </section>
             )}
-          </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
-          <div className={cn(panel, "space-y-6 p-5 sm:p-6")}>
-            {product.description && (
-              <section aria-labelledby="product-description">
-                <h2
-                  id="product-description"
-                  className="font-display text-ink text-xl"
+            <PurchaseInfo settings={settings} locale={locale} />
+
+            {/* The texts of the product, folded: "About" open, the details
+                a tap away (owner, 2026-10-19). */}
+            <div className="flex flex-col gap-3">
+              {hasAbout && (
+                <Disclosure
+                  id="product-about"
+                  title={t("description")}
+                  defaultOpen
                 >
-                  {t("description")}
-                </h2>
-                <p className="text-ink-muted mt-3 max-w-prose whitespace-pre-line">
-                  {product.description}
-                </p>
-              </section>
-            )}
-            {product.uses.length > 0 && (
-              <section aria-labelledby="product-uses">
-                <h2
-                  id="product-uses"
-                  className="text-ink-subtle text-xs font-bold tracking-wider uppercase"
-                >
-                  {t("uses")}
-                </h2>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {product.uses.map((use) => (
-                    <li
-                      key={use}
-                      className="bg-mist rounded-full px-3 py-1 text-sm font-semibold"
-                    >
-                      {use}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-          </div>
-          <section
-            aria-labelledby="product-details"
-            className={cn(panel, "p-5 sm:p-6")}
-          >
-            <h2 id="product-details" className="font-display text-ink text-xl">
-              {t("details")}
-            </h2>
-            <dl className="divide-line mt-3 divide-y text-[0.9375rem]">
-              {facts.map(
-                ([label, value]) =>
-                  value && (
-                    <div
-                      key={label}
-                      className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4"
-                    >
-                      <dt className="font-semibold">{label}</dt>
-                      <dd className="text-ink-muted whitespace-pre-line">
-                        {value}
-                      </dd>
+                  {product.description && (
+                    <p className="text-ink-muted max-w-prose whitespace-pre-line">
+                      {product.description}
+                    </p>
+                  )}
+                  {product.uses.length > 0 && (
+                    <div className={cn(product.description && "mt-5")}>
+                      <h3 className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase">
+                        {t("uses")}
+                      </h3>
+                      <ul className="mt-2 flex flex-wrap gap-2">
+                        {product.uses.map((use) => (
+                          <li
+                            key={use}
+                            className="bg-mist rounded-full px-3 py-1 text-sm font-semibold"
+                          >
+                            {use}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  ),
+                  )}
+                </Disclosure>
               )}
-            </dl>
-          </section>
+              <Disclosure id="product-details" title={t("details")}>
+                <dl className="divide-line divide-y text-[0.9375rem]">
+                  {facts.map(
+                    ([label, value]) =>
+                      value && (
+                        <div
+                          key={label}
+                          className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[10rem_1fr] sm:gap-4"
+                        >
+                          <dt className="font-semibold">{label}</dt>
+                          <dd className="text-ink-muted whitespace-pre-line">
+                            {value}
+                          </dd>
+                        </div>
+                      ),
+                  )}
+                </dl>
+              </Disclosure>
+            </div>
+          </div>
         </div>
       </PackSizes>
 
       {related && (
-        <section aria-labelledby="product-related">
-          <h2
+        <div className="mt-12 lg:mt-16">
+          <ProductRow
             id="product-related"
-            className="font-display text-ink text-2xl sm:text-3xl"
+            title={t("related", { category: related.name })}
+            href={{
+              pathname: "/category/[slug]",
+              params: { slug: related.slug },
+            }}
+            link={tCommon("viewAll")}
+            linkLabel={t("relatedAll", { category: related.name })}
+            labels={rowLabels}
           >
-            {t("related", { category: related.name })}
-          </h2>
-          <ProductGrid products={related.items} className="mt-5" />
-        </section>
+            {related.items.map((item) => (
+              <ProductRowItem key={item.id}>
+                <ProductCard product={item} imageSizes={cardSizes} />
+              </ProductRowItem>
+            ))}
+          </ProductRow>
+        </div>
+      )}
+
+      {shopCategories.length > 0 && (
+        <div className="mt-12 lg:mt-16">
+          <CategoryTiles
+            id="product-categories"
+            title={t("categoriesTitle")}
+            categories={shopCategories}
+            link={tNav("allProducts")}
+            linkLabel={tHome("featuredAll")}
+            labels={rowLabels}
+          />
+        </div>
       )}
 
       {/* Room for the add-to-cart bar that is fixed above the tab bar. */}

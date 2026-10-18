@@ -168,6 +168,26 @@ test.describe("on a phone", () => {
     ).toBeVisible();
     await expect(dot).toHaveCount(1);
   });
+
+  test("the header shows the wishlist to a signed-in customer only", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "The header icons exist from medium screens on.");
+    const banner = page.getByRole("banner");
+    await page.goto("/en");
+    await expect(banner.getByRole("link", { name: "Account" })).toBeVisible();
+    await expect(banner.getByRole("link", { name: "Wishlist" })).toHaveCount(0);
+    await signIn(page);
+    await page.goto("/en");
+    const wishlist = banner.getByRole("link", { name: "Wishlist" });
+    await expect(wishlist).toBeVisible();
+    await wishlist.click();
+    await expect(page).toHaveURL(/\/en\/account\/wishlist$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Wishlist" }),
+    ).toBeVisible();
+  });
 });
 
 test.describe("the delivery fee", () => {

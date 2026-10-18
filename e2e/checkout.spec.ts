@@ -74,6 +74,9 @@ test.describe("from the cart to the paid order", () => {
     await expect(summary).toContainText("includes 7% VAT");
     await expect(summary).toContainText("Add €24.02 more for free delivery");
     await expect(summary).toContainText("You pay in the next step");
+    await expect(summary).toContainText(
+      "sign in with your email and password, or create an account",
+    );
 
     // Checkout needs an account: a new customer creates one from the
     // sign-in page and comes back to the checkout.

@@ -12,6 +12,7 @@ const STATIC_TARGETS = [
   "/account/invoices",
   "/account/addresses",
   "/account/profile",
+  "/account/wishlist",
 ] as const;
 
 type StaticTarget = (typeof STATIC_TARGETS)[number];

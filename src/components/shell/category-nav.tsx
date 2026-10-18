@@ -28,8 +28,9 @@ const subItem =
   "flex items-center justify-between gap-6 rounded-md px-3 py-2.5 font-semibold transition-colors duration-150 hover:bg-mist hover:text-leaf-700 aria-[current=page]:text-leaf-700";
 
 /**
- * The category bar of wide screens (owner, 2026-10-16): the parent
- * categories of the API, each a link to its page with a leaf underline on
+ * The category bar of wide screens (owner, 2026-10-16; centred since
+ * 2026-10-19): the parent categories of the API, each a link to its page
+ * with a leaf underline on
  * hover and on the page of the category or one of its children. A parent
  * with sub-categories has a chevron that opens a panel with them, which
  * also opens while the pointer rests on the item and stays while it moves
@@ -92,7 +93,7 @@ export function CategoryNav({
 
   return (
     <nav ref={root} aria-label={t("categories")} className={className}>
-      <ul className="container-page flex flex-wrap items-center gap-x-1">
+      <ul className="container-page flex flex-wrap items-center justify-center gap-x-1">
         {categories.map((category) => {
           const children = category.children;
           const open = openId === category.id;

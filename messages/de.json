@@ -31,6 +31,7 @@
     "allProducts": "Alle Produkte",
     "account": "Konto",
     "cart": "Warenkorb",
+    "wishlist": "Merkliste",
     "cartWithCount": "Warenkorb, {count, plural, =0 {leer} one {# Artikel} other {# Artikel}}",
     "logoHome": "Radhe Foods, zur Startseite",
     "switchTo": "Sprache wechseln",
@@ -54,7 +55,6 @@
     "badge": {
       "fewLeft": "Nur noch {count}"
     },
-    "onlyLeft": "Nur noch {count} auf Lager",
     "maxPerOrder": "Höchstens {count} pro Bestellung",
     "minPerOrder": "Mindestbestellmenge: {count}",
     "noPicture": "Bild folgt in Kürze",
@@ -71,7 +71,25 @@
     "origin": "Herkunft",
     "manufacturer": "Marke / Hersteller",
     "sku": "Artikelnummer",
-    "related": "Mehr aus {category}"
+    "related": "Mehr aus {category}",
+    "relatedAll": "Alle in {category} ansehen",
+    "categoriesTitle": "Nach Kategorie einkaufen",
+    "productCount": "{count, plural, =0 {Noch keine Produkte} one {# Produkt} other {# Produkte}}",
+    "gallery": {
+      "label": "Bilder",
+      "picture": "Bild {index} von {count}"
+    },
+    "info": {
+      "title": "Lieferung und Zahlung",
+      "fee": "Lieferung {fee} pro Bestellung",
+      "feeFree": "Kostenlose Lieferung",
+      "freeFrom": "Kostenlos ab {amount}",
+      "paymentText": "Karte oder PayPal auf der sicheren Seite von Stripe. Vor Ihrer Bestätigung wird nichts abgebucht.",
+      "paymentMethods": "Akzeptierte Zahlungsarten",
+      "returns": "{count, plural, one {# Tag} other {# Tage}} Rückgabe nach der Lieferung",
+      "returnsText": "Fragen Sie in Ihrem Konto an; Radhe Foods prüft jede Anfrage.",
+      "more": "Alles zu Lieferung und Zahlung"
+    }
   },
   "catalogue": {
     "breadcrumb": "Sie sind hier",
@@ -227,10 +245,11 @@
     "vatIncluded": "enthaltene MwSt. {percent}",
     "total": "Gesamtsumme",
     "totalNote": "inkl. MwSt. und Lieferung",
-    "freeMissing": "Noch {amount} bis zur kostenlosen Lieferung",
+    "freeMissing": "Noch <strong>{amount}</strong> bis zur kostenlosen Lieferung",
     "freeReached": "Die Lieferung ist für diese Bestellung kostenlos",
+    "freeFromLabel": "Kostenlos ab {amount}",
     "checkout": "Zur Kasse",
-    "signInHint": "Im nächsten Schritt melden Sie sich mit Ihrer E-Mail-Adresse an. Kein Passwort nötig.",
+    "signInHint": "Weiter zur Kasse: Melden Sie sich mit E-Mail-Adresse und Passwort an oder legen Sie ein Konto an, um Ihre Bestellung abzuschließen.",
     "payNote": "Sie zahlen im nächsten Schritt, mit Karte oder PayPal.",
     "fixIssues": "Bitte klären Sie zuerst die markierten Produkte.",
     "continue": "Weiter einkaufen",
@@ -376,7 +395,8 @@
       "orders": "Bestellungen",
       "invoices": "Rechnungen",
       "addresses": "Adressen",
-      "profile": "Profil"
+      "profile": "Profil",
+      "wishlist": "Merkliste"
     },
     "greeting": "Hallo {name}",
     "greetingPlain": "Hallo",
@@ -388,6 +408,9 @@
     "noOrdersTitle": "Noch keine Bestellungen",
     "noOrdersText": "Ihre Bestellungen erscheinen hier, sobald Sie eine aufgeben.",
     "noOrdersCta": "Sortiment ansehen",
+    "wishlistTitle": "Merkliste",
+    "wishlistEmptyTitle": "Noch nichts gemerkt",
+    "wishlistEmptyText": "Bald können Sie hier Produkte für später merken. Bis dahin bleibt alles, was Sie hinzufügen, in Ihrem Warenkorb.",
     "signOut": "Abmelden",
     "loadError": "Wir konnten diese Seite nicht laden."
   },
@@ -625,7 +648,7 @@
       "intro": "Wir haben indische Lebensmittel in Deutschland auf Lager. Sie bestellen, was Sie brauchen, zahlen an der Kasse, und wir liefern bis vor Ihre Tür.",
       "faqTitle": "Fragen und Antworten",
       "q1": "Brauche ich ein Konto?",
-      "a1": "Stöbern und den Warenkorb füllen können Sie ohne. Zum Bestellen melden Sie sich mit Ihrer E-Mail-Adresse und einem Code an, den wir Ihnen senden; kein Passwort nötig. Ihr Konto wird mit der ersten Anmeldung angelegt.",
+      "a1": "Stöbern und den Warenkorb füllen können Sie ohne. Zum Bestellen melden Sie sich mit Ihrer E-Mail-Adresse und Ihrem Passwort an oder legen in einer Minute ein Konto an; Ihr Warenkorb kommt mit.",
       "q2": "Wie bezahle ich?",
       "a2": "An der Kasse, mit Karte oder PayPal auf der sicheren Seite von Stripe. Ihre Bestellung ist bestätigt, sobald die Zahlung eingeht. Vorher wird nichts abgebucht, und später wird nichts bezahlt.",
       "q3": "Wann kommt meine Bestellung?",

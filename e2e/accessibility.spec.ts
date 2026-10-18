@@ -140,6 +140,7 @@ test.describe("cart, checkout and account have no barriers axe can find", () => 
     "/en/account/invoices",
     "/en/account/addresses",
     "/en/account/profile",
+    "/en/account/wishlist",
   ]) {
     test(path, async ({ page }) => {
       await signIn(page);

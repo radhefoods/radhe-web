@@ -491,7 +491,7 @@ test.describe("the cart of a visitor", () => {
     ).toBeVisible();
   });
 
-  test("a card shows one size: the name, the price, the price per unit, add", async ({
+  test("a card shows one size: the brand, the name, the price, the price per unit, add", async ({
     page,
   }) => {
     await page.goto("/en/products");
@@ -504,12 +504,13 @@ test.describe("the cart of a visitor", () => {
       "href",
       "/en/products/basmati-rice-1kg",
     );
-    // The name first, then the price, then the price per kilogram under it.
+    // The brand over the name (owner, 2026-10-19), then the price, then
+    // the price per kilogram under it.
     expect(await rice.innerText()).toMatch(
-      /Basmati Rice \(1 kg\)\s+€5\.99\s+€5\.99 \/ kg/,
+      /India Gate\s+Basmati Rice \(1kg\)\s+€5\.99\s+€5\.99 \/ kg/,
     );
     // Nothing else: the sizes are chosen on the product page, and the card
-    // does not say "in stock" or name the brand.
+    // does not say "in stock".
     await expect(rice.getByRole("button", { name: "5kg" })).toHaveCount(0);
     await expect(rice).not.toContainText("In stock");
     await expect(rice).not.toContainText(/radhe/i);
@@ -574,11 +575,54 @@ test.describe("the cart of a visitor", () => {
     );
   });
 
-  test("the product page adds to the same cart and shows the limits", async ({
+  test("the product page: stock chip, limits, accordions, more from the category, the categories", async ({
     page,
+    isMobile,
   }) => {
     await page.goto("/en/products/aloo-bhujia-400g");
+    const main = page.getByRole("main");
+    await expect(main.getByText("In stock", { exact: true })).toBeVisible();
     await expect(page.getByText("At most 12 per order")).toBeVisible();
+
+    // Delivery and payment, from the settings, with the accepted methods.
+    const info = page.getByRole("region", { name: "Delivery and payment" });
+    await expect(info).toContainText("2 to 4 working days");
+    await expect(info).toContainText("Delivery €4.99 per order");
+    await expect(info).toContainText("Free from €50.00");
+    await expect(info).toContainText("14 days to return");
+    const methods = info.getByRole("list", {
+      name: "Accepted payment methods",
+    });
+    for (const name of ["Visa", "Mastercard", "American Express", "PayPal"]) {
+      await expect(methods.getByRole("img", { name })).toBeVisible();
+    }
+
+    // The details fold out on a tap.
+    const details = main.getByText("Product details", { exact: true });
+    await expect(main.getByText("Item number")).toBeHidden();
+    await details.click();
+    await expect(main.getByText("Item number")).toBeVisible();
+
+    // More from the category, as a row with the way to the whole category;
+    // then the categories of the shop.
+    const related = page.getByRole("region", { name: /^More from / });
+    await expect(related.getByRole("article").first()).toBeVisible();
+    await expect(
+      related.getByRole("link", { name: /^View all / }),
+    ).toHaveAttribute("href", /\/en\/category\//);
+    const categories = page.getByRole("region", { name: "Shop by category" });
+    await expect(
+      categories.getByRole("link", { name: /Rice/ }).first(),
+    ).toHaveAttribute("href", "/en/category/rice");
+    if (!isMobile) {
+      await expect(
+        categories.getByRole("link", { name: "All products" }),
+      ).toHaveAttribute("href", "/en/products");
+    }
+
+    // "About this product" is open from the start where there is a text.
+    await page.goto("/en/products/basmati-rice-1kg");
+    await expect(page.getByRole("main").getByText("Biryani")).toBeVisible();
     await page
       .getByRole("button", { name: "Add to cart: Aloo Bhujia (400g)" })
       .filter({ visible: true })

@@ -15,13 +15,16 @@ import { cn } from "@/lib/cn";
 type Href = ComponentProps<typeof Link>["href"];
 
 /**
- * A section of the home page with a row of product cards that scrolls
- * sideways (owner, 2026-10-16): the heading with its tagline, "See all"
- * leading to the full list, and from medium screens on two round arrows
- * that move one page at a time and dim at the ends. The row snaps card by
- * card, bleeds into the page gutter so a swipe on a phone runs edge to
- * edge, and shows a sliver of the next card as a hint. The cards are the
- * server's: this component only holds the scroller and its arrows.
+ * A section with a row of cards that scrolls sideways (owner, 2026-10-16):
+ * the heading with its tagline, the link to the full list, and from medium
+ * screens on two round arrows that move one page at a time and dim at the
+ * ends. The arrows exist only while the row holds more than fits (owner,
+ * 2026-10-19). The row snaps card by card, bleeds into the page gutter so
+ * a swipe on a phone runs edge to edge, and shows a sliver of the next
+ * card as a hint. Its scroll box has room above and below, so a card that
+ * lifts on hover is never cut. The cards are the server's: this component
+ * only holds the scroller and its arrows. Used on the home page and, for
+ * the related products and the categories, on the product page.
  */
 export function ProductRow({
   id,
@@ -47,11 +50,15 @@ export function ProductRow({
   const scroller = useRef<HTMLUListElement>(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
+  // Whether there is more than fits; true until measured, so the arrows
+  // are in the HTML the server sends and vanish only when not needed.
+  const [scrollable, setScrollable] = useState(true);
 
   const measure = useCallback(() => {
     const element = scroller.current;
     if (!element) return;
     const most = element.scrollWidth - element.clientWidth;
+    setScrollable(most > 1);
     setAtStart(element.scrollLeft <= 1);
     setAtEnd(element.scrollLeft >= most - 1);
   }, []);
@@ -99,7 +106,9 @@ export function ProductRow({
           >
             {link}
           </Link>
-          <div className="hidden gap-2 md:flex">
+          <div
+            className={cn("hidden gap-2 md:flex", !scrollable && "md:hidden")}
+          >
             <button
               type="button"
               aria-label={labels.back}
@@ -128,7 +137,9 @@ export function ProductRow({
         className={cn(
           // Bleeds into the gutter of the page on either side and scrolls
           // under it; at rest the first card lines up with the heading.
-          "no-scrollbar -mx-4 mt-5 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-1 sm:-mx-6 sm:scroll-px-6 sm:gap-4 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8",
+          // The vertical padding (taken back by the negative margin) is
+          // room for the lift and the shadow of a hovered card.
+          "no-scrollbar -mx-4 mt-1 -mb-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 py-4 sm:-mx-6 sm:scroll-px-6 sm:gap-4 sm:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8",
           "scroll-px-4",
         )}
       >

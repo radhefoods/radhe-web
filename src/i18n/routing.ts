@@ -48,6 +48,7 @@ export const routing = defineRouting({
     "/account/invoices": { en: "/account/invoices", de: "/konto/rechnungen" },
     "/account/addresses": { en: "/account/addresses", de: "/konto/adressen" },
     "/account/profile": { en: "/account/profile", de: "/konto/profil" },
+    "/account/wishlist": { en: "/account/wishlist", de: "/konto/merkliste" },
     "/unsubscribe/[token]": "/unsubscribe/[token]",
     "/legal/terms": { en: "/legal/terms", de: "/rechtliches/agb" },
     "/legal/privacy": { en: "/legal/privacy", de: "/rechtliches/datenschutz" },

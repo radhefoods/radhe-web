@@ -6,6 +6,7 @@ import type { ProductSummary } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDiscount } from "@/lib/format/money";
 import {
+  brandOf,
   formatPackSize,
   formatProductName,
   productTitle,
@@ -21,15 +22,16 @@ const badge =
  * A product in a list, as the one pack size the API shows it as (doc 7).
  * The picture on a mist tile, the discount and "only N left" badges in its
  * top corner and the round "+" in its bottom corner, where the stepper
- * unfolds in its place; under the tile the name with the size (the size
- * in a quieter tone), then the price with the regular price crossed out
- * when reduced and the price per unit. Nothing else (owner, 2026-10-16):
- * the other sizes are chosen on the product page. The name keeps two
- * lines whether it needs them or not, so the prices of a row line up,
- * and the card ends with the price: no empty space under it (owner,
- * 2026-10-18). A size that cannot be ordered shows its picture greyed and
- * a quiet pill where the button was. The tile is the `data-fly-source`
- * of the add button: its picture flies into the cart.
+ * unfolds in its place; under the tile the brand as a small tracked line
+ * (owner, 2026-10-19; nothing when the admin left none), the name with
+ * the size (the size in a quieter tone), then the price with the regular
+ * price crossed out when reduced and the price per unit. Nothing else
+ * (owner, 2026-10-16): the other sizes are chosen on the product page.
+ * The name keeps two lines whether it needs them or not, so the prices of
+ * a row line up, and the card ends with the price (owner, 2026-10-18). A
+ * size that cannot be ordered shows its picture greyed and a quiet pill
+ * where the button was. The tile is the `data-fly-source` of the add
+ * button: its picture flies into the cart.
  */
 export function ProductCard({
   product,
@@ -50,6 +52,7 @@ export function ProductCard({
     params: { slug: product.slug },
   };
   const title = productTitle(product.name, product.packSize);
+  const brand = brandOf(product.brand);
   const unorderable = orderingReason(product.ordering) !== null;
   const onSale = product.pricing.onSale && !unorderable;
   const left = fewLeft(product.ordering);
@@ -108,7 +111,12 @@ export function ProductCard({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 px-1.5 pt-3 pb-1.5">
+      <div className="flex flex-1 flex-col gap-1.5 px-2 pt-3 pb-2">
+        {brand && (
+          <p className="text-ink-subtle truncate text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase">
+            {brand}
+          </p>
+        )}
         <Heading className="line-clamp-2 min-h-10 text-[0.9375rem] leading-5 font-semibold">
           <Link
             href={href}
@@ -120,7 +128,7 @@ export function ProductCard({
             </span>
           </Link>
         </Heading>
-        <Price pricing={product.pricing} className="mt-auto" />
+        <Price pricing={product.pricing} className="mt-auto pt-1" />
       </div>
     </article>
   );

@@ -11,15 +11,18 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { Logo } from "./logo";
 import { MobileMenu } from "./mobile-menu";
 import { SearchForm } from "./search-form";
+import { WishlistLink } from "./wishlist-link";
 
 /**
  * The top of every shop page, in three tiers like the stores people know:
- * the wheat strip with the promises of the shop and the language (wide
- * screens only), the white bar with logo, the pill search, the account and
- * cart icons, and the category bar with its dropdowns. On phones
- * the search moves under the logo, the categories sit behind the menu
- * button, and the tab bar at the bottom does the everyday navigation; the
- * header then scrolls away with the page.
+ * the wheat strip with the promises of the shop, centred (wide screens
+ * only); the white bar with the logo, the large pill search and, at its
+ * right end, the language switch, the wishlist (signed-in customers), the
+ * account and the cart (owner, 2026-10-19: in this order); and the centred
+ * category bar with its dropdowns. On phones the search moves under the
+ * logo, the categories sit behind the menu button, and the tab bar at the
+ * bottom does the everyday navigation; the header then scrolls away with
+ * the page.
  */
 export async function Header({
   locale,
@@ -46,29 +49,26 @@ export async function Header({
         aria-label={tSite("name")}
         className="text-ink bg-wheat-400 hidden lg:block"
       >
-        <div className="container-page flex h-10 items-center justify-between gap-6 text-[0.8125rem] font-semibold">
-          <ul className="flex items-center gap-6">
+        <ul className="container-page flex h-10 items-center justify-center gap-10 text-[0.8125rem] font-semibold">
+          <li className={promise}>
+            <ShieldCheck aria-hidden="true" className={promiseIcon} />
+            {tHome("trustPay")}
+          </li>
+          <li className={promise}>
+            <Truck aria-hidden="true" className={promiseIcon} />
+            {tHome("trustDelivery")}
+          </li>
+          {freeFrom !== null && (
             <li className={promise}>
-              <ShieldCheck aria-hidden="true" className={promiseIcon} />
-              {tHome("trustPay")}
+              <PackageCheck aria-hidden="true" className={promiseIcon} />
+              {tHome("trustFree", { amount: formatMoney(freeFrom, locale) })}
             </li>
-            <li className={promise}>
-              <Truck aria-hidden="true" className={promiseIcon} />
-              {tHome("trustDelivery")}
-            </li>
-            {freeFrom !== null && (
-              <li className={promise}>
-                <PackageCheck aria-hidden="true" className={promiseIcon} />
-                {tHome("trustFree", { amount: formatMoney(freeFrom, locale) })}
-              </li>
-            )}
-          </ul>
-          <LocaleSwitcher tone="wheat" />
-        </div>
+          )}
+        </ul>
       </section>
 
       <header className="shadow-header z-40 bg-white md:sticky md:top-0">
-        <div className="container-page flex flex-wrap items-center gap-x-2 gap-y-2.5 py-3 lg:h-20 lg:flex-nowrap lg:gap-x-6 lg:py-0">
+        <div className="container-page flex flex-wrap items-center gap-x-2 gap-y-3 py-3 lg:h-20 lg:flex-nowrap lg:gap-x-8 lg:py-0">
           <Link
             href="/"
             aria-label={t("logoHome")}
@@ -80,11 +80,14 @@ export async function Header({
           <SearchForm
             locale={locale}
             id="header-search"
-            className="order-last w-full lg:order-none lg:w-auto lg:max-w-2xl lg:flex-1"
+            className="order-last w-full lg:order-none lg:w-auto lg:max-w-3xl lg:flex-1"
           />
 
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher className="lg:hidden" />
+          {/* The right end: language, wishlist, account, cart; the menu
+              button on screens without the category bar. */}
+          <div className="flex items-center gap-1 sm:gap-1.5 lg:ml-auto lg:gap-2">
+            <LocaleSwitcher />
+            <WishlistLink className="hidden md:grid" />
             <AccountLink className="hidden md:grid" />
             <CartLink className="hidden md:grid" />
             <MobileMenu categories={categories} />

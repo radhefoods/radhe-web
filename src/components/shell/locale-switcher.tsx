@@ -54,30 +54,18 @@ export function LocaleAlternates({ hrefs }: { hrefs: Alternates }) {
   return null;
 }
 
-export function LocaleSwitcher({
-  tone = "light",
-  className,
-}: {
-  /** `wheat`: on the wheat promise strip at the top of the page. */
-  tone?: "light" | "wheat";
-  className?: string;
-}) {
+/** EN | DE as a small pill; the current language is the dark side of it. */
+export function LocaleSwitcher({ className }: { className?: string }) {
   const t = useTranslations("language");
   const tNav = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname();
   const params = useParams();
   const { alternates } = useContext(AlternatesContext);
-  const wheat = tone === "wheat";
 
   return (
     <nav aria-label={tNav("switchTo")} className={className}>
-      <ul
-        className={cn(
-          "flex items-center gap-0.5 rounded-full p-0.5 text-sm font-bold",
-          wheat ? "bg-ink/8" : "bg-mist",
-        )}
-      >
+      <ul className="bg-mist flex items-center gap-0.5 rounded-full p-0.5 text-sm font-bold">
         {locales.map((other) => {
           const active = other === locale;
           const href =
@@ -95,14 +83,10 @@ export function LocaleSwitcher({
                 aria-current={active ? "true" : undefined}
                 aria-label={t(other)}
                 className={cn(
-                  "grid place-items-center rounded-full px-2.5 uppercase",
-                  wheat ? "h-7 min-w-9 text-xs" : "h-9 min-w-10",
-                  active &&
-                    (wheat ? "bg-ink text-wheat-400" : "bg-ink text-white"),
-                  !active &&
-                    (wheat
-                      ? "text-ink hover:bg-ink/10"
-                      : "text-ink-muted hover:bg-cloud hover:text-ink"),
+                  "grid h-9 min-w-10 place-items-center rounded-full px-2.5 uppercase transition-colors duration-150",
+                  active
+                    ? "bg-ink text-white"
+                    : "text-ink-muted hover:bg-cloud hover:text-ink",
                 )}
               >
                 {other}

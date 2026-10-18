@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { LocaleAlternates } from "@/components/shell/locale-switcher";
+import { Chip } from "@/components/ui/chip";
 import {
   cappedByLimit,
   fewLeft,
@@ -193,6 +194,27 @@ export function PackSizeSku() {
 }
 
 /**
+ * The stock of the chosen size as a chip next to the price: "In stock",
+ * or "Only N left" when few remain. Nothing when the size cannot be
+ * ordered: the pill in the button's place says so.
+ */
+export function PackSizeAvailability({ className }: { className?: string }) {
+  const t = useTranslations("product");
+  const { ordering } = useSelection();
+  if (orderingReason(ordering) !== null) return null;
+  const left = fewLeft(ordering);
+  return left !== null ? (
+    <Chip tone="wheat" className={className}>
+      {t("badge.fewLeft", { count: left })}
+    </Chip>
+  ) : (
+    <Chip tone="leaf" className={className}>
+      {t("inStock")}
+    </Chip>
+  );
+}
+
+/**
  * The sizes to choose from. Each is a link to the size's own address, so it
  * can be opened in a new tab or found by a crawler; a plain click switches
  * the page in place instead.
@@ -253,10 +275,9 @@ export function ProductPurchase() {
   const name = productTitle(product.name, variant.packSize);
   const canOrder = orderingReason(ordering) === null;
 
+  // The chip next to the price says how many are left; here the limits.
   const hints: string[] = [];
   if (canOrder && ordering) {
-    const left = fewLeft(ordering);
-    if (left !== null) hints.push(t("onlyLeft", { count: left }));
     if (cappedByLimit(ordering)) {
       hints.push(t("maxPerOrder", { count: ordering.maxQuantity }));
     }

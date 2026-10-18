@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PackSize } from "@/lib/api/types";
 import {
+  brandOf,
   formatPackSize,
   formatProductName,
   productTitle,
@@ -60,5 +61,29 @@ describe("productTitle", () => {
     expect(productTitle("Basmati Rice", size(1, "kg", "1 kg"))).toBe(
       "Basmati Rice (1kg)",
     );
+  });
+});
+
+describe("brandOf", () => {
+  it("keeps a brand, trimmed", () => {
+    expect(brandOf("India Gate")).toBe("India Gate");
+    expect(brandOf("  MDH ")).toBe("MDH");
+  });
+
+  it("reads the admin's placeholders as no brand", () => {
+    for (const placeholder of [
+      "",
+      "   ",
+      "N/A",
+      "n/a",
+      "NA",
+      "-",
+      "–",
+      "none",
+    ]) {
+      expect(brandOf(placeholder), placeholder).toBeNull();
+    }
+    expect(brandOf(null)).toBeNull();
+    expect(brandOf(undefined)).toBeNull();
   });
 });
