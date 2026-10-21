@@ -57,7 +57,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="border-line shadow-card grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:gap-x-5 sm:p-5">
+    <li className="border-line shadow-card grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-x-5 sm:p-5">
       <div className="bg-mist aspect-square self-center overflow-hidden rounded-md p-2">
         <ProductImage
           image={product?.image ?? null}
@@ -110,18 +110,12 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
       </div>
 
       {/* The controls, centred on the height of the card whatever the
-          texts take (owner, 2026-10-21): the stepper, and the way to take
-          the line out above it. On phones they share a row under the
-          texts. */}
-      <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-center sm:gap-2">
-        <button
-          type="button"
-          aria-label={t("removeNamed", { name })}
-          onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-mist grid size-10 shrink-0 place-items-center rounded-full transition-colors duration-150 sm:-mr-1.5"
-        >
-          <Trash2 aria-hidden="true" className="size-5" />
-        </button>
+          texts take (owner, 2026-10-21 and 2026-10-22): the stepper in the
+          middle of the card, the way to take the line out at its far end.
+          On phones they share a row under the texts, the stepper first;
+          from `sm` the wrapper dissolves and both become cells of the
+          grid. */}
+      <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
         {product && issue !== "product_not_found" && (
           <QuantityStepper
             value={quantity}
@@ -129,7 +123,10 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             max={max}
             removeAtMin={false}
             size="sm"
-            className={cn("w-32 sm:w-36", updating && "opacity-80")}
+            className={cn(
+              "w-32 sm:col-start-3 sm:w-36 sm:justify-self-center",
+              updating && "opacity-80",
+            )}
             onChange={(next) => cart.setQuantity(line.variantId, next)}
             labels={{
               quantity: tProduct("quantityNamed", { name }),
@@ -139,10 +136,18 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             }}
           />
         )}
+        <button
+          type="button"
+          aria-label={t("removeNamed", { name })}
+          onClick={() => cart.setQuantity(line.variantId, 0)}
+          className="text-ink-muted hover:text-ink hover:bg-mist grid size-10 shrink-0 place-items-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1.5 sm:justify-self-end"
+        >
+          <Trash2 aria-hidden="true" className="size-5" />
+        </button>
       </div>
 
       {issue && (
-        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-3">
+        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-4">
           <p className="min-w-0 flex-1">
             {t(`issue.${issue}`, { min, max: max ?? 0 })}
           </p>

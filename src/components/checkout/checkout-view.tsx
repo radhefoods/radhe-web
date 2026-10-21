@@ -8,7 +8,6 @@ import { BillTotals } from "@/components/cart/bill-summary";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { controlStyles } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cartQueryKey, useCart } from "@/features/cart/cart";
 import {
@@ -61,8 +60,8 @@ const LEGAL_HREF = {
 type Unavailable = "payments" | "shop";
 
 /**
- * The checkout: delivery address, an optional note, the consent to the
- * exact versions of the legal texts, the full bill, and the one button that
+ * The checkout: delivery address, the consent to the exact versions of
+ * the legal texts, the full bill, and the one button that
  * places the order and leads to the payment page. The order is made of the
  * cart stored by the API; this page sends the address, the consent and the
  * total the customer saw (doc 9), and the browser goes to `checkout.url`.
@@ -117,7 +116,6 @@ export function CheckoutView({
 
   const [chosenAddress, setChosenAddress] = useState<Id | null>(null);
   const [editing, setEditing] = useState<Id | "new" | null>(null);
-  const [note, setNote] = useState("");
   const [consent, setConsent] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [placing, setPlacing] = useState(false);
@@ -213,7 +211,6 @@ export function CheckoutView({
           // since, the API refuses and answers with the new one.
           expectedTotal: bill.totals.total,
           consent: { accepted: true, versions: consentVersions(legal) },
-          note: note.trim() || undefined,
           language: locale,
         },
         checkoutKey(),
@@ -358,28 +355,6 @@ export function CheckoutView({
               </Button>
             )
           )}
-        </section>
-
-        <section aria-labelledby="checkout-note" className="space-y-2 py-8">
-          <label
-            id="checkout-note"
-            htmlFor="checkout-note-field"
-            className={cn(sectionTitle, "block")}
-          >
-            {t("noteTitle")}
-          </label>
-          <textarea
-            id="checkout-note-field"
-            value={note}
-            maxLength={500}
-            rows={3}
-            aria-describedby="checkout-note-hint"
-            onChange={(event) => setNote(event.target.value)}
-            className={cn(controlStyles, "py-3")}
-          />
-          <p id="checkout-note-hint" className="text-ink-muted text-sm">
-            {t("noteHint")}
-          </p>
         </section>
 
         <section aria-labelledby="checkout-consent" className="space-y-3 pt-8">

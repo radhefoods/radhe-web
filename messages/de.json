@@ -368,8 +368,6 @@
     "addressTitle": "Lieferadresse",
     "addressIntro": "Wir liefern innerhalb Deutschlands.",
     "addressMissing": "Bitte wählen Sie eine Lieferadresse oder fügen Sie eine hinzu.",
-    "noteTitle": "Hinweis zur Lieferung (optional)",
-    "noteHint": "Zum Beispiel, wo geklingelt werden soll. Höchstens 500 Zeichen.",
     "consentTitle": "Bedingungen",
     "consentText": "Ich habe die <terms>Allgemeinen Geschäftsbedingungen (Version {termsVersion})</terms> gelesen und akzeptiere sie. Die <privacy>Datenschutzerklärung (Version {privacyVersion})</privacy> habe ich gelesen.",
     "consentMissing": "Bitte akzeptieren Sie die Bedingungen, um Ihre Bestellung abzuschicken.",

@@ -368,8 +368,6 @@
     "addressTitle": "Delivery address",
     "addressIntro": "We deliver within Germany.",
     "addressMissing": "Please choose or add a delivery address.",
-    "noteTitle": "Note for the delivery (optional)",
-    "noteHint": "For example where to ring. At most 500 characters.",
     "consentTitle": "Terms",
     "consentText": "I have read and accept the <terms>Terms and Conditions (version {termsVersion})</terms>, and I have read the <privacy>Privacy Policy (version {privacyVersion})</privacy>.",
     "consentMissing": "Please accept the terms to place your order.",
