@@ -40,7 +40,8 @@ const subItem =
  * else closes too. Nothing but the categories is in the bar.
  *
  * Every link is in the HTML the server sends (closed panels are `hidden`),
- * so crawlers see the whole tree without a request.
+ * so crawlers see the whole tree without a request. "All products" leads
+ * the bar (owner, 2026-10-21); the phone menu keeps to the categories.
  */
 export function CategoryNav({
   categories,
@@ -94,6 +95,17 @@ export function CategoryNav({
   return (
     <nav ref={root} aria-label={t("categories")} className={className}>
       <ul className="container-page flex flex-wrap items-center justify-center gap-x-1">
+        {/* The whole range first (owner, 2026-10-21), then the categories. */}
+        <li className="group relative">
+          <Link
+            href="/products"
+            aria-current={pathname === "/products" ? "page" : undefined}
+            onClick={close}
+            className={item}
+          >
+            {t("allProducts")}
+          </Link>
+        </li>
         {categories.map((category) => {
           const children = category.children;
           const open = openId === category.id;

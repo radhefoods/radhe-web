@@ -24,14 +24,13 @@ import {
 } from "@/lib/format/product-name";
 
 /**
- * One pack size in the cart (owner, 2026-10-19): the picture on a mist
- * tile; the brand, the name with the size in a quieter tone, and the
- * price per pack with the regular price crossed out when reduced (no
- * price per kilogram here); under them, on the left, what the line costs
- * as the one big number of the card, and level with it on the right the
- * stepper (owner, later the same day: the total left, the controls right,
- * and no label over the number). A line the API objects to carries its
- * message and a one-tap fix.
+ * One pack size in the cart (owner, 2026-10-19 and 2026-10-21): the
+ * picture on a mist tile; the brand, the name with the size in a quieter
+ * tone, and the price per pack with the regular price crossed out when
+ * reduced (no price per kilogram, and no line total: the summary adds
+ * up); at the end of the card, centred on its height, the way to take the
+ * line out and the stepper. A line the API objects to carries its message
+ * and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -58,85 +57,71 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="border-line shadow-card grid grid-cols-[5.5rem_1fr] gap-x-4 gap-y-4 rounded-xl border bg-white p-4 sm:grid-cols-[7rem_1fr] sm:gap-x-5 sm:p-5">
-      <div className="bg-mist row-span-2 aspect-square self-start overflow-hidden rounded-md p-2">
+    <li className="border-line shadow-card grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_auto] sm:gap-x-5 sm:p-5">
+      <div className="bg-mist aspect-square self-center overflow-hidden rounded-md p-2">
         <ProductImage
           image={product?.image ?? null}
           alt=""
-          sizes="112px"
+          sizes="104px"
           fallbackLabel=""
         />
       </div>
 
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          {brand && (
-            <p className="text-ink-subtle truncate text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase">
-              {brand}
-            </p>
+      <div className="flex min-w-0 flex-col gap-0.5 self-center">
+        {brand && (
+          <p className="text-ink-subtle truncate text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase">
+            {brand}
+          </p>
+        )}
+        <p className="text-[1.0625rem] leading-snug font-bold">
+          {href && product ? (
+            <>
+              <Link
+                href={href}
+                className="hover:text-leaf-700 rounded-xs underline-offset-2 hover:underline"
+              >
+                {formatProductName(product.name)}
+              </Link>{" "}
+              <span className="text-ink-muted font-medium whitespace-nowrap">
+                ({formatPackSize(product.packSize)})
+              </span>
+            </>
+          ) : (
+            name
           )}
-          <p className="text-[1.0625rem] leading-snug font-bold">
-            {href && product ? (
+        </p>
+        {product && (
+          <p className="text-ink-muted text-sm tabular-nums">
+            {reduced && (
+              <span className="sr-only">{tProduct("currentPrice")}: </span>
+            )}
+            {t("unitPrice", { price: formatMoney(line.unitPrice, locale) })}
+            {reduced && (
               <>
-                <Link
-                  href={href}
-                  className="hover:text-leaf-700 rounded-xs underline-offset-2 hover:underline"
-                >
-                  {formatProductName(product.name)}
-                </Link>{" "}
-                <span className="text-ink-muted font-medium whitespace-nowrap">
-                  ({formatPackSize(product.packSize)})
-                </span>
+                {" "}
+                <span className="sr-only">{tProduct("regularPrice")}:</span>
+                <s className="text-ink-subtle">
+                  {formatMoney(product.pricing.regularPrice, locale)}
+                </s>
               </>
-            ) : (
-              name
             )}
           </p>
-          {product && (
-            <p className="text-ink-muted text-sm tabular-nums">
-              {reduced && (
-                <span className="sr-only">{tProduct("currentPrice")}: </span>
-              )}
-              {t("unitPrice", { price: formatMoney(line.unitPrice, locale) })}
-              {reduced && (
-                <>
-                  {" "}
-                  <span className="sr-only">{tProduct("regularPrice")}:</span>
-                  <s className="text-ink-subtle">
-                    {formatMoney(product.pricing.regularPrice, locale)}
-                  </s>
-                </>
-              )}
-            </p>
-          )}
-        </div>
+        )}
+      </div>
+
+      {/* The controls, centred on the height of the card whatever the
+          texts take (owner, 2026-10-21): the stepper, and the way to take
+          the line out above it. On phones they share a row under the
+          texts. */}
+      <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-center sm:gap-2">
         <button
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-mist -mt-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full transition-colors duration-150"
+          className="text-ink-muted hover:text-ink hover:bg-mist grid size-10 shrink-0 place-items-center rounded-full transition-colors duration-150 sm:-mr-1.5"
         >
           <Trash2 aria-hidden="true" className="size-5" />
         </button>
-      </div>
-
-      {/* The bottom row: what the line costs, the one big number of the
-          card, level with the stepper that changes it. No label: its size
-          and its place say what it is (owner, 2026-10-19). */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        {issue === null ? (
-          <p
-            className={cn(
-              "font-display text-ink text-[1.625rem] leading-none tabular-nums transition-opacity sm:text-[1.875rem]",
-              updating && "opacity-50",
-            )}
-          >
-            <span className="sr-only">{t("lineTotal", { name })}: </span>
-            {formatMoney(line.lineTotal, locale)}
-          </p>
-        ) : (
-          <span />
-        )}
         {product && issue !== "product_not_found" && (
           <QuantityStepper
             value={quantity}
@@ -144,7 +129,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             max={max}
             removeAtMin={false}
             size="sm"
-            className="w-32 sm:w-36"
+            className={cn("w-32 sm:w-36", updating && "opacity-80")}
             onChange={(next) => cart.setQuantity(line.variantId, next)}
             labels={{
               quantity: tProduct("quantityNamed", { name }),
@@ -157,7 +142,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
       </div>
 
       {issue && (
-        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800">
+        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-3">
           <p className="min-w-0 flex-1">
             {t(`issue.${issue}`, { min, max: max ?? 0 })}
           </p>

@@ -277,11 +277,10 @@ export function CheckoutView({
 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[1fr_25rem] lg:gap-12">
-      <div className="flex flex-col gap-5">
-        <section
-          aria-labelledby="checkout-address"
-          className="border-line space-y-4 rounded-xl border bg-white p-5 sm:p-6"
-        >
+      {/* The steps as open sections between hairlines, no boxes (owner,
+          2026-10-21). */}
+      <div className="divide-line flex flex-col divide-y">
+        <section aria-labelledby="checkout-address" className="space-y-4 pb-8">
           <div>
             <h2 id="checkout-address" className={sectionTitle}>
               {t("addressTitle")}
@@ -361,14 +360,11 @@ export function CheckoutView({
           )}
         </section>
 
-        <section
-          aria-labelledby="checkout-note"
-          className="border-line space-y-2 rounded-xl border bg-white p-5 sm:p-6"
-        >
+        <section aria-labelledby="checkout-note" className="space-y-2 py-8">
           <label
             id="checkout-note"
             htmlFor="checkout-note-field"
-            className="text-lg font-bold"
+            className={cn(sectionTitle, "block")}
           >
             {t("noteTitle")}
           </label>
@@ -386,10 +382,7 @@ export function CheckoutView({
           </p>
         </section>
 
-        <section
-          aria-labelledby="checkout-consent"
-          className="border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6"
-        >
+        <section aria-labelledby="checkout-consent" className="space-y-3 pt-8">
           <h2 id="checkout-consent" className={sectionTitle}>
             {t("consentTitle")}
           </h2>
@@ -444,7 +437,9 @@ export function CheckoutView({
           {t("summaryTitle")}
         </h2>
 
-        <ul className="divide-line divide-y text-[0.9375rem]">
+        {/* About five lines show at once; more scroll inside the list, and
+            the totals and the button stay in view (owner, 2026-10-21). */}
+        <ul className="divide-line -mr-2 max-h-[19.5rem] scrollbar-thin divide-y overflow-y-auto pr-2 text-[0.9375rem]">
           {bill.lines.map((line) => {
             // A reduced size shows what is paid per pack and the regular price.
             const reduced =

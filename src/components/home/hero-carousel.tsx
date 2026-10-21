@@ -50,12 +50,8 @@ function subscribeVisibility(onChange: () => void): () => void {
   return () => document.removeEventListener("visibilitychange", onChange);
 }
 
-/**
- * How wide the carousel is shown: edge to edge on phones, the page's
- * container from small screens on.
- */
-const SIZES =
-  "(min-width: 84rem) 1280px, (min-width: 64rem) calc(100vw - 4rem), (min-width: 40rem) calc(100vw - 3rem), 100vw";
+/** How wide the carousel is shown: the whole width of the window. */
+const SIZES = "100vw";
 
 /**
  * One banner: the picture in a box of its own ratio, never cropped, so the
@@ -89,7 +85,7 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
     </span>
   );
   // The outline of a focused link stays inside the rounded box.
-  const link = "block focus-visible:outline-offset-[-4px] sm:rounded-xl";
+  const link = "block focus-visible:outline-offset-[-4px]";
   if (!linkUrl) return picture;
   if (isExternal) {
     return (
@@ -128,8 +124,8 @@ interface Track {
 /**
  * The hero of the home page (doc 17; owner, 2026-10-19: in the place of
  * the woven band): one slide per live banner, in the admin's order, each
- * keeping its picture's ratio, edge to edge on phones and a rounded panel
- * from small screens on. The slides sit on one track that moves by a
+ * keeping its picture's ratio, across the whole width of the window
+ * (owner, 2026-10-21). The slides sit on one track that moves by a
  * transform (owner, later that night: a fluid, premium slide): a change
  * glides with an expo easing, a finger or a mouse drags the track one to
  * one and lets it settle on the next, the previous or the same slide, and
@@ -342,7 +338,7 @@ export function HeroCarousel({
       onPointerLeave={(event) => onPointer(event, false)}
       onFocus={(event) => onFocusChange(event, true)}
       onBlur={(event) => onFocusChange(event, false)}
-      className={cn("relative -mx-4 sm:mx-0", className)}
+      className={cn("relative", className)}
     >
       <div
         ref={viewport}
@@ -352,7 +348,7 @@ export function HeroCarousel({
         onPointerCancel={endDrag}
         onClickCapture={onClickCapture}
         className={cn(
-          "bg-mist touch-pan-y overflow-hidden select-none sm:rounded-xl",
+          "bg-mist touch-pan-y overflow-hidden select-none",
           looped && (dragging ? "cursor-grabbing" : "md:cursor-grab"),
         )}
       >

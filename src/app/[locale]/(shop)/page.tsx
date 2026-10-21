@@ -106,7 +106,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           shop and the ticket with delivery and payment at a glance stands
           in, so the page never opens empty. */}
       {banners.length > 0 ? (
-        <div className="container-page pt-3 sm:pt-5 lg:pt-6">
+        <div>
           <h1 className="sr-only">{t("metaTitle")}</h1>
           <HeroCarousel
             banners={banners}

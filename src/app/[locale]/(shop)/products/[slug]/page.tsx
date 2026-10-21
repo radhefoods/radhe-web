@@ -128,13 +128,14 @@ async function relatedProducts(
 }
 
 /**
- * The product page (redesigned 2026-10-19): the pictures on the left, kept
- * in view while the right column scrolls; on the right the brand, the
- * name with the chosen size and the subtitle, then the buy box (price,
- * stock chip, pack sizes, add to cart), the highlights, delivery and
- * payment at a glance, and the two texts of the product as sections that
- * fold open. Under all that the products of the same category as a row
- * and the categories of the shop as tiles.
+ * The product page (redesigned 2026-10-19, tightened 2026-10-21 after the
+ * look of the big grocers): the pictures on the left, kept in view while
+ * the right column scrolls; on the right the brand, the name with the
+ * chosen size and the subtitle, the price with the stock chip, the pack
+ * sizes, add to cart, delivery and payment in a compact block, the
+ * highlights, and the two texts of the product as flat rows that fold
+ * open. Under all that the products of the same category as a row and the
+ * categories of the shop as tiles.
  */
 export default async function ProductPage({ params }: Props) {
   const locale = await localeOf(params);
@@ -194,7 +195,7 @@ export default async function ProductPage({ params }: Props) {
       <PackSizes product={product}>
         <div
           data-fly-scope=""
-          className="mt-5 grid gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-12"
+          className="mt-5 grid gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-[minmax(0,11fr)_minmax(0,10fr)] lg:gap-12"
         >
           <ProductGallery
             images={product.images}
@@ -202,55 +203,51 @@ export default async function ProductPage({ params }: Props) {
             className="md:sticky md:top-36 md:self-start"
           />
 
-          <div className="flex flex-col gap-6">
-            <header className="flex flex-col gap-2">
+          {/* The column of the decision, as the big grocers set it: the
+              name, the price, the sizes, the button, then the trust notes
+              and the texts folded under them (owner, 2026-10-21). */}
+          <div className="flex flex-col gap-5">
+            <header className="flex flex-col gap-1.5">
               {brand && (
                 <p className="text-leaf-700 text-xs font-bold tracking-[0.14em] uppercase">
                   {brand}
                 </p>
               )}
-              <PackSizeHeadline className="font-display text-ink text-[1.75rem] leading-[1.1] sm:text-[2.25rem]" />
+              <PackSizeHeadline className="font-display text-ink text-[1.625rem] leading-[1.12] sm:text-[2rem]" />
               {(product.subtitle ?? product.shortDescription) && (
-                <p className="text-ink-muted text-[1.0625rem]">
+                <p className="text-ink-muted">
                   {product.subtitle ?? product.shortDescription}
                 </p>
               )}
             </header>
 
-            {/* The buy box: everything a decision needs, in one card. */}
-            <div className="border-line shadow-card flex flex-col gap-5 rounded-xl border bg-white p-5 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                <div>
-                  <PackSizePrice />
-                  <p className="text-ink-muted mt-1.5 text-sm">
-                    <Link
-                      href="/delivery-and-payment"
-                      className="hover:text-ink rounded-xs underline underline-offset-4"
-                    >
-                      {tCommon("priceNote")}
-                    </Link>
-                  </p>
-                </div>
-                <PackSizeAvailability className="mt-1" />
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+              <div>
+                <PackSizePrice />
+                <p className="text-ink-muted mt-1 text-sm">
+                  <Link
+                    href="/delivery-and-payment"
+                    className="hover:text-ink rounded-xs underline underline-offset-4"
+                  >
+                    {tCommon("priceNote")}
+                  </Link>
+                </p>
               </div>
-
-              <PackSizePicker />
-
-              <ProductPurchase />
+              <PackSizeAvailability className="mb-1" />
             </div>
 
+            <PackSizePicker />
+
+            <ProductPurchase />
+
+            <PurchaseInfo settings={settings} locale={locale} />
+
             {product.highlights.length > 0 && (
-              <section
-                aria-labelledby="product-highlights"
-                className="bg-mist rounded-xl p-5"
-              >
-                <h2
-                  id="product-highlights"
-                  className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase"
-                >
+              <section aria-labelledby="product-highlights">
+                <h2 id="product-highlights" className="sr-only">
                   {t("highlights")}
                 </h2>
-                <ul className="mt-3 grid gap-2 text-[0.9375rem] sm:grid-cols-2">
+                <ul className="grid gap-x-5 gap-y-2 text-[0.9375rem] sm:grid-cols-2">
                   {product.highlights.map((highlight) => (
                     <li key={highlight} className="flex items-start gap-2.5">
                       <span
@@ -266,15 +263,14 @@ export default async function ProductPage({ params }: Props) {
               </section>
             )}
 
-            <PurchaseInfo settings={settings} locale={locale} />
-
-            {/* The texts of the product, folded: "About" open, the details
-                a tap away (owner, 2026-10-19). */}
-            <div className="flex flex-col gap-3">
+            {/* The texts of the product as flat rows that fold open:
+                "About" open, the details a tap away. */}
+            <div className="mt-1">
               {hasAbout && (
                 <Disclosure
                   id="product-about"
                   title={t("description")}
+                  look="row"
                   defaultOpen
                 >
                   {product.description && (
@@ -283,7 +279,7 @@ export default async function ProductPage({ params }: Props) {
                     </p>
                   )}
                   {product.uses.length > 0 && (
-                    <div className={cn(product.description && "mt-5")}>
+                    <div className={cn(product.description && "mt-4")}>
                       <h3 className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase">
                         {t("uses")}
                       </h3>
@@ -301,14 +297,14 @@ export default async function ProductPage({ params }: Props) {
                   )}
                 </Disclosure>
               )}
-              <Disclosure id="product-details" title={t("details")}>
+              <Disclosure id="product-details" title={t("details")} look="row">
                 <dl className="divide-line divide-y text-[0.9375rem]">
                   {facts.map(
                     ([label, value]) =>
                       value && (
                         <div
                           key={label}
-                          className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[10rem_1fr] sm:gap-4"
+                          className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[9rem_1fr] sm:gap-4"
                         >
                           <dt className="font-semibold">{label}</dt>
                           <dd className="text-ink-muted whitespace-pre-line">
