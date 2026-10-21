@@ -1,4 +1,4 @@
-import { PackageCheck, RotateCcw, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
@@ -18,14 +18,11 @@ function Row({
   children?: ReactNode;
 }) {
   return (
-    <li className="flex gap-3">
-      <span
-        aria-hidden="true"
-        className="bg-leaf-50 text-leaf-700 grid size-8 shrink-0 place-items-center rounded-full"
-      >
+    <li className="flex gap-3.5 py-4">
+      <span aria-hidden="true" className="text-leaf-700 mt-0.5 shrink-0">
         {icon}
       </span>
-      <div className="min-w-0 flex-1 pt-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="text-[0.9375rem] leading-snug font-semibold">{title}</p>
         {children}
       </div>
@@ -34,15 +31,16 @@ function Row({
 }
 
 /**
- * Delivery and payment at the point of decision (owner, 2026-10-19), as a
- * compact block under the buy box since 2026-10-21: four short rows with
- * a small icon each, two abreast where there is room. Where the shop
- * delivers and how long it takes, what delivery costs and from which
- * order value it is free, that the customer pays securely at checkout
- * with the four accepted methods as marks, and how many days there are to
- * return. Every number comes from `GET /v1/store/settings`; a missing one
- * leaves its row or line out, and nothing here is promised that the API
- * does not say. The link leads to the full page.
+ * Delivery, returns and payment at the point of decision (owner,
+ * 2026-10-19), set since 2026-10-22 the way the leading grocers set their
+ * trust lines: three flat rows between hairlines under the button, no
+ * panel, a small leaf icon each. Where the shop delivers, how long it
+ * takes, what it costs and from which order value it is free; how many
+ * days there are to return and how; that the customer pays securely at
+ * checkout, with the four accepted methods as marks. Every number comes
+ * from `GET /v1/store/settings`; a missing one leaves its line out, and
+ * nothing here is promised that the API does not say. The link leads to
+ * the full page.
  */
 export async function PurchaseInfo({
   settings,
@@ -66,37 +64,34 @@ export async function PurchaseInfo({
     null;
   const freeFrom = settings?.deliveryFee.freeFrom ?? null;
   const returnDays = settings?.returns.windowDays ?? 0;
-  const icon = "size-4";
-  const note = "text-ink-muted mt-0.5 text-sm";
+  const icon = "size-5";
+  const note = "text-ink-muted text-sm leading-snug";
 
   return (
     <section
       aria-labelledby="purchase-info"
-      className={cn("bg-mist rounded-xl p-4 sm:p-5", className)}
+      className={cn("border-line border-t", className)}
     >
       <h2 id="purchase-info" className="sr-only">
         {t("title")}
       </h2>
-      <ul className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+      <ul className="divide-line divide-y">
         <Row icon={<Truck className={icon} />} title={tHome("trustDelivery")}>
           {estimate && <p className={note}>{estimate}</p>}
-        </Row>
-        {fee !== null && (
-          <Row
-            icon={<PackageCheck className={icon} />}
-            title={
-              fee === 0
+          {fee !== null && (
+            <p className={note}>
+              {fee === 0
                 ? t("feeFree")
-                : t("fee", { fee: formatMoney(fee, locale) })
-            }
-          >
-            {fee !== 0 && freeFrom !== null && (
-              <p className={note}>
-                {t("freeFrom", { amount: formatMoney(freeFrom, locale) })}
-              </p>
-            )}
-          </Row>
-        )}
+                : t("fee", { fee: formatMoney(fee, locale) })}
+              {fee !== 0 && freeFrom !== null && (
+                <>
+                  {" · "}
+                  {t("freeFrom", { amount: formatMoney(freeFrom, locale) })}
+                </>
+              )}
+            </p>
+          )}
+        </Row>
         {returnDays > 0 && (
           <Row
             icon={<RotateCcw className={icon} />}
@@ -107,17 +102,18 @@ export async function PurchaseInfo({
         )}
         <Row icon={<ShieldCheck className={icon} />} title={tHome("trustPay")}>
           <p className={note}>{t("paymentText")}</p>
+          <PaymentMarks label={t("paymentMethods")} className="mt-1.5" />
         </Row>
       </ul>
-      <div className="border-line-strong/60 mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-dashed pt-4">
-        <PaymentMarks label={t("paymentMethods")} />
+      <p className="border-line border-t pt-3.5 text-sm">
         <Link
           href="/delivery-and-payment"
-          className="text-leaf-700 rounded-xs text-sm font-semibold underline underline-offset-4"
+          className="text-leaf-700 hover:text-leaf-800 inline-flex items-center gap-1 rounded-xs font-semibold"
         >
           {t("more")}
+          <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
-      </div>
+      </p>
     </section>
   );
 }

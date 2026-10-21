@@ -1,4 +1,5 @@
 import { useLocale, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import type { Locale } from "@/i18n/routing";
 import type { PriceView } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
@@ -8,15 +9,19 @@ import { formatBasePrice, formatMoney } from "@/lib/format/money";
  * The price of a product: what it costs, the crossed-out regular price when
  * reduced, and the price per kilogram, litre or piece, which German law
  * asks for next to every price. The price is set in the display cut, like
- * a headline: it is what the eye looks for on a card.
+ * a headline: it is what the eye looks for on a card. On the product page
+ * the note on VAT and delivery follows the price per unit on its line.
  */
 export function Price({
   pricing,
   size = "md",
+  note,
   className,
 }: {
   pricing: PriceView;
   size?: "md" | "lg";
+  /** After the price per unit, on the same line: "incl. VAT, plus delivery". */
+  note?: ReactNode;
   className?: string;
 }) {
   const t = useTranslations("product");
@@ -57,6 +62,12 @@ export function Price({
         )}
       >
         {formatBasePrice(pricing.basePrice, locale)}
+        {note && (
+          <>
+            {" · "}
+            {note}
+          </>
+        )}
       </p>
     </div>
   );

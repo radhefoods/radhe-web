@@ -128,14 +128,17 @@ async function relatedProducts(
 }
 
 /**
- * The product page (redesigned 2026-10-19, tightened 2026-10-21 after the
- * look of the big grocers): the pictures on the left, kept in view while
- * the right column scrolls; on the right the brand, the name with the
- * chosen size and the subtitle, the price with the stock chip, the pack
- * sizes, add to cart, delivery and payment in a compact block, the
- * highlights, and the two texts of the product as flat rows that fold
- * open. Under all that the products of the same category as a row and the
- * categories of the shop as tiles.
+ * The product page (redesigned 2026-10-19, set after the look of the
+ * leading grocers on 2026-10-21 and again on 2026-10-22): the pictures on
+ * the left, kept in view while the right column scrolls; on the right one
+ * column without panels, read top to bottom: the brand, the name with the
+ * chosen size and the subtitle; the price with the regular price, the
+ * price per unit and the tax note, the stock chip beside; the pack sizes
+ * as tiles with their prices; add to cart with the heart; then, between
+ * hairlines, delivery, returns and payment as three rows, the highlights,
+ * and the two texts of the product as rows that fold open. Under all that
+ * the products of the same category as a row and the categories of the
+ * shop as tiles.
  */
 export default async function ProductPage({ params }: Props) {
   const locale = await localeOf(params);
@@ -203,11 +206,12 @@ export default async function ProductPage({ params }: Props) {
             className="md:sticky md:top-36 md:self-start"
           />
 
-          {/* The column of the decision, as the big grocers set it: the
-              name, the price, the sizes, the button, then the trust notes
-              and the texts folded under them (owner, 2026-10-21). */}
-          <div className="flex flex-col gap-5">
-            <header className="flex flex-col gap-1.5">
+          {/* The column of the decision, as the leading grocers set it:
+              the name, the price, the sizes, the button, then the trust
+              lines and the texts, every block parted from the next by one
+              hairline and nothing boxed (owner, 2026-10-21 and 22). */}
+          <div className="flex flex-col">
+            <header className="flex flex-col gap-2">
               {brand && (
                 <p className="text-leaf-700 text-xs font-bold tracking-[0.14em] uppercase">
                   {brand}
@@ -221,33 +225,42 @@ export default async function ProductPage({ params }: Props) {
               )}
             </header>
 
-            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-              <div>
-                <PackSizePrice />
-                <p className="text-ink-muted mt-1 text-sm">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <PackSizePrice
+                note={
                   <Link
                     href="/delivery-and-payment"
                     className="hover:text-ink rounded-xs underline underline-offset-4"
                   >
                     {tCommon("priceNote")}
                   </Link>
-                </p>
-              </div>
-              <PackSizeAvailability className="mb-1" />
+                }
+              />
+              <PackSizeAvailability />
             </div>
 
-            <PackSizePicker />
+            <PackSizePicker className="mt-6" />
 
-            <ProductPurchase />
+            <ProductPurchase className="mt-6" />
 
-            <PurchaseInfo settings={settings} locale={locale} />
+            <PurchaseInfo
+              settings={settings}
+              locale={locale}
+              className="mt-7"
+            />
 
             {product.highlights.length > 0 && (
-              <section aria-labelledby="product-highlights">
-                <h2 id="product-highlights" className="sr-only">
+              <section
+                aria-labelledby="product-highlights"
+                className="border-line mt-5 border-t pt-5"
+              >
+                <h2
+                  id="product-highlights"
+                  className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase"
+                >
                   {t("highlights")}
                 </h2>
-                <ul className="grid gap-x-5 gap-y-2 text-[0.9375rem] sm:grid-cols-2">
+                <ul className="mt-3 grid gap-x-5 gap-y-2 text-[0.9375rem] sm:grid-cols-2">
                   {product.highlights.map((highlight) => (
                     <li key={highlight} className="flex items-start gap-2.5">
                       <span
@@ -265,7 +278,7 @@ export default async function ProductPage({ params }: Props) {
 
             {/* The texts of the product as flat rows that fold open:
                 "About" open, the details a tap away. */}
-            <div className="mt-1">
+            <div className="mt-5">
               {hasAbout && (
                 <Disclosure
                   id="product-about"

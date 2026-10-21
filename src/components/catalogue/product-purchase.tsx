@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Info } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
@@ -44,6 +45,8 @@ interface Selection {
   variant: ProductVariant;
   /** Whether the size can be ordered: asked again when the page opens. */
   ordering: Ordering | null;
+  /** The same for any of the sizes, for the picker. */
+  orderingOf: (variant: ProductVariant) => Ordering | null;
   /** Shows a size; with an address, the browser's address follows. */
   select: (variant: ProductVariant, href?: string) => void;
 }
@@ -110,9 +113,13 @@ export function PackSizes({
     queryFn: async () => (await api.getProduct(product.slug)).product,
     staleTime: 30_000,
   });
-  const ordering =
-    fresh.data?.variants.find((v) => v.id === variant.id)?.ordering ??
-    variant.ordering;
+  const freshVariants = fresh.data?.variants;
+  const orderingOf = useCallback(
+    (size: ProductVariant) =>
+      freshVariants?.find((v) => v.id === size.id)?.ordering ?? size.ordering,
+    [freshVariants],
+  );
+  const ordering = orderingOf(variant);
 
   // The tab's title names the size; the rest of it (the shop) stays.
   const titledAs = useRef(
@@ -141,8 +148,8 @@ export function PackSizes({
   }, [variants, select]);
 
   const value = useMemo<Selection>(
-    () => ({ product, variants, variant, ordering, select }),
-    [product, variants, variant, ordering, select],
+    () => ({ product, variants, variant, ordering, orderingOf, select }),
+    [product, variants, variant, ordering, orderingOf, select],
   );
 
   // The language switch keeps the size. The API answers to the slug of
@@ -183,9 +190,22 @@ export function PackSizeDiscount({ className }: { className?: string }) {
 }
 
 /** The price of the chosen size, with its regular price and price per unit. */
-export function PackSizePrice({ className }: { className?: string }) {
+export function PackSizePrice({
+  note,
+  className,
+}: {
+  note?: ReactNode;
+  className?: string;
+}) {
   const { variant } = useSelection();
-  return <Price pricing={variant.pricing} size="lg" className={className} />;
+  return (
+    <Price
+      pricing={variant.pricing}
+      size="lg"
+      note={note}
+      className={className}
+    />
+  );
 }
 
 /** The item number of the chosen size, for the details table. */
@@ -216,50 +236,86 @@ export function PackSizeAvailability({ className }: { className?: string }) {
 }
 
 /**
- * The sizes to choose from. Each is a link to the size's own address, so it
- * can be opened in a new tab or found by a crawler; a plain click switches
- * the page in place instead.
+ * The sizes to choose from, as tiles that name the size and its price, so
+ * the customer compares without switching (owner, 2026-10-22); a size that
+ * cannot be ordered says so in the price's place. Each tile is a link to
+ * the size's own address, so it can be opened in a new tab or found by a
+ * crawler; a plain click switches the page in place instead. Nothing is
+ * shown when the product comes in one size only.
  */
-export function PackSizePicker() {
+export function PackSizePicker({ className }: { className?: string }) {
   const t = useTranslations("product");
-  const { variants, variant, select } = useSelection();
+  const locale = useLocale() as Locale;
+  const { variants, variant, select, orderingOf } = useSelection();
+  if (variants.length < 2) return null;
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-ink-subtle text-xs font-bold tracking-wider uppercase">
-        {t("packSize")}
+    <div className={cn("flex flex-col gap-2.5", className)}>
+      <p className="flex items-baseline gap-2 text-sm">
+        <span className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase">
+          {t("packSize")}
+        </span>
+        <span className="font-semibold">
+          {formatPackSize(variant.packSize)}
+        </span>
       </p>
       <ul className="flex flex-wrap gap-2">
-        {variants.map((size) => (
-          <li key={size.id}>
-            <Link
-              href={productHref(size.slug)}
-              prefetch={false}
-              aria-current={size.id === variant.id ? "page" : undefined}
-              onClick={(event) => {
-                // A modifier or another button means "in a new tab".
-                if (
-                  event.button !== 0 ||
-                  event.metaKey ||
-                  event.ctrlKey ||
-                  event.shiftKey ||
-                  event.altKey
-                ) {
-                  return;
-                }
-                event.preventDefault();
-                select(size, event.currentTarget.href);
-              }}
-              className={cn(
-                "flex min-h-11 items-center rounded-full border-2 px-4 text-[0.9375rem] font-semibold transition-colors duration-150",
-                size.id === variant.id
-                  ? "border-leaf-600 bg-leaf-50 text-leaf-700"
-                  : "border-line-strong hover:border-ink-subtle bg-white",
-              )}
-            >
-              {formatPackSize(size.packSize)}
-            </Link>
-          </li>
-        ))}
+        {variants.map((size) => {
+          const chosen = size.id === variant.id;
+          const reason = orderingReason(orderingOf(size));
+          return (
+            <li key={size.id}>
+              <Link
+                href={productHref(size.slug)}
+                prefetch={false}
+                aria-current={chosen ? "page" : undefined}
+                onClick={(event) => {
+                  // A modifier or another button means "in a new tab".
+                  if (
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  select(size, event.currentTarget.href);
+                }}
+                className={cn(
+                  "flex min-h-14 min-w-22 flex-col justify-center gap-0.5 rounded-xl border-[1.5px] px-3.5 py-2 leading-tight transition-colors duration-150",
+                  chosen
+                    ? "border-leaf-600 bg-leaf-50"
+                    : "border-line-strong hover:border-ink-subtle bg-white",
+                  reason && !chosen && "border-dashed",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-[0.9375rem] font-bold",
+                    chosen ? "text-leaf-700" : reason && "text-ink-subtle",
+                  )}
+                >
+                  {formatPackSize(size.packSize)}
+                </span>
+                <span
+                  className={cn(
+                    "text-[0.8125rem] tabular-nums",
+                    reason
+                      ? "text-ink-subtle"
+                      : size.pricing.onSale
+                        ? "font-semibold text-red-600"
+                        : "text-ink-muted",
+                  )}
+                >
+                  {reason
+                    ? t(`reason.${reason}`)
+                    : formatMoney(size.pricing.price, locale)}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -271,7 +327,7 @@ export function PackSizePicker() {
  * limits of the chosen size, and on phones the add-to-cart control fixed
  * above the tab bar.
  */
-export function ProductPurchase() {
+export function ProductPurchase({ className }: { className?: string }) {
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
   const { product, variant, ordering } = useSelection();
@@ -290,13 +346,13 @@ export function ProductPurchase() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className={cn("flex flex-col gap-3", className)}>
       <div className="flex items-center gap-3">
         <AddToCart
           variantId={variant.id}
           name={name}
           ordering={ordering}
-          className="min-w-0 flex-1 sm:max-w-xs"
+          className="min-w-0 flex-1 sm:max-w-sm"
         />
         <WishlistButton
           productId={product.id}
@@ -307,9 +363,15 @@ export function ProductPurchase() {
       </div>
 
       {hints.length > 0 && (
-        <ul className="text-wheat-800 flex flex-col gap-0.5 text-sm font-semibold">
+        <ul className="text-ink-muted flex flex-col gap-1 text-sm">
           {hints.map((hint) => (
-            <li key={hint}>{hint}</li>
+            <li key={hint} className="flex items-center gap-2">
+              <Info
+                aria-hidden="true"
+                className="text-leaf-700 size-4 shrink-0"
+              />
+              {hint}
+            </li>
           ))}
         </ul>
       )}
