@@ -1,10 +1,12 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { LockKeyhole, Plus, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
+import { PaymentMarks } from "@/components/catalogue/payment-marks";
+import { ProductImage } from "@/components/catalogue/product-image";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -29,7 +31,7 @@ import {
   consentVersions,
 } from "@/lib/checkout/order-attempt";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/format/money";
+import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { AddressForm } from "./address-form";
 import { productTitle } from "@/lib/format/product-name";
 
@@ -60,9 +62,10 @@ const LEGAL_HREF = {
 type Unavailable = "payments" | "shop";
 
 /**
- * The checkout: delivery address, the consent to the exact versions of
- * the legal texts, the full bill, and the one button that
- * places the order and leads to the payment page. The order is made of the
+ * The checkout: the delivery address and the consent to the exact versions
+ * of the legal texts as two numbered steps, the order as a summary beside
+ * them, and the one button that places the order and leads to the payment
+ * page. The order is made of the
  * cart stored by the API; this page sends the address, the consent and the
  * total the customer saw (doc 9), and the browser goes to `checkout.url`.
  */
@@ -75,6 +78,7 @@ export function CheckoutView({
   const t = useTranslations("checkout");
   const tAddress = useTranslations("address");
   const tProduct = useTranslations("product");
+  const tCart = useTranslations("cart");
   const locale = useLocale() as Locale;
   const router = useRouter();
   const client = useQueryClient();
@@ -270,174 +274,212 @@ export function CheckoutView({
 
   const sectionTitle = "font-display text-xl text-ink";
   const link = "font-semibold text-leaf-700 underline underline-offset-4";
+  const itemCount = bill.lines.reduce((sum, line) => sum + line.quantity, 0);
 
   return (
-    <div className="grid items-start gap-8 lg:grid-cols-[1fr_25rem] lg:gap-12">
-      {/* The steps as open sections between hairlines, no boxes (owner,
-          2026-10-21). */}
+    <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_28rem]">
+      {/* The steps, numbered, as open sections between hairlines, no
+          boxes (owner, 2026-10-21 and 2026-10-22). */}
       <div className="divide-line flex flex-col divide-y">
-        <section aria-labelledby="checkout-address" className="space-y-4 pb-8">
-          <div>
+        <section aria-labelledby="checkout-address" className="pb-10">
+          <Step number={1}>
             <h2 id="checkout-address" className={sectionTitle}>
               {t("addressTitle")}
             </h2>
-            <p className="text-ink-muted">{t("addressIntro")}</p>
-          </div>
+            <p className="text-ink-muted mt-0.5">{t("addressIntro")}</p>
+          </Step>
 
-          {addresses.length > 0 && !showForm && (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {addresses.map((address) => {
-                const checked = address.id === selected?.id;
-                const name = `${address.firstName} ${address.lastName}`;
-                return (
-                  <li key={address.id} className="relative">
-                    <label
-                      className={cn(
-                        "flex h-full cursor-pointer gap-3 rounded-md border-[1.5px] p-4 pr-20",
-                        checked
-                          ? "border-leaf-600 bg-leaf-50"
-                          : "border-line-strong hover:border-ink-subtle bg-white",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="delivery-address"
-                        className="accent-leaf-600 mt-1 size-5 shrink-0"
-                        checked={checked}
-                        onChange={() => setChosenAddress(address.id)}
-                      />
-                      <span className="flex min-w-0 flex-col text-[0.9375rem]">
-                        <AddressLines address={address} />
-                        {address.isDefault && (
-                          <span className="text-ink-muted mt-1 text-sm">
-                            {tAddress("default")}
-                          </span>
+          <div className="mt-5 space-y-4 sm:pl-[2.875rem]">
+            {addresses.length > 0 && !showForm && (
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {addresses.map((address) => {
+                  const checked = address.id === selected?.id;
+                  const name = `${address.firstName} ${address.lastName}`;
+                  return (
+                    <li key={address.id} className="relative">
+                      <label
+                        className={cn(
+                          "flex h-full cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 pr-20 transition-colors duration-150",
+                          checked
+                            ? "border-leaf-600 bg-leaf-50"
+                            : "border-line-strong hover:border-ink-subtle bg-white",
                         )}
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      aria-label={tAddress("editNamed", { name })}
-                      onClick={() => setEditing(address.id)}
-                      className={cn(link, "absolute top-3 right-4 min-h-11")}
-                    >
-                      {tAddress("edit")}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                      >
+                        <input
+                          type="radio"
+                          name="delivery-address"
+                          className="accent-leaf-600 mt-1 size-5 shrink-0"
+                          checked={checked}
+                          onChange={() => setChosenAddress(address.id)}
+                        />
+                        <span className="flex min-w-0 flex-col text-[0.9375rem]">
+                          <AddressLines address={address} />
+                          {address.isDefault && (
+                            <span className="text-ink-muted mt-1 text-sm">
+                              {tAddress("default")}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        aria-label={tAddress("editNamed", { name })}
+                        onClick={() => setEditing(address.id)}
+                        className={cn(link, "absolute top-3 right-4 min-h-11")}
+                      >
+                        {tAddress("edit")}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
-          {showForm ? (
-            <AddressForm
-              key={editing ?? "first"}
-              idPrefix="checkout-address"
-              initial={
-                editing && editing !== "new"
-                  ? addressToFormValues(
-                      addresses.find((address) => address.id === editing)!,
-                    )
-                  : undefined
-              }
-              showDefault={addresses.length > 0}
-              onSave={saveAddress}
-              onCancel={
-                addresses.length > 0 ? () => setEditing(null) : undefined
-              }
-            />
-          ) : (
-            addresses.length < 10 && (
-              <Button variant="secondary" onClick={() => setEditing("new")}>
-                <Plus aria-hidden="true" className="size-5" />
-                {tAddress("add")}
-              </Button>
-            )
-          )}
+            {showForm ? (
+              <AddressForm
+                key={editing ?? "first"}
+                idPrefix="checkout-address"
+                initial={
+                  editing && editing !== "new"
+                    ? addressToFormValues(
+                        addresses.find((address) => address.id === editing)!,
+                      )
+                    : undefined
+                }
+                showDefault={addresses.length > 0}
+                onSave={saveAddress}
+                onCancel={
+                  addresses.length > 0 ? () => setEditing(null) : undefined
+                }
+              />
+            ) : (
+              addresses.length < 10 && (
+                <Button variant="secondary" onClick={() => setEditing("new")}>
+                  <Plus aria-hidden="true" className="size-5" />
+                  {tAddress("add")}
+                </Button>
+              )
+            )}
+          </div>
         </section>
 
-        <section aria-labelledby="checkout-consent" className="space-y-3 pt-8">
-          <h2 id="checkout-consent" className={sectionTitle}>
-            {t("consentTitle")}
-          </h2>
-          {legalChanged && (
-            <Alert tone="warn" title={t("legalChangedTitle")}>
-              {t("legalChangedText")}
-            </Alert>
-          )}
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(event) => setConsent(event.target.checked)}
-              aria-describedby={
-                attempted && !consent ? "checkout-consent-error" : undefined
-              }
-              className="accent-leaf-600 mt-0.5 size-6 shrink-0"
-            />
-            <span>
-              {t.rich("consentText", {
-                termsVersion: versionOf("terms"),
-                privacyVersion: versionOf("privacy"),
-                terms: (chunks) => (
-                  <Link
-                    href={LEGAL_HREF.terms}
-                    target="_blank"
-                    className={link}
-                  >
-                    {chunks}
-                  </Link>
-                ),
-                privacy: (chunks) => (
-                  <Link
-                    href={LEGAL_HREF.privacy}
-                    target="_blank"
-                    className={link}
-                  >
-                    {chunks}
-                  </Link>
-                ),
-              })}
-            </span>
-          </label>
+        <section aria-labelledby="checkout-consent" className="pt-10">
+          <Step number={2}>
+            <h2 id="checkout-consent" className={sectionTitle}>
+              {t("consentTitle")}
+            </h2>
+          </Step>
+          <div className="mt-5 space-y-4 sm:pl-[2.875rem]">
+            {legalChanged && (
+              <Alert tone="warn" title={t("legalChangedTitle")}>
+                {t("legalChangedText")}
+              </Alert>
+            )}
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(event) => setConsent(event.target.checked)}
+                aria-describedby={
+                  attempted && !consent ? "checkout-consent-error" : undefined
+                }
+                className="accent-leaf-600 mt-0.5 size-6 shrink-0"
+              />
+              <span>
+                {t.rich("consentText", {
+                  termsVersion: versionOf("terms"),
+                  privacyVersion: versionOf("privacy"),
+                  terms: (chunks) => (
+                    <Link
+                      href={LEGAL_HREF.terms}
+                      target="_blank"
+                      className={link}
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                  privacy: (chunks) => (
+                    <Link
+                      href={LEGAL_HREF.privacy}
+                      target="_blank"
+                      className={link}
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
+              </span>
+            </label>
+          </div>
         </section>
       </div>
 
+      {/* The order, the way the Shopify checkouts set it (owner,
+          2026-10-22): each line as a small picture with the quantity on its
+          corner, the name, the price per pack (the regular price struck
+          through and the saving when reduced) and the line total; about
+          five lines show at once and the rest scroll inside the list. The
+          delivery estimate, the totals, the note that the customer pays
+          now, the button and the accepted marks stay in view. */}
       <aside
         aria-labelledby="checkout-summary"
-        className="bg-mist flex flex-col gap-4 rounded-xl p-5 sm:p-6 lg:sticky lg:top-28"
+        className="bg-mist flex flex-col rounded-2xl p-5 sm:p-6 lg:sticky lg:top-24"
       >
-        <h2 id="checkout-summary" className={sectionTitle}>
-          {t("summaryTitle")}
-        </h2>
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 id="checkout-summary" className={sectionTitle}>
+            {t("summaryTitle")}
+          </h2>
+          <p className="text-ink-muted text-sm font-semibold tabular-nums">
+            {tCart("barItems", { count: itemCount })}
+          </p>
+        </div>
 
-        {/* About five lines show at once; more scroll inside the list, and
-            the totals and the button stay in view (owner, 2026-10-21). */}
-        <ul className="divide-line -mr-2 max-h-[19.5rem] scrollbar-thin divide-y overflow-y-auto pr-2 text-[0.9375rem]">
+        <ul className="divide-line mt-4 -mr-3 max-h-[21rem] scrollbar-thin divide-y overflow-y-auto pr-3">
           {bill.lines.map((line) => {
             // A reduced size shows what is paid per pack and the regular price.
             const reduced =
               line.product !== null &&
               line.unitPrice < line.product.pricing.regularPrice;
+            const percent = line.product?.pricing.discountPercent ?? 0;
             return (
               <li
                 key={line.variantId}
-                className="flex items-start justify-between gap-4 py-2.5 first:pt-0"
+                className="flex items-center gap-3.5 py-3 first:pt-0 last:pb-0"
               >
-                {/* The name, then "2 × €2.19" with the regular price struck
-                    through when reduced; the line total at the end. */}
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span>
+                <span className="relative shrink-0">
+                  <span className="border-line block size-14 overflow-hidden rounded-lg border bg-white p-1">
+                    <ProductImage
+                      image={line.product?.image ?? null}
+                      alt=""
+                      sizes="56px"
+                      fallbackLabel=""
+                    />
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="bg-wheat-400 text-ink ring-mist absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2"
+                  >
+                    {line.quantity}
+                  </span>
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[0.9375rem] leading-snug font-semibold">
+                    <span className="sr-only">
+                      {t("quantityTimes", { quantity: line.quantity })}{" "}
+                    </span>
                     {line.product
                       ? productTitle(line.product.name, line.product.packSize)
                       : line.variantId}
                   </span>
-                  <span className="text-ink-muted text-sm tabular-nums">
-                    {t("quantityTimes", { quantity: line.quantity })}{" "}
-                    {formatMoney(line.unitPrice, locale)}
+                  <span className="text-ink-muted flex flex-wrap items-center gap-x-1.5 text-sm tabular-nums">
+                    {reduced && (
+                      <span className="sr-only">
+                        {tProduct("currentPrice")}:{" "}
+                      </span>
+                    )}
+                    <span>{formatMoney(line.unitPrice, locale)}</span>
                     {reduced && (
                       <>
-                        {" "}
                         <span className="sr-only">
                           {tProduct("regularPrice")}:
                         </span>
@@ -447,11 +489,16 @@ export function CheckoutView({
                             locale,
                           )}
                         </s>
+                        {percent > 0 && (
+                          <span className="text-xs font-bold text-red-600">
+                            {formatDiscount(percent, locale)}
+                          </span>
+                        )}
                       </>
                     )}
                   </span>
                 </span>
-                <span className="shrink-0 font-semibold tabular-nums">
+                <span className="shrink-0 self-start pt-0.5 font-semibold tabular-nums">
                   {formatMoney(line.lineTotal, locale)}
                 </span>
               </li>
@@ -460,96 +507,113 @@ export function CheckoutView({
         </ul>
 
         {deliveryEstimate && (
-          <p className="rounded-md bg-white px-3.5 py-3 text-sm">
-            <span className="font-bold">{t("deliveryEstimate")}:</span>{" "}
-            {deliveryEstimate}
+          <p className="border-line mt-4 flex items-center gap-2.5 border-t pt-4 text-sm">
+            <Truck
+              aria-hidden="true"
+              className="text-leaf-700 size-5 shrink-0"
+            />
+            <span>
+              <span className="font-bold">{t("deliveryEstimate")}:</span>{" "}
+              {deliveryEstimate}
+            </span>
           </p>
         )}
 
         <div
-          className={cn(billQuery.isFetching && "opacity-50")}
+          className={cn(
+            "border-line mt-4 border-t pt-4",
+            billQuery.isFetching && "opacity-50",
+          )}
           aria-busy={billQuery.isFetching}
         >
           <BillTotals totals={bill.totals} />
         </div>
 
-        <p className="border-leaf-100 bg-leaf-50 text-leaf-700 rounded-md border px-3.5 py-3 text-sm">
-          <span className="font-bold">{t("payNowTitle")}</span>{" "}
-          {t("payNowText")}
+        <p className="text-ink-muted mt-5 flex gap-2.5 text-sm leading-snug">
+          <LockKeyhole
+            aria-hidden="true"
+            className="text-leaf-700 mt-0.5 size-4 shrink-0"
+          />
+          <span>
+            <span className="text-ink font-bold">{t("payNowTitle")}</span>{" "}
+            {t("payNowText")}
+          </span>
         </p>
 
-        {unavailable === "payments" && (
-          <Alert tone="warn" title={t("notAvailableTitle")}>
-            {t("notAvailableText")}
-          </Alert>
-        )}
-        {unavailable === "shop" && (
-          <Alert tone="warn" title={t("notPossibleTitle")}>
-            {t("notPossibleText")}
-          </Alert>
-        )}
-        {keyUsed && (
-          <Alert tone="info" title={t("keyUsedTitle")}>
-            <p>{t("keyUsedText")}</p>
-            <Link
-              href="/account/orders"
-              className="font-bold underline underline-offset-4"
-            >
-              {t("toOrders")}
-            </Link>
-          </Alert>
-        )}
-        {(!bill.canOrder || refusedLines.length > 0) && (
-          <Alert tone="warn" title={t("issuesTitle")}>
-            {refusedLines.length > 0 && (
-              <ul className="list-disc pl-5">
-                {refusedLines.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            )}
-            <p>{t("issuesText")}</p>
-            <Link
-              href="/cart"
-              className="font-bold underline underline-offset-4"
-            >
-              {t("toCart")}
-            </Link>
-          </Alert>
-        )}
-        {totalChanged && (
-          <Alert tone="warn" title={t("totalChangedTitle")}>
-            {t("totalChangedText", {
-              before: formatMoney(totalChanged.before, locale),
-              after: formatMoney(totalChanged.after, locale),
-            })}
-          </Alert>
-        )}
-        {placeError !== null && (
-          <ErrorAlert
-            error={placeError}
-            onRetry={
-              hasErrorCode(placeError, "PAYMENT_PROVIDER_ERROR")
-                ? () => void place()
-                : undefined
-            }
-          />
-        )}
+        <div className="mt-5 flex flex-col gap-4 empty:hidden">
+          {unavailable === "payments" && (
+            <Alert tone="warn" title={t("notAvailableTitle")}>
+              {t("notAvailableText")}
+            </Alert>
+          )}
+          {unavailable === "shop" && (
+            <Alert tone="warn" title={t("notPossibleTitle")}>
+              {t("notPossibleText")}
+            </Alert>
+          )}
+          {keyUsed && (
+            <Alert tone="info" title={t("keyUsedTitle")}>
+              <p>{t("keyUsedText")}</p>
+              <Link
+                href="/account/orders"
+                className="font-bold underline underline-offset-4"
+              >
+                {t("toOrders")}
+              </Link>
+            </Alert>
+          )}
+          {(!bill.canOrder || refusedLines.length > 0) && (
+            <Alert tone="warn" title={t("issuesTitle")}>
+              {refusedLines.length > 0 && (
+                <ul className="list-disc pl-5">
+                  {refusedLines.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              )}
+              <p>{t("issuesText")}</p>
+              <Link
+                href="/cart"
+                className="font-bold underline underline-offset-4"
+              >
+                {t("toCart")}
+              </Link>
+            </Alert>
+          )}
+          {totalChanged && (
+            <Alert tone="warn" title={t("totalChangedTitle")}>
+              {t("totalChangedText", {
+                before: formatMoney(totalChanged.before, locale),
+                after: formatMoney(totalChanged.after, locale),
+              })}
+            </Alert>
+          )}
+          {placeError !== null && (
+            <ErrorAlert
+              error={placeError}
+              onRetry={
+                hasErrorCode(placeError, "PAYMENT_PROVIDER_ERROR")
+                  ? () => void place()
+                  : undefined
+              }
+            />
+          )}
 
-        {attempted && (!selected || showForm) && (
-          <p role="alert" className="text-sm font-semibold text-red-600">
-            {t("addressMissing")}
-          </p>
-        )}
-        {attempted && !consent && (
-          <p
-            id="checkout-consent-error"
-            role="alert"
-            className="text-sm font-semibold text-red-600"
-          >
-            {t("consentMissing")}
-          </p>
-        )}
+          {attempted && (!selected || showForm) && (
+            <p role="alert" className="text-sm font-semibold text-red-600">
+              {t("addressMissing")}
+            </p>
+          )}
+          {attempted && !consent && (
+            <p
+              id="checkout-consent-error"
+              role="alert"
+              className="text-sm font-semibold text-red-600"
+            >
+              {t("consentMissing")}
+            </p>
+          )}
+        </div>
 
         {/* The legal wording: the customer orders and pays now. */}
         <Button
@@ -558,11 +622,33 @@ export function CheckoutView({
           loading={placing}
           disabled={!canPlace}
           onClick={() => void place()}
+          className="mt-5"
         >
           {placing ? t("placing") : t("place")}
         </Button>
-        <p className="text-ink-muted text-center text-sm">{t("finePrint")}</p>
+        <p className="text-ink-muted mt-3 text-center text-[0.8125rem] leading-snug">
+          {t("finePrint")}
+        </p>
+        <PaymentMarks
+          label={tProduct("info.paymentMethods")}
+          className="mt-4 justify-center"
+        />
       </aside>
+    </div>
+  );
+}
+
+/** The number of a step in a leaf circle, beside its title. */
+function Step({ number, children }: { number: number; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-3.5">
+      <span
+        aria-hidden="true"
+        className="bg-leaf-600 font-display mt-0.5 grid size-8 shrink-0 place-items-center rounded-full text-sm text-white"
+      >
+        {number}
+      </span>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
