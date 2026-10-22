@@ -74,7 +74,6 @@ export function CheckoutView({
 }) {
   const t = useTranslations("checkout");
   const tAddress = useTranslations("address");
-  const tCart = useTranslations("cart");
   const tProduct = useTranslations("product");
   const locale = useLocale() as Locale;
   const router = useRouter();
@@ -423,34 +422,34 @@ export function CheckoutView({
             return (
               <li
                 key={line.variantId}
-                className="flex items-baseline justify-between gap-4 py-2 first:pt-0"
+                className="flex items-start justify-between gap-4 py-2.5 first:pt-0"
               >
-                <span className="min-w-0">
-                  <span className="text-ink-muted tabular-nums">
-                    {t("quantityTimes", { quantity: line.quantity })}
-                  </span>{" "}
-                  {line.product
-                    ? productTitle(line.product.name, line.product.packSize)
-                    : line.variantId}
-                  {reduced && (
-                    <span className="text-ink-muted block text-sm tabular-nums">
-                      <span className="sr-only">
-                        {tProduct("currentPrice")}:{" "}
-                      </span>
-                      {tCart("unitPrice", {
-                        price: formatMoney(line.unitPrice, locale),
-                      })}{" "}
-                      <span className="sr-only">
-                        {tProduct("regularPrice")}:
-                      </span>
-                      <s className="text-ink-subtle">
-                        {formatMoney(
-                          line.product!.pricing.regularPrice,
-                          locale,
-                        )}
-                      </s>
-                    </span>
-                  )}
+                {/* The name, then "2 × €2.19" with the regular price struck
+                    through when reduced; the line total at the end. */}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span>
+                    {line.product
+                      ? productTitle(line.product.name, line.product.packSize)
+                      : line.variantId}
+                  </span>
+                  <span className="text-ink-muted text-sm tabular-nums">
+                    {t("quantityTimes", { quantity: line.quantity })}{" "}
+                    {formatMoney(line.unitPrice, locale)}
+                    {reduced && (
+                      <>
+                        {" "}
+                        <span className="sr-only">
+                          {tProduct("regularPrice")}:
+                        </span>
+                        <s className="text-ink-subtle">
+                          {formatMoney(
+                            line.product!.pricing.regularPrice,
+                            locale,
+                          )}
+                        </s>
+                      </>
+                    )}
+                  </span>
                 </span>
                 <span className="shrink-0 font-semibold tabular-nums">
                   {formatMoney(line.lineTotal, locale)}

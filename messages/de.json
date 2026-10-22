@@ -230,7 +230,6 @@
     "emptyTitle": "Ihr Warenkorb ist leer",
     "emptyText": "Legen Sie etwas hinein: Alles bleibt hier, bis Sie bestellen.",
     "emptyCta": "Sortiment ansehen",
-    "unitPrice": "je {price}",
     "remove": "Entfernen",
     "removeNamed": "{name} aus dem Warenkorb entfernen",
     "setTo": "Auf {count} setzen",

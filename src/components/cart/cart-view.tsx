@@ -14,7 +14,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { BillLine } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/format/money";
+import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { BillTotals, FreeDeliveryProgress } from "./bill-summary";
 import {
   brandOf,
@@ -26,11 +26,13 @@ import {
 /**
  * One pack size in the cart (owner, 2026-10-19 and 2026-10-21): the
  * picture on a mist tile; the brand, the name with the size in a quieter
- * tone, and the price per pack with the regular price crossed out when
- * reduced (no price per kilogram, and no line total: the summary adds
- * up); at the end of the card, centred on its height, the way to take the
- * line out and the stepper. A line the API objects to carries its message
- * and a one-tap fix.
+ * tone, and the price per pack set like a price of the catalogue: in the
+ * display cut, red when reduced with the regular price struck through
+ * and the saving as a small red badge beside it, and no word around it
+ * (owner, 2026-10-22: "each" confused); no price per kilogram, and no
+ * line total: the summary adds up. Then, centred on the height of the
+ * card, the stepper and the way to take the line out. A line the API
+ * objects to carries its message and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -91,18 +93,29 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           )}
         </p>
         {product && (
-          <p className="text-ink-muted text-sm tabular-nums">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
             {reduced && (
               <span className="sr-only">{tProduct("currentPrice")}: </span>
             )}
-            {t("unitPrice", { price: formatMoney(line.unitPrice, locale) })}
+            <span
+              className={cn(
+                "font-display text-[1.0625rem] leading-none",
+                reduced && "text-red-600",
+              )}
+            >
+              {formatMoney(line.unitPrice, locale)}
+            </span>
             {reduced && (
               <>
-                {" "}
                 <span className="sr-only">{tProduct("regularPrice")}:</span>
-                <s className="text-ink-subtle">
+                <s className="text-ink-subtle text-sm leading-none">
                   {formatMoney(product.pricing.regularPrice, locale)}
                 </s>
+                {product.pricing.discountPercent > 0 && (
+                  <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[0.6875rem] leading-none font-bold text-red-800">
+                    {formatDiscount(product.pricing.discountPercent, locale)}
+                  </span>
+                )}
               </>
             )}
           </p>

@@ -230,7 +230,6 @@
     "emptyTitle": "Your cart is empty",
     "emptyText": "Put something in it: everything you add stays here until you order.",
     "emptyCta": "Browse the range",
-    "unitPrice": "{price} each",
     "remove": "Remove",
     "removeNamed": "Remove {name} from the cart",
     "setTo": "Set to {count}",
