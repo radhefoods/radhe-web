@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Info } from "lucide-react";
+import { Info, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   createContext,
@@ -14,7 +14,6 @@ import {
   type ReactNode,
 } from "react";
 import { LocaleAlternates } from "@/components/shell/locale-switcher";
-import { Chip } from "@/components/ui/chip";
 import {
   cappedByLimit,
   fewLeft,
@@ -215,27 +214,6 @@ export function PackSizeSku() {
 }
 
 /**
- * The stock of the chosen size as a chip next to the price: "In stock",
- * or "Only N left" when few remain. Nothing when the size cannot be
- * ordered: the pill in the button's place says so.
- */
-export function PackSizeAvailability({ className }: { className?: string }) {
-  const t = useTranslations("product");
-  const { ordering } = useSelection();
-  if (orderingReason(ordering) !== null) return null;
-  const left = fewLeft(ordering);
-  return left !== null ? (
-    <Chip tone="wheat" className={className}>
-      {t("badge.fewLeft", { count: left })}
-    </Chip>
-  ) : (
-    <Chip tone="leaf" className={className}>
-      {t("inStock")}
-    </Chip>
-  );
-}
-
-/**
  * The sizes to choose from, as tiles that name the size and its price, so
  * the customer compares without switching (owner, 2026-10-22); a size that
  * cannot be ordered says so in the price's place. Each tile is a link to
@@ -323,18 +301,31 @@ export function PackSizePicker({ className }: { className?: string }) {
 
 /**
  * The buying part of the page: the add-to-cart control with the heart of
- * the wishlist beside it (which remembers the chosen size, doc 16), the
- * limits of the chosen size, and on phones the add-to-cart control fixed
- * above the tab bar.
+ * the wishlist beside it (which remembers the chosen size, doc 16); under
+ * it, in one line, the stock of the chosen size ("In stock" behind a
+ * green dot, or "Only N left" in wheat, from the fresh ordering the page
+ * asks for) and the delivery estimate of the settings behind a truck
+ * (owner, 2026-10-22); then the limits of the chosen size, and on phones
+ * the add-to-cart control fixed above the tab bar. Nothing of the stock
+ * or the delivery when the size cannot be ordered: the pill in the
+ * button's place says so.
  */
-export function ProductPurchase({ className }: { className?: string }) {
+export function ProductPurchase({
+  deliveryEstimate,
+  className,
+}: {
+  /** `delivery.estimate` of the settings in the page's language, or `null`. */
+  deliveryEstimate: string | null;
+  className?: string;
+}) {
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
   const { product, variant, ordering } = useSelection();
   const name = productTitle(product.name, variant.packSize);
   const canOrder = orderingReason(ordering) === null;
+  const left = fewLeft(ordering);
 
-  // The chip next to the price says how many are left; here the limits.
+  // The limits of the chosen size, under the stock.
   const hints: string[] = [];
   if (canOrder && ordering) {
     if (cappedByLimit(ordering)) {
@@ -361,6 +352,38 @@ export function ProductPurchase({ className }: { className?: string }) {
           look="box"
         />
       </div>
+
+      {canOrder && (
+        <ul className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
+          <li className="flex items-center gap-2 font-semibold">
+            <span
+              aria-hidden="true"
+              className={cn(
+                "size-2 shrink-0 rounded-full ring-4",
+                left !== null
+                  ? "bg-wheat-800 ring-wheat-100"
+                  : "bg-leaf-600 ring-leaf-50",
+              )}
+            />
+            <span
+              className={left !== null ? "text-wheat-800" : "text-leaf-700"}
+            >
+              {left !== null
+                ? t("badge.fewLeft", { count: left })
+                : t("inStock")}
+            </span>
+          </li>
+          {deliveryEstimate && (
+            <li className="text-ink-muted flex items-center gap-2 font-medium">
+              <Truck
+                aria-hidden="true"
+                className="text-leaf-700 size-4 shrink-0"
+              />
+              <span>{deliveryEstimate}</span>
+            </li>
+          )}
+        </ul>
+      )}
 
       {hints.length > 0 && (
         <ul className="text-ink-muted flex flex-col gap-1 text-sm">

@@ -92,8 +92,6 @@
       "freeFrom": "Kostenlos ab {amount}",
       "paymentText": "Karte oder PayPal auf der sicheren Seite von Stripe. Vor Ihrer Bestätigung wird nichts abgebucht.",
       "paymentMethods": "Akzeptierte Zahlungsarten",
-      "returns": "{count, plural, one {# Tag} other {# Tage}} Rückgabe nach der Lieferung",
-      "returnsText": "Fragen Sie in Ihrem Konto an; Radhe Foods prüft jede Anfrage.",
       "more": "Alles zu Lieferung und Zahlung"
     }
   },

@@ -92,8 +92,6 @@
       "freeFrom": "Free from {amount}",
       "paymentText": "Card or PayPal on the secure page of Stripe. Nothing is charged before you confirm.",
       "paymentMethods": "Accepted payment methods",
-      "returns": "{count, plural, one {# day} other {# days}} to return after delivery",
-      "returnsText": "Ask in your account; Radhe Foods checks every request.",
       "more": "All about delivery and payment"
     }
   },

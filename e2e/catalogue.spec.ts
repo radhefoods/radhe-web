@@ -665,15 +665,17 @@ test.describe("the cart of a visitor", () => {
   }) => {
     await page.goto("/en/products/aloo-bhujia-400g");
     const main = page.getByRole("main");
+    // Under the button: the stock and the delivery estimate of the settings.
     await expect(main.getByText("In stock", { exact: true })).toBeVisible();
+    await expect(main.getByText("2 to 4 working days")).toBeVisible();
     await expect(page.getByText("At most 12 per order")).toBeVisible();
 
-    // Delivery and payment, from the settings, with the accepted methods.
+    // Delivery and payment, from the settings, with the accepted methods;
+    // no return policy here (owner, 2026-10-22), it stays on the full page.
     const info = page.getByRole("region", { name: "Delivery and payment" });
-    await expect(info).toContainText("2 to 4 working days");
     await expect(info).toContainText("Delivery €4.99 per order");
     await expect(info).toContainText("Free from €50.00");
-    await expect(info).toContainText("14 days to return");
+    await expect(info).not.toContainText("days to return");
     const methods = info.getByRole("list", {
       name: "Accepted payment methods",
     });

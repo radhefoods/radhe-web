@@ -1,4 +1,4 @@
-import { ArrowRight, RotateCcw, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, ShieldCheck, Truck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
@@ -31,16 +31,17 @@ function Row({
 }
 
 /**
- * Delivery, returns and payment at the point of decision (owner,
- * 2026-10-19), set since 2026-10-22 the way the leading grocers set their
- * trust lines: three flat rows between hairlines under the button, no
- * panel, a small leaf icon each. Where the shop delivers, how long it
- * takes, what it costs and from which order value it is free; how many
- * days there are to return and how; that the customer pays securely at
- * checkout, with the four accepted methods as marks. Every number comes
- * from `GET /v1/store/settings`; a missing one leaves its line out, and
- * nothing here is promised that the API does not say. The link leads to
- * the full page.
+ * Delivery and payment at the point of decision (owner, 2026-10-19), set
+ * since 2026-10-22 the way the leading grocers set their trust lines: two
+ * flat rows between hairlines under the button, no panel, a small leaf
+ * icon each. Where the shop delivers, what it costs and from which order
+ * value it is free; that the customer pays securely at checkout, with the
+ * four accepted methods as marks. (How long delivery takes stands under
+ * the button with the stock, and the return policy on the full page, at
+ * the owner's ask of 2026-10-22.) Every number comes from
+ * `GET /v1/store/settings`; a missing one leaves its line out, and nothing
+ * here is promised that the API does not say. The link leads to the full
+ * page.
  */
 export async function PurchaseInfo({
   settings,
@@ -55,7 +56,6 @@ export async function PurchaseInfo({
     getTranslations("product.info"),
     getTranslations("home"),
   ]);
-  const estimate = settings?.delivery.estimate[locale] ?? null;
   const tiers = settings?.deliveryFee.tiers ?? [];
   // The fee of the lowest tier: what an order pays until a cheaper tier.
   const fee =
@@ -63,7 +63,6 @@ export async function PurchaseInfo({
     tiers[0]?.fee ??
     null;
   const freeFrom = settings?.deliveryFee.freeFrom ?? null;
-  const returnDays = settings?.returns.windowDays ?? 0;
   const icon = "size-5";
   const note = "text-ink-muted text-sm leading-snug";
 
@@ -77,7 +76,6 @@ export async function PurchaseInfo({
       </h2>
       <ul className="divide-line divide-y">
         <Row icon={<Truck className={icon} />} title={tHome("trustDelivery")}>
-          {estimate && <p className={note}>{estimate}</p>}
           {fee !== null && (
             <p className={note}>
               {fee === 0
@@ -92,14 +90,6 @@ export async function PurchaseInfo({
             </p>
           )}
         </Row>
-        {returnDays > 0 && (
-          <Row
-            icon={<RotateCcw className={icon} />}
-            title={t("returns", { count: returnDays })}
-          >
-            <p className={note}>{t("returnsText")}</p>
-          </Row>
-        )}
         <Row icon={<ShieldCheck className={icon} />} title={tHome("trustPay")}>
           <p className={note}>{t("paymentText")}</p>
           <PaymentMarks label={t("paymentMethods")} className="mt-1.5" />

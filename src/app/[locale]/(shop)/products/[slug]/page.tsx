@@ -8,7 +8,6 @@ import { CategoryTiles } from "@/components/catalogue/category-tiles";
 import { ProductCard } from "@/components/catalogue/product-card";
 import { ProductGallery } from "@/components/catalogue/product-gallery";
 import {
-  PackSizeAvailability,
   PackSizeHeadline,
   PackSizePicker,
   PackSizePrice,
@@ -133,9 +132,10 @@ async function relatedProducts(
  * the left, kept in view while the right column scrolls; on the right one
  * column without panels, read top to bottom: the brand, the name with the
  * chosen size and the subtitle; the price with the regular price, the
- * price per unit and the tax note, the stock chip beside; the pack sizes
- * as tiles with their prices; add to cart with the heart; then, between
- * hairlines, delivery, returns and payment as three rows, the highlights,
+ * price per unit and the tax note; the pack sizes as tiles with their
+ * prices; add to cart with the heart, the stock and the delivery estimate
+ * under it; then, between hairlines, delivery and payment as two rows, the
+ * highlights,
  * and the two texts of the product as rows that fold open. Under all that
  * the products of the same category as a row and the categories of the
  * shop as tiles.
@@ -225,23 +225,24 @@ export default async function ProductPage({ params }: Props) {
               )}
             </header>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <PackSizePrice
-                note={
-                  <Link
-                    href="/delivery-and-payment"
-                    className="hover:text-ink rounded-xs underline underline-offset-4"
-                  >
-                    {tCommon("priceNote")}
-                  </Link>
-                }
-              />
-              <PackSizeAvailability />
-            </div>
+            <PackSizePrice
+              className="mt-5"
+              note={
+                <Link
+                  href="/delivery-and-payment"
+                  className="hover:text-ink rounded-xs underline underline-offset-4"
+                >
+                  {tCommon("priceNote")}
+                </Link>
+              }
+            />
 
             <PackSizePicker className="mt-6" />
 
-            <ProductPurchase className="mt-6" />
+            <ProductPurchase
+              deliveryEstimate={settings?.delivery.estimate[locale] ?? null}
+              className="mt-6"
+            />
 
             <PurchaseInfo
               settings={settings}
