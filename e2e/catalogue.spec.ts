@@ -706,9 +706,15 @@ test.describe("the cart of a visitor", () => {
       ).toHaveAttribute("href", "/en/products");
     }
 
-    // "About this product" is open from the start where there is a text.
+    // "About this product" is closed at first and opens on a tap.
     await page.goto("/en/products/basmati-rice-1kg");
-    await expect(page.getByRole("main").getByText("Biryani")).toBeVisible();
+    const about = page.getByRole("main").getByText("Biryani");
+    await expect(about).toBeHidden();
+    await page
+      .getByRole("main")
+      .getByText("About this product", { exact: true })
+      .click();
+    await expect(about).toBeVisible();
     await page
       .getByRole("button", { name: "Add to cart: Aloo Bhujia (400g)" })
       .filter({ visible: true })

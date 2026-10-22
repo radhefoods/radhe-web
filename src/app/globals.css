@@ -328,3 +328,28 @@
     display: none;
   }
 }
+
+/* A `details` whose content glides open and shut: its height runs from 0
+   to its own size and the text fades in, where the browser can animate
+   `::details-content` to `auto` (Chrome 131+; the others open at once).
+   The global reduced-motion rule shortens the transition to nothing. */
+@utility disclosure-fold {
+  @supports (interpolate-size: allow-keywords) {
+    interpolate-size: allow-keywords;
+
+    &::details-content {
+      block-size: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition:
+        block-size 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 200ms ease,
+        content-visibility 260ms allow-discrete;
+    }
+
+    &[open]::details-content {
+      block-size: auto;
+      opacity: 1;
+    }
+  }
+}

@@ -136,7 +136,8 @@ async function relatedProducts(
  * prices; add to cart with the heart, the stock and the delivery estimate
  * under it; then, between hairlines, delivery and payment as two rows, the
  * highlights,
- * and the two texts of the product as rows that fold open. Under all that
+ * and the two texts of the product as rows that fold open, closed at
+ * first. Under all that
  * the products of the same category as a row and the categories of the
  * shop as tiles.
  */
@@ -277,15 +278,14 @@ export default async function ProductPage({ params }: Props) {
               </section>
             )}
 
-            {/* The texts of the product as flat rows that fold open:
-                "About" open, the details a tap away. */}
+            {/* The texts of the product as flat rows that fold open, both
+                closed when the page opens (owner, 2026-10-22). */}
             <div className="mt-5">
               {hasAbout && (
                 <Disclosure
                   id="product-about"
                   title={t("description")}
                   look="row"
-                  defaultOpen
                 >
                   {product.description && (
                     <p className="text-ink-muted max-w-prose whitespace-pre-line">

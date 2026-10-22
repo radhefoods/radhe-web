@@ -6,9 +6,11 @@ import { cn } from "@/lib/cn";
  * A section that folds open: the title with a chevron that turns, the
  * content underneath. A native `details`, so it works without scripts, the
  * summary is a button to assistive technology, and the content is in the
- * HTML the server sends whether open or not. Two looks: a white card
- * (`card`), or a flat row between hairlines that stacks with its
- * neighbours (`row`, the texts of the product page since 2026-10-21).
+ * HTML the server sends whether open or not. The content glides open and
+ * shut where the browser can animate `details` (`disclosure-fold`); else
+ * it simply appears. Two looks: a white card (`card`), or a flat row
+ * between hairlines that stacks with its neighbours (`row`, the texts of
+ * the product page since 2026-10-21).
  */
 export function Disclosure({
   id,
@@ -31,7 +33,7 @@ export function Disclosure({
       id={id}
       open={defaultOpen}
       className={cn(
-        "group",
+        "group disclosure-fold",
         row
           ? "border-line border-t last:border-b"
           : "border-line rounded-xl border bg-white",
