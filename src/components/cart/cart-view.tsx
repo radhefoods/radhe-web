@@ -57,7 +57,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="border-line shadow-card grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-x-5 sm:p-5">
+    <li className="border-line shadow-card grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-x-5 sm:p-5 md:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1.5fr)_auto]">
       <div className="bg-mist aspect-square self-center overflow-hidden rounded-md p-2">
         <ProductImage
           image={product?.image ?? null}
@@ -110,11 +110,11 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
       </div>
 
       {/* The controls, centred on the height of the card whatever the
-          texts take (owner, 2026-10-21 and 2026-10-22): the stepper in the
-          middle of the card, the way to take the line out at its far end.
-          On phones they share a row under the texts, the stepper first;
-          from `sm` the wrapper dissolves and both become cells of the
-          grid. */}
+          texts take (owner, 2026-10-21 and 2026-10-22): the stepper, slim
+          and white with a hairline, a little left of the middle of the
+          card; the way to take the line out at its far end. On phones
+          they share a row under the texts, the stepper first; from `sm`
+          the wrapper dissolves and both become cells of the grid. */}
       <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
         {product && issue !== "product_not_found" && (
           <QuantityStepper
@@ -122,10 +122,11 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             min={1}
             max={max}
             removeAtMin={false}
-            size="sm"
+            size="xs"
+            look="outline"
             className={cn(
-              "w-32 sm:col-start-3 sm:w-36 sm:justify-self-center",
-              updating && "opacity-80",
+              "w-27 sm:col-start-3 sm:justify-self-center",
+              updating && "opacity-70",
             )}
             onChange={(next) => cart.setQuantity(line.variantId, next)}
             labels={{
