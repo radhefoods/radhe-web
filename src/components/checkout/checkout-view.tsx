@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LockKeyhole, Plus, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
 import { PaymentMarks } from "@/components/catalogue/payment-marks";
 import { ProductImage } from "@/components/catalogue/product-image";
@@ -63,9 +63,8 @@ type Unavailable = "payments" | "shop";
 
 /**
  * The checkout: the delivery address and the consent to the exact versions
- * of the legal texts as two numbered steps, the order as a summary beside
- * them, and the one button that places the order and leads to the payment
- * page. The order is made of the
+ * of the legal texts as two steps, the order as a summary beside them, and
+ * the one button that places the order and leads to the payment page. The order is made of the
  * cart stored by the API; this page sends the address, the consent and the
  * total the customer saw (doc 9), and the browser goes to `checkout.url`.
  */
@@ -278,18 +277,16 @@ export function CheckoutView({
 
   return (
     <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_28rem]">
-      {/* The steps, numbered, as open sections between hairlines, no
-          boxes (owner, 2026-10-21 and 2026-10-22). */}
+      {/* The steps as open sections between hairlines, no boxes and no
+          numbers (owner, 2026-10-21 and 2026-10-22). */}
       <div className="divide-line flex flex-col divide-y">
         <section aria-labelledby="checkout-address" className="pb-10">
-          <Step number={1}>
-            <h2 id="checkout-address" className={sectionTitle}>
-              {t("addressTitle")}
-            </h2>
-            <p className="text-ink-muted mt-0.5">{t("addressIntro")}</p>
-          </Step>
+          <h2 id="checkout-address" className={sectionTitle}>
+            {t("addressTitle")}
+          </h2>
+          <p className="text-ink-muted mt-0.5">{t("addressIntro")}</p>
 
-          <div className="mt-5 space-y-4 sm:pl-[2.875rem]">
+          <div className="mt-5 space-y-4">
             {addresses.length > 0 && !showForm && (
               <ul className="grid gap-3 sm:grid-cols-2">
                 {addresses.map((address) => {
@@ -364,12 +361,10 @@ export function CheckoutView({
         </section>
 
         <section aria-labelledby="checkout-consent" className="pt-10">
-          <Step number={2}>
-            <h2 id="checkout-consent" className={sectionTitle}>
-              {t("consentTitle")}
-            </h2>
-          </Step>
-          <div className="mt-5 space-y-4 sm:pl-[2.875rem]">
+          <h2 id="checkout-consent" className={sectionTitle}>
+            {t("consentTitle")}
+          </h2>
+          <div className="mt-4 space-y-4">
             {legalChanged && (
               <Alert tone="warn" title={t("legalChangedTitle")}>
                 {t("legalChangedText")}
@@ -634,21 +629,6 @@ export function CheckoutView({
           className="mt-4 justify-center"
         />
       </aside>
-    </div>
-  );
-}
-
-/** The number of a step in a leaf circle, beside its title. */
-function Step({ number, children }: { number: number; children: ReactNode }) {
-  return (
-    <div className="flex items-start gap-3.5">
-      <span
-        aria-hidden="true"
-        className="bg-leaf-600 font-display mt-0.5 grid size-8 shrink-0 place-items-center rounded-full text-sm text-white"
-      >
-        {number}
-      </span>
-      <div className="min-w-0">{children}</div>
     </div>
   );
 }
