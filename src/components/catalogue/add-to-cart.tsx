@@ -23,9 +23,10 @@ const ANNOUNCED_FOR_MS = 1500;
  * the left, over the tile) and its number pops as it changes (owner,
  * 2026-10-16). When the size cannot be ordered (sold out, or switched
  * off) a quiet pill with an icon says so in the same place, so nothing
- * jumps and nothing looks like a button. The round "+" and the stepper
- * stand on the tile with a soft green shadow and no white ring (owner,
- * 2026-10-19).
+ * jumps and nothing looks like a button. The round "+" stands on the
+ * tile with a soft green shadow and no white ring (owner, 2026-10-19), lit
+ * from above; the stepper that unfolds in its place is a white pill that
+ * floats on the picture, its buttons in leaf (owner, 2026-10-23).
  */
 export function AddToCart({
   variantId,
@@ -106,7 +107,7 @@ export function AddToCart({
           aria-label={t("addNamed", { name })}
           onClick={add}
           className={cn(
-            "bg-leaf-600 hover:bg-leaf-700 grid size-11 shrink-0 place-items-center rounded-full text-white shadow-[0_4px_12px_-3px_rgb(21_122_75_/_0.55)] transition-[background-color,box-shadow,transform] duration-150 hover:scale-105 hover:shadow-[0_8px_18px_-4px_rgb(21_122_75_/_0.6)] active:scale-95",
+            "from-leaf-500 to-leaf-600 hover:from-leaf-600 hover:to-leaf-700 grid size-11 shrink-0 place-items-center rounded-full bg-linear-to-b text-white shadow-[0_4px_12px_-3px_rgb(21_122_75_/_0.55)] transition-[background-image,box-shadow,transform] duration-150 hover:scale-105 hover:shadow-[0_8px_18px_-4px_rgb(21_122_75_/_0.6)] active:scale-95",
             className,
           )}
         >
@@ -141,6 +142,7 @@ export function AddToCart({
         min={min}
         max={max}
         size={size === "sm" ? "sm" : "md"}
+        look={look === "round" ? "float" : "solid"}
         className={cn(
           look === "round"
             ? "shadow-float min-h-11 w-auto origin-right"

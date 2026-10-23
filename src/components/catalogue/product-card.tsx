@@ -21,7 +21,8 @@ const badge =
 
 /**
  * A product in a list, as the one pack size the API shows it as (doc 7).
- * The picture on a mist tile, the discount and "only N left" badges in its
+ * The picture on white, as the packshots are shot (owner, 2026-10-23; the
+ * mist tile showed as a frame around them), the discount and "only N left" badges in its
  * top left corner, the heart of the wishlist in its top right corner (doc
  * 16) and the round "+" in its bottom corner, where the stepper unfolds in
  * its place; under the tile the brand as a small tracked line
@@ -71,7 +72,7 @@ export function ProductCard({
           tabIndex={-1}
           aria-hidden="true"
           data-fly-source=""
-          className="bg-mist relative block aspect-square overflow-hidden rounded-md p-4"
+          className="relative block aspect-square overflow-hidden rounded-md bg-white p-3"
         >
           <ProductImage
             image={product.image}

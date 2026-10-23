@@ -9,7 +9,8 @@ import { PackSizeDiscount } from "./product-purchase";
 
 /**
  * The pictures of a product (owner, 2026-10-19): one large picture on a
- * mist tile, and under it a strip of thumbnails when there are several,
+ * white tile with a hairline (white since 2026-10-23, as the packshots are
+ * shot), and under it a strip of thumbnails when there are several,
  * each a button that shows its picture in the large tile. The first
  * picture is the page's main picture and loads at once; the tile is the
  * `data-fly-source` of the add button (its first child is the picture, as
@@ -33,7 +34,7 @@ export function ProductGallery({
     <div className={cn("flex flex-col gap-3", className)}>
       <div
         data-fly-source=""
-        className="bg-mist relative aspect-square overflow-hidden rounded-xl p-6 sm:p-10"
+        className="border-line relative aspect-square overflow-hidden rounded-xl border bg-white p-6 sm:p-8"
       >
         <ProductImage
           key={shown?.id ?? "none"}
@@ -63,10 +64,10 @@ export function ProductGallery({
                   aria-pressed={current}
                   onClick={() => setIndex(position)}
                   className={cn(
-                    "bg-mist block size-18 overflow-hidden rounded-md border-2 p-1.5 transition-colors duration-150 sm:size-20",
+                    "block size-18 overflow-hidden rounded-md border-2 bg-white p-1.5 transition-colors duration-150 sm:size-20",
                     current
                       ? "border-leaf-600"
-                      : "hover:border-line-strong border-transparent",
+                      : "border-line hover:border-line-strong",
                   )}
                 >
                   <ProductImage

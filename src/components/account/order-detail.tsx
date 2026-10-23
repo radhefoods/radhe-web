@@ -539,7 +539,7 @@ function OrderBody({
                   width={64}
                   height={64}
                   loading="lazy"
-                  className="bg-mist size-16 shrink-0 rounded-md object-cover"
+                  className="border-line size-16 shrink-0 rounded-md border bg-white object-contain p-1"
                 />
               )}
               <div className="min-w-0 flex-1">

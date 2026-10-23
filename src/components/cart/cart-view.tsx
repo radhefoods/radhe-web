@@ -25,7 +25,7 @@ import {
 
 /**
  * One pack size in the cart (owner, 2026-10-19 and 2026-10-21): the
- * picture on a mist tile; the brand, the name with the size in a quieter
+ * picture on a white tile with a hairline; the brand, the name with the size in a quieter
  * tone, and the price per pack set like a price of the catalogue: in the
  * display cut, red when reduced with the regular price struck through
  * and the saving as a small red badge beside it, and no word around it
@@ -60,7 +60,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
 
   return (
     <li className="border-line shadow-card grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-x-5 sm:p-5 md:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1.5fr)_auto]">
-      <div className="bg-mist aspect-square self-center overflow-hidden rounded-md p-2">
+      <div className="border-line aspect-square self-center overflow-hidden rounded-md border bg-white p-1.5">
         <ProductImage
           image={product?.image ?? null}
           alt=""

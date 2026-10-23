@@ -24,7 +24,11 @@ import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import type { Ordering, ProductDetail, ProductVariant } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { formatDiscount, formatMoney } from "@/lib/format/money";
+import {
+  formatBasePrice,
+  formatDiscount,
+  formatMoney,
+} from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
 import { Price } from "./price";
 import { WishlistButton } from "./wishlist-button";
@@ -214,9 +218,11 @@ export function PackSizeSku() {
 }
 
 /**
- * The sizes to choose from, as tiles that name the size and its price, so
- * the customer compares without switching (owner, 2026-10-22); a size that
- * cannot be ordered says so in the price's place. Each tile is a link to
+ * The sizes to choose from, as tiles that name the size and its price per
+ * kilogram, litre or piece (owner, 2026-10-23: the price per unit is what
+ * compares the sizes; the price of the pack stands above, large, for the
+ * chosen one), so the customer compares without switching (owner,
+ * 2026-10-22); a size that cannot be ordered says so in the price's place. Each tile is a link to
  * the size's own address, so it can be opened in a new tab or found by a
  * crawler; a plain click switches the page in place instead. Nothing is
  * shown when the product comes in one size only.
@@ -288,7 +294,7 @@ export function PackSizePicker({ className }: { className?: string }) {
                 >
                   {reason
                     ? t(`reason.${reason}`)
-                    : formatMoney(size.pricing.price, locale)}
+                    : formatBasePrice(size.pricing.basePrice, locale)}
                 </span>
               </Link>
             </li>
