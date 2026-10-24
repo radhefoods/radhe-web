@@ -26,6 +26,8 @@ A product comes in one or more **pack sizes** (`variants`): the product holds th
 15. Integration checklist
 16. Wishlist
 17. Homepage banners
+18. FAQ
+19. Blog
 
 ---
 
@@ -1743,6 +1745,8 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 12. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.
 13. Wishlist (section 16, `doc/WISHLIST.md`): heart on cards and product pages; visitors keep `{ productId, variantId? }` in local storage and use `POST /v1/store/wishlist/preview`; signed-in customers use `GET`/`PUT`/`DELETE /v1/store/wishlist…`; `POST …/merge` once after sign-in and sign-up.
 14. Homepage carousel (section 17, `doc/BANNERS.md`): `GET /v1/store/banners`; nothing rendered when empty; the picture's ratio kept on every screen; `srcset` from `sizes`; external links in a new tab.
+15. FAQ page (section 18, `doc/FAQ.md`): `GET /v1/store/faqs?locale=…`, groups as headings with their questions in the order given, Markdown answers, `FAQPage` structured data, nothing shown when `groups` is empty.
+16. Blog (section 19, `doc/BLOG.md`): list, article, category and tag pages from `GET /v1/store/blog/…`; Markdown content with the existing renderer; `seo`, `featuredImage` and `alternates` for the meta tags, Open Graph, `hreflang` and `Article` structured data; drafts and scheduled posts answer 404.
 
 ---
 
@@ -1809,3 +1813,56 @@ The hero carousel of the homepage: pictures the admin uploads, each with everyth
 ```
 
 `sizes` are the three stored widths of the one upload (never enlarged, same ratio); `width` and `height` are those of the largest. The shop keeps the picture's ratio on every screen (`aspect-ratio: width / height`, never cropped) and builds a `srcset` from `sizes`. `linkUrl` is a shop path or an `https://` address; `isExternal: true` opens in a new tab with `rel="noopener noreferrer"`. `linkUrl` is `null` when the banner is not clickable.
+
+---
+
+## 18. FAQ
+
+The questions and answers the admin keeps, under headings. `doc/FAQ.md` has the rules and the shop workflow.
+
+### `GET /v1/store/faqs`
+
+**Authentication:** none. `?locale=en|de`. `Cache-Control: public, max-age=300`.
+
+```json
+{
+  "groups": [
+    { "id": "66f3…", "name": "Orders", "items": [ { "id": "66f4…", "question": "Can I cancel my order?", "answer": "Yes, until we start preparing it. …" } ] },
+    { "id": null, "name": null, "items": [ { "id": "66f8…", "question": "Do you have a shop in Frankfurt?", "answer": "Not yet." } ] }
+  ]
+}
+```
+
+Only visible groups with at least one published question, in the admin's order, each with its published questions in the admin's order; published questions without a group come last under `id: null`. `answer` is plain text or Markdown: render it as the legal texts. `groups: []` means there is nothing to show. The page emits `FAQPage` structured data from the same answer.
+
+---
+
+## 19. Blog
+
+Articles in both languages with a featured picture, a category, tags and SEO fields. `doc/BLOG.md` has the objects in full and the shop workflow. **Authentication:** none; `?locale=en|de` on every call; `Cache-Control: public, max-age=300`.
+
+| Endpoint | Query | Answer |
+| --- | --- | --- |
+| `GET /v1/store/blog/posts` | `page`, `limit` (≤100), `category` (slug of either language), `tag`, `q` (words of the title, summary or tags) | page `{ items, page, limit, total, totalPages }` of published posts whose date has come, newest first, without their texts |
+| `GET /v1/store/blog/posts/{slug}` | slug of either language | `{ post }` with `content` (Markdown), `contentLocale`, `seo { title, description }`, `alternates { en, de }`, `updatedAt`, `related` (up to three); `404 BLOG_POST_NOT_FOUND` for drafts, scheduled posts and unknown slugs |
+| `GET /v1/store/blog/categories` | | `{ items: [{ id, slug, name, description, postCount, seo, alternates }] }` in display order |
+| `GET /v1/store/blog/tags` | | `{ items: [{ tag, count }] }` of the published posts, most used first |
+
+A list entry:
+
+```json
+{
+  "id": "66f1…",
+  "slug": "the-perfect-dal",
+  "title": "The perfect dal",
+  "summary": "Five lentils, one pot.",
+  "featuredImage": { "id": "…", "alt": "A bowl of dal", "isPrimary": false, "url": "…/large.webp", "sizes": { "small": { "url": "…", "width": 480, "height": 270 }, "medium": { "…": "" }, "large": { "…": "" } } },
+  "author": "Vrushabh",
+  "publishedAt": "2026-10-20T08:00:00.000Z",
+  "readingMinutes": 4,
+  "category": { "id": "66e1…", "slug": "recipes", "name": "Recipes" },
+  "tags": ["recipes", "lentils"]
+}
+```
+
+`featuredImage` is `null` without a picture; `summary` and `category` may be `null`. Routes of the shop: `/blog`, `/blog/[slug]`, `/blog/category/[slug]`, `/blog/tag/[tag]`; the language switch of an article goes to `alternates[otherLocale]`.
