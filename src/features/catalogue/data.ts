@@ -6,11 +6,10 @@ import type {
   Banner,
   Category,
   CategoryDetail,
-  Page,
   ProductDetail,
   ProductFacets,
+  ProductList,
   ProductQuery,
-  ProductSummary,
   ShopSettings,
 } from "@/lib/api/types";
 
@@ -94,7 +93,7 @@ export const getProduct = cache(
 export function listProducts(
   query: ProductQuery,
   locale: Locale,
-): Promise<Page<ProductSummary>> {
+): Promise<ProductList> {
   return serverApi.listProducts(query, { locale, next: catalogue });
 }
 

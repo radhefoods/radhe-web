@@ -166,6 +166,100 @@ describe("catalogue", () => {
     expect(prices).toEqual([...prices].sort((a, b) => a - b));
   });
 
+  it("lists one card per pack size, the sizes of a product together or in rounds, and names the view", async () => {
+    const api = guestApi();
+    // No view and no category: one card per product, as before.
+    const products = await api.listProducts({ q: "basmati" });
+    expect(products.view).toBe("product");
+    expect(products.total).toBe(1);
+
+    // The sizes of a product together, smallest first; `total` counts cards
+    // and every card is its size (doc PRODUCT_DISPLAY_ORDER).
+    const grouped = await api.listProducts({
+      q: "basmati",
+      view: "variants_by_product",
+    });
+    expect(grouped.view).toBe("variants_by_product");
+    expect(grouped.total).toBe(2);
+    expect(grouped.items.map((p) => p.displayName)).toEqual([
+      "Basmati Rice (1 kg)",
+      "Basmati Rice (5 kg)",
+    ]);
+    expect(new Set(grouped.items.map((p) => p.id)).size).toBe(1);
+    for (const card of grouped.items) {
+      const selected = card.variants.find((v) => v.isSelected);
+      expect(selected?.id).toBe(card.variantId);
+      expect(selected?.slug).toBe(card.slug);
+    }
+
+    // Rounds: the smallest size of every product, then the second sizes.
+    const rounds = await api.listProducts({
+      category: "rice",
+      view: "variants_by_size",
+    });
+    expect(rounds.view).toBe("variants_by_size");
+    expect(rounds.items.map((p) => p.displayName)).toEqual([
+      "Basmati Rice (1 kg)",
+      "Sona Masoori Rice (5 kg)",
+      "Poha (Flattened Rice) (1 kg)",
+      "Basmati Rice (5 kg)",
+      "Sona Masoori Rice (10 kg)",
+    ]);
+
+    // Without a view a category is listed the way it is set: rounds, until
+    // the admin changes it.
+    const byCategory = await api.listProducts({ category: "rice" });
+    expect(byCategory.view).toBe("variants_by_size");
+    expect(byCategory.total).toBe(5);
+    const { items } = await api.listCategories();
+    expect(items[0].listingView).toBe("variants_by_size");
+    const asProducts = await api.listProducts({
+      category: "rice",
+      view: "product",
+    });
+    expect(asProducts.total).toBe(3);
+  });
+
+  it("filters and sorts the pack-size cards one by one; the facets keep counting products", async () => {
+    const api = guestApi();
+    // Only the reduced sizes become cards, and the price order sorts the
+    // cards by their own price, the sizes of a product no longer together.
+    const offers = await api.listProducts({
+      view: "variants_by_product",
+      onSale: true,
+      sort: "price_asc",
+    });
+    expect(offers.items.map((p) => p.displayName)).toEqual([
+      "Chana Dal (1 kg)",
+      "Pure Ghee (1 l)",
+      "Basmati Rice (5 kg)",
+    ]);
+    // A size that cannot be ordered is no card with `orderable=true`.
+    const orderable = await api.listProducts({
+      category: "fresh-fruit",
+      view: "variants_by_size",
+      orderable: true,
+    });
+    expect(orderable.items.map((p) => p.displayName)).toEqual([
+      "Alphonso Mango, Box (3 kg)",
+    ]);
+    // `total` counts cards; the facets count products, whatever the view.
+    const all = await api.listProducts({
+      view: "variants_by_product",
+      limit: 100,
+    });
+    expect(all.total).toBe(29);
+    const response = await fetch(
+      `${base}/v1/store/products/facets?view=variants_by_product`,
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).total).toBe(22);
+    const bad = await api
+      .listProducts({ view: "by_colour" as "product" })
+      .catch((e) => e);
+    expect(hasErrorCode(bad, "VALIDATION_FAILED")).toBe(true);
+  });
+
   it("finds a product by its slug in either language", async () => {
     const api = guestApi();
     const viaGerman = await api.getProduct("basmati-reis-5kg", {

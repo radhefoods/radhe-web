@@ -554,6 +554,8 @@ Public. Products, categories and, for every pack size, the answer "can the custo
 
 A product has one or more pack sizes, smallest first in `variants`. One of them is the **default size** and stands for the product in lists: the smallest enabled size whose stock covers the smallest order, else the smallest enabled size. Each size has its own `id` (the `variantId` of the cart and the orders), `sku`, URL (`slug`), `packSize`, `pricing` and `ordering`. The **display name** is the product name followed by the pack label in parentheses: `Basmati Rice (1 kg)`, in German `Basmati Reis (1 kg)`.
 
+The **order** of every list is the admin's: within a category the positions set in the admin panel, and category by category (in the order of the navigation) when a list spans several categories. The **view** of a list (`view` parameter, or the category's `listingView`) decides what one entry is: a product, or one pack size as a card of its own, grouped by product or in rounds of ascending size. `doc/PRODUCT_DISPLAY_ORDER.md` explains both with examples.
+
 ### 7.1 Shared objects
 
 **PriceView** (in every product answer as `pricing`, always the price of one pack size):
@@ -668,18 +670,19 @@ Products carry no other stock field: `remaining` is the number to use for "only 
       "description": null,
       "parentId": null,
       "level": 1,
+      "listingView": "variants_by_size",
       "image": { "…Image…": "" },
       "productCount": 12,
       "seo": { "title": "Rice", "description": "Long grain and more" },
       "children": [
-        { "id": "66f1…", "slug": "basmati", "slugs": { "en": "basmati", "de": "basmati" }, "name": "Basmati", "tagline": null, "description": null, "parentId": "66f0…", "level": 2, "image": null, "productCount": 4, "seo": { "title": "Basmati", "description": null }, "children": [] }
+        { "id": "66f1…", "slug": "basmati", "slugs": { "en": "basmati", "de": "basmati" }, "name": "Basmati", "tagline": null, "description": null, "parentId": "66f0…", "level": 2, "listingView": "variants_by_size", "image": null, "productCount": 4, "seo": { "title": "Basmati", "description": null }, "children": [] }
       ]
     }
   ]
 }
 ```
 
-`level` is 1–3. `productCount` counts active products of the category and its sub-categories. `image` can be `null`. Hidden categories (and everything below them) are not returned.
+`level` is 1–3. `productCount` counts active products of the category and its sub-categories. `image` can be `null`. Hidden categories (and everything below them) are not returned. `listingView` (`product` | `variants_by_product` | `variants_by_size`) is how `GET /v1/store/products?category=<slug>` lists the category when the request sends no `view`; the shop needs it only to label the list.
 
 ### `GET /v1/store/categories/{slug}`
 
@@ -700,7 +703,7 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 {
   "category": {
     "id": "66f1…", "slug": "basmati", "slugs": { "en": "basmati", "de": "basmati" }, "name": "Basmati",
-    "tagline": null, "description": null, "parentId": "66f0…", "level": 2, "image": null, "productCount": 4,
+    "tagline": null, "description": null, "parentId": "66f0…", "level": 2, "listingView": "variants_by_size", "image": null, "productCount": 4,
     "seo": { "title": "Basmati", "description": null },
     "breadcrumbs": [
       { "id": "66f0…", "slug": "rice", "name": "Rice" },
@@ -718,7 +721,7 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 
 ### `GET /v1/store/products`
 
-**Purpose:** Product listing with filters, search, sorting and pages. One entry per product, shown as one of its pack sizes: the default size, or, with the `packSize` filter, the smallest enabled size that was asked for.
+**Purpose:** Product listing with filters, search, sorting and pages, in one of three views. `product`: one entry per product, shown as one of its pack sizes (the default size, or, with the `packSize` filter, the smallest enabled size that was asked for). `variants_by_product`: one entry per pack size, the sizes of a product together, smallest first. `variants_by_size`: one entry per pack size in rounds: the smallest size of every product, then the second size of every product that has one, and so on. Every entry has the same shape whatever the view. The order within a view is the admin's (category by category, then by position), unless `sort` says otherwise.
 
 **Authentication:** none.
 
@@ -738,7 +741,8 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 | `orderable` | boolean | `true`: only products with an enabled size that can be ordered **now** (switched on, and its stock covers the smallest order). `false` is accepted and changes nothing. |
 | `featured` | boolean | |
 | `minPrice`, `maxPrice` | int cents, ≥0 | On the price of the default size. |
-| `sort` | `recommended` (default) \| `newest` \| `price_asc` \| `price_desc` \| `discount` \| `name` | `price_*` and `discount` use the price and the discount of the default size. |
+| `sort` | `recommended` (default) \| `newest` \| `price_asc` \| `price_desc` \| `discount` \| `name` | `recommended` is the admin's order: the categories in navigation order, within a category the positions set in the panel. In the `product` view `price_*` and `discount` use the default size; in the pack-size views they order the entries one by one by their own price or discount (the sizes of a product are then no longer together). `name` and `newest` keep the grouping or the rounds. |
+| `view` | `product` \| `variants_by_product` \| `variants_by_size` | What one entry is (see Purpose). Left out: the `listingView` of the category when `category` is given, else `product`. The home page sends `variants_by_size`, search and "All products" send `variants_by_product`. |
 | `page` | int 1–500, default 1 | |
 | `limit` | int 1–100, default 24 | |
 
@@ -791,11 +795,14 @@ Products carry no other stock field: `remaining` is the number to use for "only 
   "page": 1,
   "limit": 24,
   "total": 57,
-  "totalPages": 3
+  "totalPages": 3,
+  "view": "product"
 }
 ```
 
-- `id` is the product; `variantId`, `sku`, `slug`, `displayName`, `packSize`, `pricing` and `ordering` belong to the pack size the entry shows (the one with `isSelected: true` in `variants`). `name` is the product name without the size; `displayName` is the title of the card.
+- `view` is the view that was applied. In the pack-size views `total`, `totalPages` and `limit` count entries, that is pack sizes, not products; for a "N products" label use `total` of `GET /v1/store/products/facets`, which always counts products.
+- In the pack-size views the filters `packSize`, `onSale`, `orderable`, `minPrice` and `maxPrice` hold for the size of each entry: a product whose 200 g is sold out and whose 500 g is in stock appears once with `orderable=true`, as the 500 g. The rounds of `variants_by_size` are formed from the sizes that remain after the filters. Entries whose size cannot be ordered are still listed without `orderable=true`, with `ordering.canOrder: false`.
+- `id` is the product; `variantId`, `sku`, `slug`, `displayName`, `packSize`, `pricing` and `ordering` belong to the pack size the entry shows (the one with `isSelected: true` in `variants`). `name` is the product name without the size; `displayName` is the title of the card. In the pack-size views two entries can share `id` (one product) and always differ in `variantId`: key the cards by `variantId`.
 - `isAvailable` is the admin's switch for the whole product; `ordering` combines it with the size's own switch and stock. Use `ordering` for the button, not `isAvailable`.
 - `quantity` is the product's own limit per order, the same for every size (`max` may be `null`); `ordering.maxQuantity` is that limit capped by the size's stock.
 - `variants` holds every enabled size, smallest first, the shown one included, each with its own `ordering` (section 7.1). Use it for the size chooser: each entry has its own `slug` for the product page and its own `id` for the cart. `variantCount` is its length. Images, texts, `quantity` and `storageType` are the product's and apply to every size.
@@ -809,7 +816,7 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 
 ### `GET /v1/store/products/facets`
 
-**Purpose:** The counts behind the filter panel: how many products each brand, label, storage type, pack size, price band, offer and ordering state has under the current filters. Exact at any size of the catalogue, and one request instead of one per filter value.
+**Purpose:** The counts behind the filter panel: how many products each brand, label, storage type, pack size, price band, offer and ordering state has under the current filters. Exact at any size of the catalogue, and one request instead of one per filter value. Always counts products, whatever `view` the list uses (`view` is accepted and ignored).
 
 **Authentication:** none.
 
@@ -1725,7 +1732,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 1. `fetch` with `credentials: 'include'`; shop origin in `CORS_ORIGINS`; handle `401` → refresh once → sign-in. Sign-up and sign-in with email and password, forgot and reset password pages (section 1 and `doc/CUSTOMER_AUTH.md`).
 2. Pass `?locale=` on every store call (or rely on `Accept-Language`).
 3. Layout: `GET /v1/store/settings` for the delivery-fee hint, the delivery estimate and the return window; `GET /v1/store/categories` for navigation.
-4. Catalogue: one list entry per product, shown as one pack size (`displayName` as the title, `pricing.basePrice` next to every price); product pages by the URL of a pack size or the base slug (either language); `variants` for the size chooser (switch from the same answer and set the URL to the chosen `slug` with the history API); `ordering` per size for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
+4. Catalogue: `view` per list (`doc/PRODUCT_DISPLAY_ORDER.md`): home rows `variants_by_size`, search and "All products" `variants_by_product`, category pages no `view` (the category decides); cards keyed by `variantId`; in the pack-size views `total` counts cards and the facets' `total` counts products. Each entry is shown as one pack size (`displayName` as the title, `pricing.basePrice` next to every price); product pages by the URL of a pack size or the base slug (either language); `variants` for the size chooser (switch from the same answer and set the URL to the chosen `slug` with the history API); `ordering` per size for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
 5. Cart by pack size: `variants[].id` is the `variantId` of `PUT /v1/store/cart/items/{variantId}` and of the `items` of `preview` and `merge`. Guest cart in local storage (`variantId`, `quantity`) → `POST /v1/store/cart/preview` for prices; after sign-in `POST /v1/store/cart/merge`, then the server cart. Show `lines[].issue` per line; the checkout button is `canOrder`.
 6. Checkout page: `GET /v1/store/me/addresses` (address chooser), `GET /v1/store/legal` (consent versions and links), `GET /v1/store/cart` (`canOrder`, `totals.total` → `expectedTotal`), then `POST /v1/store/checkout` with an `Idempotency-Key` and redirect to `checkout.url`; handle `ORDER_TOTAL_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `LEGAL_VERSION_CHANGED`, `CART_EMPTY`, `PAYMENTS_NOT_CONFIGURED`.
 7. The way back from Stripe: `/account/orders/<orderNumber>?payment=success|cancelled` (sign-in required) → `GET …/payment`; poll while a page is still open after `?payment=success`; "Pay now" → `POST …/pay` → redirect.

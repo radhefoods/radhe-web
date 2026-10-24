@@ -36,6 +36,12 @@ const pageLink = "grid size-11 place-items-center rounded-full";
  * one go; the panel shows only the filters the products of this list
  * support. When nothing is left, the page names the one filter whose
  * removal brings back the most products.
+ *
+ * "All products" and a search show one card per pack size, the sizes of a
+ * product together; a category page shows what the admin set for the
+ * category (`toProductQuery`, doc PRODUCT_DISPLAY_ORDER). The list's
+ * `total` then counts cards and serves the pages; "N products" takes the
+ * facets' `total`, which counts products.
  */
 export async function ProductListing({
   locale,
@@ -115,7 +121,7 @@ export async function ProductListing({
           state={state}
           facets={facets}
           visible={visible}
-          total={page.total}
+          total={current.total}
           action={getPathname({ href: base, locale })}
         >
           <div className="pt-2">

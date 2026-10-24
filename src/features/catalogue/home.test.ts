@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { buildUrl } from "@/lib/api/http";
 import type { ProductSummary } from "@/lib/api/types";
-import { ROW_SIZE, featuredQuery, popularProducts, rowQuery } from "./home";
-import { parseListingState, toProductQuery } from "./listing-state";
+import {
+  ROW_SIZE,
+  catalogueQuery,
+  featuredQuery,
+  popularProducts,
+  rowQuery,
+} from "./home";
 
 const url = (query: object) =>
   buildUrl("", "/v1/store/products", { ...query, locale: "en" });
@@ -12,16 +17,16 @@ const many = (prefix: string, count: number) =>
   Array.from({ length: count }, (_, i) => product(`${prefix}${i + 1}`));
 
 describe("rowQuery", () => {
-  it("asks for exactly what the first page of a category asks for", () => {
-    const state = parseListingState({});
-    expect(url(rowQuery("fruits"))).toBe(url(toProductQuery(state, "fruits")));
+  it("asks for the first cards of a category in rounds of pack sizes", () => {
     expect(url(rowQuery("fruits"))).toBe(
-      "/v1/store/products?category=fruits&page=1&limit=24&locale=en",
+      `/v1/store/products?category=fruits&view=variants_by_size&limit=${ROW_SIZE}&locale=en`,
     );
   });
 
-  it("asks for the first page of all products without a category", () => {
-    expect(url(rowQuery())).toBe(url(toProductQuery(parseListingState({}))));
+  it("asks for the first products of the catalogue, one card each", () => {
+    expect(url(catalogueQuery)).toBe(
+      `/v1/store/products?limit=${ROW_SIZE}&locale=en`,
+    );
   });
 
   it("asks for a row of featured products", () => {

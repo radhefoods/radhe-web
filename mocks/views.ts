@@ -15,12 +15,13 @@ import type {
   Customer,
   LegalDocument,
   LegalSummary,
+  ListingView,
   Ordering,
   PackSize,
-  Page,
   PriceView,
   ProductDetail,
   ProductFacets,
+  ProductList,
   ProductQuery,
   ProductSummary,
   ProductVariant,
@@ -469,6 +470,7 @@ function categoryView(record: CategoryRecord, locale: Locale): Category {
     description: pickOrNull(record.description, locale),
     parentId: record.parentId,
     level: ancestorsOf(record).length as 1 | 2 | 3,
+    listingView: record.listingView,
     image: null,
     productCount: products.filter((p) => ids.has(p.categoryId)).length,
     seo: { title: name, description: tagline },
@@ -634,46 +636,139 @@ function shownVariant(p: ProductRecord, query: Filters): VariantRecord {
   return defaultVariant(p);
 }
 
+/**
+ * The rank of every category in the display order of the tree: a main
+ * category, then its sub-categories in their order, then the next main
+ * category (doc PRODUCT_DISPLAY_ORDER, section 3).
+ */
+const categoryRank = new Map<string, number>();
+(function rank(parentId: string | null): void {
+  for (const c of categories
+    .filter((c) => c.parentId === parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder)) {
+    categoryRank.set(c.id, categoryRank.size);
+    rank(c.id);
+  }
+})(null);
+
+/** The view of a list: the one asked for, else the category's, else one card per product. */
+function viewOf(query: ProductQuery): ListingView {
+  if (query.view) return query.view;
+  const category = query.category ? categoryBySlug(query.category) : undefined;
+  return category?.listingView ?? "product";
+}
+
+/**
+ * The sizes of a product that pass the filters that concern a size (doc
+ * PRODUCT_DISPLAY_ORDER, section 7): the asked pack sizes, the offer and
+ * the ordering state, and the price of the size itself. Smallest first.
+ */
+function passingVariants(p: ProductRecord, query: Filters): VariantRecord[] {
+  return enabledVariants(p).filter(
+    (v) =>
+      (!query.packSize?.length || query.packSize.includes(PACK_KEY(v))) &&
+      (query.onSale === undefined || isOnSale(p, v) === query.onSale) &&
+      (query.orderable === undefined ||
+        isOrderable(p, v) === query.orderable) &&
+      (query.minPrice === undefined || effectivePrice(v) >= query.minPrice) &&
+      (query.maxPrice === undefined || effectivePrice(v) <= query.maxPrice),
+  );
+}
+
+/** One entry of a list: a product shown as one of its sizes. */
+interface Entry {
+  p: ProductRecord;
+  v: VariantRecord;
+}
+
+/**
+ * The product list in one of the three views (doc 7 and
+ * PRODUCT_DISPLAY_ORDER): one entry per product, or one per pack size, the
+ * sizes of a product together or in rounds of ascending size. The
+ * recommended order is the admin's: the categories in display order, within
+ * a category the positions, among equals the newest first. `name` and
+ * `newest` keep the grouping and the rounds; the price and discount orders
+ * sort the entries one by one (by the default size in the `product` view).
+ */
 export function listProducts(
   query: ProductQuery,
   locale: Locale,
-): Page<ProductSummary> | { error: "CATEGORY_NOT_FOUND" } {
-  const records = filterRecords(query, locale);
+): ProductList | { error: "CATEGORY_NOT_FOUND" } {
+  const view = viewOf(query);
+  // In the pack-size views the price filters hold per size, below.
+  const records = filterRecords(
+    query,
+    locale,
+    view === "product" ? null : "price",
+  );
   if ("error" in records) return records;
   const list = [...records];
 
-  const byName = (a: ProductRecord, b: ProductRecord) =>
-    pick(a.name, locale).localeCompare(pick(b.name, locale), locale);
-  const price = (p: ProductRecord) => effectivePrice(defaultVariant(p));
-  const discount = (p: ProductRecord) =>
-    priceView(p, defaultVariant(p)).discountPercent;
-  const sorters: Record<
+  const rankOf = (p: ProductRecord) =>
+    categoryRank.get(p.categoryId) ?? Number.MAX_SAFE_INTEGER;
+  const newest = (a: ProductRecord, b: ProductRecord) =>
+    b.publishedAt.localeCompare(a.publishedAt);
+  const byProduct: Record<
     string,
     (a: ProductRecord, b: ProductRecord) => number
   > = {
     recommended: (a, b) =>
-      Number(b.isFeatured) - Number(a.isFeatured) || a.sortOrder - b.sortOrder,
-    newest: (a, b) => b.publishedAt.localeCompare(a.publishedAt),
+      rankOf(a) - rankOf(b) || a.sortOrder - b.sortOrder || newest(a, b),
+    newest,
+    name: (a, b) =>
+      pick(a.name, locale).localeCompare(pick(b.name, locale), locale),
+  };
+  const sort = query.sort ?? "recommended";
+  list.sort(byProduct[sort] ?? byProduct.recommended);
+
+  let entries: Entry[];
+  if (view === "product") {
+    entries = list.map((p) => ({ p, v: shownVariant(p, query) }));
+  } else {
+    const products = list
+      .map((p) => ({ p, sizes: passingVariants(p, query) }))
+      .filter(({ sizes }) => sizes.length > 0);
+    if (view === "variants_by_product") {
+      entries = products.flatMap(({ p, sizes }) =>
+        sizes.map((v) => ({ p, v })),
+      );
+    } else {
+      // Rounds: the smallest size of every product, then the second size
+      // of every product that has one, and so on.
+      entries = [];
+      const rounds = Math.max(0, ...products.map(({ sizes }) => sizes.length));
+      for (let round = 0; round < rounds; round += 1) {
+        for (const { p, sizes } of products) {
+          const v = sizes[round];
+          if (v) entries.push({ p, v });
+        }
+      }
+    }
+  }
+
+  const priced = (e: Entry) => (view === "product" ? defaultVariant(e.p) : e.v);
+  const price = (e: Entry) => effectivePrice(priced(e));
+  const discount = (e: Entry) => priceView(e.p, priced(e)).discountPercent;
+  const byEntry: Record<string, (a: Entry, b: Entry) => number> = {
     price_asc: (a, b) => price(a) - price(b),
     price_desc: (a, b) => price(b) - price(a),
-    discount: (a, b) => discount(b) - discount(a) || a.sortOrder - b.sortOrder,
-    name: byName,
+    discount: (a, b) => discount(b) - discount(a),
   };
-  list.sort(sorters[query.sort ?? "recommended"]);
+  // A stable sort: equals keep the order of the products above.
+  if (byEntry[sort]) entries.sort(byEntry[sort]);
 
   const page = query.page ?? 1;
   const limit = query.limit ?? 24;
-  const total = list.length;
+  const total = entries.length;
   return {
-    items: list
+    items: entries
       .slice((page - 1) * limit, page * limit)
-      .map((p) =>
-        productSummary(p, locale, { selected: shownVariant(p, query) }),
-      ),
+      .map(({ p, v }) => productSummary(p, locale, { selected: v })),
     page,
     limit,
     total,
     totalPages: Math.max(1, Math.ceil(total / limit)),
+    view,
   };
 }
 

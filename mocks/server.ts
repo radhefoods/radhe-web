@@ -720,6 +720,7 @@ const PRODUCT_QUERY_KEYS = [
   "minPrice",
   "maxPrice",
   "sort",
+  "view",
   "page",
   "limit",
 ];
@@ -731,6 +732,7 @@ const SORTS = [
   "discount",
   "name",
 ];
+const VIEWS = ["product", "variants_by_product", "variants_by_size"];
 const STORAGE_TYPES = ["ambient", "chilled", "frozen"];
 /** `500g`, `1kg`, `0.5l`, `6pcs`: a size and a unit, no space. */
 const PACK_SIZE = /^\d+(?:\.\d+)?(?:g|kg|ml|l|pcs)$/;
@@ -770,6 +772,10 @@ function productQueryOf(url: URL): ProductQuery {
   if (sort !== undefined && !SORTS.includes(sort)) {
     throw validationFailed("sort", `sort must be one of: ${SORTS.join(", ")}`);
   }
+  const view = url.searchParams.get("view") ?? undefined;
+  if (view !== undefined && !VIEWS.includes(view)) {
+    throw validationFailed("view", `view must be one of: ${VIEWS.join(", ")}`);
+  }
   return {
     category: url.searchParams.get("category") ?? undefined,
     q: q?.trim(),
@@ -794,6 +800,7 @@ function productQueryOf(url: URL): ProductQuery {
     minPrice: intParam(url, "minPrice", 0, 1_000_000_000),
     maxPrice: intParam(url, "maxPrice", 0, 1_000_000_000),
     sort: sort as ProductQuery["sort"],
+    view: view as ProductQuery["view"],
     page: intParam(url, "page", 1, 500),
     limit: intParam(url, "limit", 1, 100),
   };

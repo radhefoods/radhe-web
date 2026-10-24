@@ -115,6 +115,7 @@ describe("toProductQuery", () => {
     const state = parseListingState({});
     expect(toProductQuery(state, "rice")).toEqual({
       category: "rice",
+      view: undefined,
       q: undefined,
       sort: undefined,
       onSale: undefined,
@@ -152,6 +153,16 @@ describe("toProductQuery", () => {
     expect(
       toProductQuery(parseListingState({ minPrice: "5000" })),
     ).toMatchObject({ minPrice: 5000, maxPrice: undefined });
+  });
+
+  it("groups the sizes of a product on 'All products' and in a search, and lets a category decide", () => {
+    expect(toProductQuery(parseListingState({})).view).toBe(
+      "variants_by_product",
+    );
+    expect(toProductQuery(parseListingState({ q: "dal" })).view).toBe(
+      "variants_by_product",
+    );
+    expect(toProductQuery(parseListingState({}), "rice").view).toBeUndefined();
   });
 });
 

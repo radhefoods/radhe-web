@@ -15,6 +15,7 @@ import {
 } from "@/features/catalogue/data";
 import {
   ROW_SIZE,
+  catalogueQuery,
   featuredQuery,
   popularProducts,
   rowQuery,
@@ -71,12 +72,13 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     ],
   );
   // One row per main category that has products, in the order of the
-  // admin, each with its first products in the recommended order (owner,
-  // 2026-10-16). A category whose products do not arrive shows no row.
+  // admin, each with its first pack sizes in rounds: the smallest size of
+  // every product first, in the admin's order (owner, 2026-10-16 and
+  // 2026-10-24). A category whose products do not arrive shows no row.
   // While the admin has marked nothing as featured, "Popular right now"
   // shows the first products of the whole catalogue (owner, 2026-10-18).
   const [catalogue, rows] = await Promise.all([
-    featured.length > 0 ? [] : products(rowQuery(), locale),
+    featured.length > 0 ? [] : products(catalogueQuery, locale),
     Promise.all(
       categories
         .filter((category) => category.productCount > 0)
@@ -175,7 +177,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             labels={rowLabels}
           >
             {popular.map((product, index) => (
-              <ProductRowItem key={product.id}>
+              <ProductRowItem key={product.variantId}>
                 <ProductCard
                   product={product}
                   imageSizes={cardSizes}
@@ -201,7 +203,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             labels={rowLabels}
           >
             {items.map((product) => (
-              <ProductRowItem key={product.id}>
+              // Two cards of a row can be one product (doc 7); the size is unique.
+              <ProductRowItem key={product.variantId}>
                 <ProductCard product={product} imageSizes={cardSizes} />
               </ProductRowItem>
             ))}

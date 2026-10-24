@@ -252,6 +252,11 @@ export interface Category {
   description: string | null;
   parentId: Id | null;
   level: 1 | 2 | 3;
+  /**
+   * How `GET /v1/store/products?category=` lists the category when the
+   * request sends no `view` (doc PRODUCT_DISPLAY_ORDER); the admin sets it.
+   */
+  listingView: ListingView;
   image: ApiImage | null;
   productCount: number;
   seo: Seo;
@@ -361,6 +366,15 @@ export interface ProductDetail extends ProductSummary {
 export type ProductSort =
   "recommended" | "newest" | "price_asc" | "price_desc" | "discount" | "name";
 
+/**
+ * What one entry of a product list is (doc PRODUCT_DISPLAY_ORDER, section 4):
+ * a product as its default size, or one pack size per card, the sizes of a
+ * product together (`variants_by_product`) or in rounds of ascending size,
+ * the smallest size of every product first (`variants_by_size`).
+ */
+export type ListingView =
+  "product" | "variants_by_product" | "variants_by_size";
+
 export interface ProductQuery {
   category?: string;
   q?: string;
@@ -384,8 +398,23 @@ export interface ProductQuery {
   minPrice?: Cents;
   maxPrice?: Cents;
   sort?: ProductSort;
+  /**
+   * Left out: the `listingView` of the category, or `product` without one.
+   * In the two `variants_*` views the filters that concern a size hold per
+   * card, and `price_*` and `discount` order the cards one by one.
+   */
+  view?: ListingView;
   page?: number;
   limit?: number;
+}
+
+/**
+ * A page of the product list (doc 7) with the view that was applied. In the
+ * two `variants_*` views `total` and `totalPages` count pack sizes, not
+ * products; `GET /v1/store/products/facets` keeps counting products.
+ */
+export interface ProductList extends Page<ProductSummary> {
+  view: ListingView;
 }
 
 /** One value of a facet and how many products choosing it would leave. */

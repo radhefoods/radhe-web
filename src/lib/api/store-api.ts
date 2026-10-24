@@ -28,11 +28,10 @@ import type {
   OrderPayment,
   OrderReturns,
   OrderSummary,
-  Page,
   ProductDetail,
   ProductFacets,
+  ProductList,
   ProductQuery,
-  ProductSummary,
   ReturnRequest,
   SessionResult,
   ShopSettings,
@@ -170,16 +169,22 @@ export function createStoreApi(request: Requester) {
         o,
       ),
     listProducts: (query: ProductQuery = {}, o?: CallOptions) =>
-      request<Page<ProductSummary>>("/v1/store/products", {
+      request<ProductList>("/v1/store/products", {
         ...o,
         query: { ...query },
       }),
-    // The page, size and sort are left out: the counts are the same for
-    // every page of a list, and so is the cached answer.
+    // The page, size, sort and view are left out: the counts are the same
+    // for every page and view of a list, and so is the cached answer.
     getProductFacets: (query: ProductQuery = {}, o?: CallOptions) =>
       request<ProductFacets>("/v1/store/products/facets", {
         ...o,
-        query: { ...query, page: undefined, limit: undefined, sort: undefined },
+        query: {
+          ...query,
+          page: undefined,
+          limit: undefined,
+          sort: undefined,
+          view: undefined,
+        },
       }),
     getProduct: (slug: string, o?: CallOptions) =>
       request<{ product: ProductDetail }>(`/v1/store/products/${seg(slug)}`, o),

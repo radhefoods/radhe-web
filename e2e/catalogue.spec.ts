@@ -100,8 +100,10 @@ test.describe("the shop at a glance", () => {
     await expect(
       popular.getByRole("link", { name: "See all products" }),
     ).toHaveAttribute("href", "/en/products");
+    // A row holds one card per pack size in rounds (doc PRODUCT_DISPLAY_ORDER):
+    // the three rice products have five sizes between them.
     const rice = page.getByRole("region", { name: "Rice", exact: true });
-    await expect(rice.getByRole("article")).toHaveCount(3);
+    await expect(rice.getByRole("article")).toHaveCount(5);
     await expect(
       rice.getByRole("link", { name: "See all Rice" }),
     ).toHaveAttribute("href", "/en/category/rice");
@@ -212,11 +214,12 @@ test.describe("the shop at a glance", () => {
     isMobile,
   }) => {
     test.skip(isMobile, "The arrows exist from medium screens on.");
-    // Three cards per page at this width; "Spices" has four products.
+    // Three cards per page at this width; "Spices" has four products with
+    // six pack sizes, so six cards.
     await page.setViewportSize({ width: 800, height: 900 });
     await page.goto("/en");
     const spices = page.getByRole("region", { name: "Spices", exact: true });
-    await expect(spices.getByRole("article")).toHaveCount(4);
+    await expect(spices.getByRole("article")).toHaveCount(6);
     const back = spices.getByRole("button", { name: "Scroll back" });
     const forward = spices.getByRole("button", { name: "Scroll forward" });
     await expect(back).toBeDisabled();
@@ -393,7 +396,9 @@ test.describe("finding products", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Results for “dal”",
     );
-    await expect(card(page, "Toor Dal")).toBeVisible();
+    // A search shows every size of a matching product as a card of its own.
+    await expect(card(page, "Toor Dal (1kg)")).toBeVisible();
+    await expect(card(page, "Toor Dal (2kg)")).toBeVisible();
     await expect(card(page, "Basmati Rice")).toHaveCount(0);
 
     await page.goto("/en/products?q=zzzz");
@@ -419,7 +424,7 @@ test.describe("finding products", () => {
     await page.getByLabel("Amul").check();
     await expect(page).toHaveURL(/brand=MDH&brand=Amul/);
     await expect(page.getByText("4 products")).toBeVisible();
-    await expect(card(page, "Pure Ghee")).toBeVisible();
+    await expect(card(page, "Pure Ghee (500ml)")).toBeVisible();
     await expect(card(page, "Basmati Rice")).toHaveCount(0);
     // The one that was ticked keeps the focus.
     await expect(page.getByRole("checkbox", { name: "Amul" })).toBeFocused();
@@ -456,9 +461,11 @@ test.describe("finding products", () => {
     await expect(
       page.getByRole("article").getByRole("heading", { level: 2 }),
     ).toHaveText([
+      // The reduced sizes themselves, cheapest first (not the default sizes
+      // of their products).
       "Chana Dal (1kg)",
-      "Basmati Rice (1kg)",
-      "Pure Ghee (500ml)",
+      "Pure Ghee (1l)",
+      "Basmati Rice (5kg)",
     ]);
   });
 
@@ -529,8 +536,13 @@ test.describe("finding products", () => {
   }) => {
     await page.goto("/en/category/spices");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Spices");
+    // The count names products; the cards are the pack sizes (one per
+    // size in rounds, the way the category is set in the admin).
+    await expect(page.getByText("4 products")).toBeVisible();
+    await expect(page.getByRole("article")).toHaveCount(6);
     await expect(card(page, "Garam Masala")).toBeVisible();
-    await expect(card(page, "Cumin Seeds")).toBeVisible();
+    await expect(card(page, "Cumin Seeds (100g)")).toBeVisible();
+    await expect(card(page, "Cumin Seeds (400g)")).toBeVisible();
     await page
       .getByRole("navigation", { name: "In this category" })
       .getByRole("link", { name: "Masala Blends" })
@@ -545,7 +557,7 @@ test.describe("the cart of a visitor", () => {
     page,
   }) => {
     await page.goto("/en/products");
-    const atta = card(page, "Chakki Atta");
+    const atta = card(page, "Chakki Atta (5kg)");
     await atta
       .getByRole("button", { name: "Add to cart: Chakki Atta (5kg)" })
       .click();
@@ -561,13 +573,13 @@ test.describe("the cart of a visitor", () => {
 
     await page.reload();
     await expect(
-      card(page, "Chakki Atta").getByRole("group", {
+      card(page, "Chakki Atta (5kg)").getByRole("group", {
         name: "Quantity of Chakki Atta (5kg)",
       }),
     ).toContainText("2");
 
     // At quantity one, "less" removes the product.
-    const again = card(page, "Chakki Atta");
+    const again = card(page, "Chakki Atta (5kg)");
     await again.getByRole("button", { name: "One less" }).click();
     await again.getByRole("button", { name: "Remove from cart" }).click();
     await expect(
@@ -579,9 +591,9 @@ test.describe("the cart of a visitor", () => {
     page,
   }) => {
     await page.goto("/en/products");
-    const rice = card(page, "Basmati Rice");
-    // The smallest size in stock stands for the product; its name links to
-    // the page of that size.
+    const rice = card(page, "Basmati Rice (1kg)");
+    // Each size is a card of its own here; its name links to the page of
+    // that size.
     const heading = rice.getByRole("heading");
     await expect(heading).toHaveText("Basmati Rice (1kg)");
     await expect(heading.getByRole("link")).toHaveAttribute(
@@ -731,7 +743,7 @@ test.describe("the wishlist", () => {
     page,
   }) => {
     await page.goto("/en/products");
-    const rice = card(page, "Basmati Rice");
+    const rice = card(page, "Basmati Rice (1kg)");
     await rice
       .getByRole("button", { name: "Save to wishlist: Basmati Rice (1kg)" })
       .click();
@@ -798,7 +810,7 @@ test.describe("the wishlist", () => {
     page,
   }) => {
     await page.goto("/en/products");
-    await card(page, "Chakki Atta")
+    await card(page, "Chakki Atta (5kg)")
       .getByRole("button", { name: /Save to wishlist/ })
       .click();
     await page.goto("/en/wishlist");

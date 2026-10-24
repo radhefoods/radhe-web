@@ -97,7 +97,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /**
  * Other products near this one: from its own category, or, when that holds
  * nothing else, from the top-level category above it. Up to `RELATED_SIZE`
- * for the row; the category itself is the way to all of them.
+ * for the row; the category itself is the way to all of them. One card per
+ * product with the size chooser (`view=product`), whatever the category's
+ * own listing view (doc PRODUCT_DISPLAY_ORDER, section 8).
  */
 async function relatedProducts(
   product: ProductDetail,
@@ -110,7 +112,7 @@ async function relatedProducts(
     tried.add(category.slug);
     try {
       const page = await listProducts(
-        { category: category.slug, limit: RELATED_SIZE + 1 },
+        { category: category.slug, view: "product", limit: RELATED_SIZE + 1 },
         locale,
       );
       const items = page.items
@@ -348,7 +350,7 @@ export default async function ProductPage({ params }: Props) {
             labels={rowLabels}
           >
             {related.items.map((item) => (
-              <ProductRowItem key={item.id}>
+              <ProductRowItem key={item.variantId}>
                 <ProductCard product={item} imageSizes={cardSizes} />
               </ProductRowItem>
             ))}

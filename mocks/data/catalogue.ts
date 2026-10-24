@@ -16,6 +16,8 @@ export interface CategoryRecord {
   tagline: Translated | null;
   description: Translated | null;
   sortOrder: number;
+  /** How the store lists the category when a request sends no `view`. */
+  listingView: "product" | "variants_by_product" | "variants_by_size";
 }
 
 /** One pack size of a product: its own article number, price, stock and URL. */
@@ -99,6 +101,8 @@ function category(
     tagline,
     description,
     sortOrder,
+    // The API's default; the admin can set another per category.
+    listingView: "variants_by_size",
   };
 }
 

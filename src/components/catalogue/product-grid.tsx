@@ -27,7 +27,9 @@ export function ProductGrid({
       )}
     >
       {products.map((product, index) => (
-        <li key={product.id}>
+        // Two cards can be one product in the pack-size views (doc 7); the
+        // size is unique in a list.
+        <li key={product.variantId}>
           <ProductCard
             product={product}
             headingLevel={headingLevel}

@@ -14,6 +14,7 @@ function category(en: string, de: string, children: Category[] = []): Category {
     description: null,
     parentId: null,
     level: 1,
+    listingView: "variants_by_size",
     image: null,
     productCount: 1,
     seo: { title: en, description: null },

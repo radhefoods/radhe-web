@@ -1,5 +1,6 @@
 import type {
   Cents,
+  ListingView,
   ProductQuery,
   ProductSort,
   StorageType,
@@ -134,6 +135,16 @@ export function parseListingState(params: RawParams): ListingState {
   };
 }
 
+/**
+ * The view of a list page (doc PRODUCT_DISPLAY_ORDER, section 8; owner,
+ * 2026-10-24): a category page sends none and gets the `listingView` the
+ * admin set for the category; "All products" and a search show one card
+ * per pack size, the sizes of a product together.
+ */
+export function listingView(category?: string): ListingView | undefined {
+  return category ? undefined : "variants_by_product";
+}
+
 /** The query of the API for a state, within an optional category. */
 export function toProductQuery(
   state: ListingState,
@@ -141,6 +152,7 @@ export function toProductQuery(
 ): ProductQuery {
   return {
     category,
+    view: listingView(category),
     q: state.q,
     sort: state.sort === "recommended" ? undefined : state.sort,
     onSale: state.onSale ? true : undefined,

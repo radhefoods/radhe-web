@@ -59,7 +59,9 @@ test.describe("from the cart to the paid order", () => {
     page,
   }) => {
     await page.goto("/en/products");
-    const atta = page.getByRole("article").filter({ hasText: "Chakki Atta" });
+    const atta = page
+      .getByRole("article")
+      .filter({ hasText: "Chakki Atta (5kg)" });
     await atta
       .getByRole("button", { name: /Add to cart: Chakki Atta/ })
       .click();
@@ -364,7 +366,7 @@ test.describe("the cart", () => {
     await page.goto("/en/products");
     await page
       .getByRole("article")
-      .filter({ hasText: "Toor Dal" })
+      .filter({ hasText: "Toor Dal (1kg)" })
       .getByRole("button", { name: /Add to cart: Toor Dal/ })
       .click();
     const bar = page.getByRole("link", { name: /1 item.*View cart/ });
