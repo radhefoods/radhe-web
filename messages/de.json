@@ -186,6 +186,7 @@
     "seeAllIn": "Alle in {name} ansehen",
     "rowBack": "Zurückblättern",
     "rowForward": "Weiterblättern",
+    "rowLoading": "Weitere Produkte werden geladen",
     "carousel": {
       "label": "Angebote und Neuigkeiten",
       "slide": "Folie {index} von {count}",

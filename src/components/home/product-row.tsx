@@ -25,6 +25,12 @@ type Href = ComponentProps<typeof Link>["href"];
  * lifts on hover is never cut. The cards are the server's: this component
  * only holds the scroller and its arrows. Used on the home page and, for
  * the related products and the categories, on the product page.
+ *
+ * A row can have more cards than it holds (`more`, the rows of the home
+ * page since 2026-10-24): then the forward arrow stays alive at the end,
+ * scrolling within a screen of the end asks for the next cards, and a
+ * turn asked for at the end goes on as soon as they (or their placeholders)
+ * arrive.
  */
 export function ProductRow({
   id,
@@ -34,6 +40,7 @@ export function ProductRow({
   link,
   linkLabel,
   labels,
+  more,
   children,
 }: {
   id: string;
@@ -45,6 +52,8 @@ export function ProductRow({
   /** Its spoken name, naming the list: "See all Rice". */
   linkLabel: string;
   labels: { back: string; forward: string };
+  /** Whether cards beyond the children exist, and how to ask for them. */
+  more?: { hasMore: boolean; load: () => void };
   children: ReactNode;
 }) {
   const scroller = useRef<HTMLUListElement>(null);
@@ -53,6 +62,9 @@ export function ProductRow({
   // Whether there is more than fits; true until measured, so the arrows
   // are in the HTML the server sends and vanish only when not needed.
   const [scrollable, setScrollable] = useState(true);
+  // A turn asked for at the end while more cards were on their way.
+  const turnWhenMore = useRef(false);
+  const hasMore = more?.hasMore ?? false;
 
   const measure = useCallback(() => {
     const element = scroller.current;
@@ -72,13 +84,42 @@ export function ProductRow({
     return () => observer.disconnect();
   }, [measure]);
 
-  const turn = (direction: -1 | 1) => {
+  const turn = useCallback((direction: -1 | 1) => {
     const element = scroller.current;
     if (!element) return;
     element.scrollBy({
       left: direction * element.clientWidth,
       behavior: "smooth",
     });
+  }, []);
+
+  // The cards changed (a page arrived, or its placeholders): the ends
+  // moved, and a turn that waited for them goes on.
+  useEffect(() => {
+    measure();
+    if (turnWhenMore.current) {
+      turnWhenMore.current = false;
+      turn(1);
+    }
+  }, [children, measure, turn]);
+
+  const onScroll = () => {
+    measure();
+    const element = scroller.current;
+    if (!hasMore || !element) return;
+    // Within a screen of the end: ask for the next cards now, so they are
+    // there by the time the visitor gets there.
+    const left = element.scrollWidth - element.clientWidth - element.scrollLeft;
+    if (left < element.clientWidth) more?.load();
+  };
+
+  const forward = () => {
+    if (atEnd && hasMore) {
+      turnWhenMore.current = true;
+      more?.load();
+    } else {
+      turn(1);
+    }
   };
 
   const arrow =
@@ -107,7 +148,10 @@ export function ProductRow({
             {link}
           </Link>
           <div
-            className={cn("hidden gap-2 md:flex", !scrollable && "md:hidden")}
+            className={cn(
+              "hidden gap-2 md:flex",
+              !scrollable && !hasMore && "md:hidden",
+            )}
           >
             <button
               type="button"
@@ -121,8 +165,8 @@ export function ProductRow({
             <button
               type="button"
               aria-label={labels.forward}
-              disabled={atEnd}
-              onClick={() => turn(1)}
+              disabled={atEnd && !hasMore}
+              onClick={forward}
               className={arrow}
             >
               <ChevronRight aria-hidden="true" className="size-5" />
@@ -133,7 +177,7 @@ export function ProductRow({
 
       <ul
         ref={scroller}
-        onScroll={measure}
+        onScroll={onScroll}
         className={cn(
           // Bleeds into the gutter of the page on either side and scrolls
           // under it; at rest the first card lines up with the heading.

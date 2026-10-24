@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { ProductCard } from "@/components/catalogue/product-card";
+import { CategoryRow } from "@/components/home/category-row";
 import { DeliveryPromiseCard } from "@/components/home/delivery-promise-card";
 import { HeroCarousel } from "@/components/home/hero-carousel";
 import { ProductRow, ProductRowItem } from "@/components/home/product-row";
@@ -23,7 +24,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
-import type { ProductSummary } from "@/lib/api/types";
+import type { ProductList } from "@/lib/api/types";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 import { JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
 
@@ -46,16 +47,16 @@ export async function generateMetadata({
   };
 }
 
-/** A row of products for the home page; none when the catalogue is away. */
+/** A list of products for the home page; `null` when the catalogue is away. */
 async function products(
   query: Parameters<typeof listProducts>[0],
   locale: Locale,
-): Promise<ProductSummary[]> {
+): Promise<ProductList | null> {
   try {
-    return (await listProducts(query, locale)).items;
+    return await listProducts(query, locale);
   } catch {
     // The home page still explains the shop when the catalogue is away.
-    return [];
+    return null;
   }
 }
 
@@ -67,32 +68,41 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       getTranslations("site"),
       getSettings(),
       getCategories(locale),
-      products(featuredQuery, locale),
+      products(featuredQuery, locale).then((list) => list?.items ?? []),
       getBanners(locale),
     ],
   );
   // One row per main category that has products, in the order of the
-  // admin, each with its first pack sizes in rounds: the smallest size of
-  // every product first, in the admin's order (owner, 2026-10-16 and
-  // 2026-10-24). A category whose products do not arrive shows no row.
+  // admin, each with its pack sizes in rounds: the smallest size of every
+  // product first, in the admin's order (owner, 2026-10-16 and
+  // 2026-10-24). The server renders the first page of a row; the browser
+  // fetches the following pages as the visitor turns towards its end
+  // (`CategoryRow`). A category whose products do not arrive shows no row.
   // While the admin has marked nothing as featured, "Popular right now"
   // shows the first products of the whole catalogue (owner, 2026-10-18).
   const [catalogue, rows] = await Promise.all([
-    featured.length > 0 ? [] : products(catalogueQuery, locale),
+    featured.length > 0
+      ? []
+      : products(catalogueQuery, locale).then((list) => list?.items ?? []),
     Promise.all(
       categories
         .filter((category) => category.productCount > 0)
-        .map(async (category) => ({
-          category,
-          items: (await products(rowQuery(category.slug), locale)).slice(
-            0,
-            ROW_SIZE,
-          ),
-        })),
+        .map(async (category) => {
+          const list = await products(rowQuery(category.slug), locale);
+          return {
+            category,
+            items: list?.items.slice(0, ROW_SIZE) ?? [],
+            pages: list?.totalPages ?? 1,
+          };
+        }),
     ).then((all) => all.filter((row) => row.items.length > 0)),
   ]);
   const popular = popularProducts(featured, catalogue);
-  const rowLabels = { back: t("rowBack"), forward: t("rowForward") };
+  const rowLabels = {
+    back: t("rowBack"),
+    forward: t("rowForward"),
+    loading: t("rowLoading"),
+  };
   // A card of a row: two and a sliver on phones, then three, four, five.
   const cardSizes =
     "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
@@ -188,8 +198,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           </ProductRow>
         )}
 
-        {rows.map(({ category, items }) => (
-          <ProductRow
+        {rows.map(({ category, items, pages }) => (
+          <CategoryRow
             key={category.id}
             id={`home-category-${category.id}`}
             title={category.name}
@@ -201,6 +211,11 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             link={t("seeAll")}
             linkLabel={t("seeAllIn", { name: category.name })}
             labels={rowLabels}
+            category={category.slug}
+            locale={locale}
+            pages={pages}
+            shown={items.map((product) => product.variantId)}
+            imageSizes={cardSizes}
           >
             {items.map((product) => (
               // Two cards of a row can be one product (doc 7); the size is unique.
@@ -208,7 +223,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 <ProductCard product={product} imageSizes={cardSizes} />
               </ProductRowItem>
             ))}
-          </ProductRow>
+          </CategoryRow>
         ))}
       </div>
     </>

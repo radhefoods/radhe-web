@@ -186,6 +186,7 @@
     "seeAllIn": "See all {name}",
     "rowBack": "Scroll back",
     "rowForward": "Scroll forward",
+    "rowLoading": "Loading more products",
     "carousel": {
       "label": "Offers and news",
       "slide": "Slide {index} of {count}",
