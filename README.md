@@ -38,6 +38,7 @@ Built so far:
 - **The admin's order and one card per pack size (2026-10-24):** the API orders every list the admin's way and lists, on request, one card per pack size (`view` on `GET /v1/store/products`, `doc/PRODUCT_DISPLAY_ORDER.md`). The rows of the home page ask for rounds of pack sizes (`variants_by_size`: the smallest size of every product first), "All products" and a search for the sizes of a product together (`variants_by_product`), a category page for nothing and gets the view the admin set for the category (`listingView`). Cards are keyed by the pack size, "N products" counts products from the facets while the pages count cards, and the related row of a product page keeps one card per product (`view=product`). The mock serves the three views and the admin's order. The decisions and their reasons are in `DECISIONS.md`, "The admin's order and one card per pack size".
 - **The rows of the home page run through every round (2026-10-24, evening):** a row of the home page no longer ends after its first eight cards. The server renders the first page of the row as before; the browser asks the API for the following pages of the same query as the visitor scrolls within a screen of the end or clicks the forward arrow at the end (`CategoryRow`), with grey cards holding the place of a page on its way. A pack size is shown once per row. The decisions and their reasons are in `DECISIONS.md`, "The rows of the home page run through every round".
 - **FAQ and blog (2026-10-24, night):** `/faq` lists the questions and answers the admin keeps (`GET /v1/store/faqs`, doc 18): each group as a heading, the questions folded under it with an anchor each, the answers as Markdown, `FAQPage` structured data. The blog (doc 19): `/blog` with pages, the categories and topics as chips and a search (`?q=`), `/blog/[slug]` with the featured picture, author, date, reading time, the text as Markdown, the topics and three related posts, `/blog/category/[slug]` and `/blog/tag/[tag]`; the language switch follows the post's `alternates`, `hreflang`, title and description from `seo`, Open Graph from the featured picture, `Article` structured data, the posts and categories in the sitemap; drafts and scheduled posts are not found. Both link from the footer's help column. The mock serves both with fixtures. The decisions and their reasons are in `DECISIONS.md`, "FAQ and blog".
+- **Popular categories (2026-10-25):** right under the hero of the home page, the parent categories of the shop as a row of cards (the cards of a product page's "Shop by category", now `CategoryCard`): the category's picture, or the picture of its first product while the admin has given it none, the name, the tagline and the count, one link each, scrolling and turning like the product rows. "See all" leads to the new page of all categories (`/categories`, `/de/kategorien`): the same cards in a grid with the sub-categories as chips, in the sitemap. The mock gives one category a picture of its own. The decisions and their reasons are in `DECISIONS.md`, "Popular categories".
 
 All six phases of the original plan, the six phases of the redesign, the move to a shop that sells from stock and the pack sizes as variants are built. What is left is listed under "Before launch" and in the open items of `DECISIONS.md`.
 
@@ -157,8 +158,9 @@ src/
   components/catalogue/  product card, picture (with its fallback), price,
                      add to cart, the heart of the wishlist, the pack sizes,
                      the gallery, delivery and payment (with the payment
-                     marks) and the category tiles of a product page, the
-                     list and its filter panel (filters/)
+                     marks), the category card and the row of categories
+                     (home page, product page), the list and its filter
+                     panel (filters/)
   components/wishlist/   the wishlist page
   components/blog/   the cards, the picture and the list of the blog
   components/cart/   cart lines, the bill, the cart bar on phones
@@ -167,8 +169,9 @@ src/
                      addresses, profile
   features/          what lives in the browser: session, cart, wishlist;
                      the order statuses and progress line; what the server
-                     reads for the catalogue, the FAQ and the blog, and
-                     what the ordering block means
+                     reads for the catalogue, the FAQ and the blog, which
+                     categories the home page shows, and what the ordering
+                     block means
   config/env.ts      configuration and feature switches
   i18n/              languages, localized routes, navigation helpers
   lib/api/           types of the API, error codes, HTTP client, endpoints

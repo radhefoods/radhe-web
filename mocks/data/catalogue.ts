@@ -18,6 +18,8 @@ export interface CategoryRecord {
   sortOrder: number;
   /** How the store lists the category when a request sends no `view`. */
   listingView: "product" | "variants_by_product" | "variants_by_size";
+  /** The colour of the category's placeholder picture; `null` for none. */
+  tint: string | null;
 }
 
 /** One pack size of a product: its own article number, price, stock and URL. */
@@ -92,6 +94,7 @@ function category(
   name: Translated,
   tagline: Translated | null = null,
   description: Translated | null = null,
+  tint: string | null = null,
 ): CategoryRecord {
   return {
     id: oid("66c0"),
@@ -103,6 +106,7 @@ function category(
     sortOrder,
     // The API's default; the admin can set another per category.
     listingView: "variants_by_size",
+    tint,
   };
 }
 
@@ -116,6 +120,9 @@ const rice = category(
     "Long-grain basmati for biryani and pulao, everyday Sona Masoori and flattened rice for breakfast.",
     "Langkorn-Basmati für Biryani und Pulao, Sona Masoori für jeden Tag und Reisflocken fürs Frühstück.",
   ),
+  // The one category with a picture of its own; the others show the
+  // picture of their first product in the shop, or the mark.
+  "#DCE8C9",
 );
 const basmati = category(
   rice.id,

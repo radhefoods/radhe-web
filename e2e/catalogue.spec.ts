@@ -93,8 +93,22 @@ test.describe("the shop at a glance", () => {
       "From our shelf to your door",
     );
     await expect(page.getByRole("link", { name: "Shop now" })).toBeVisible();
-    // Popular products first, then a row per category with "See all"; no
-    // offers section and no category tiles any more (owner, 2026-10-16).
+    // The categories first (owner, 2026-10-24): a row of cards, each one
+    // link to its category, "See all" leading to the page of all categories.
+    const categories = page.getByRole("region", {
+      name: "Popular categories",
+    });
+    await expect(
+      categories.getByRole("link", { name: /^Rice/ }),
+    ).toHaveAttribute("href", "/en/category/rice");
+    await expect(
+      categories.getByRole("link", { name: /^Flour/ }),
+    ).toBeVisible();
+    await expect(
+      categories.getByRole("link", { name: "See all categories" }),
+    ).toHaveAttribute("href", "/en/categories");
+    // Then the popular products and a row per category with "See all"; no
+    // offers section (owner, 2026-10-16).
     const popular = page.getByRole("region", { name: "Popular right now" });
     await expect(popular.getByRole("article").first()).toBeVisible();
     await expect(

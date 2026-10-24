@@ -23,6 +23,7 @@ export function shopHref(path: string): Href | null {
   switch (plain) {
     case "/":
     case "/products":
+    case "/categories":
     case "/how-it-works":
     case "/delivery-and-payment":
     case "/faq":

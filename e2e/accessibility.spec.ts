@@ -80,6 +80,7 @@ test.describe("public pages have no barriers axe can find", () => {
     "/en/reset-password?token=0123456789abcdefghijklmnopqrstuvwxyzABCDEFG",
     "/de/reset-password",
     "/de/so-funktionierts",
+    "/en/categories",
     "/en/faq",
     "/de/blog",
     "/en/blog/the-perfect-dal",

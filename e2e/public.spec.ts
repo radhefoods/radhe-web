@@ -129,6 +129,44 @@ test.describe("help and legal pages", () => {
   });
 });
 
+test.describe("all categories", () => {
+  test("lists the parent categories with their sub-categories, in both languages", async ({
+    page,
+  }) => {
+    await page.goto("/en/categories");
+    await expect(page).toHaveTitle(/All categories/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "All categories",
+    );
+    const main = page.getByRole("main");
+    await expect(main.getByRole("link", { name: /^Rice/ })).toHaveAttribute(
+      "href",
+      "/en/category/rice",
+    );
+    // The rice category of the mock has a picture of its own; the others
+    // show the picture of their first product.
+    await expect(
+      main.getByRole("link", { name: /^Rice/ }).locator("img"),
+    ).toHaveAttribute("src", /\/media\/categories\//);
+    const sub = page.getByRole("list", { name: "Subcategories of Rice" });
+    await expect(
+      sub.getByRole("link", { name: "Basmati Rice" }),
+    ).toHaveAttribute("href", "/en/category/basmati-rice");
+    await expect(page.locator('link[hreflang="de"]')).toHaveAttribute(
+      "href",
+      "http://localhost:3001/de/kategorien",
+    );
+
+    await page.goto("/de/kategorien");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Alle Kategorien",
+    );
+    await expect(
+      page.getByRole("main").getByRole("link", { name: /^Reis/ }),
+    ).toHaveAttribute("href", "/de/kategorie/reis");
+  });
+});
+
 test.describe("questions and answers", () => {
   test("lists the published questions under their headings, with the answers folded", async ({
     page,
@@ -388,6 +426,7 @@ test.describe("for search engines", () => {
     for (const url of [
       "http://localhost:3001/en",
       "http://localhost:3001/de/produkte",
+      "http://localhost:3001/de/kategorien",
       "http://localhost:3001/de/kategorie/reis",
       "http://localhost:3001/en/products/basmati-rice-5kg",
       "http://localhost:3001/de/produkte/basmati-reis-5kg",

@@ -475,7 +475,7 @@ function categoryView(record: CategoryRecord, locale: Locale): Category {
     parentId: record.parentId,
     level: ancestorsOf(record).length as 1 | 2 | 3,
     listingView: record.listingView,
-    image: null,
+    image: categoryImageView(record, locale),
     productCount: products.filter((p) => ids.has(p.categoryId)).length,
     seo: { title: name, description: tagline },
     children: categories
@@ -483,6 +483,44 @@ function categoryView(record: CategoryRecord, locale: Locale): Category {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((c) => categoryView(c, locale)),
   };
+}
+
+/** The widths of a category picture, 4:3 like a photograph of the shelf. */
+const CATEGORY_WIDTHS = { small: 320, medium: 800, large: 1600 } as const;
+
+function categoryImageView(
+  record: CategoryRecord,
+  locale: Locale,
+): ApiImage | null {
+  if (record.tint === null) return null;
+  const size = (name: keyof typeof CATEGORY_WIDTHS) => ({
+    url: `${mediaBase}/media/categories/${record.id}/${name}.svg`,
+    width: CATEGORY_WIDTHS[name],
+    height: (CATEGORY_WIDTHS[name] * 3) / 4,
+  });
+  return {
+    id: `${record.id.slice(0, 20)}0img`,
+    alt: pick(record.name, locale),
+    isPrimary: true,
+    url: size("large").url,
+    sizes: {
+      small: size("small"),
+      medium: size("medium"),
+      large: size("large"),
+    },
+  };
+}
+
+/** The placeholder picture of a category in one of its widths, or `null`. */
+export function categorySvg(categoryId: string, file: string): string | null {
+  const record = categories.find((c) => c.id === categoryId);
+  const name = file.replace(/\.svg$/, "") as keyof typeof CATEGORY_WIDTHS;
+  if (!record || record.tint === null || !(name in CATEGORY_WIDTHS)) {
+    return null;
+  }
+  const width = CATEGORY_WIDTHS[name];
+  const height = (width * 3) / 4;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 400 300"><rect width="400" height="300" fill="${record.tint}"/><circle cx="200" cy="140" r="80" fill="#ffffff" fill-opacity="0.55"/><text x="200" y="158" font-family="Georgia, serif" font-size="52" text-anchor="middle" fill="#020E43" fill-opacity="0.7">${record.name.en}</text><text x="200" y="272" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#020E43" fill-opacity="0.5">mock picture</text></svg>`;
 }
 
 export function categoryTree(locale: Locale): { items: Category[] } {

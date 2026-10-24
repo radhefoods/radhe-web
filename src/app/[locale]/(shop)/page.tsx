@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { CategoryTiles } from "@/components/catalogue/category-tiles";
 import { ProductCard } from "@/components/catalogue/product-card";
 import { CategoryRow } from "@/components/home/category-row";
 import { DeliveryPromiseCard } from "@/components/home/delivery-promise-card";
@@ -8,6 +9,10 @@ import { HeroCarousel } from "@/components/home/hero-carousel";
 import { ProductRow, ProductRowItem } from "@/components/home/product-row";
 import { buttonStyles } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import {
+  shopCategories,
+  standInPictures,
+} from "@/features/catalogue/categories";
 import {
   getBanners,
   getCategories,
@@ -80,21 +85,20 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   // (`CategoryRow`). A category whose products do not arrive shows no row.
   // While the admin has marked nothing as featured, "Popular right now"
   // shows the first products of the whole catalogue (owner, 2026-10-18).
+  const parents = shopCategories(categories);
   const [catalogue, rows] = await Promise.all([
     featured.length > 0
       ? []
       : products(catalogueQuery, locale).then((list) => list?.items ?? []),
     Promise.all(
-      categories
-        .filter((category) => category.productCount > 0)
-        .map(async (category) => {
-          const list = await products(rowQuery(category.slug), locale);
-          return {
-            category,
-            items: list?.items.slice(0, ROW_SIZE) ?? [],
-            pages: list?.totalPages ?? 1,
-          };
-        }),
+      parents.map(async (category) => {
+        const list = await products(rowQuery(category.slug), locale);
+        return {
+          category,
+          items: list?.items.slice(0, ROW_SIZE) ?? [],
+          pages: list?.totalPages ?? 1,
+        };
+      }),
     ).then((all) => all.filter((row) => row.items.length > 0)),
   ]);
   const popular = popularProducts(featured, catalogue);
@@ -177,6 +181,23 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       )}
 
       <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
+        {/* The categories of the shop right under the hero (owner,
+            2026-10-24): the cards of the categories in a row, "See all"
+            leading to the page of all categories. A category the admin has
+            given no picture shows the first product of its row. */}
+        {parents.length > 0 && (
+          <CategoryTiles
+            id="home-categories"
+            title={t("categoriesTitle")}
+            categories={parents}
+            href="/categories"
+            link={t("seeAll")}
+            linkLabel={t("categoriesAll")}
+            labels={rowLabels}
+            standIns={standInPictures(rows)}
+          />
+        )}
+
         {popular.length > 0 && (
           <ProductRow
             id="home-featured"

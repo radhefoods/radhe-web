@@ -9,6 +9,7 @@ type Href = Parameters<typeof pageUrl>[0];
 export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/", priority: 1 },
   { href: "/products", priority: 0.9 },
+  { href: "/categories", priority: 0.7 },
   { href: "/how-it-works", priority: 0.6 },
   { href: "/delivery-and-payment", priority: 0.6 },
   { href: "/faq", priority: 0.5 },

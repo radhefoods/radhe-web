@@ -91,6 +91,7 @@ import {
   billOf,
   categoryBySlug,
   categoryDetail,
+  categorySvg,
   categoryTree,
   customerView,
   enabledVariants,
@@ -1414,6 +1415,18 @@ route("GET", "/media/products/:productId/:file", (ctx) => {
   };
   const size = sizes[ctx.params.file];
   const svg = size ? placeholderSvg(ctx.params.productId, size) : null;
+  if (!svg) throw new HttpError(404, "NOT_FOUND", "Not found.");
+  return {
+    raw: {
+      contentType: "image/svg+xml",
+      content: svg,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+  };
+});
+
+route("GET", "/media/categories/:id/:file", (ctx) => {
+  const svg = categorySvg(ctx.params.id, ctx.params.file);
   if (!svg) throw new HttpError(404, "NOT_FOUND", "Not found.");
   return {
     raw: {

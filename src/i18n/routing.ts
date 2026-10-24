@@ -24,6 +24,7 @@ export const routing = defineRouting({
     "/products": { en: "/products", de: "/produkte" },
     "/products/[slug]": { en: "/products/[slug]", de: "/produkte/[slug]" },
     "/category/[slug]": { en: "/category/[slug]", de: "/kategorie/[slug]" },
+    "/categories": { en: "/categories", de: "/kategorien" },
     "/how-it-works": { en: "/how-it-works", de: "/so-funktionierts" },
     "/delivery-and-payment": {
       en: "/delivery-and-payment",
