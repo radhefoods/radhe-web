@@ -1,6 +1,7 @@
 import { env } from "@/config/env";
 import type { Locale } from "@/i18n/routing";
 import type {
+  BlogPost,
   Breadcrumb,
   Ordering,
   ProductDetail,
@@ -195,6 +196,48 @@ export function productJsonLd(
         },
       };
     }),
+  };
+}
+
+/** The questions of the FAQ (doc 18), the answers as plain words. */
+export function faqPageJsonLd(
+  items: { question: string; answer: string }[],
+): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map(({ question, answer }) => ({
+      "@type": "Question",
+      name: question,
+      acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+  };
+}
+
+/** An article of the blog (doc 19) with its author, dates and picture. */
+export function articleJsonLd(post: BlogPost, locale: Locale): JsonLdObject {
+  const url = pageUrl(
+    { pathname: "/blog/[slug]", params: { slug: post.slug } },
+    locale,
+  );
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "@id": `${url}#article`,
+    headline: post.title,
+    ...(post.seo.description && { description: post.seo.description }),
+    url,
+    mainEntityOfPage: url,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt,
+    author: { "@type": "Person", name: post.author },
+    publisher: { "@id": ORGANIZATION_ID },
+    ...(post.featuredImage && {
+      image: [post.featuredImage.sizes.large.url],
+    }),
+    inLanguage: post.contentLocale ?? locale,
+    ...(post.category && { articleSection: post.category.name }),
+    ...(post.tags.length > 0 && { keywords: post.tags.join(", ") }),
   };
 }
 

@@ -1,7 +1,8 @@
-import { ChevronLeft, ChevronRight, SearchX } from "lucide-react";
+import { SearchX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { ComponentProps } from "react";
 import { buttonStyles } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { getProductFacets, listProducts } from "@/features/catalogue/data";
 import { mergeFacets, visibleFacets } from "@/features/catalogue/facets";
 import { filterLabels } from "@/features/catalogue/filter-labels";
@@ -9,7 +10,6 @@ import {
   activeFilters,
   clearedFilters,
   hasFilters,
-  pageWindow,
   toProductQuery,
   toSearchParams,
   type ListingState,
@@ -17,7 +17,7 @@ import {
 import { AreaMessages } from "@/i18n/area-messages";
 import { Link, getPathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { cn } from "@/lib/cn";
+
 import { JsonLd, itemListJsonLd } from "@/lib/seo/json-ld";
 import { ListingControls } from "./filters/listing-controls";
 import { ProductGrid } from "./product-grid";
@@ -25,8 +25,6 @@ import { ProductGrid } from "./product-grid";
 type Href = ComponentProps<typeof Link>["href"];
 type BaseHref =
   "/products" | { pathname: "/category/[slug]"; params: { slug: string } };
-
-const pageLink = "grid size-11 place-items-center rounded-full";
 
 /**
  * A list of products with filters, sorting and pages: the body of "All
@@ -184,101 +182,21 @@ export async function ProductListing({
               </>
             )}
 
-            {page.totalPages > 1 && (
-              <nav
-                aria-label={t("pagination")}
-                className="flex items-center justify-center gap-1.5 pt-8"
-              >
-                <PageLink
-                  href={
-                    page.page > 1
-                      ? hrefOf(state, { page: page.page - 1 })
-                      : null
-                  }
-                  label={t("previous")}
-                  rel="prev"
-                >
-                  <ChevronLeft aria-hidden="true" className="size-5" />
-                </PageLink>
-                {pageWindow(page.page, page.totalPages).map((number, index) =>
-                  number === null ? (
-                    <span
-                      key={`gap-${index}`}
-                      aria-hidden="true"
-                      className="text-ink-subtle px-1"
-                    >
-                      …
-                    </span>
-                  ) : (
-                    <Link
-                      key={number}
-                      href={hrefOf(state, { page: number })}
-                      aria-current={number === page.page ? "page" : undefined}
-                      aria-label={t("pageOf", {
-                        page: number,
-                        total: page.totalPages,
-                      })}
-                      className={cn(
-                        pageLink,
-                        "text-[0.9375rem] font-bold tabular-nums transition-colors duration-150",
-                        number === page.page
-                          ? "bg-leaf-600 text-white"
-                          : "bg-mist hover:bg-cloud",
-                      )}
-                    >
-                      {number}
-                    </Link>
-                  ),
-                )}
-                <PageLink
-                  href={
-                    page.page < page.totalPages
-                      ? hrefOf(state, { page: page.page + 1 })
-                      : null
-                  }
-                  label={t("next")}
-                  rel="next"
-                >
-                  <ChevronRight aria-hidden="true" className="size-5" />
-                </PageLink>
-              </nav>
-            )}
+            <Pagination
+              page={page.page}
+              totalPages={page.totalPages}
+              hrefOf={(number) => hrefOf(state, { page: number })}
+              labels={{
+                pagination: t("pagination"),
+                previous: t("previous"),
+                next: t("next"),
+                pageOf: (number, total) => t("pageOf", { page: number, total }),
+              }}
+              className="pt-8"
+            />
           </div>
         </ListingControls>
       </AreaMessages>
     </section>
-  );
-}
-
-function PageLink({
-  href,
-  label,
-  rel,
-  children,
-}: {
-  href: Href | null;
-  label: string;
-  rel: "prev" | "next";
-  children: React.ReactNode;
-}) {
-  if (!href) {
-    return (
-      <span aria-hidden="true" className={cn(pageLink, "text-ink-subtle/50")}>
-        {children}
-      </span>
-    );
-  }
-  return (
-    <Link
-      href={href}
-      rel={rel}
-      aria-label={label}
-      className={cn(
-        pageLink,
-        "bg-mist hover:bg-cloud transition-colors duration-150",
-      )}
-    >
-      {children}
-    </Link>
   );
 }

@@ -83,6 +83,8 @@ export async function Footer({ categories }: { categories: Category[] }) {
               href: "/delivery-and-payment",
               label: t("delivery"),
             },
+            { key: "faq", href: "/faq", label: t("faq") },
+            { key: "blog", href: "/blog", label: t("blog") },
             { key: "account", href: "/account", label: t("account") },
           ]}
         />

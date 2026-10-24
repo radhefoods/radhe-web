@@ -890,3 +890,154 @@ describe("the banners of the home page", () => {
     expect((await guestApi().listBanners()).banners).toEqual([]);
   });
 });
+
+describe("the FAQ", () => {
+  it("answers the visible groups with their published questions, the ungrouped last", async () => {
+    const { groups } = await guestApi().listFaqs();
+    expect(groups.map((g) => g.name)).toEqual([
+      "Orders",
+      "Delivery",
+      "Returns",
+      null,
+    ]);
+    expect(groups[0].items.map((i) => i.question)).toEqual([
+      "Can I cancel my order?",
+      "Can I track my order?",
+    ]);
+    expect(groups[3]).toMatchObject({ id: null, name: null });
+    expect(groups[3].items).toHaveLength(2);
+    // Markdown stays Markdown; the shop renders it.
+    expect(groups[0].items[0].answer).toContain("*Cancel order*");
+    // German falls back to English where it is missing.
+    const german = await guestApi().listFaqs({ locale: "de" });
+    expect(german.groups[0].name).toBe("Bestellungen");
+    expect(german.groups[3].items[0].question).toBe(
+      "Do you have a shop in Frankfurt?",
+    );
+  });
+});
+
+describe("the blog", () => {
+  it("lists the published posts whose date has come, newest first, in pages", async () => {
+    const page = await guestApi().listBlogPosts({ limit: 5 });
+    expect(page).toMatchObject({ page: 1, limit: 5, total: 13, totalPages: 3 });
+    expect(page.items[0]).toMatchObject({
+      slug: "the-perfect-dal",
+      title: "The perfect dal",
+      author: "Vrushabh",
+      readingMinutes: 1,
+      category: { slug: "recipes", name: "Recipes" },
+      tags: ["recipes", "lentils", "dal"],
+    });
+    expect(page.items[0].featuredImage?.alt).toBe("A bowl of dal");
+    expect(page.items[0].featuredImage?.sizes.large).toMatchObject({
+      width: 1920,
+      height: 1080,
+    });
+    // A post without a description of its picture takes its title.
+    expect(page.items[1].featuredImage?.alt).toBe("How to store spices");
+    const last = await guestApi().listBlogPosts({ limit: 5, page: 3 });
+    expect(last.items.map((p) => p.slug)).toEqual([
+      "tempering-explained",
+      "aloo-paratha-for-breakfast",
+      "we-now-deliver-with-hermes-too",
+    ]);
+    const all = await guestApi().listBlogPosts({ limit: 100 });
+    expect(all.items.map((p) => p.slug)).not.toContain("our-story");
+    expect(all.items.map((p) => p.slug)).not.toContain("holi-colours");
+    // German slugs and names.
+    const german = await guestApi().listBlogPosts(
+      { limit: 1 },
+      { locale: "de" },
+    );
+    expect(german.items[0]).toMatchObject({
+      slug: "das-perfekte-dal",
+      category: { slug: "rezepte", name: "Rezepte" },
+    });
+  });
+
+  it("narrows the list by category (either language), tag and search", async () => {
+    const api = guestApi();
+    expect((await api.listBlogPosts({ category: "kitchen-tips" })).total).toBe(
+      4,
+    );
+    expect((await api.listBlogPosts({ category: "kuechentipps" })).total).toBe(
+      4,
+    );
+    expect((await api.listBlogPosts({ category: "no-such" })).total).toBe(0);
+    expect((await api.listBlogPosts({ tag: "spices" })).total).toBe(3);
+    expect(
+      (await api.listBlogPosts({ q: "dal" })).items.map((p) => p.slug),
+    ).toEqual(["the-perfect-dal"]);
+    expect((await api.listBlogPosts({ q: "basm" })).total).toBe(1);
+    await expect(api.listBlogPosts({ q: "d" })).rejects.toSatisfy((error) =>
+      hasErrorCode(error, "VALIDATION_FAILED"),
+    );
+  });
+
+  it("answers an article by the slug of either language, with related posts", async () => {
+    const { post } = await guestApi().getBlogPost("the-perfect-dal");
+    expect(post.content).toContain("# Dal");
+    expect(post.content).toContain(
+      "/media/blog/66f600000000000000000001/medium.svg",
+    );
+    expect(post.contentLocale).toBe("en");
+    expect(post.seo).toEqual({
+      title: "The perfect dal – a recipe from Radhe Foods",
+      description:
+        "How to cook toor dal with a proper tempering of cumin, garlic and chilli.",
+    });
+    expect(post.alternates).toEqual({
+      en: "the-perfect-dal",
+      de: "das-perfekte-dal",
+    });
+    expect(post.related.map((p) => p.slug)).toEqual([
+      "basmati-three-ways",
+      "masala-chai-properly",
+      "chana-masala-for-a-crowd",
+    ]);
+    // The German address, with the English text where the German is missing.
+    const german = await guestApi().getBlogPost("so-lagern-sie-gewuerze", {
+      locale: "de",
+    });
+    expect(german.post.slug).toBe("so-lagern-sie-gewuerze");
+    expect(german.post.contentLocale).toBe("en");
+    expect(german.post.seo.title).toBe("So lagern Sie Gewürze");
+    const byEnglishSlug = await guestApi().getBlogPost("the-perfect-dal", {
+      locale: "de",
+    });
+    expect(byEnglishSlug.post.slug).toBe("das-perfekte-dal");
+    expect(byEnglishSlug.post.contentLocale).toBe("de");
+    // The picture lives on the mock itself.
+    const picture = await fetch(
+      `${base}${new URL(post.featuredImage!.sizes.small.url).pathname}`,
+    );
+    expect(picture.headers.get("content-type")).toBe("image/svg+xml");
+  });
+
+  it("does not find drafts, scheduled posts and unknown slugs", async () => {
+    for (const slug of ["our-story", "holi-colours", "no-such-post"]) {
+      await expect(guestApi().getBlogPost(slug)).rejects.toSatisfy((error) =>
+        hasErrorCode(error, "BLOG_POST_NOT_FOUND"),
+      );
+    }
+  });
+
+  it("lists the categories with their counts and the tags most used first", async () => {
+    const { items } = await guestApi().listBlogCategories();
+    expect(items.map((c) => [c.slug, c.postCount])).toEqual([
+      ["recipes", 5],
+      ["kitchen-tips", 4],
+      ["news", 4],
+      ["festivals", 0],
+    ]);
+    expect(items[0].alternates).toEqual({ en: "recipes", de: "rezepte" });
+    expect(items[0].seo.title).toBe("Indian recipes from Radhe Foods");
+    const tags = await guestApi().listBlogTags();
+    expect(tags.items.slice(0, 3)).toEqual([
+      { tag: "recipes", count: 5 },
+      { tag: "news", count: 3 },
+      { tag: "spices", count: 3 },
+    ]);
+  });
+});

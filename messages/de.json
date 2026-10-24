@@ -221,7 +221,9 @@
     "privacy": "Datenschutz",
     "imprint": "Impressum",
     "withdrawal": "Widerrufsbelehrung",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "faq": "FAQ",
+    "blog": "Blog"
   },
   "cart": {
     "title": "Ihr Warenkorb",
@@ -704,6 +706,38 @@
       "withdrawalLink": "Ihr Widerrufsrecht"
     }
   },
+  "faq": {
+    "title": "Fragen und Antworten",
+    "metaDescription": "Antworten auf die Fragen, die Kundinnen und Kunden zu Bestellung, Lieferung, Zahlung und Rücksendung bei Radhe Foods stellen.",
+    "intro": "Die Fragen, die wir am häufigsten hören, mit unseren Antworten.",
+    "otherQuestions": "Weitere Fragen"
+  },
+  "blog": {
+    "title": "Blog",
+    "metaDescription": "Rezepte, Küchentipps und Neuigkeiten von Radhe Foods.",
+    "intro": "Rezepte, Küchentipps und Neuigkeiten aus unserer Küche.",
+    "breadcrumb": "Sie sind hier",
+    "search": "Im Blog suchen",
+    "searchPlaceholder": "Artikel suchen …",
+    "searchTitle": "Artikel zu „{query}“",
+    "allPosts": "Alle Artikel",
+    "categories": "Kategorien des Blogs",
+    "tags": "Themen des Blogs",
+    "tagTitle": "Artikel zum Thema „{tag}“",
+    "tagDescription": "Alle Artikel des Radhe-Foods-Blogs zum Thema „{tag}“.",
+    "categoryDescription": "Artikel aus {name} im Blog von Radhe Foods.",
+    "by": "Von {author}",
+    "readingTime": "{minutes, plural, one {# Min. Lesezeit} other {# Min. Lesezeit}}",
+    "related": "Mehr zum Lesen",
+    "onlyEnglish": "Dieser Artikel ist nur auf Englisch verfügbar.",
+    "onlyGerman": "Dieser Artikel ist nur auf Deutsch verfügbar.",
+    "emptyTitle": "Hier ist noch nichts",
+    "emptyText": "Es gibt noch keine Artikel. Schauen Sie bald wieder vorbei.",
+    "emptyCategoryText": "In dieser Kategorie gibt es noch keine Artikel.",
+    "emptyTagText": "Zu diesem Thema gibt es noch keine Artikel.",
+    "emptySearchText": "Zu „{query}“ haben wir keinen Artikel gefunden. Versuchen Sie ein anderes Wort.",
+    "showAll": "Alle Artikel"
+  },
   "unsubscribe": {
     "metaTitle": "Neuigkeiten abbestellen",
     "title": "Neuigkeiten abbestellen",
@@ -783,6 +817,7 @@
     "RETURN_QUANTITY_INVALID": "Von diesem Produkt können Sie höchstens {available, plural, one {# Stück} other {# Stück}} zurückgeben.",
     "RETURN_NOT_FOUND": "Wir konnten diese Rücksendung nicht finden.",
     "RETURN_TRANSITION_NOT_ALLOWED": "Über diese Rücksendung wurde bereits entschieden; sie kann nicht mehr zurückgezogen werden.",
-    "reference": "Referenz für unseren Support: {requestId}"
+    "reference": "Referenz für unseren Support: {requestId}",
+    "BLOG_POST_NOT_FOUND": "Diesen Artikel gibt es nicht oder er ist nicht veröffentlicht."
   }
 }

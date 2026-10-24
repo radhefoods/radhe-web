@@ -51,12 +51,18 @@ describe("buildSitemap", () => {
   const sitemap = buildSitemap(
     [category("rice", "reis", [category("basmati-rice", "basmati-reis")])],
     [{ id: "1", slugs: { en: "basmati-rice-5kg", de: "basmati-reis-5kg" } }],
+    {
+      posts: [
+        { id: "p1", slugs: { en: "the-perfect-dal", de: "das-perfekte-dal" } },
+      ],
+      categories: [{ id: "c1", slugs: { en: "recipes", de: "rezepte" } }],
+    },
   );
   const urls = sitemap.map((entry) => entry.url);
 
   it("lists every page once per language", () => {
     expect(new Set(urls).size).toBe(urls.length);
-    expect(sitemap).toHaveLength((STATIC_PAGES.length + 2 + 1) * 2);
+    expect(sitemap).toHaveLength((STATIC_PAGES.length + 2 + 1 + 1 + 1) * 2);
     expect(urls).toContain(`${SITE}/en`);
     expect(urls).toContain(`${SITE}/de`);
   });

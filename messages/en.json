@@ -221,7 +221,9 @@
     "privacy": "Privacy",
     "imprint": "Legal notice",
     "withdrawal": "Right of withdrawal",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "faq": "FAQ",
+    "blog": "Blog"
   },
   "cart": {
     "title": "Your cart",
@@ -704,6 +706,38 @@
       "withdrawalLink": "Your right of withdrawal"
     }
   },
+  "faq": {
+    "title": "Questions and answers",
+    "metaDescription": "Answers to the questions customers ask about ordering, delivery, payment and returns at Radhe Foods.",
+    "intro": "The questions we hear most, with our answers.",
+    "otherQuestions": "Other questions"
+  },
+  "blog": {
+    "title": "Blog",
+    "metaDescription": "Recipes, kitchen tips and news from Radhe Foods.",
+    "intro": "Recipes, kitchen tips and news from our kitchen.",
+    "breadcrumb": "You are here",
+    "search": "Search the blog",
+    "searchPlaceholder": "Search articles …",
+    "searchTitle": "Articles for “{query}”",
+    "allPosts": "All articles",
+    "categories": "Categories of the blog",
+    "tags": "Topics of the blog",
+    "tagTitle": "Articles on “{tag}”",
+    "tagDescription": "Every article of the Radhe Foods blog on “{tag}”.",
+    "categoryDescription": "Articles in {name} from the Radhe Foods blog.",
+    "by": "By {author}",
+    "readingTime": "{minutes, plural, one {# min read} other {# min read}}",
+    "related": "More to read",
+    "onlyEnglish": "This article is available in English only.",
+    "onlyGerman": "This article is available in German only.",
+    "emptyTitle": "Nothing here yet",
+    "emptyText": "There are no articles yet. Come back soon.",
+    "emptyCategoryText": "There are no articles in this category yet.",
+    "emptyTagText": "There are no articles on this topic yet.",
+    "emptySearchText": "We found no article for “{query}”. Try another word.",
+    "showAll": "All articles"
+  },
   "unsubscribe": {
     "metaTitle": "Unsubscribe from news",
     "title": "Unsubscribe from news",
@@ -783,6 +817,7 @@
     "RETURN_QUANTITY_INVALID": "You can return at most {available, plural, one {# unit} other {# units}} of this product.",
     "RETURN_NOT_FOUND": "We could not find this return.",
     "RETURN_TRANSITION_NOT_ALLOWED": "This return has already been decided and can no longer be withdrawn.",
-    "reference": "Reference for our support: {requestId}"
+    "reference": "Reference for our support: {requestId}",
+    "BLOG_POST_NOT_FOUND": "This article does not exist or is not published."
   }
 }

@@ -901,3 +901,89 @@ export interface Banner {
   linkUrl: string | null;
   isExternal: boolean;
 }
+
+// --- 18 FAQ (doc 18, doc/FAQ.md) -------------------------------------------
+
+export interface FaqItem {
+  id: Id;
+  question: string;
+  /** Plain text or Markdown, as the admin entered it. */
+  answer: string;
+}
+
+export interface FaqGroup {
+  /** `null` for the questions without a group, which come last. */
+  id: Id | null;
+  name: string | null;
+  items: FaqItem[];
+}
+
+export interface Faqs {
+  /** Visible groups with published questions, in the admin's order. */
+  groups: FaqGroup[];
+}
+
+// --- 19 Blog (doc 19, doc/BLOG.md) -----------------------------------------
+
+export interface BlogCategoryRef {
+  id: Id;
+  slug: string;
+  name: string;
+}
+
+/** A post as a list entry: everything but its text. */
+export interface BlogPostSummary {
+  id: Id;
+  /** In the requested language. */
+  slug: string;
+  title: string;
+  summary: string | null;
+  /** Its `alt` falls back to the title. */
+  featuredImage: ApiImage | null;
+  author: string;
+  publishedAt: IsoDateTime;
+  readingMinutes: number;
+  category: BlogCategoryRef | null;
+  tags: string[];
+}
+
+export interface BlogPost extends BlogPostSummary {
+  /** Markdown, in the requested language or the other one. */
+  content: string;
+  /** Which language the text is in; `null` when there is no text at all. */
+  contentLocale: Locale | null;
+  /** Ready to use: the SEO fields, else the title and the summary. */
+  seo: { title: string; description: string | null };
+  /** The slug in each language, for the language switch and `hreflang`. */
+  alternates: LocalizedSlugs;
+  updatedAt: IsoDateTime;
+  /** The newest other posts of the same category, then of the blog; up to three. */
+  related: BlogPostSummary[];
+}
+
+export interface BlogCategory {
+  id: Id;
+  slug: string;
+  name: string;
+  description: string | null;
+  /** Published posts. */
+  postCount: number;
+  seo: Seo;
+  alternates: LocalizedSlugs;
+}
+
+export interface BlogTag {
+  tag: string;
+  count: number;
+}
+
+export interface BlogQuery {
+  page?: number;
+  /** 1 to 100, default 24. */
+  limit?: number;
+  /** The slug of a category in either language. */
+  category?: string;
+  tag?: string;
+  /** Words of the title, the summary or the tags, by their beginning. */
+  q?: string;
+}

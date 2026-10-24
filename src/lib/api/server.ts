@@ -21,6 +21,8 @@ export const REVALIDATE = {
   settings: 300,
   /** Legal texts change rarely, but a new version must show soon. */
   legal: 300,
+  /** The FAQ and the blog: the API allows five minutes (doc 18, 19). */
+  content: 300,
 } as const;
 
 /** Tags for on-demand revalidation, should the API notify the shop one day. */
@@ -28,6 +30,7 @@ export const TAGS = {
   catalogue: "catalogue",
   settings: "settings",
   legal: "legal",
+  content: "content",
 } as const;
 
 /**

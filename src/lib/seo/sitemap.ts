@@ -11,6 +11,8 @@ export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/products", priority: 0.9 },
   { href: "/how-it-works", priority: 0.6 },
   { href: "/delivery-and-payment", priority: 0.6 },
+  { href: "/faq", priority: 0.5 },
+  { href: "/blog", priority: 0.6 },
   { href: "/legal/terms", priority: 0.2 },
   { href: "/legal/privacy", priority: 0.2 },
   { href: "/legal/imprint", priority: 0.2 },
@@ -24,6 +26,14 @@ export interface SitemapProduct {
   id: string;
   slugs: LocalizedSlugs;
 }
+
+/** The blog as the sitemap needs it: the slugs of the posts and categories. */
+export interface SitemapBlog {
+  posts: { id: string; slugs: LocalizedSlugs }[];
+  categories: { id: string; slugs: LocalizedSlugs }[];
+}
+
+const NO_BLOG: SitemapBlog = { posts: [], categories: [] };
 
 /**
  * One page of the shop in every language: an entry per language, each
@@ -70,10 +80,15 @@ export function joinProductSlugs(
   });
 }
 
-/** Every indexable address of the shop: static pages, categories, products. */
+/**
+ * Every indexable address of the shop: static pages, categories, products,
+ * the posts and categories of the blog (doc 19; the tag pages are views
+ * of the list and stay out).
+ */
 export function buildSitemap(
   categories: Category[],
   products: SitemapProduct[],
+  blog: SitemapBlog = NO_BLOG,
 ): MetadataRoute.Sitemap {
   return [
     ...STATIC_PAGES.flatMap(({ href, priority }) =>
@@ -98,6 +113,24 @@ export function buildSitemap(
           params: { slug: product.slugs[locale] },
         }),
         { priority: 0.7, changeFrequency: "daily" },
+      ),
+    ),
+    ...blog.categories.flatMap((category) =>
+      localized(
+        (locale) => ({
+          pathname: "/blog/category/[slug]",
+          params: { slug: category.slugs[locale] },
+        }),
+        { priority: 0.5, changeFrequency: "weekly" },
+      ),
+    ),
+    ...blog.posts.flatMap((post) =>
+      localized(
+        (locale) => ({
+          pathname: "/blog/[slug]",
+          params: { slug: post.slugs[locale] },
+        }),
+        { priority: 0.6, changeFrequency: "monthly" },
       ),
     ),
   ];

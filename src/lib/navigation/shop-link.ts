@@ -6,6 +6,7 @@ type Href = ComponentProps<typeof Link>["href"];
 const SLUG = "([a-z0-9]+(?:-[a-z0-9]+)*)";
 const PRODUCT = new RegExp(`^/products/${SLUG}/?$`, "i");
 const CATEGORY = new RegExp(`^/categor(?:y|ies)/${SLUG}/?$`, "i");
+const POST = new RegExp(`^/blog/${SLUG}/?$`, "i");
 
 /**
  * A path of the shop as the API hands it out without a language (the
@@ -24,7 +25,13 @@ export function shopHref(path: string): Href | null {
     case "/products":
     case "/how-it-works":
     case "/delivery-and-payment":
+    case "/faq":
+    case "/blog":
       return plain;
+  }
+  const post = POST.exec(path);
+  if (post) {
+    return { pathname: "/blog/[slug]", params: { slug: post[1] } };
   }
   const product = PRODUCT.exec(path);
   if (product) {

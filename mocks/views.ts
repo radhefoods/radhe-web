@@ -277,6 +277,10 @@ export function orderingOf(p: ProductRecord, v: VariantRecord): Ordering {
 
 /** The address of the mock itself, for the placeholder pictures. */
 let mediaBase = "http://localhost:3000";
+/** Where the pictures of the mock live: the mock itself. */
+export function getMediaBase(): string {
+  return mediaBase;
+}
 export function setMediaBase(url: string): void {
   mediaBase = url;
 }

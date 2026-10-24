@@ -6,6 +6,11 @@ import type {
   AddressList,
   Banner,
   Bill,
+  BlogCategory,
+  BlogPost,
+  BlogPostSummary,
+  BlogQuery,
+  BlogTag,
   CartItemInput,
   Category,
   CategoryDetail,
@@ -17,6 +22,7 @@ import type {
   CursorPage,
   Customer,
   CustomerCancellationReason,
+  Faqs,
   Id,
   InvoiceDetail,
   InvoiceSummary,
@@ -28,6 +34,7 @@ import type {
   OrderPayment,
   OrderReturns,
   OrderSummary,
+  Page,
   ProductDetail,
   ProductFacets,
   ProductList,
@@ -340,6 +347,26 @@ export function createStoreApi(request: Requester) {
     /** The live banners in display order; an empty list means no carousel (17). */
     listBanners: (o?: CallOptions) =>
       request<{ banners: Banner[] }>("/v1/store/banners", o),
+
+    // --- 18 FAQ ---------------------------------------------------------------
+    /** The published questions under their headings; `groups: []` means none (18). */
+    listFaqs: (o?: CallOptions) => request<Faqs>("/v1/store/faqs", o),
+
+    // --- 19 Blog --------------------------------------------------------------
+    /** Published posts whose date has come, newest first, without their texts (19). */
+    listBlogPosts: (query: BlogQuery = {}, o?: CallOptions) =>
+      request<Page<BlogPostSummary>>("/v1/store/blog/posts", {
+        ...o,
+        query: { ...query },
+      }),
+    /** By the slug of either language; 404 for drafts and scheduled posts. */
+    getBlogPost: (slug: string, o?: CallOptions) =>
+      request<{ post: BlogPost }>(`/v1/store/blog/posts/${seg(slug)}`, o),
+    listBlogCategories: (o?: CallOptions) =>
+      request<{ items: BlogCategory[] }>("/v1/store/blog/categories", o),
+    /** The tags of the published posts, most used first. */
+    listBlogTags: (o?: CallOptions) =>
+      request<{ items: BlogTag[] }>("/v1/store/blog/tags", o),
   };
 }
 

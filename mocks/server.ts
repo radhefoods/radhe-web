@@ -8,9 +8,9 @@
 // stock, cart (preview, stored cart, merge), sign-up and sign-in with email
 // and password, the password reset by link, addresses, checkout with a
 // stand-in payment page, orders and payments, invoices and credit notes
-// with PDF, returns, the wishlist (preview, stored list, merge) and the
-// banners of the home page. `demo@radhefoods.de` gets a filled demo
-// account.
+// with PDF, returns, the wishlist (preview, stored list, merge), the
+// banners of the home page, the FAQ and the blog. `demo@radhefoods.de`
+// gets a filled demo account.
 //
 // Runs on the project's Node (24, see .nvmrc) and needs at least 22.18, which
 // reads TypeScript directly; no build step.
@@ -40,6 +40,14 @@ import {
   listOrders,
   resetFixtures,
 } from "./orders.ts";
+import {
+  blogCategoriesView,
+  blogImageSvg,
+  blogPostView,
+  blogTagsView,
+  faqsView,
+  listBlogPosts,
+} from "./content.ts";
 import { DEMO_EMAIL, DEMO_PASSWORD, seedDemoAccount } from "./demo.ts";
 import {
   advanceOrder,
@@ -1089,6 +1097,82 @@ route("GET", "/v1/store/banners", (ctx) => ({
   body: { banners: liveBanners().map((b) => bannerView(b, ctx.locale)) },
   headers: { "Cache-Control": "public, max-age=60" },
 }));
+
+// --- 18 FAQ (doc 18) --------------------------------------------------------
+
+route("GET", "/v1/store/faqs", (ctx) => ({
+  body: faqsView(ctx.locale),
+  headers: { "Cache-Control": "public, max-age=300" },
+}));
+
+// --- 19 Blog (doc 19) -------------------------------------------------------
+
+const BLOG_QUERY_KEYS = ["page", "limit", "category", "tag", "q", "locale"];
+
+route("GET", "/v1/store/blog/posts", (ctx) => {
+  for (const key of ctx.url.searchParams.keys()) {
+    if (!BLOG_QUERY_KEYS.includes(key)) {
+      throw validationFailed(key, `property ${key} should not exist`);
+    }
+  }
+  const q = ctx.url.searchParams.get("q") ?? undefined;
+  if (q !== undefined && (q.trim().length < 2 || q.length > 80)) {
+    throw validationFailed(
+      "q",
+      "q must be longer than or equal to 2 characters",
+    );
+  }
+  return {
+    body: listBlogPosts(
+      {
+        category: ctx.url.searchParams.get("category") ?? undefined,
+        tag: ctx.url.searchParams.get("tag") ?? undefined,
+        q: q?.trim(),
+        page: intParam(ctx.url, "page", 1, 500),
+        limit: intParam(ctx.url, "limit", 1, 100),
+      },
+      ctx.locale,
+    ),
+    headers: { "Cache-Control": "public, max-age=300" },
+  };
+});
+
+route("GET", "/v1/store/blog/posts/:slug", (ctx) => {
+  const post = blogPostView(ctx.params.slug, ctx.locale);
+  if (!post) {
+    throw new HttpError(
+      404,
+      "BLOG_POST_NOT_FOUND",
+      "This article does not exist.",
+    );
+  }
+  return {
+    body: { post },
+    headers: { "Cache-Control": "public, max-age=300" },
+  };
+});
+
+route("GET", "/v1/store/blog/categories", (ctx) => ({
+  body: blogCategoriesView(ctx.locale),
+  headers: { "Cache-Control": "public, max-age=300" },
+}));
+
+route("GET", "/v1/store/blog/tags", () => ({
+  body: blogTagsView(),
+  headers: { "Cache-Control": "public, max-age=300" },
+}));
+
+route("GET", "/media/blog/:id/:file", (ctx) => {
+  const svg = blogImageSvg(ctx.params.id, ctx.params.file);
+  if (!svg) throw new HttpError(404, "NOT_FOUND", "Not found.");
+  return {
+    raw: {
+      contentType: "image/svg+xml",
+      content: svg,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+  };
+});
 
 // --- 3 Addresses ------------------------------------------------------------
 

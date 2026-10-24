@@ -10,13 +10,15 @@ import { cn } from "@/lib/cn";
  * shut where the browser can animate `details` (`disclosure-fold`); else
  * it simply appears. Two looks: a white card (`card`), or a flat row
  * between hairlines that stacks with its neighbours (`row`, the texts of
- * the product page since 2026-10-21).
+ * the product page since 2026-10-21). The title is a heading of the page;
+ * its level follows the heading above it (`h2` by default).
  */
 export function Disclosure({
   id,
   title,
   defaultOpen = false,
   look = "card",
+  headingLevel = "h2",
   className,
   children,
 }: {
@@ -24,10 +26,12 @@ export function Disclosure({
   title: string;
   defaultOpen?: boolean;
   look?: "card" | "row";
+  headingLevel?: "h2" | "h3";
   className?: string;
   children: ReactNode;
 }) {
   const row = look === "row";
+  const Heading = headingLevel;
   return (
     <details
       id={id}
@@ -46,14 +50,14 @@ export function Disclosure({
           row ? "rounded-xs py-4" : "rounded-xl px-5 py-4 sm:px-6",
         )}
       >
-        <h2
+        <Heading
           className={cn(
             "font-display text-ink",
             row ? "text-[1.0625rem] sm:text-lg" : "text-lg sm:text-xl",
           )}
         >
           {title}
-        </h2>
+        </Heading>
         <ChevronDown
           aria-hidden="true"
           className="text-ink-subtle size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"
