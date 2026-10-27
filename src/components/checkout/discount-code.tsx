@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { controlStyles } from "@/components/ui/field";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import { hasErrorCode } from "@/lib/api/errors";
@@ -15,8 +14,10 @@ import { formatMoney } from "@/lib/format/money";
 
 /**
  * The discount code of the checkout page (doc 9.6): a field with "Apply"
- * while no code is kept with the cart; the code with what it saves and a
- * "Remove" link once one is. Every answer of the API is the full bill and is
+ * while no code is kept with the cart, both a size smaller than the
+ * controls of a form (owner, 2026-10-28: compact, one line of the
+ * summary); the code with what it saves and a "Remove" link once one is.
+ * Every answer of the API is the full bill and is
  * handed up, so the page shows the discount row and the new total at once.
  * One code per order. A code that was applied and stopped applying (the
  * cart shrank below its minimum, the code ran out) is shown with its reason
@@ -81,7 +82,7 @@ export function DiscountCode({
     const applied = discount.applied;
     return (
       <div className={cn("flex flex-col gap-2", className)}>
-        <div className="border-line flex items-center gap-3 rounded-lg border bg-white px-3.5 py-3">
+        <div className="border-line flex items-center gap-3 rounded-lg border bg-white px-3 py-2.5">
           <TicketPercent
             aria-hidden="true"
             className={cn(
@@ -89,8 +90,8 @@ export function DiscountCode({
               applied ? "text-leaf-700" : "text-wheat-800",
             )}
           />
-          <p className="min-w-0 flex-1 text-sm leading-snug">
-            <span className="block text-[0.9375rem] font-bold">
+          <p className="min-w-0 flex-1 text-[0.8125rem] leading-snug">
+            <span className="block text-sm font-bold">
               {t(applied ? "applied" : "notApplied", { code: discount.code })}
             </span>
             <span
@@ -109,7 +110,7 @@ export function DiscountCode({
             onClick={() => void remove()}
             disabled={busy}
             aria-label={t("removeNamed", { code: discount.code })}
-            className="text-leaf-700 disabled:text-ink-subtle min-h-11 shrink-0 rounded-sm px-1 text-sm font-semibold underline underline-offset-4"
+            className="text-leaf-700 disabled:text-ink-subtle min-h-10 shrink-0 rounded-sm px-1 text-sm font-semibold underline underline-offset-4"
           >
             {t("remove")}
           </button>
@@ -126,7 +127,10 @@ export function DiscountCode({
       noValidate
       className={cn("flex flex-col gap-1.5", className)}
     >
-      <label htmlFor="checkout-discount" className="text-sm font-semibold">
+      <label
+        htmlFor="checkout-discount"
+        className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase"
+      >
         {t("label")}
       </label>
       <div className="flex gap-2">
@@ -143,15 +147,17 @@ export function DiscountCode({
           spellCheck={false}
           aria-invalid={reason ? true : undefined}
           aria-describedby={reason ? errorId : undefined}
-          // Shown in capitals like the code is stored; sent as typed.
-          className={cn(controlStyles, "min-w-0 flex-1 uppercase")}
+          // Shown in capitals like the code is stored; sent as typed. The
+          // text stays 16 px on phones, where a smaller one makes iOS zoom.
+          className="border-line-strong text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 disabled:bg-cloud disabled:text-ink-subtle min-h-10 min-w-0 flex-1 rounded-md border-[1.5px] bg-white px-3 text-base uppercase focus-visible:outline-offset-1 aria-invalid:border-red-600 aria-invalid:bg-red-50 sm:text-sm"
         />
         <Button
           type="submit"
           variant="secondary"
+          size="sm"
           loading={busy}
           disabled={code.trim() === ""}
-          className="shrink-0"
+          className="min-h-10 shrink-0 px-4 text-sm"
         >
           {t("apply")}
         </Button>

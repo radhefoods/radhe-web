@@ -10,7 +10,7 @@ import { formatBasePrice, formatMoney } from "@/lib/format/money";
  * reduced, and the price per kilogram, litre or piece, which German law
  * asks for next to every price. The price is set in the display cut, like
  * a headline: it is what the eye looks for on a card. On the product page
- * the note on VAT and delivery follows the price per unit on its line.
+ * the note "Tax included." follows the price per unit on its line.
  */
 export function Price({
   pricing,
@@ -20,7 +20,7 @@ export function Price({
 }: {
   pricing: PriceView;
   size?: "md" | "lg";
-  /** After the price per unit, on the same line: "incl. VAT, plus delivery". */
+  /** After the price per unit, on the same line: "Tax included.". */
   note?: ReactNode;
   className?: string;
 }) {

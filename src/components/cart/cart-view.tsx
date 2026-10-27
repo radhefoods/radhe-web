@@ -9,6 +9,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/features/cart/cart";
+import { saleSavingsOf } from "@/features/cart/savings";
 import { useBill } from "@/features/cart/use-bill";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -24,15 +25,16 @@ import {
 } from "@/lib/format/product-name";
 
 /**
- * One pack size in the cart (owner, 2026-10-19 and 2026-10-21): the
- * picture on a white tile with a hairline; the brand, the name with the size in a quieter
- * tone, and the price per pack set like a price of the catalogue: in the
- * display cut, red when reduced with the regular price struck through
- * and the saving as a small red badge beside it, and no word around it
- * (owner, 2026-10-22: "each" confused); no price per kilogram, and no
- * line total: the summary adds up. Then, centred on the height of the
- * card, the stepper and the way to take the line out. A line the API
- * objects to carries its message and a one-tap fix.
+ * One pack size in the cart, a row of the one list (owner, 2026-10-28: no
+ * card per product, a hairline between the rows): the picture on white;
+ * the brand, the name with the size in a quieter tone, and the price per
+ * pack set like a price of the catalogue: in the display cut, red when
+ * reduced with the regular price struck through and the saving as a
+ * small red badge beside it, and no word around it (owner, 2026-10-22:
+ * "each" confused); no price per kilogram, and no line total: the summary
+ * adds up. Then, centred on the height of the row, the stepper and the
+ * way to take the line out. A line the API objects to carries its message
+ * and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -59,8 +61,8 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="border-line shadow-card grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-xl border bg-white p-4 sm:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-x-5 sm:p-5 md:grid-cols-[6.5rem_minmax(0,1fr)_minmax(0,1.5fr)_auto]">
-      <div className="border-line aspect-square self-center overflow-hidden rounded-md border bg-white p-1.5">
+    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 px-4 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-x-5 sm:px-5 sm:py-5 md:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1.5fr)_auto]">
+      <div className="aspect-square self-center overflow-hidden rounded-md bg-white p-1">
         <ProductImage
           image={product?.image ?? null}
           alt=""
@@ -122,10 +124,10 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
         )}
       </div>
 
-      {/* The controls, centred on the height of the card whatever the
+      {/* The controls, centred on the height of the row whatever the
           texts take (owner, 2026-10-21 and 2026-10-22): the stepper, slim
           and white with a hairline, a little left of the middle of the
-          card; the way to take the line out at its far end. On phones
+          row; the way to take the line out at its far end. On phones
           they share a row under the texts, the stepper first; from `sm`
           the wrapper dissolves and both become cells of the grid. */}
       <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
@@ -210,9 +212,10 @@ function CartSkeleton() {
 }
 
 /**
- * The cart page: the products with their quantities, the bill from the API
- * in a white summary card with the total as its one big number, and the
- * way to the checkout, which follows the bill's `canOrder`.
+ * The cart page: the products with their quantities as the rows of one
+ * white container with a hairline (owner, 2026-10-28), the bill from the
+ * API in a white summary card with the total as its one big number, and
+ * the way to the checkout, which follows the bill's `canOrder`.
  */
 export function CartView() {
   const t = useTranslations("cart");
@@ -257,7 +260,7 @@ export function CartView() {
           ) : (
             <ErrorAlert error={cart.problem} />
           ))}
-        <ul className="flex flex-col gap-3">
+        <ul className="border-line divide-line divide-y rounded-xl border bg-white">
           {lines.map((line) => (
             <CartLine key={line.variantId} line={line} updating={updating} />
           ))}
@@ -266,7 +269,7 @@ export function CartView() {
 
       <aside
         aria-label={t("summary")}
-        className="border-line shadow-card flex flex-col gap-5 rounded-xl border bg-white p-5 sm:p-6 lg:sticky lg:top-28"
+        className="border-line flex flex-col gap-5 rounded-xl border bg-white p-5 sm:p-6 lg:sticky lg:top-28"
       >
         <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
 
@@ -281,6 +284,7 @@ export function CartView() {
         >
           <BillTotals
             totals={bill.totals}
+            savings={saleSavingsOf(bill.lines)}
             discountCode={bill.discount?.applied ? bill.discount.code : null}
           />
         </div>

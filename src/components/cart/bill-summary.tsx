@@ -3,45 +3,55 @@ import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@/i18n/routing";
 import type { Bill, Totals } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { formatMoney, formatPercent } from "@/lib/format/money";
+import { formatMoney } from "@/lib/format/money";
 
 /**
- * The bill in numbers: goods, the discount code when one applies, delivery,
- * the total, and the VAT inside it per rate. Every number comes from the
- * API; nothing is added up here. The total is the one big number of the
- * panel (owner, 2026-10-19).
+ * The bill in numbers (owner, 2026-10-28): the goods at their regular
+ * prices, what the sale prices take off ("Discount"), what the discount
+ * code takes off (named by the code, doc 9.6), the delivery, and the
+ * total with "Tax included." under it; no VAT lines. The total, the
+ * delivery and the code's amount are the API's; the saving is the
+ * caller's sum of the regular prices over the paid ones (`savings.ts`),
+ * added to the subtotal and taken off again, so nothing is counted twice.
+ * The total is the one big number of the panel (owner, 2026-10-19).
  */
 export function BillTotals({
   totals,
+  savings = 0,
   discountCode = null,
   className,
 }: {
   totals: Totals;
-  /** Names the discount row (doc 9.6); the row shows while `totals.discount` is above zero. */
+  /** What the sale prices save; the subtotal shows the regular prices. */
+  savings?: number;
+  /** Names the code's row; the row shows while `totals.discount` is above zero. */
   discountCode?: string | null;
   className?: string;
 }) {
   const t = useTranslations("cart");
   const locale = useLocale() as Locale;
   const row = "flex items-baseline justify-between gap-4";
+  const saving = "text-leaf-700 font-semibold";
   return (
     <dl className={cn("flex flex-col gap-2.5 tabular-nums", className)}>
       <div className={row}>
         <dt className="text-ink-muted">{t("subtotal")}</dt>
         <dd className="font-semibold">
-          {formatMoney(totals.subtotal, locale)}
+          {formatMoney(totals.subtotal + savings, locale)}
         </dd>
       </div>
+      {savings > 0 && (
+        <div className={row}>
+          <dt className="text-ink-muted">{t("discount")}</dt>
+          <dd className={saving}>−{formatMoney(savings, locale)}</dd>
+        </div>
+      )}
       {totals.discount > 0 && (
         <div className={row}>
           <dt className="text-ink-muted">
-            {discountCode
-              ? t("discountCode", { code: discountCode })
-              : t("discount")}
+            {t("discountCode", { code: discountCode ?? "" })}
           </dt>
-          <dd className="text-leaf-700 font-semibold">
-            −{formatMoney(totals.discount, locale)}
-          </dd>
+          <dd className={saving}>−{formatMoney(totals.discount, locale)}</dd>
         </div>
       )}
       <div className={row}>
@@ -66,16 +76,6 @@ export function BillTotals({
           {formatMoney(totals.total, locale)}
         </dd>
       </div>
-      {totals.vat.map((group) => (
-        <div key={group.vatRate} className={cn(row, "text-ink-subtle text-sm")}>
-          <dt>
-            {t("vatIncluded", {
-              percent: formatPercent(group.vatRate / 100, locale),
-            })}
-          </dt>
-          <dd>{formatMoney(group.vat, locale)}</dd>
-        </div>
-      ))}
     </dl>
   );
 }

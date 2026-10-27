@@ -5,6 +5,7 @@ import { Check, ChevronLeft, ExternalLink, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
+import { orderSavingsOf } from "@/features/cart/savings";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
@@ -614,6 +615,7 @@ function OrderBody({
           )}
           <BillTotals
             totals={changed ? order.finalTotals : order.totals}
+            savings={orderSavingsOf(order.items, changed)}
             discountCode={order.discount?.code ?? null}
           />
           {changed && (

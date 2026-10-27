@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LockKeyhole, Plus, Truck } from "lucide-react";
+import { ChevronDown, Plus, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
 import { PaymentMarks } from "@/components/catalogue/payment-marks";
 import { ProductImage } from "@/components/catalogue/product-image";
@@ -12,6 +12,7 @@ import { Button, buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cartQueryKey, useCart } from "@/features/cart/cart";
+import { saleSavingsOf } from "@/features/cart/savings";
 import {
   addressToFormValues,
   toAddressInput,
@@ -26,6 +27,7 @@ import { api } from "@/lib/api/browser";
 import { ApiError, hasErrorCode } from "@/lib/api/errors";
 import type {
   Address,
+  Bill,
   DiscountReason,
   Id,
   LegalSummary,
@@ -63,6 +65,136 @@ const LEGAL_HREF = {
   terms: "/legal/terms",
   privacy: "/legal/privacy",
 } as const;
+
+/**
+ * The lines of the order, the way the Shopify checkouts set them (owner,
+ * 2026-10-22): each as a small picture with the quantity on its corner,
+ * the name, the price per pack (the regular price struck through and the
+ * saving when reduced) and the line total; about five lines show at once
+ * and the rest scroll inside the list. While the list holds more than it
+ * shows, its lower edge fades out and a quiet line under it says to
+ * scroll; both go as soon as the customer scrolls (owner, 2026-10-28).
+ */
+function OrderLines({ bill }: { bill: Bill }) {
+  const t = useTranslations("checkout");
+  const tProduct = useTranslations("product");
+  const locale = useLocale() as Locale;
+  const list = useRef<HTMLUListElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Whether the list holds more than it shows; asked again when the lines
+  // or the width change.
+  useEffect(() => {
+    const element = list.current;
+    if (!element) return;
+    const measure = () =>
+      setOverflows(element.scrollHeight > element.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [bill.lines.length]);
+
+  const hint = overflows && !scrolled;
+  return (
+    <div className="mt-4">
+      <div className="relative">
+        <ul
+          ref={list}
+          onScroll={(event) => {
+            if (event.currentTarget.scrollTop > 4) setScrolled(true);
+          }}
+          className="divide-line -mr-3 max-h-[21rem] scrollbar-thin divide-y overflow-y-auto scroll-smooth pr-3"
+        >
+          {bill.lines.map((line) => {
+            // A reduced size shows what is paid per pack and the regular price.
+            const reduced =
+              line.product !== null &&
+              line.unitPrice < line.product.pricing.regularPrice;
+            const percent = line.product?.pricing.discountPercent ?? 0;
+            return (
+              <li
+                key={line.variantId}
+                className="flex items-center gap-3.5 py-3 first:pt-0 last:pb-0"
+              >
+                <span className="relative shrink-0">
+                  <span className="border-line block size-14 overflow-hidden rounded-lg border bg-white p-1">
+                    <ProductImage
+                      image={line.product?.image ?? null}
+                      alt=""
+                      sizes="56px"
+                      fallbackLabel=""
+                    />
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="bg-wheat-400 text-ink ring-mist absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2"
+                  >
+                    {line.quantity}
+                  </span>
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[0.9375rem] leading-snug font-semibold">
+                    <span className="sr-only">
+                      {t("quantityTimes", { quantity: line.quantity })}{" "}
+                    </span>
+                    {line.product
+                      ? productTitle(line.product.name, line.product.packSize)
+                      : line.variantId}
+                  </span>
+                  <span className="text-ink-muted flex flex-wrap items-center gap-x-1.5 text-sm tabular-nums">
+                    {reduced && (
+                      <span className="sr-only">
+                        {tProduct("currentPrice")}:{" "}
+                      </span>
+                    )}
+                    <span>{formatMoney(line.unitPrice, locale)}</span>
+                    {reduced && (
+                      <>
+                        <span className="sr-only">
+                          {tProduct("regularPrice")}:
+                        </span>
+                        <s className="text-ink-subtle">
+                          {formatMoney(
+                            line.product!.pricing.regularPrice,
+                            locale,
+                          )}
+                        </s>
+                        {percent > 0 && (
+                          <span className="text-xs font-bold text-red-600">
+                            {formatDiscount(percent, locale)}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </span>
+                </span>
+                <span className="shrink-0 self-start pt-0.5 font-semibold tabular-nums">
+                  {formatMoney(line.lineTotal, locale)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        {/* The lower edge fades into the panel while there is more below. */}
+        <div
+          aria-hidden="true"
+          className={cn(
+            "from-mist pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t to-transparent transition-opacity duration-200",
+            hint ? "opacity-100" : "opacity-0",
+          )}
+        />
+      </div>
+      {hint && (
+        <p className="text-ink-muted mt-2 flex items-center justify-center gap-1 text-xs font-semibold">
+          <ChevronDown aria-hidden="true" className="size-3.5" />
+          {t("scrollHint")}
+        </p>
+      )}
+    </div>
+  );
+}
 
 /** Why the shop cannot sell right now: not the customer's doing (doc 14). */
 type Unavailable = "payments" | "shop";
@@ -430,13 +562,11 @@ export function CheckoutView({
         </section>
       </div>
 
-      {/* The order, the way the Shopify checkouts set it (owner,
-          2026-10-22): each line as a small picture with the quantity on its
-          corner, the name, the price per pack (the regular price struck
-          through and the saving when reduced) and the line total; about
-          five lines show at once and the rest scroll inside the list. The
-          delivery estimate, the totals, the note that the customer pays
-          now, the button and the accepted marks stay in view. */}
+      {/* The order: the lines, the delivery estimate, the discount code,
+          the totals, the button and the accepted marks; nothing else
+          (owner, 2026-10-28: the note on paying now and the fine print
+          under the button are gone; the button's label carries the
+          legal word). */}
       <aside
         aria-labelledby="checkout-summary"
         className="bg-mist flex flex-col rounded-2xl p-5 sm:p-6 lg:sticky lg:top-24"
@@ -450,77 +580,7 @@ export function CheckoutView({
           </p>
         </div>
 
-        <ul className="divide-line mt-4 -mr-3 max-h-[21rem] scrollbar-thin divide-y overflow-y-auto pr-3">
-          {bill.lines.map((line) => {
-            // A reduced size shows what is paid per pack and the regular price.
-            const reduced =
-              line.product !== null &&
-              line.unitPrice < line.product.pricing.regularPrice;
-            const percent = line.product?.pricing.discountPercent ?? 0;
-            return (
-              <li
-                key={line.variantId}
-                className="flex items-center gap-3.5 py-3 first:pt-0 last:pb-0"
-              >
-                <span className="relative shrink-0">
-                  <span className="border-line block size-14 overflow-hidden rounded-lg border bg-white p-1">
-                    <ProductImage
-                      image={line.product?.image ?? null}
-                      alt=""
-                      sizes="56px"
-                      fallbackLabel=""
-                    />
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className="bg-wheat-400 text-ink ring-mist absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2"
-                  >
-                    {line.quantity}
-                  </span>
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="text-[0.9375rem] leading-snug font-semibold">
-                    <span className="sr-only">
-                      {t("quantityTimes", { quantity: line.quantity })}{" "}
-                    </span>
-                    {line.product
-                      ? productTitle(line.product.name, line.product.packSize)
-                      : line.variantId}
-                  </span>
-                  <span className="text-ink-muted flex flex-wrap items-center gap-x-1.5 text-sm tabular-nums">
-                    {reduced && (
-                      <span className="sr-only">
-                        {tProduct("currentPrice")}:{" "}
-                      </span>
-                    )}
-                    <span>{formatMoney(line.unitPrice, locale)}</span>
-                    {reduced && (
-                      <>
-                        <span className="sr-only">
-                          {tProduct("regularPrice")}:
-                        </span>
-                        <s className="text-ink-subtle">
-                          {formatMoney(
-                            line.product!.pricing.regularPrice,
-                            locale,
-                          )}
-                        </s>
-                        {percent > 0 && (
-                          <span className="text-xs font-bold text-red-600">
-                            {formatDiscount(percent, locale)}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </span>
-                </span>
-                <span className="shrink-0 self-start pt-0.5 font-semibold tabular-nums">
-                  {formatMoney(line.lineTotal, locale)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <OrderLines bill={bill} />
 
         {deliveryEstimate && (
           <p className="border-line mt-4 flex items-center gap-2.5 border-t pt-4 text-sm">
@@ -555,20 +615,10 @@ export function CheckoutView({
         >
           <BillTotals
             totals={bill.totals}
+            savings={saleSavingsOf(bill.lines)}
             discountCode={bill.discount?.applied ? bill.discount.code : null}
           />
         </div>
-
-        <p className="text-ink-muted mt-5 flex gap-2.5 text-sm leading-snug">
-          <LockKeyhole
-            aria-hidden="true"
-            className="text-leaf-700 mt-0.5 size-4 shrink-0"
-          />
-          <span>
-            <span className="text-ink font-bold">{t("payNowTitle")}</span>{" "}
-            {t("payNowText")}
-          </span>
-        </p>
 
         <div className="mt-5 flex flex-col gap-4 empty:hidden">
           {unavailable === "payments" && (
@@ -656,7 +706,8 @@ export function CheckoutView({
           )}
         </div>
 
-        {/* The legal wording: the customer orders and pays now. */}
+        {/* The legal wording is the button's label: the customer orders
+            and pays now. */}
         <Button
           size="lg"
           block
@@ -667,9 +718,6 @@ export function CheckoutView({
         >
           {placing ? t("placing") : t("place")}
         </Button>
-        <p className="text-ink-muted mt-3 text-center text-[0.8125rem] leading-snug">
-          {t("finePrint")}
-        </p>
         <PaymentMarks
           label={tProduct("info.paymentMethods")}
           className="mt-4 justify-center"

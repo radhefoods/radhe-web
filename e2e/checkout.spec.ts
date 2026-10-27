@@ -73,7 +73,8 @@ test.describe("from the cart to the paid order", () => {
     await expect(summary).toContainText("€25.98");
     await expect(summary).toContainText("€4.99");
     await expect(summary).toContainText("€30.97");
-    await expect(summary).toContainText("includes 7% VAT");
+    await expect(summary).toContainText("Tax included.");
+    await expect(summary).not.toContainText("VAT");
     await expect(summary).toContainText("Add €24.02 more for free delivery");
     await expect(summary).toContainText("You pay in the next step");
     await expect(summary).toContainText(
@@ -114,7 +115,9 @@ test.describe("from the cart to the paid order", () => {
     await expect(order).toContainText("Chakki Atta (5kg)");
     await expect(order).toContainText("€30.97");
     await expect(order).toContainText("2 to 4 working days");
-    await expect(order).toContainText("You pay now.");
+    await expect(order).toContainText("Tax included.");
+    await expect(order).not.toContainText("You pay now");
+    await expect(order).not.toContainText("By clicking");
 
     await buyButton(page).click();
     await expect(
@@ -360,6 +363,62 @@ test.describe("discount codes on the checkout page", () => {
     await expect(order(page)).toContainText("€17.98");
     await expect(page.getByLabel("Discount code")).toBeVisible();
     await expect(page).toHaveURL(/\/en\/checkout$/);
+  });
+});
+
+test.describe("the summary of the bill", () => {
+  test("names the regular prices, what the sale takes off, the delivery and the total", async ({
+    page,
+  }) => {
+    // Basmati 5 kg is reduced from €24.99 to €19.99; the dal is not.
+    const basmati = await variantId(page, "basmati-rice-5kg");
+    const dal = await variantId(page, "toor-dal-1kg");
+    await seedGuestCart(page, [
+      { variantId: basmati, quantity: 2 },
+      { variantId: dal, quantity: 1 },
+    ]);
+    await page.goto("/en/cart");
+    const rows = page
+      .getByRole("complementary", { name: "Summary" })
+      .locator("dl");
+    await expect(rows).toContainText("Subtotal€54.47");
+    await expect(rows).toContainText("Discount−€10.00");
+    await expect(rows).toContainText("Delivery€4.99");
+    await expect(rows).toContainText("€49.46");
+    await expect(rows).toContainText("Tax included.");
+    await expect(rows).not.toContainText("VAT");
+  });
+
+  test("tells where the lines of the order go on, until the customer scrolls", async ({
+    page,
+  }) => {
+    await seedCustomer(page);
+    const more = await Promise.all(
+      [
+        "basmati-rice-5kg",
+        "toor-dal-1kg",
+        "sona-masoori-rice-5kg",
+        "pure-ghee-1l",
+        "chana-dal-1kg",
+        "garam-masala-100g",
+      ].map((slug) => variantId(page, slug)),
+    );
+    for (const id of more) {
+      await page.request.put(`${MOCK}/v1/store/cart/items/${id}`, {
+        data: { quantity: 1 },
+      });
+    }
+    await page.goto("/en/checkout");
+    const order = page.getByRole("complementary", { name: "Your order" });
+    const hint = order.getByText("Scroll to see more items");
+    await expect(hint).toBeVisible();
+    await order
+      .locator("ul")
+      .first()
+      .evaluate((list) => {
+        list.scrollTop = 120;
+      });
+    await expect(hint).toHaveCount(0);
   });
 });
 

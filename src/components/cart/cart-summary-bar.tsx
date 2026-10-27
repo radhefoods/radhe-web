@@ -20,8 +20,9 @@ function hasOwnSummary(pathname: string): boolean {
 }
 
 /**
- * On phones: the cart in one line above the tab bar, as soon as something
- * is in it. Units and the total of the API, one tap to the cart.
+ * On phones: the cart in one slim line above the tab bar, as soon as
+ * something is in it (owner, 2026-10-28: slimmer, so that it covers less
+ * of the products). Units and the total of the API, one tap to the cart.
  */
 export function CartSummaryBar() {
   const t = useTranslations("cart");
@@ -36,7 +37,7 @@ export function CartSummaryBar() {
     <aside aria-label={t("title")} className="md:hidden">
       <Link
         href="/cart"
-        className="shadow-float bg-leaf-600 fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex min-h-14 items-center justify-between gap-3 rounded-full py-1.5 pr-1.5 pl-5 text-[0.9375rem] font-bold text-white"
+        className="bg-leaf-600 fixed inset-x-4 bottom-[calc(4.125rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between gap-3 rounded-full py-1 pr-3.5 pl-4 text-sm font-bold text-white shadow-[0_6px_16px_-4px_rgb(23_33_27_/_0.35)]"
       >
         <span className="tabular-nums">
           {t("barItems", { count: cart.units })}
@@ -44,9 +45,9 @@ export function CartSummaryBar() {
             <> · {formatMoney(bill.totals.total, locale)}</>
           )}
         </span>
-        <span className="text-leaf-700 flex min-h-11 items-center gap-1 rounded-full bg-white pr-3 pl-4">
+        <span className="flex items-center gap-0.5">
           {t("barView")}
-          <ChevronRight aria-hidden="true" className="size-5" />
+          <ChevronRight aria-hidden="true" className="size-4" />
         </span>
       </Link>
     </aside>

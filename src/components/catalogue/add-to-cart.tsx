@@ -26,7 +26,9 @@ const ANNOUNCED_FOR_MS = 1500;
  * jumps and nothing looks like a button. The round "+" stands on the
  * tile with a soft green shadow and no white ring (owner, 2026-10-19), lit
  * from above; the stepper that unfolds in its place is a white pill that
- * floats on the picture, its buttons in leaf (owner, 2026-10-23).
+ * floats on the picture, its buttons in leaf (owner, 2026-10-23). On
+ * phones both are a size smaller, so that the picture of a small tile
+ * stays in view (owner, 2026-10-28).
  */
 export function AddToCart({
   variantId,
@@ -107,7 +109,7 @@ export function AddToCart({
           aria-label={t("addNamed", { name })}
           onClick={add}
           className={cn(
-            "from-leaf-500 to-leaf-600 hover:from-leaf-600 hover:to-leaf-700 grid size-11 shrink-0 place-items-center rounded-full bg-linear-to-b text-white shadow-[0_4px_12px_-3px_rgb(21_122_75_/_0.55)] transition-[background-image,box-shadow,transform] duration-150 hover:scale-105 hover:shadow-[0_8px_18px_-4px_rgb(21_122_75_/_0.6)] active:scale-95",
+            "from-leaf-500 to-leaf-600 hover:from-leaf-600 hover:to-leaf-700 grid size-10 shrink-0 place-items-center rounded-full bg-linear-to-b text-white shadow-[0_4px_12px_-3px_rgb(21_122_75_/_0.55)] transition-[background-image,box-shadow,transform] duration-150 hover:scale-105 hover:shadow-[0_8px_18px_-4px_rgb(21_122_75_/_0.6)] active:scale-95 sm:size-11",
             className,
           )}
         >
@@ -141,11 +143,11 @@ export function AddToCart({
         value={quantity}
         min={min}
         max={max}
-        size={size === "sm" ? "sm" : "md"}
+        size={look === "round" ? "card" : size === "sm" ? "sm" : "md"}
         look={look === "round" ? "float" : "solid"}
         className={cn(
           look === "round"
-            ? "shadow-float min-h-11 w-auto origin-right"
+            ? "shadow-float min-h-8 w-auto origin-right sm:min-h-11"
             : cn(height, "origin-left"),
           unfolds && "animate-stepper-in",
           className,

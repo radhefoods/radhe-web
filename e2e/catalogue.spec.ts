@@ -421,6 +421,51 @@ test.describe("finding products", () => {
     ).toBeVisible();
   });
 
+  test("the field suggests products while the customer types", async ({
+    page,
+  }) => {
+    await page.goto("/en");
+    const field = page.getByRole("combobox", { name: "Search" });
+    const list = page.getByRole("listbox", { name: "Suggestions" });
+
+    // Nothing for one character; four products and the way to all of
+    // them for a word that matches more.
+    await field.fill("m");
+    await expect(list).toHaveCount(0);
+    await field.fill("ma");
+    const all = list.getByRole("option", { name: "View all results for “ma”" });
+    await expect(all).toBeVisible();
+    await expect(list.getByRole("option")).toHaveCount(5);
+    await expect(list).toContainText("Garam Masala (100g)");
+    await expect(list).toContainText("€2.49");
+
+    // The arrows walk the list; Enter opens the chosen product.
+    await field.press("ArrowDown");
+    await field.press("ArrowDown");
+    await expect(field).toHaveAttribute(
+      "aria-activedescendant",
+      "header-search-option-1",
+    );
+    await field.press("Enter");
+    await expect(page).toHaveURL(/\/en\/products\/garam-masala-100g$/);
+
+    // "View all results" leads where Enter leads; Escape closes the list.
+    await field.fill("ma");
+    await all.click();
+    await expect(page).toHaveURL(/\/en\/products\?q=ma$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Results for “ma”",
+    );
+    await field.fill("dal");
+    await expect(list).toContainText("Toor Dal (1kg)");
+    await field.press("Escape");
+    await expect(list).toHaveCount(0);
+
+    // A word that matches nothing says so.
+    await field.fill("zzzz");
+    await expect(list).toContainText("No products match “zzzz”");
+  });
+
   test("filters apply at once, live in the address and come off one by one", async ({
     page,
     isMobile,

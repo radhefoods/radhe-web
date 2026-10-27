@@ -79,7 +79,6 @@ export async function Header({
           </Link>
 
           <SearchForm
-            locale={locale}
             id="header-search"
             className="order-last w-full lg:order-none lg:w-auto lg:flex-1"
           />

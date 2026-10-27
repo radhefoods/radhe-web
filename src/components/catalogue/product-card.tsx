@@ -108,7 +108,7 @@ export function ProductCard({
         {/* The tile's lower corner: the "+", the stepper that unfolds to
             the left in its place, or the pill of a size that cannot be
             ordered. */}
-        <div className="absolute right-2 bottom-2 max-w-[calc(100%-1rem)]">
+        <div className="absolute right-1.5 bottom-1.5 max-w-[calc(100%-0.75rem)] sm:right-2 sm:bottom-2 sm:max-w-[calc(100%-1rem)]">
           <AddToCart
             variantId={product.variantId}
             name={title}

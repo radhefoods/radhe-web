@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -134,14 +133,14 @@ async function relatedProducts(
  * the left, kept in view while the right column scrolls; on the right one
  * column without panels, read top to bottom: the brand, the name with the
  * chosen size and the subtitle; the price with the regular price, the
- * price per unit and the tax note; the pack sizes as tiles with their
+ * price per unit and "Tax included." (owner, 2026-10-28; the delivery fee
+ * stands in the delivery row below); the pack sizes as tiles with their
  * prices; add to cart with the heart, the stock and the delivery estimate
- * under it; then, between hairlines, delivery and payment as two rows, the
- * highlights,
- * and the two texts of the product as rows that fold open, closed at
- * first. Under all that
- * the products of the same category as a row and the categories of the
- * shop as tiles.
+ * under it; then, between hairlines, delivery and payment as two rows and
+ * the two texts of the product as rows that fold open, closed at first
+ * (the highlights are not shown any more, owner, 2026-10-28). Under all
+ * that the products of the same category as a row and the categories of
+ * the shop as tiles.
  */
 export default async function ProductPage({ params }: Props) {
   const locale = await localeOf(params);
@@ -252,33 +251,6 @@ export default async function ProductPage({ params }: Props) {
               locale={locale}
               className="mt-7"
             />
-
-            {product.highlights.length > 0 && (
-              <section
-                aria-labelledby="product-highlights"
-                className="border-line mt-5 border-t pt-5"
-              >
-                <h2
-                  id="product-highlights"
-                  className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase"
-                >
-                  {t("highlights")}
-                </h2>
-                <ul className="mt-3 grid gap-x-5 gap-y-2 text-[0.9375rem] sm:grid-cols-2">
-                  {product.highlights.map((highlight) => (
-                    <li key={highlight} className="flex items-start gap-2.5">
-                      <span
-                        aria-hidden="true"
-                        className="bg-leaf-100 text-leaf-700 mt-0.5 grid size-5 shrink-0 place-items-center rounded-full"
-                      >
-                        <Check className="size-3" strokeWidth={3.5} />
-                      </span>
-                      {highlight}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
 
             {/* The texts of the product as flat rows that fold open, both
                 closed when the page opens (owner, 2026-10-22). */}

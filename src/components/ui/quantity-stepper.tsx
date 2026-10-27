@@ -22,8 +22,12 @@ export interface QuantityStepperProps {
    * minimum.
    */
   removeAtMin?: boolean;
-  /** `xs`: the slim one of a cart line. */
-  size?: "xs" | "sm" | "md";
+  /**
+   * `xs`: the slim one of a cart line. `card`: the one on the tile of a
+   * product card, a size smaller on phones, where the tile is small and
+   * the picture must stay in view (owner, 2026-10-28).
+   */
+  size?: "xs" | "sm" | "md" | "card";
   /**
    * `solid`: the leaf pill that takes the place of "Add to cart".
    * `outline`: a slim white pill with a hairline, for a line of the cart
@@ -35,7 +39,12 @@ export interface QuantityStepperProps {
   className?: string;
 }
 
-const BUTTON_SIZE = { xs: "size-7", sm: "size-8", md: "size-9" } as const;
+const BUTTON_SIZE = {
+  xs: "size-7",
+  sm: "size-8",
+  md: "size-9",
+  card: "size-7 sm:size-8",
+} as const;
 
 /** Minus, the number, plus. */
 export function QuantityStepper({
@@ -65,7 +74,12 @@ export function QuantityStepper({
         ? "text-leaf-700 hover:bg-leaf-50 disabled:text-ink-subtle/50"
         : "text-white hover:bg-white/20 disabled:text-white/45",
   );
-  const icon = size === "xs" ? "size-3.5" : "size-4";
+  const icon =
+    size === "xs"
+      ? "size-3.5"
+      : size === "card"
+        ? "size-3.5 sm:size-4"
+        : "size-4";
   return (
     <div
       role="group"
@@ -97,7 +111,11 @@ export function QuantityStepper({
         aria-live="polite"
         className={cn(
           "text-center tabular-nums",
-          size === "xs" ? "min-w-7 text-[0.9375rem]" : "min-w-8",
+          size === "xs"
+            ? "min-w-7 text-[0.9375rem]"
+            : size === "card"
+              ? "min-w-6 text-[0.9375rem] sm:min-w-8 sm:text-base"
+              : "min-w-8",
         )}
       >
         {/* Mounted afresh on every change, so the number pops each time. */}
