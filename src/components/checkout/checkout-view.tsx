@@ -24,7 +24,12 @@ import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import { ApiError, hasErrorCode } from "@/lib/api/errors";
-import type { Address, Id, LegalSummary } from "@/lib/api/types";
+import type {
+  Address,
+  DiscountReason,
+  Id,
+  LegalSummary,
+} from "@/lib/api/types";
 import {
   checkoutKey,
   clearCheckoutKey,
@@ -33,6 +38,7 @@ import {
 import { cn } from "@/lib/cn";
 import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { AddressForm } from "./address-form";
+import { DiscountCode } from "./discount-code";
 import { productTitle } from "@/lib/format/product-name";
 
 function AddressLines({ address }: { address: Address }) {
@@ -132,6 +138,11 @@ export function CheckoutView({
   const [refusedLines, setRefusedLines] = useState<string[]>([]);
   /** The key was used for an order that is paid or cancelled meanwhile. */
   const [keyUsed, setKeyUsed] = useState(false);
+  /** The discount code stopped applying at checkout and was removed (9.6). */
+  const [discountRemoved, setDiscountRemoved] = useState<{
+    code: string;
+    reason: DiscountReason;
+  } | null>(null);
 
   const bill = billQuery.data;
   const addresses = addressQuery.data?.items;
@@ -205,12 +216,14 @@ export function CheckoutView({
     setTotalChanged(null);
     setLegalChanged(false);
     setRefusedLines([]);
+    setDiscountRemoved(null);
     try {
       const result = await api.checkout(
         {
           addressId: selected.id,
-          // The total the customer sees right now. If the bill changed
-          // since, the API refuses and answers with the new one.
+          // The total the customer sees right now, with the discount code
+          // taken off. If the bill changed since, the API refuses and
+          // answers with the new one.
           expectedTotal: bill.totals.total,
           consent: { accepted: true, versions: consentVersions(legal) },
           language: locale,
@@ -248,6 +261,14 @@ export function CheckoutView({
         setRefusedLines(
           error.details.lines.map((line) => nameOf(line.variantId)),
         );
+        void billQuery.refetch();
+      } else if (hasErrorCode(error, "DISCOUNT_NOT_APPLICABLE")) {
+        // The code stopped applying; the API took it off the cart. The bill
+        // is loaded again and the customer may order without it.
+        setDiscountRemoved({
+          code: error.details.code,
+          reason: error.details.reason,
+        });
         void billQuery.refetch();
       } else if (hasErrorCode(error, "PAYMENTS_NOT_CONFIGURED")) {
         setUnavailable("payments");
@@ -514,6 +535,17 @@ export function CheckoutView({
           </p>
         )}
 
+        {/* The discount code (doc 9.6): the bill it answers replaces the
+            one on the page, so the row and the total change at once. */}
+        <DiscountCode
+          discount={bill.discount}
+          onBill={(next) => {
+            setDiscountRemoved(null);
+            client.setQueryData(cartQueryKey(locale), next);
+          }}
+          className="border-line mt-4 border-t pt-4"
+        />
+
         <div
           className={cn(
             "border-line mt-4 border-t pt-4",
@@ -521,7 +553,10 @@ export function CheckoutView({
           )}
           aria-busy={billQuery.isFetching}
         >
-          <BillTotals totals={bill.totals} />
+          <BillTotals
+            totals={bill.totals}
+            discountCode={bill.discount?.applied ? bill.discount.code : null}
+          />
         </div>
 
         <p className="text-ink-muted mt-5 flex gap-2.5 text-sm leading-snug">
@@ -573,6 +608,17 @@ export function CheckoutView({
               >
                 {t("toCart")}
               </Link>
+            </Alert>
+          )}
+          {discountRemoved && (
+            <Alert
+              tone="warn"
+              title={t("discount.removedTitle", {
+                code: discountRemoved.code,
+              })}
+            >
+              {t(`discount.reason.${discountRemoved.reason}`)}{" "}
+              {t("discount.removedText")}
             </Alert>
           )}
           {totalChanged && (

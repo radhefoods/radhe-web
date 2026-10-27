@@ -13,6 +13,13 @@ import type {
 } from "../src/lib/api/types.ts";
 import { products } from "./data/catalogue.ts";
 import {
+  checkDiscount,
+  findDiscount,
+  releaseDiscount,
+  reserveDiscount,
+  resetDiscounts,
+} from "./discounts.ts";
+import {
   HttpError,
   OBJECT_ID,
   PHONE,
@@ -65,6 +72,47 @@ export function resetFixtures(): void {
   for (const document of legalDocuments) {
     document.version = initialLegalVersions.get(document.type)!;
   }
+  resetDiscounts();
+}
+
+// --- 9.6 Discount codes on the checkout page ---------------------------------
+
+/**
+ * `PUT /v1/store/checkout/discount`: the code is checked against the cart as
+ * it is (without a code applied before) and kept with the cart; the answer
+ * is the bill with the discount. A code that cannot be applied answers
+ * `400 DISCOUNT_NOT_APPLICABLE` with the reason, and nothing is kept.
+ */
+export function applyDiscount(
+  customer: CustomerRecord,
+  raw: unknown,
+  locale: Locale,
+) {
+  const body = objectBody(raw, ["code"]);
+  const code = body.code;
+  if (typeof code !== "string" || code.trim() === "" || code.length > 40) {
+    throw validationFailed("code", "code must be 1 to 40 characters");
+  }
+  const record = findDiscount(code);
+  const refuse = (reason: string, shown: string) =>
+    new HttpError(
+      400,
+      "DISCOUNT_NOT_APPLICABLE",
+      "This discount code cannot be applied.",
+      { code: shown, reason },
+    );
+  if (!record) throw refuse("not_found", code.trim().toUpperCase());
+  const bare = billOf(customer.cart, locale);
+  const reason = checkDiscount(record, bare.lines, customer);
+  if (reason) throw refuse(reason, record.code);
+  customer.discountCode = record.code;
+  return billOf(customer.cart, locale, customer);
+}
+
+/** `DELETE /v1/store/checkout/discount`: the bill without the code. */
+export function removeDiscount(customer: CustomerRecord, locale: Locale) {
+  customer.discountCode = null;
+  return billOf(customer.cart, locale, customer);
 }
 
 // --- 3 Addresses ------------------------------------------------------------
@@ -317,6 +365,7 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
         vatRate: item.vatRate,
         vatPercent: item.vatRate / 100,
         vatAmount: item.vatAmount,
+        discountAmount: item.discountAmount,
         deliveredQuantity: item.deliveredQuantity,
         returnedQuantity: item.returnedQuantity,
         finalLineTotal: Math.max(0, kept) * item.unitPrice,
@@ -324,6 +373,7 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
     }),
     totals: order.totals,
     finalTotals: finalTotalsOf(order),
+    discount: order.discount,
     adjustments: order.adjustments,
     deliveryAddress: order.deliveryAddress,
     note: order.note,
@@ -487,7 +537,7 @@ export function checkout(
   if (customer.cart.length === 0) {
     throw new HttpError(409, "CART_EMPTY", "The cart is empty.");
   }
-  const bill = billOf(customer.cart, locale);
+  const bill = billOf(customer.cart, locale, customer);
   const issues = bill.lines.filter((line) => line.issue !== null);
   if (issues.length > 0) {
     throw new HttpError(
@@ -506,6 +556,18 @@ export function checkout(
           remaining: line.ordering?.remaining ?? null,
         })),
       },
+    );
+  }
+  // A code that stopped applying (the cart shrank below the minimum, the
+  // code ran out) is removed from the cart before the total is compared:
+  // the page loads the bill again and tells the customer (doc 9.6).
+  if (bill.discount && !bill.discount.applied) {
+    customer.discountCode = null;
+    throw new HttpError(
+      409,
+      "DISCOUNT_NOT_APPLICABLE",
+      "The discount code no longer applies and was removed from the cart.",
+      { code: bill.discount.code, reason: bill.discount.reason },
     );
   }
   if (bill.totals.total !== expectedTotal) {
@@ -556,6 +618,7 @@ export function checkout(
         lineTotal: line.lineTotal,
         vatRate: line.vatRate,
         vatAmount: line.vatAmount,
+        discountAmount: line.discountAmount,
         deliveredQuantity: 0,
         returnedQuantity: 0,
       };
@@ -570,6 +633,16 @@ export function checkout(
         vat,
       })),
     },
+    // One use of the code is reserved for this order; the payment counts it.
+    discount: bill.discount
+      ? {
+          code: bill.discount.code,
+          type: bill.discount.type,
+          value: bill.discount.value,
+          amount: bill.discount.amount,
+          state: "reserved",
+        }
+      : null,
     deliveryAddress,
     note,
     consent: {
@@ -602,6 +675,7 @@ export function checkout(
     pendingUntil: null,
   };
   db.orders.set(order.orderNumber, order);
+  if (bill.discount) reserveDiscount(findDiscount(bill.discount.code)!);
   const page = paymentPage(order, mockBase);
   return {
     status: 201,
@@ -688,6 +762,8 @@ export function cancelOrder(
   order.payment.checkout = null;
   order.pendingUntil = null;
   releaseStock(order);
+  // Given up unpaid: the use goes back. A paid order keeps its use.
+  releaseDiscount(order);
   order.status = "cancelled";
   order.cancellation = {
     reason: body.reason as CustomerCancellationReason,

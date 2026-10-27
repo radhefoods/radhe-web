@@ -8,6 +8,7 @@ import type {
   OrderAddress,
   OrderAdjustment,
   OrderCancellation,
+  OrderDiscount,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
@@ -111,6 +112,8 @@ export interface CustomerRecord {
   createdAt: string;
   /** One line per pack size. */
   cart: { variantId: string; quantity: number }[];
+  /** The discount code kept with the cart (doc 9.6), upper case, or `null`. */
+  discountCode: string | null;
   addresses: Address[];
   /** Newest first, at most 200. */
   wishlist: WishlistRecord[];
@@ -174,10 +177,14 @@ export interface OrderRecord {
     lineTotal: number;
     vatRate: number;
     vatAmount: number;
+    /** The item's share of the discount code; `0` without one. */
+    discountAmount: number;
     deliveredQuantity: number;
     returnedQuantity: number;
   }[];
   totals: Totals;
+  /** The discount code of the order, or `null` (doc 9.6). */
+  discount: OrderDiscount | null;
   deliveryAddress: OrderAddress;
   note: string | null;
   consent: {
@@ -302,6 +309,7 @@ export function newCustomer(input: {
     },
     createdAt: new Date().toISOString(),
     cart: [],
+    discountCode: null,
     addresses: [],
     wishlist: [],
   };

@@ -37,7 +37,7 @@ function order(
   mockBase: string,
 ): OrderRecord {
   customer.cart = items;
-  const bill = billOf(items, customer.locale);
+  const bill = billOf(items, customer.locale, customer);
   const { body } = checkout(
     customer,
     `demo-order-${db.orderSequence + 1}`,
@@ -132,7 +132,8 @@ export function seedDemoAccount(
       mockBase,
     );
 
-    // RF-1087: paid, on its way with a parcel service.
+    // RF-1087: paid with the code DIWALI10, on its way with a parcel service.
+    customer.discountCode = "DIWALI10";
     const onItsWay = paidOrder(
       customer,
       [{ variantId: SKU.basmati1kg, quantity: 3 }],

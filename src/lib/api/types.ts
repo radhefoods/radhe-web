@@ -477,8 +477,12 @@ export interface VatGroup {
 
 export interface Totals {
   currency: "EUR";
+  /** The goods before the discount. */
   subtotal: Cents;
+  /** What the discount code takes off the goods; `0` without one (9.6). */
+  discount: Cents;
   deliveryFee: Cents;
+  /** `subtotal − discount + deliveryFee`. */
   total: Cents;
   netTotal: Cents;
   vatTotal: Cents;
@@ -492,9 +496,12 @@ export interface BillLine {
   productId: Id | null;
   quantity: number;
   unitPrice: Cents;
+  /** Units × unit price, less the line's share of the discount. */
   lineTotal: Cents;
   vatRate: VatRate;
   vatAmount: Cents;
+  /** What the discount code takes off this line; `0` without one (9.6). */
+  discountAmount: Cents;
   issue: CartLineIssue | null;
   /** Of this pack size; `null` when the line is `product_not_found`. */
   ordering: Ordering | null;
@@ -514,8 +521,51 @@ export interface Bill {
   delivery: {
     fee: Cents;
     freeFrom: Cents | null;
+    /** Counts what is paid for the goods after the discount. */
     missingForFree: Cents | null;
   };
+  /** The discount code of the checkout page; `null` while none is entered. */
+  discount: BillDiscount | null;
+}
+
+// --- 9.6 Discount codes -----------------------------------------------------
+
+/** Why a code cannot be applied, or stopped applying. */
+export type DiscountReason =
+  | "not_found"
+  | "inactive"
+  | "not_started"
+  | "expired"
+  | "exhausted"
+  | "already_used"
+  | "below_minimum"
+  | "nothing_eligible";
+
+export type DiscountType = "percent" | "fixed";
+
+/**
+ * The code kept with the cart. A code that was applied and later stopped
+ * applying stays with `applied: false`, `amount: 0` and a `reason`; the
+ * checkout then refuses it and removes it.
+ */
+export interface BillDiscount {
+  /** Upper case, as stored. */
+  code: string;
+  type: DiscountType;
+  /** A whole percent, or cents. */
+  value: number;
+  amount: Cents;
+  applied: boolean;
+  reason: DiscountReason | null;
+}
+
+/** The code of an order: one use is reserved until paid, then counted. */
+export interface OrderDiscount {
+  code: string;
+  type: DiscountType;
+  value: number;
+  amount: Cents;
+  state: "reserved" | "used" | "released";
 }
 
 export interface CartItemInput {
@@ -596,6 +646,8 @@ export interface OrderItem {
   vatRate: VatRate;
   vatPercent: number;
   vatAmount: Cents;
+  /** The item's share of the discount code; `0` without one. */
+  discountAmount: Cents;
   deliveredQuantity: number;
   returnedQuantity: number;
   finalLineTotal: Cents;
@@ -661,6 +713,8 @@ export interface OrderDetail extends OrderSummary {
   items: OrderItem[];
   totals: Totals;
   finalTotals: Totals;
+  /** The discount code of the order; `null` without one (9.6). */
+  discount: OrderDiscount | null;
   adjustments: OrderAdjustment[];
   deliveryAddress: OrderAddress;
   note: string | null;

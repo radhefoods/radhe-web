@@ -612,7 +612,10 @@ function OrderBody({
               {t("billFinal")}
             </p>
           )}
-          <BillTotals totals={changed ? order.finalTotals : order.totals} />
+          <BillTotals
+            totals={changed ? order.finalTotals : order.totals}
+            discountCode={order.discount?.code ?? null}
+          />
           {changed && (
             <p className="text-ink-muted border-line mt-3 flex justify-between gap-4 border-t pt-3 text-sm tabular-nums">
               <span>{t("billAgreed")}</span>

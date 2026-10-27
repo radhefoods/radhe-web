@@ -6,15 +6,19 @@ import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent } from "@/lib/format/money";
 
 /**
- * The bill in numbers: goods, delivery, the total, and the VAT inside it per
- * rate. Every number comes from the API; nothing is added up here. The
- * total is the one big number of the panel (owner, 2026-10-19).
+ * The bill in numbers: goods, the discount code when one applies, delivery,
+ * the total, and the VAT inside it per rate. Every number comes from the
+ * API; nothing is added up here. The total is the one big number of the
+ * panel (owner, 2026-10-19).
  */
 export function BillTotals({
   totals,
+  discountCode = null,
   className,
 }: {
   totals: Totals;
+  /** Names the discount row (doc 9.6); the row shows while `totals.discount` is above zero. */
+  discountCode?: string | null;
   className?: string;
 }) {
   const t = useTranslations("cart");
@@ -28,6 +32,18 @@ export function BillTotals({
           {formatMoney(totals.subtotal, locale)}
         </dd>
       </div>
+      {totals.discount > 0 && (
+        <div className={row}>
+          <dt className="text-ink-muted">
+            {discountCode
+              ? t("discountCode", { code: discountCode })
+              : t("discount")}
+          </dt>
+          <dd className="text-leaf-700 font-semibold">
+            −{formatMoney(totals.discount, locale)}
+          </dd>
+        </div>
+      )}
       <div className={row}>
         <dt className="text-ink-muted">{t("delivery")}</dt>
         <dd

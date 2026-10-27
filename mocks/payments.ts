@@ -19,6 +19,7 @@ import type {
   Totals,
   VatGroup,
 } from "../src/lib/api/types.ts";
+import { countDiscount, releaseDiscount } from "./discounts.ts";
 import {
   HttpError,
   OBJECT_ID,
@@ -50,19 +51,39 @@ function keptQuantity(order: OrderRecord, index: number): number {
 }
 
 /**
+ * The part of an item's discount that belongs to `units` of it
+ * (DISCOUNT_CODES 3): a returned unit is refunded at what was paid for it.
+ */
+export function discountOnUnits(
+  item: OrderRecord["items"][number],
+  units: number,
+): number {
+  if (item.discountAmount === 0 || item.quantity === 0) return 0;
+  return Math.round((item.discountAmount * units) / item.quantity);
+}
+
+/**
  * The bill after corrections and returns (doc 9.2): kept units at the agreed
- * prices; the agreed delivery fee stays and is 0 only when nothing was kept.
- * The fee is shared between the VAT rates by net value, like on the cart.
+ * prices less their part of the discount; the agreed delivery fee stays and
+ * is 0 only when nothing was kept. The fee is shared between the VAT rates
+ * by net value, like on the cart.
  */
 export function finalTotalsOf(order: OrderRecord): Totals {
   const goods = new Map<number, number>();
+  let subtotal = 0;
+  let discount = 0;
   order.items.forEach((item, index) => {
-    const total = keptQuantity(order, index) * item.unitPrice;
-    if (total > 0)
-      goods.set(item.vatRate, (goods.get(item.vatRate) ?? 0) + total);
+    const kept = keptQuantity(order, index);
+    const gross = kept * item.unitPrice;
+    const share = discountOnUnits(item, kept);
+    subtotal += gross;
+    discount += share;
+    if (gross - share > 0) {
+      goods.set(item.vatRate, (goods.get(item.vatRate) ?? 0) + gross - share);
+    }
   });
-  const subtotal = [...goods.values()].reduce((a, b) => a + b, 0);
-  const deliveryFee = subtotal === 0 ? 0 : order.totals.deliveryFee;
+  const paid = subtotal - discount;
+  const deliveryFee = paid === 0 ? 0 : order.totals.deliveryFee;
   const rates = [...goods.keys()].sort((a, b) => a - b);
   const nets = rates.map(
     (rate) => goods.get(rate)! - vatOf(goods.get(rate)!, rate),
@@ -82,8 +103,9 @@ export function finalTotalsOf(order: OrderRecord): Totals {
   return {
     currency: "EUR",
     subtotal,
+    discount,
     deliveryFee,
-    total: subtotal + deliveryFee,
+    total: paid + deliveryFee,
     netTotal: vat.reduce((sum, group) => sum + group.net, 0),
     vatTotal: vat.reduce((sum, group) => sum + group.vat, 0),
     vat,
@@ -230,9 +252,15 @@ export function settlePayment(order: OrderRecord, method: PaymentMethod): void {
     customer,
     "invoice",
     order.totals,
-    linesOf(order, (index) => order.items[index].quantity),
+    [
+      ...linesOf(order, (index) => order.items[index].quantity),
+      ...discountLinesOf(order, (item) => item.discountAmount),
+    ],
     { issuedAt: now, paidAt: now },
   );
+  // The payment counts the use of the code; the cart lets go of it.
+  countDiscount(order);
+  customer.discountCode = null;
   order.payment = {
     ...order.payment,
     paidAmount: order.payment.amount,
@@ -253,6 +281,7 @@ export function settlePayment(order: OrderRecord, method: PaymentMethod): void {
 /** A product sold out before the payment was captured: nothing is charged. */
 export function cancelSoldOut(order: OrderRecord): void {
   releaseStock(order);
+  releaseDiscount(order);
   order.paymentStatus = "failed";
   order.payment.lastFailure =
     "A product sold out before the payment was captured.";
@@ -403,6 +432,37 @@ function linesOf(order: OrderRecord, quantityOf: (index: number) => number) {
     .filter((line) => line.quantity > 0);
 }
 
+/**
+ * The discount of an order on a document (doc 11.1): one negative line per
+ * VAT rate, `Discount DIWALI10` / `Rabatt DIWALI10`, in the language of the
+ * order. `amountOf` gives each item's part; nothing when there is none.
+ */
+function discountLinesOf(
+  order: OrderRecord,
+  amountOf: (item: OrderRecord["items"][number]) => number,
+): InvoiceDetail["lines"] {
+  if (!order.discount) return [];
+  const byRate = new Map<number, number>();
+  for (const item of order.items) {
+    const amount = amountOf(item);
+    if (amount > 0) {
+      byRate.set(item.vatRate, (byRate.get(item.vatRate) ?? 0) + amount);
+    }
+  }
+  const label = order.language === "de" ? "Rabatt" : "Discount";
+  return [...byRate.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([vatRate, amount]) => ({
+      description: `${label} ${order.discount!.code}`,
+      sku: order.discount!.code,
+      quantity: 1,
+      unitPrice: -amount,
+      vatRate,
+      vatPercent: vatRate / 100,
+      lineTotal: -amount,
+    }));
+}
+
 function summaryOf(document: InvoiceDetail): InvoiceSummary {
   return {
     id: document.id,
@@ -486,6 +546,10 @@ export function invoicePdf(document: InvoiceDetail): Buffer {
         `${line.quantity} x ${line.description}   ${money(line.lineTotal)}`,
     ),
     "",
+    `Goods   ${money(document.totals.subtotal)}`,
+    ...(document.totals.discount > 0
+      ? [`Discount   -${money(document.totals.discount)}`]
+      : []),
     `Delivery   ${money(document.totals.deliveryFee)}`,
     `Total   ${money(document.totals.total)}`,
     `VAT included   ${money(document.totals.vatTotal)}`,
@@ -780,6 +844,10 @@ export function decideReturn(
   }
   // Completed: the units are booked on the order and its bill goes down.
   const before = finalTotalsOf(order).total;
+  // Each item's part of the discount before the return, for the credit note.
+  const discountBefore = order.items.map((item, index) =>
+    discountOnUnits(item, keptQuantity(order, index)),
+  );
   for (const item of request.items) {
     item.approvedQuantity ??= item.quantity;
     const orderItem = order.items.find((i) => i.variantId === item.variantId);
@@ -787,6 +855,22 @@ export function decideReturn(
   }
   const after = finalTotalsOf(order);
   const credit = before - after.total;
+  // What the returned units carried of the discount, by item.
+  const discountReturned = new Map(
+    order.items.map((item, index) => [
+      item.variantId,
+      discountBefore[index] - discountOnUnits(item, keptQuantity(order, index)),
+    ]),
+  );
+  const returnedGoods = request.items.reduce(
+    (sum, item) =>
+      sum + (item.approvedQuantity ?? item.quantity) * item.unitPrice,
+    0,
+  );
+  const returnedDiscount = [...discountReturned.values()].reduce(
+    (a, b) => a + b,
+    0,
+  );
   request.status = "completed";
   request.decidedAt ??= now;
   request.completedAt = now;
@@ -798,20 +882,32 @@ export function decideReturn(
       order,
       customer,
       "credit_note",
-      { ...after, total: credit, subtotal: credit, deliveryFee: 0 },
-      request.items.map((item) => ({
-        description: `${item.name}, ${item.packSize.label}`,
-        sku: item.sku,
-        quantity: item.approvedQuantity ?? item.quantity,
-        unitPrice: item.unitPrice,
-        vatRate:
-          order.items.find((i) => i.variantId === item.variantId)?.vatRate ??
-          700,
-        vatPercent:
-          (order.items.find((i) => i.variantId === item.variantId)?.vatRate ??
-            700) / 100,
-        lineTotal: (item.approvedQuantity ?? item.quantity) * item.unitPrice,
-      })),
+      {
+        ...after,
+        total: credit,
+        subtotal: returnedGoods,
+        discount: returnedDiscount,
+        deliveryFee: credit - (returnedGoods - returnedDiscount),
+      },
+      [
+        ...request.items.map((item) => ({
+          description: `${item.name}, ${item.packSize.label}`,
+          sku: item.sku,
+          quantity: item.approvedQuantity ?? item.quantity,
+          unitPrice: item.unitPrice,
+          vatRate:
+            order.items.find((i) => i.variantId === item.variantId)?.vatRate ??
+            700,
+          vatPercent:
+            (order.items.find((i) => i.variantId === item.variantId)?.vatRate ??
+              700) / 100,
+          lineTotal: (item.approvedQuantity ?? item.quantity) * item.unitPrice,
+        })),
+        ...discountLinesOf(
+          order,
+          (item) => discountReturned.get(item.variantId) ?? 0,
+        ),
+      ],
       {
         invoiceNumber: order.payment.invoiceNumber,
         creditReason: "return",

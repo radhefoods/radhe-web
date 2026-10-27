@@ -225,6 +225,25 @@ export function createStoreApi(request: Requester) {
     clearCart: (o?: CallOptions) =>
       request<Bill>("/v1/store/cart", { ...o, method: "DELETE" }),
 
+    // --- 9.6 Discount codes on the checkout page ----------------------------
+    /**
+     * Keeps a code with the cart and answers the bill with the discount; a
+     * code applied before is replaced. `400 DISCOUNT_NOT_APPLICABLE` names
+     * the reason. The code travels as typed; the API upper-cases it.
+     */
+    applyDiscount: (code: string, o?: CallOptions) =>
+      request<Bill>("/v1/store/checkout/discount", {
+        ...o,
+        method: "PUT",
+        body: { code },
+      }),
+    /** Removes the code; answers the bill without it. */
+    removeDiscount: (o?: CallOptions) =>
+      request<Bill>("/v1/store/checkout/discount", {
+        ...o,
+        method: "DELETE",
+      }),
+
     // --- 9 Orders and checkout ----------------------------------------------
     /**
      * Turns the stored cart into an order that waits for its payment and

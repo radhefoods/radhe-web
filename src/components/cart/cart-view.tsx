@@ -272,14 +272,17 @@ export function CartView() {
 
         <FreeDeliveryProgress
           delivery={bill.delivery}
-          subtotal={bill.totals.subtotal}
+          subtotal={bill.totals.subtotal - bill.totals.discount}
         />
 
         <div
           className={cn("transition-opacity", updating && "opacity-50")}
           aria-busy={updating}
         >
-          <BillTotals totals={bill.totals} />
+          <BillTotals
+            totals={bill.totals}
+            discountCode={bill.discount?.applied ? bill.discount.code : null}
+          />
         </div>
         <p className="sr-only" role="status">
           {updating ? t("updating") : ""}

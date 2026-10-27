@@ -279,6 +279,90 @@ test.describe("when something changed since the page was loaded", () => {
   });
 });
 
+test.describe("discount codes on the checkout page", () => {
+  const order = (page: Page) =>
+    page.getByRole("complementary", { name: "Your order" });
+
+  test("a code is refused with its reason, applied with the new total, and carried to the order", async ({
+    page,
+  }) => {
+    await seedCustomer(page);
+    await page.goto("/en/checkout");
+    const field = page.getByLabel("Discount code");
+    const apply = order(page).getByRole("button", { name: "Apply" });
+    await expect(apply).toBeDisabled();
+
+    await field.fill("nope");
+    await apply.click();
+    await expect(page.getByText("This code does not exist.")).toBeVisible();
+    await expect(field).toHaveAttribute("aria-invalid", "true");
+
+    // Typed in any case; the bill answers with the discount taken off.
+    await field.fill("diwali10");
+    await apply.click();
+    const summary = order(page);
+    await expect(summary).toContainText("Code DIWALI10 applied");
+    await expect(summary).toContainText("You save €2.60.");
+    await expect(summary).toContainText("Discount DIWALI10");
+    await expect(summary).toContainText("−€2.60");
+    await expect(summary).toContainText("€28.37");
+    await expect(field).toBeHidden();
+
+    // The order is placed with that total and keeps the code.
+    await consentBox(page).check();
+    await buyButton(page).click();
+    await expect(page).toHaveURL(/__mock\/stripe\/RF-1085$/);
+    await expect(page.getByText("28.37 EUR")).toBeVisible();
+    await page.getByRole("link", { name: "Pay by card" }).click();
+    await expect(page).toHaveURL(/\/en\/account\/orders\/RF-1085/);
+    const bill = page.locator("section[aria-labelledby='order-bill']");
+    await expect(bill).toContainText("Discount DIWALI10");
+    await expect(bill).toContainText("−€2.60");
+    await expect(bill).toContainText("€28.37");
+  });
+
+  test("removing the code brings the plain bill back", async ({ page }) => {
+    await seedCustomer(page);
+    await page.goto("/en/checkout");
+    await page.getByLabel("Discount code").fill("DIWALI10");
+    await order(page).getByRole("button", { name: "Apply" }).click();
+    await expect(order(page)).toContainText("€28.37");
+    await order(page)
+      .getByRole("button", { name: "Remove the code DIWALI10" })
+      .click();
+    await expect(page.getByLabel("Discount code")).toBeVisible();
+    await expect(order(page)).not.toContainText("Discount DIWALI10");
+    await expect(order(page)).toContainText("€30.97");
+  });
+
+  test("a code that stopped applying is removed at checkout and the customer is told", async ({
+    page,
+  }) => {
+    const { atta } = await seedCustomer(page);
+    await page.goto("/en/checkout");
+    await page.getByLabel("Discount code").fill("welcome5");
+    await order(page).getByRole("button", { name: "Apply" }).click();
+    await expect(order(page)).toContainText("Code WELCOME5 applied");
+
+    // The cart shrinks below the code's minimum behind the page's back.
+    await page.request.put(`${MOCK}/v1/store/cart/items/${atta}`, {
+      data: { quantity: 1 },
+    });
+    await consentBox(page).check();
+    await buyButton(page).click();
+    const alert = page
+      .getByRole("alert")
+      .filter({ hasText: "Your discount code WELCOME5 was removed" });
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText(
+      "Add more to your cart to use this code.",
+    );
+    await expect(order(page)).toContainText("€17.98");
+    await expect(page.getByLabel("Discount code")).toBeVisible();
+    await expect(page).toHaveURL(/\/en\/checkout$/);
+  });
+});
+
 test.describe("the cart", () => {
   test("a line below its minimum is fixed with one tap", async ({ page }) => {
     const khakhra = await variantId(page, "methi-khakhra-200g");

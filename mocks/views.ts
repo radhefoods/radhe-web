@@ -42,6 +42,12 @@ import {
   type VariantRecord,
 } from "./data/catalogue.ts";
 import {
+  checkDiscount,
+  discountView,
+  findDiscount,
+  shareOut,
+} from "./discounts.ts";
+import {
   TIMEZONE,
   db,
   legalDocuments,
@@ -928,11 +934,22 @@ function deliveryFeeFor(subtotal: number): number {
   return tier ? tier.fee : 0;
 }
 
-function totalsOf(lines: BillLine[]): Totals {
+/**
+ * The totals of the lines (doc 8.1, 9.6): `subtotal` is the goods before the
+ * discount, `discount` what the code takes off, and VAT is computed on what
+ * is paid (`lineTotal` already carries the line's share). Free delivery is
+ * reached with what is paid for the goods.
+ */
+export function totalsOf(lines: BillLine[]): Totals {
   const orderable = lines.filter((line) => line.issue === null);
-  const subtotal = orderable.reduce((sum, line) => sum + line.lineTotal, 0);
+  const discount = orderable.reduce(
+    (sum, line) => sum + line.discountAmount,
+    0,
+  );
+  const paid = orderable.reduce((sum, line) => sum + line.lineTotal, 0);
+  const subtotal = paid + discount;
   // Nothing to deliver, nothing to charge for delivery.
-  const deliveryFee = orderable.length ? deliveryFeeFor(subtotal) : 0;
+  const deliveryFee = orderable.length ? deliveryFeeFor(paid) : 0;
 
   // Goods per VAT rate; the delivery fee is shared across the rates by the
   // net value of the goods, the last rate takes the rounding rest.
@@ -966,8 +983,9 @@ function totalsOf(lines: BillLine[]): Totals {
   return {
     currency: "EUR",
     subtotal,
+    discount,
     deliveryFee,
-    total: subtotal + deliveryFee,
+    total: paid + deliveryFee,
     netTotal: vat.reduce((sum, group) => sum + group.net, 0),
     vatTotal: vat.reduce((sum, group) => sum + group.vat, 0),
     vat,
@@ -986,6 +1004,7 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
       lineTotal: 0,
       vatRate: 0,
       vatAmount: 0,
+      discountAmount: 0,
       issue: "product_not_found",
       ordering: null,
       product: null,
@@ -1010,6 +1029,7 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
     lineTotal,
     vatRate: p.vatRate,
     vatAmount: vatOf(lineTotal, p.vatRate),
+    discountAmount: 0,
     issue,
     ordering,
     // Inside a line the product's own `ordering` fields are always null.
@@ -1017,8 +1037,49 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
   };
 }
 
-export function billOf(items: CartItemInput[], locale: Locale): Bill {
+/**
+ * The bill of a cart. With a customer, the discount code kept with the cart
+ * is checked against the lines (doc 9.6): applied, each eligible line
+ * carries its share and `lineTotal` is what is paid; no longer applicable,
+ * the code stays on the bill with `applied: false` and nothing is taken off.
+ */
+export function billOf(
+  items: CartItemInput[],
+  locale: Locale,
+  customer?: CustomerRecord,
+): Bill {
   const lines = items.map((item) => lineOf(item, locale));
+  let discount: Bill["discount"] = null;
+  if (customer?.discountCode) {
+    const record = findDiscount(customer.discountCode);
+    if (!record) {
+      discount = {
+        code: customer.discountCode,
+        type: "percent",
+        value: 0,
+        amount: 0,
+        applied: false,
+        reason: "not_found",
+      };
+    } else {
+      const reason = checkDiscount(record, lines, customer);
+      if (reason) {
+        discount = discountView(record, 0, reason);
+      } else {
+        const shares = shareOut(record, lines);
+        let amount = 0;
+        for (const line of lines) {
+          const share = shares.get(line.variantId) ?? 0;
+          if (share === 0) continue;
+          amount += share;
+          line.discountAmount = share;
+          line.lineTotal -= share;
+          line.vatAmount = vatOf(line.lineTotal, line.vatRate);
+        }
+        discount = discountView(record, amount, null);
+      }
+    }
+  }
   const totals = totalsOf(lines);
   const freeFrom = freeDeliveryFrom();
   return {
@@ -1030,8 +1091,11 @@ export function billOf(items: CartItemInput[], locale: Locale): Bill {
       fee: totals.deliveryFee,
       freeFrom,
       missingForFree:
-        freeFrom === null ? null : Math.max(0, freeFrom - totals.subtotal),
+        freeFrom === null
+          ? null
+          : Math.max(0, freeFrom - (totals.subtotal - totals.discount)),
     },
+    discount,
   };
 }
 

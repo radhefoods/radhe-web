@@ -33,11 +33,13 @@ import {
 } from "./errors.ts";
 import {
   addresses,
+  applyDiscount,
   cancelOrder,
   checkout,
   findOrder,
   getOrder,
   listOrders,
+  removeDiscount,
   resetFixtures,
 } from "./orders.ts";
 import {
@@ -862,9 +864,10 @@ route("POST", "/v1/store/cart/preview", (ctx) => {
   return { body: billOf(cartItems(body.items, 1), ctx.locale) };
 });
 
-route("GET", "/v1/store/cart", (ctx) => ({
-  body: billOf(requireCustomer(ctx).cart, ctx.locale),
-}));
+route("GET", "/v1/store/cart", (ctx) => {
+  const customer = requireCustomer(ctx);
+  return { body: billOf(customer.cart, ctx.locale, customer) };
+});
 
 route("POST", "/v1/store/cart/merge", (ctx) => {
   const customer = requireCustomer(ctx);
@@ -879,7 +882,7 @@ route("POST", "/v1/store/cart/merge", (ctx) => {
     else if (customer.cart.length < CART_MAX_LINES)
       customer.cart.push({ ...item });
   }
-  return { body: billOf(customer.cart, ctx.locale) };
+  return { body: billOf(customer.cart, ctx.locale, customer) };
 });
 
 function variantIdParam(ctx: Context): string {
@@ -923,20 +926,20 @@ route("PUT", "/v1/store/cart/items/:variantId", (ctx) => {
   } else {
     customer.cart.push({ variantId, quantity });
   }
-  return { body: billOf(customer.cart, ctx.locale) };
+  return { body: billOf(customer.cart, ctx.locale, customer) };
 });
 
 route("DELETE", "/v1/store/cart/items/:variantId", (ctx) => {
   const customer = requireCustomer(ctx);
   const variantId = variantIdParam(ctx);
   customer.cart = customer.cart.filter((i) => i.variantId !== variantId);
-  return { body: billOf(customer.cart, ctx.locale) };
+  return { body: billOf(customer.cart, ctx.locale, customer) };
 });
 
 route("DELETE", "/v1/store/cart", (ctx) => {
   const customer = requireCustomer(ctx);
   customer.cart = [];
-  return { body: billOf(customer.cart, ctx.locale) };
+  return { body: billOf(customer.cart, ctx.locale, customer) };
 });
 
 // --- 16 Wishlist (doc 16) ---------------------------------------------------
@@ -1196,6 +1199,16 @@ route("POST", "/v1/store/me/addresses/:id/default", (ctx) => ({
 
 route("DELETE", "/v1/store/me/addresses/:id", (ctx) => ({
   body: addresses.remove(requireCustomer(ctx), ctx.params.id),
+}));
+
+// --- 9.6 Discount codes on the checkout page --------------------------------
+
+route("PUT", "/v1/store/checkout/discount", (ctx) => ({
+  body: applyDiscount(requireCustomer(ctx), ctx.body, ctx.locale),
+}));
+
+route("DELETE", "/v1/store/checkout/discount", (ctx) => ({
+  body: removeDiscount(requireCustomer(ctx), ctx.locale),
 }));
 
 // --- 9 Orders and checkout --------------------------------------------------
