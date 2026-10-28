@@ -23,6 +23,12 @@
     "searchAll": "Alle Ergebnisse für „{q}“",
     "searching": "Suche …",
     "searchNothing": "Keine Produkte zu „{q}“",
+    "searchRecommended": "Für Sie empfohlen",
+    "searchPopular": "Gerade beliebt",
+    "searchProducts": "Produkte",
+    "searchBrand": "Marke",
+    "searchFor": "Nach „{q}“ suchen",
+    "searchError": "Die Suche ist gerade nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.",
     "errorTitle": "Das hat nicht geklappt",
     "errorText": "Wir konnten diese Seite nicht laden. Bitte versuchen Sie es gleich noch einmal."
   },

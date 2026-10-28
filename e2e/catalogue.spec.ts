@@ -428,24 +428,34 @@ test.describe("finding products", () => {
     const field = page.getByRole("combobox", { name: "Search" });
     const list = page.getByRole("listbox", { name: "Suggestions" });
 
-    // Nothing for one character; four products and the way to all of
-    // them for a word that matches more.
+    // The focus alone opens the dropdown, with the products of the home
+    // page's rows; one character keeps them.
+    await field.click();
+    await expect(list).toBeVisible();
+    await expect(list).toContainText(/Recommended for you|Popular right now/);
+    await expect(list.getByRole("option").first()).toBeVisible();
     await field.fill("m");
-    await expect(list).toHaveCount(0);
+    await expect(list).toContainText(/Recommended for you|Popular right now/);
+
+    // A word that matches more: the products, the terms they lead to,
+    // and the way to all results.
     await field.fill("ma");
     const all = list.getByRole("option", { name: "View all results for “ma”" });
     await expect(all).toBeVisible();
-    await expect(list.getByRole("option")).toHaveCount(5);
-    await expect(list).toContainText("Garam Masala (100g)");
-    await expect(list).toContainText("€2.49");
+    await expect(list).toContainText("Products");
+    const garam = list.getByRole("option", { name: /Garam Masala \(100g\)/ });
+    await expect(garam).toBeVisible();
+    await expect(garam).toContainText("€2.49");
 
     // The arrows walk the list; Enter opens the chosen product.
-    await field.press("ArrowDown");
-    await field.press("ArrowDown");
-    await expect(field).toHaveAttribute(
-      "aria-activedescendant",
-      "header-search-option-1",
-    );
+    const garamId = (await garam.getAttribute("id")) ?? "";
+    for (let step = 0; step < 16; step++) {
+      await field.press("ArrowDown");
+      if ((await field.getAttribute("aria-activedescendant")) === garamId) {
+        break;
+      }
+    }
+    await expect(field).toHaveAttribute("aria-activedescendant", garamId);
     await field.press("Enter");
     await expect(page).toHaveURL(/\/en\/products\/garam-masala-100g$/);
 

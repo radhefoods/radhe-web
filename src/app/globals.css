@@ -329,6 +329,30 @@
   }
 }
 
+/* An entry of the search dropdown: it fades in and rises a touch, one beat
+   after the entry before it (`--i` is its place in the list). Without
+   motion the beats are gone too, so that nothing waits. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility reveal-stagger {
+  animation: reveal 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-delay: 0ms;
+  }
+}
+
 /* A `details` whose content glides open and shut: its height runs from 0
    to its own size and the text fades in, where the browser can animate
    `::details-content` to `auto` (Chrome 131+; the others open at once).

@@ -24,16 +24,18 @@ const badge =
  * The picture on white, as the packshots are shot (owner, 2026-10-23; the
  * mist tile showed as a frame around them), the discount and "only N left" badges in its
  * top left corner, the heart of the wishlist in its top right corner (doc
- * 16) and the round "+" in its bottom corner, where the stepper unfolds in
- * its place; under the tile the brand as a small tracked line
- * (owner, 2026-10-19; nothing when the admin left none), the name with
- * the size (the size in a quieter tone), then the price with the regular
- * price crossed out when reduced and the price per unit. Nothing else
- * (owner, 2026-10-16): the other sizes are chosen on the product page.
- * The name keeps two lines whether it needs them or not, so the prices of
- * a row line up, and the card ends with the price (owner, 2026-10-18). A
- * size that cannot be ordered shows its picture greyed and a quiet pill
- * where the button was. The tile is the `data-fly-source` of the add
+ * 16); under the tile the brand as a small tracked line (owner,
+ * 2026-10-19; nothing when the admin left none), the name with the size
+ * (the size in a quieter tone), then the last row: the price with the
+ * regular price crossed out when reduced and the price per unit, and at
+ * its end the round basket that adds the size, where the stepper unfolds
+ * in its place (owner, 2026-10-28, evening: off the picture, into the
+ * card's bottom right corner, level with the price on every card). Nothing
+ * else (owner, 2026-10-16): the other sizes are chosen on the product
+ * page. The name keeps two lines whether it needs them or not, so the
+ * prices and the baskets of a row line up (owner, 2026-10-18). A size
+ * that cannot be ordered shows its picture greyed and a quiet pill on the
+ * tile, and no basket. The tile is the `data-fly-source` of the add
  * button: its picture flies into the cart.
  */
 export function ProductCard({
@@ -105,21 +107,22 @@ export function ProductCard({
           name={title}
           className="absolute top-2 right-2"
         />
-        {/* The tile's lower corner: the "+", the stepper that unfolds to
-            the left in its place, or the pill of a size that cannot be
-            ordered. */}
-        <div className="absolute right-1.5 bottom-1.5 max-w-[calc(100%-0.75rem)] sm:right-2 sm:bottom-2 sm:max-w-[calc(100%-1rem)]">
-          <AddToCart
-            variantId={product.variantId}
-            name={title}
-            ordering={product.ordering}
-            size="sm"
-            look="round"
-          />
-        </div>
+        {/* The pill of a size that cannot be ordered, on the greyed
+            picture. */}
+        {unorderable && (
+          <div className="absolute right-2 bottom-2 max-w-[calc(100%-1rem)]">
+            <AddToCart
+              variantId={product.variantId}
+              name={title}
+              ordering={product.ordering}
+              size="sm"
+              look="card"
+            />
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 px-2 pt-3 pb-2">
+      <div className="flex flex-1 flex-col gap-1.5 px-1.5 pt-3 pb-2 sm:px-2">
         {brand && (
           <p className="text-ink-subtle truncate text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase">
             {brand}
@@ -136,7 +139,23 @@ export function ProductCard({
             </span>
           </Link>
         </Heading>
-        <Price pricing={product.pricing} className="mt-auto pt-1" />
+        {/* The last row: the price, and in the corner the basket or the
+            stepper that unfolds to the left in its place. The price gives
+            way; on a narrow card its regular price and the price per unit
+            may wrap while the stepper is open. */}
+        <div className="mt-auto flex items-end justify-between gap-1.5 pt-1 sm:gap-2">
+          <Price pricing={product.pricing} className="min-w-0" />
+          {!unorderable && (
+            <AddToCart
+              variantId={product.variantId}
+              name={title}
+              ordering={product.ordering}
+              size="sm"
+              look="card"
+              className="shrink-0"
+            />
+          )}
+        </div>
       </div>
     </article>
   );

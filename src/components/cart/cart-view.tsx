@@ -26,15 +26,17 @@ import {
 
 /**
  * One pack size in the cart, a row of the one list (owner, 2026-10-28: no
- * card per product, a hairline between the rows): the picture on white;
- * the brand, the name with the size in a quieter tone, and the price per
- * pack set like a price of the catalogue: in the display cut, red when
- * reduced with the regular price struck through and the saving as a
- * small red badge beside it, and no word around it (owner, 2026-10-22:
- * "each" confused); no price per kilogram, and no line total: the summary
- * adds up. Then, centred on the height of the row, the stepper and the
- * way to take the line out. A line the API objects to carries its message
- * and a one-tap fix.
+ * card per product, a hairline between the rows): the picture on white,
+ * 80 px; the brand, the name with the size in a quieter tone, and the
+ * price per pack set like a price of the catalogue: in the display cut,
+ * red when reduced with the regular price struck through and the saving
+ * as a small red badge beside it, and no word around it (owner,
+ * 2026-10-22: "each" confused); no price per kilogram, and no line total:
+ * the summary adds up. Then, centred on the height of the row and at its
+ * end, the stepper and the way to take the line out, side by side (owner,
+ * 2026-10-28, evening: the rows were tall and empty in the middle; the
+ * row is now as high as its picture). A line the API objects to carries
+ * its message and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -61,12 +63,12 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 px-4 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-x-5 sm:px-5 sm:py-5 md:grid-cols-[6rem_minmax(0,1fr)_minmax(0,1.5fr)_auto]">
-      <div className="aspect-square self-center overflow-hidden rounded-md bg-white p-1">
+    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:px-4 sm:py-3.5">
+      <div className="aspect-square self-center overflow-hidden rounded-md bg-white p-0.5">
         <ProductImage
           image={product?.image ?? null}
           alt=""
-          sizes="104px"
+          sizes="80px"
           fallbackLabel=""
         />
       </div>
@@ -77,7 +79,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             {brand}
           </p>
         )}
-        <p className="text-[1.0625rem] leading-snug font-bold">
+        <p className="text-base leading-snug font-bold">
           {href && product ? (
             <>
               <Link
@@ -95,13 +97,13 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           )}
         </p>
         {product && (
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 tabular-nums">
             {reduced && (
               <span className="sr-only">{tProduct("currentPrice")}: </span>
             )}
             <span
               className={cn(
-                "font-display text-[1.0625rem] leading-none",
+                "font-display text-base leading-none",
                 reduced && "text-red-600",
               )}
             >
@@ -125,11 +127,11 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
       </div>
 
       {/* The controls, centred on the height of the row whatever the
-          texts take (owner, 2026-10-21 and 2026-10-22): the stepper, slim
-          and white with a hairline, a little left of the middle of the
-          row; the way to take the line out at its far end. On phones
-          they share a row under the texts, the stepper first; from `sm`
-          the wrapper dissolves and both become cells of the grid. */}
+          texts take: the stepper, slim and white with a hairline, and
+          the way to take the line out, together at the end of the row.
+          On phones they share a row under the texts, the stepper first;
+          from `sm` the wrapper dissolves and both become cells of the
+          grid. */}
       <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
         {product && issue !== "product_not_found" && (
           <QuantityStepper
@@ -140,7 +142,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             size="xs"
             look="outline"
             className={cn(
-              "w-27 sm:col-start-3 sm:justify-self-center",
+              "w-27 sm:col-start-3 sm:justify-self-end",
               updating && "opacity-70",
             )}
             onChange={(next) => cart.setQuantity(line.variantId, next)}
@@ -156,9 +158,9 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-mist grid size-10 shrink-0 place-items-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1.5 sm:justify-self-end"
+          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1 sm:justify-self-end"
         >
-          <Trash2 aria-hidden="true" className="size-5" />
+          <Trash2 aria-hidden="true" className="size-[18px]" />
         </button>
       </div>
 
@@ -193,15 +195,18 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
 
 function CartSkeleton() {
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_23rem]" aria-hidden="true">
-      <div className="space-y-4">
+    <div
+      className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:gap-8"
+      aria-hidden="true"
+    >
+      <div className="space-y-3">
         {[0, 1].map((row) => (
           <div key={row} className="flex gap-4">
-            <Skeleton className="size-24 rounded-md" />
+            <Skeleton className="size-20 rounded-md" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-2/3" />
               <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-9 w-32" />
+              <Skeleton className="h-7 w-28" />
             </div>
           </div>
         ))}
@@ -214,8 +219,10 @@ function CartSkeleton() {
 /**
  * The cart page: the products with their quantities as the rows of one
  * white container with a hairline (owner, 2026-10-28), the bill from the
- * API in a white summary card with the total as its one big number, and
- * the way to the checkout, which follows the bill's `canOrder`.
+ * API in a white summary card beside it, close by (owner, 2026-10-28,
+ * evening: less air between the two), with the total as its one big
+ * number, and the way to the checkout, which follows the bill's
+ * `canOrder`.
  */
 export function CartView() {
   const t = useTranslations("cart");
@@ -252,8 +259,8 @@ export function CartView() {
   const hasIssues = lines.some((line) => line.issue !== null);
 
   return (
-    <div className="grid items-start gap-8 lg:grid-cols-[1fr_23rem] lg:gap-12">
-      <div className="space-y-4">
+    <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem] lg:gap-8">
+      <div className="space-y-3">
         {cart.problem &&
           (cart.problem === "cart_full" ? (
             <Alert tone="warn">{tProduct("cartFull")}</Alert>
@@ -269,7 +276,7 @@ export function CartView() {
 
       <aside
         aria-label={t("summary")}
-        className="border-line flex flex-col gap-5 rounded-xl border bg-white p-5 sm:p-6 lg:sticky lg:top-28"
+        className="border-line flex flex-col gap-4 rounded-xl border bg-white p-5 lg:sticky lg:top-28"
       >
         <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
 

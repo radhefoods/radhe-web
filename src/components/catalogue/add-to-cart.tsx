@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, PackageX, Plus } from "lucide-react";
+import { Ban, PackageX, ShoppingBasket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,18 +17,18 @@ const ANNOUNCED_FOR_MS = 1500;
 
 /**
  * The one control that puts a pack size into the cart: a button first (a
- * full pill, or on a card the round "+" on the corner of the tile), then
- * minus, number, plus. On the tap the picture flies into the cart
+ * full pill, or on a card the round basket at the end of the price row),
+ * then minus, number, plus. On the tap the picture flies into the cart
  * (`flyToCart`), the stepper unfolds in the button's place (on a card to
- * the left, over the tile) and its number pops as it changes (owner,
+ * the left, beside the price) and its number pops as it changes (owner,
  * 2026-10-16). When the size cannot be ordered (sold out, or switched
- * off) a quiet pill with an icon says so in the same place, so nothing
- * jumps and nothing looks like a button. The round "+" stands on the
- * tile with a soft green shadow and no white ring (owner, 2026-10-19), lit
- * from above; the stepper that unfolds in its place is a white pill that
- * floats on the picture, its buttons in leaf (owner, 2026-10-23). On
- * phones both are a size smaller, so that the picture of a small tile
- * stays in view (owner, 2026-10-28).
+ * off) a quiet pill with an icon says so instead, so nothing looks like a
+ * button. The round basket is 40 px, lit from above with a soft green
+ * shadow and no white ring (owner, 2026-10-19); it stands in the card's
+ * bottom right corner, level with the price, whatever the length of the
+ * name (owner, 2026-10-28, evening: off the picture, a basket instead of
+ * the "+"). The stepper that unfolds in its place is the leaf pill, a
+ * size smaller on phones, where the card is narrow.
  */
 export function AddToCart({
   variantId,
@@ -44,8 +44,8 @@ export function AddToCart({
   name: string;
   ordering: Ordering | null;
   size?: "sm" | "md";
-  /** `round`: the "+" on the tile of a product card. */
-  look?: "button" | "round";
+  /** `card`: the round basket in the price row of a product card. */
+  look?: "button" | "card";
   className?: string;
 }) {
   const t = useTranslations("product");
@@ -71,7 +71,7 @@ export function AddToCart({
       <p
         className={cn(
           "border-line text-ink-muted flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-4 py-2 text-center text-[0.8125rem] leading-tight font-semibold",
-          look === "round"
+          look === "card"
             ? "shadow-card min-h-10 bg-white px-3 text-xs"
             : cn("bg-mist", height),
           className,
@@ -101,7 +101,7 @@ export function AddToCart({
     </span>
   );
 
-  if (quantity === 0 && look === "round") {
+  if (quantity === 0 && look === "card") {
     return (
       <>
         <button
@@ -109,11 +109,15 @@ export function AddToCart({
           aria-label={t("addNamed", { name })}
           onClick={add}
           className={cn(
-            "from-leaf-500 to-leaf-600 hover:from-leaf-600 hover:to-leaf-700 grid size-10 shrink-0 place-items-center rounded-full bg-linear-to-b text-white shadow-[0_4px_12px_-3px_rgb(21_122_75_/_0.55)] transition-[background-image,box-shadow,transform] duration-150 hover:scale-105 hover:shadow-[0_8px_18px_-4px_rgb(21_122_75_/_0.6)] active:scale-95 sm:size-11",
+            "from-leaf-500 to-leaf-600 hover:from-leaf-600 hover:to-leaf-700 grid size-10 shrink-0 place-items-center rounded-full bg-linear-to-b text-white shadow-[0_4px_12px_-3px_rgb(21_122_75_/_0.55)] transition-[background-image,box-shadow,transform] duration-150 hover:scale-105 hover:shadow-[0_8px_18px_-4px_rgb(21_122_75_/_0.6)] active:scale-95",
             className,
           )}
         >
-          <Plus aria-hidden="true" className="size-5" strokeWidth={2.6} />
+          <ShoppingBasket
+            aria-hidden="true"
+            className="size-5"
+            strokeWidth={2.25}
+          />
         </button>
         {status}
       </>
@@ -143,11 +147,10 @@ export function AddToCart({
         value={quantity}
         min={min}
         max={max}
-        size={look === "round" ? "card" : size === "sm" ? "sm" : "md"}
-        look={look === "round" ? "float" : "solid"}
+        size={look === "card" ? "card" : size === "sm" ? "sm" : "md"}
         className={cn(
-          look === "round"
-            ? "shadow-float min-h-8 w-auto origin-right sm:min-h-11"
+          look === "card"
+            ? "min-h-8 w-auto origin-right sm:min-h-9"
             : cn(height, "origin-left"),
           unfolds && "animate-stepper-in",
           className,

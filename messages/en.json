@@ -23,6 +23,12 @@
     "searchAll": "View all results for “{q}”",
     "searching": "Searching …",
     "searchNothing": "No products match “{q}”",
+    "searchRecommended": "Recommended for you",
+    "searchPopular": "Popular right now",
+    "searchProducts": "Products",
+    "searchBrand": "Brand",
+    "searchFor": "Search for “{q}”",
+    "searchError": "The search is not available right now. Please try again in a moment.",
     "errorTitle": "That did not work",
     "errorText": "We could not load this page. Please try again in a moment."
   },
