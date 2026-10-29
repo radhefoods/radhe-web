@@ -32,13 +32,15 @@ import {
  * red when reduced with the regular price struck through and the saving
  * as a small red badge beside it, and no word around it (owner,
  * 2026-10-22: "each" confused); no price per kilogram, and no line total:
- * the summary adds up. Then, centred on the height of the row, the
- * stepper in a column of its own, 10 rem wide, standing in its middle, and
- * at the end of the row the way to take the line out (owner, 2026-10-28,
- * evening: the rows were tall and empty in the middle, the row is now as
- * high as its picture; 2026-10-29: pushed against the bin the stepper
- * looked lopsided, so it has its own column, the same on every row). A
- * line the API objects to carries its message and a one-tap fix.
+ * the summary adds up. Then, centred on the height of the row and on
+ * its width, the stepper: the texts and an empty column after the stepper
+ * share the room between the picture and the bin equally, so the stepper
+ * stands in the middle of every row; at the end of the row the way to
+ * take the line out (owner, 2026-10-28, evening: the rows were tall and
+ * empty in the middle, the row is now as high as its picture; 2026-10-29,
+ * twice: against the bin, then in a column at the right, the stepper was
+ * too far right for the owner, who marked the middle of the row). A line
+ * the API objects to carries its message and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -65,7 +67,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_10rem_2.25rem] sm:gap-x-4 sm:px-4 sm:py-3.5">
+    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto_minmax(0,1fr)_2.25rem] sm:gap-x-4 sm:px-4 sm:py-3.5">
       <div className="aspect-square self-center overflow-hidden rounded-md bg-white p-0.5">
         <ProductImage
           image={product?.image ?? null}
@@ -133,7 +135,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           the way to take the line out. On phones they share a row under
           the texts, the stepper first; from `sm` the wrapper dissolves
           and both become cells of the grid, the stepper in the middle of
-          its column, the bin at the end of the row. */}
+          the row, the bin at its end. */}
       <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
         {product && issue !== "product_not_found" && (
           <QuantityStepper
@@ -160,14 +162,14 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center self-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1 sm:justify-self-end"
+          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center self-center rounded-full transition-colors duration-150 sm:col-start-5 sm:-mr-1 sm:justify-self-end"
         >
           <Trash2 aria-hidden="true" className="size-[18px]" />
         </button>
       </div>
 
       {issue && (
-        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-4">
+        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-5">
           <p className="min-w-0 flex-1">
             {t(`issue.${issue}`, { min, max: max ?? 0 })}
           </p>
