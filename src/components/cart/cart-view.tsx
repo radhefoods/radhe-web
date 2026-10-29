@@ -32,15 +32,21 @@ import {
  * red when reduced with the regular price struck through and the saving
  * as a small red badge beside it, and no word around it (owner,
  * 2026-10-22: "each" confused); no price per kilogram, and no line total:
- * the summary adds up. Then, centred on the height of the row and on
- * its width, the stepper: the texts and an empty column after the stepper
- * share the room between the picture and the bin equally, so the stepper
- * stands in the middle of every row; at the end of the row the way to
- * take the line out (owner, 2026-10-28, evening: the rows were tall and
- * empty in the middle, the row is now as high as its picture; 2026-10-29,
- * twice: against the bin, then in a column at the right, the stepper was
- * too far right for the owner, who marked the middle of the row). A line
- * the API objects to carries its message and a one-tap fix.
+ * the summary adds up. Then the stepper, centred on the height of the
+ * row and on the room that is left after the texts, up to the row's edge
+ * (from `md`; on small tablets on its own track, a little further left),
+ * and at the end of the row the way to take the line out, 10 px from the
+ * edge (owner,
+ * 2026-10-28, evening: the rows were tall and empty in the middle, the row
+ * is now as high as its picture; 2026-10-29, three times: against the
+ * bin, in a column at the right, and in the middle of the row, the
+ * stepper was never where the owner marked it: the middle of the empty
+ * area after the texts). The texts' column is one width for all rows
+ * (the longest name), so that the steppers line up: from `sm` the list is
+ * the grid and every row a subgrid of it (`grid-cols-subgrid`); the
+ * row's side padding eats into the first and last track, which the list
+ * makes wider by that padding. A line the API objects to carries its
+ * message and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -67,7 +73,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto_minmax(0,1fr)_2.25rem] sm:gap-x-4 sm:px-4 sm:py-3.5">
+    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:col-span-4 sm:grid-cols-subgrid sm:gap-x-4 sm:px-4 sm:py-3.5">
       <div className="aspect-square self-center overflow-hidden rounded-md bg-white p-0.5">
         <ProductImage
           image={product?.image ?? null}
@@ -135,7 +141,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           the way to take the line out. On phones they share a row under
           the texts, the stepper first; from `sm` the wrapper dissolves
           and both become cells of the grid, the stepper in the middle of
-          the row, the bin at its end. */}
+          the room after the texts, the bin at the end of the row. */}
       <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
         {product && issue !== "product_not_found" && (
           <QuantityStepper
@@ -146,7 +152,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             size="xs"
             look="outline"
             className={cn(
-              "w-27 self-center sm:col-start-3 sm:justify-self-center",
+              "w-27 self-center sm:col-start-3 sm:justify-self-center md:ml-13",
               updating && "opacity-70",
             )}
             onChange={(next) => cart.setQuantity(line.variantId, next)}
@@ -162,14 +168,14 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center self-center rounded-full transition-colors duration-150 sm:col-start-5 sm:-mr-1 sm:justify-self-end"
+          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center self-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1.5 sm:justify-self-end"
         >
           <Trash2 aria-hidden="true" className="size-[18px]" />
         </button>
       </div>
 
       {issue && (
-        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-5">
+        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-4">
           <p className="min-w-0 flex-1">
             {t(`issue.${issue}`, { min, max: max ?? 0 })}
           </p>
@@ -271,7 +277,16 @@ export function CartView() {
           ) : (
             <ErrorAlert error={cart.problem} />
           ))}
-        <ul className="border-line divide-line divide-y rounded-xl border bg-white">
+        {/* From `sm` the list is the grid of the rows: the picture (5 rem),
+            the texts as wide as the longest of them, the stepper in the
+            rest, the bin (2.25 rem); the first and the last track carry
+            the row's 1 rem of side padding on top, and the row sets the
+            same gap, or the browser would widen the tracks by the
+            difference. From `md` the stepper's track is at least 10 rem,
+            room for the margin that sets the stepper off by the bin's
+            track, so that it stands in the middle of everything after
+            the texts, the bin's corner included. */}
+        <ul className="border-line divide-line divide-y rounded-xl border bg-white sm:grid sm:grid-cols-[6rem_auto_minmax(7rem,1fr)_3.25rem] sm:gap-x-4 md:grid-cols-[6rem_auto_minmax(10rem,1fr)_3.25rem]">
           {lines.map((line) => (
             <CartLine key={line.variantId} line={line} updating={updating} />
           ))}
