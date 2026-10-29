@@ -32,11 +32,13 @@ import {
  * red when reduced with the regular price struck through and the saving
  * as a small red badge beside it, and no word around it (owner,
  * 2026-10-22: "each" confused); no price per kilogram, and no line total:
- * the summary adds up. Then, centred on the height of the row and at its
- * end, the stepper and the way to take the line out, side by side (owner,
- * 2026-10-28, evening: the rows were tall and empty in the middle; the
- * row is now as high as its picture). A line the API objects to carries
- * its message and a one-tap fix.
+ * the summary adds up. Then, centred on the height of the row, the
+ * stepper in a column of its own, 10 rem wide, standing in its middle, and
+ * at the end of the row the way to take the line out (owner, 2026-10-28,
+ * evening: the rows were tall and empty in the middle, the row is now as
+ * high as its picture; 2026-10-29: pushed against the bin the stepper
+ * looked lopsided, so it has its own column, the same on every row). A
+ * line the API objects to carries its message and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -63,7 +65,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:px-4 sm:py-3.5">
+    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:grid-cols-[5rem_minmax(0,1fr)_10rem_2.25rem] sm:gap-x-4 sm:px-4 sm:py-3.5">
       <div className="aspect-square self-center overflow-hidden rounded-md bg-white p-0.5">
         <ProductImage
           image={product?.image ?? null}
@@ -128,10 +130,10 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
 
       {/* The controls, centred on the height of the row whatever the
           texts take: the stepper, slim and white with a hairline, and
-          the way to take the line out, together at the end of the row.
-          On phones they share a row under the texts, the stepper first;
-          from `sm` the wrapper dissolves and both become cells of the
-          grid. */}
+          the way to take the line out. On phones they share a row under
+          the texts, the stepper first; from `sm` the wrapper dissolves
+          and both become cells of the grid, the stepper in the middle of
+          its column, the bin at the end of the row. */}
       <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
         {product && issue !== "product_not_found" && (
           <QuantityStepper
@@ -142,7 +144,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             size="xs"
             look="outline"
             className={cn(
-              "w-27 sm:col-start-3 sm:justify-self-end",
+              "w-27 self-center sm:col-start-3 sm:justify-self-center",
               updating && "opacity-70",
             )}
             onChange={(next) => cart.setQuantity(line.variantId, next)}
@@ -158,7 +160,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1 sm:justify-self-end"
+          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center self-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1 sm:justify-self-end"
         >
           <Trash2 aria-hidden="true" className="size-[18px]" />
         </button>

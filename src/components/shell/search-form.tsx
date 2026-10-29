@@ -273,8 +273,9 @@ const beatOf = (beat: number) => ({ "--i": beat }) as CSSProperties;
  * the white fill, never the leaf: keyboard users still see where they are.
  *
  * With the focus in the field the page behind dims and a white dropdown
- * unfolds under the field, a little wider than it on wide screens
- * (owner, 2026-10-28, evening, after a reference video): while the field
+ * unfolds under the field, flush with its two edges (owner, 2026-10-28,
+ * evening, after a reference video; 2026-10-29: no wider than the field,
+ * which had looked unbalanced): while the field
  * is empty, the products the admin marked as featured as small cards and
  * the first products of the catalogue in two columns (the same products
  * as "Popular right now" on the home page); from two characters on, the
@@ -835,7 +836,7 @@ export function SearchForm({
           // or the list would be gone before the click lands.
           onPointerDown={(event) => event.preventDefault()}
           style={{ height: entered ? height : 0 }}
-          className="border-line shadow-float absolute inset-x-0 top-full z-50 mt-2 -translate-y-1 overflow-hidden rounded-xl border bg-white text-left opacity-0 transition-[height,opacity,transform] duration-[260ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] data-[state=open]:translate-y-0 data-[state=open]:opacity-100 lg:-inset-x-6"
+          className="border-line shadow-float absolute inset-x-0 top-full z-50 mt-2 -translate-y-1 overflow-hidden rounded-xl border bg-white text-left opacity-0 transition-[height,opacity,transform] duration-[260ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] data-[state=open]:translate-y-0 data-[state=open]:opacity-100"
         >
           <div
             ref={measure}

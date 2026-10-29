@@ -27,8 +27,9 @@ const ANNOUNCED_FOR_MS = 1500;
  * shadow and no white ring (owner, 2026-10-19); it stands in the card's
  * bottom right corner, level with the price, whatever the length of the
  * name (owner, 2026-10-28, evening: off the picture, a basket instead of
- * the "+"). The stepper that unfolds in its place is the leaf pill, a
- * size smaller on phones, where the card is narrow.
+ * the "+"). The stepper that unfolds in its place is the leaf pill, 32 px
+ * high (36 from `sm`), filling the slot the card keeps for the two of
+ * them, so the price beside it stays where it was (owner, 2026-10-29).
  */
 export function AddToCart({
   variantId,
@@ -150,7 +151,7 @@ export function AddToCart({
         size={look === "card" ? "card" : size === "sm" ? "sm" : "md"}
         className={cn(
           look === "card"
-            ? "min-h-8 w-auto origin-right sm:min-h-9"
+            ? "h-8 w-full origin-right sm:h-9"
             : cn(height, "origin-left"),
           unfolds && "animate-stepper-in",
           className,

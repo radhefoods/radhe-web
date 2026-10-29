@@ -30,7 +30,13 @@ const badge =
  * regular price crossed out when reduced and the price per unit, and at
  * its end the round basket that adds the size, where the stepper unfolds
  * in its place (owner, 2026-10-28, evening: off the picture, into the
- * card's bottom right corner, level with the price on every card). Nothing
+ * card's bottom right corner, level with the price on every card), both
+ * in a slot of one size, so that the price keeps its width and its place
+ * whichever is shown (owner, 2026-10-29). A card narrower than 14 rem
+ * (phones, the home page's rows on small tablets) has no room for both
+ * side by side: there the price has a line of its own and the slot stands
+ * under it, at the right; the card decides by its own width (a container
+ * query), as it stands in grids and rows of every width. Nothing
  * else (owner, 2026-10-16): the other sizes are chosen on the product
  * page. The name keeps two lines whether it needs them or not, so the
  * prices and the baskets of a row line up (owner, 2026-10-18). A size
@@ -66,7 +72,7 @@ export function ProductCard({
   return (
     <article
       data-fly-scope=""
-      className="group border-line hover:border-line-strong hover:shadow-lift relative flex h-full flex-col rounded-lg border-[1.5px] bg-white p-2 transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5"
+      className="group border-line hover:border-line-strong hover:shadow-lift @container relative flex h-full flex-col rounded-lg border-[1.5px] bg-white p-2 transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5"
     >
       <div className="relative">
         <Link
@@ -139,21 +145,29 @@ export function ProductCard({
             </span>
           </Link>
         </Heading>
-        {/* The last row: the price, and in the corner the basket or the
-            stepper that unfolds to the left in its place. The price gives
-            way; on a narrow card its regular price and the price per unit
-            may wrap while the stepper is open. */}
-        <div className="mt-auto flex items-end justify-between gap-1.5 pt-1 sm:gap-2">
-          <Price pricing={product.pricing} className="min-w-0" />
+        {/* The last row: the price, and in the corner a slot of one size
+            for the basket and for the stepper that unfolds in its place:
+            as wide as the stepper, as high as the basket. The price has
+            the rest of the row in both states, so it neither moves nor
+            wraps differently when the stepper opens (owner, 2026-10-29:
+            the card must look the same before and after). On a card
+            narrower than 14 rem the slot moves under the price, at the
+            right: there nothing but the price fits beside it. */}
+        <div className="mt-auto flex flex-col gap-2 pt-1 @min-[14rem]:flex-row @min-[14rem]:items-end @min-[14rem]:justify-between @min-[14rem]:gap-1.5">
+          <Price
+            pricing={product.pricing}
+            className="min-w-0 @min-[14rem]:flex-1"
+          />
           {!unorderable && (
-            <AddToCart
-              variantId={product.variantId}
-              name={title}
-              ordering={product.ordering}
-              size="sm"
-              look="card"
-              className="shrink-0"
-            />
+            <div className="flex h-10 w-20 shrink-0 items-center justify-end self-end sm:w-21">
+              <AddToCart
+                variantId={product.variantId}
+                name={title}
+                ordering={product.ordering}
+                size="sm"
+                look="card"
+              />
+            </div>
           )}
         </div>
       </div>

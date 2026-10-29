@@ -24,9 +24,9 @@ export interface QuantityStepperProps {
   removeAtMin?: boolean;
   /**
    * `xs`: the slim one of a cart line. `card`: the one in the price row
-   * of a product card, a size smaller and with a narrower number on
-   * phones, where the card is narrow and the price stands beside it
-   * (owner, 2026-10-28).
+   * of a product card: 28 px buttons and a narrow number, 80 px wide on
+   * phones and 84 px from `sm`, the width of the slot the card keeps for
+   * it, so that the price beside it keeps its place (owner, 2026-10-29).
    */
   size?: "xs" | "sm" | "md" | "card";
   /**
@@ -42,7 +42,7 @@ const BUTTON_SIZE = {
   xs: "size-7",
   sm: "size-8",
   md: "size-9",
-  card: "size-7 sm:size-8",
+  card: "size-7",
 } as const;
 
 /** Minus, the number, plus. */
@@ -108,7 +108,7 @@ export function QuantityStepper({
           size === "xs"
             ? "min-w-7 text-[0.9375rem]"
             : size === "card"
-              ? "min-w-4 text-[0.9375rem] sm:min-w-7 sm:text-base"
+              ? "min-w-4 text-[0.9375rem] sm:min-w-5 sm:text-base"
               : "min-w-8",
         )}
       >
