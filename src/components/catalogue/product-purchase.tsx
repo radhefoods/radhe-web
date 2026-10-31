@@ -180,15 +180,24 @@ export function PackSizeHeadline({ className }: { className?: string }) {
   );
 }
 
-/** The red pill on the main picture, when the chosen size is reduced. */
-export function PackSizeDiscount({ className }: { className?: string }) {
+/**
+ * The red chip with the discount, when the chosen size is reduced: among
+ * the chips above the headline since 2026-10-31 (`as="li"`).
+ */
+export function PackSizeDiscount({
+  as: Tag = "span",
+  className,
+}: {
+  as?: "span" | "li";
+  className?: string;
+}) {
   const { variant } = useSelection();
   const locale = useLocale() as Locale;
   if (!variant.pricing.onSale) return null;
   return (
-    <span className={className}>
+    <Tag className={className}>
       {formatDiscount(variant.pricing.discountPercent, locale)}
-    </span>
+    </Tag>
   );
 }
 
@@ -218,14 +227,16 @@ export function PackSizeSku() {
 }
 
 /**
- * The sizes to choose from, as tiles that name the size and its price per
+ * The sizes to choose from, as one segmented bar (after the owner's layout
+ * reference of 2026-10-31): each segment names the size and its price per
  * kilogram, litre or piece (owner, 2026-10-23: the price per unit is what
  * compares the sizes; the price of the pack stands above, large, for the
  * chosen one), so the customer compares without switching (owner,
- * 2026-10-22); a size that cannot be ordered says so in the price's place. Each tile is a link to
- * the size's own address, so it can be opened in a new tab or found by a
- * crawler; a plain click switches the page in place instead. Nothing is
- * shown when the product comes in one size only.
+ * 2026-10-22); the chosen one is the white thumb of the bar, and a size
+ * that cannot be ordered says so in the price's place. Each segment is a
+ * link to the size's own address, so it can be opened in a new tab or
+ * found by a crawler; a plain click switches the page in place instead.
+ * Nothing is shown when the product comes in one size only.
  */
 export function PackSizePicker({ className }: { className?: string }) {
   const t = useTranslations("product");
@@ -242,12 +253,12 @@ export function PackSizePicker({ className }: { className?: string }) {
           {formatPackSize(variant.packSize)}
         </span>
       </p>
-      <ul className="flex flex-wrap gap-2">
+      <ul className="glass-soft flex flex-wrap gap-1 rounded-2xl p-1">
         {variants.map((size) => {
           const chosen = size.id === variant.id;
           const reason = orderingReason(orderingOf(size));
           return (
-            <li key={size.id}>
+            <li key={size.id} className="flex min-w-0 flex-1 basis-28">
               <Link
                 href={productHref(size.slug)}
                 prefetch={false}
@@ -267,13 +278,9 @@ export function PackSizePicker({ className }: { className?: string }) {
                   select(size, event.currentTarget.href);
                 }}
                 className={cn(
-                  "ease-glass flex min-h-14 min-w-22 flex-col justify-center gap-0.5 rounded-xl border-[1.5px] px-3.5 py-2 leading-tight transition-[background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.98]",
-                  chosen
-                    ? "border-leaf-600 bg-leaf-50/90 shadow-[0_0_0_3px_rgb(21_122_75/0.12)]"
-                    : "border-transparent bg-white/70 shadow-[0_0_0_1px_rgb(23_33_27/0.08)] hover:bg-white hover:shadow-[0_0_0_1px_rgb(23_33_27/0.16)]",
-                  reason &&
-                    !chosen &&
-                    "border-ink/15 border-dashed shadow-none",
+                  "ease-glass flex min-h-13 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-2 text-center leading-tight transition-[background-color,box-shadow,transform] duration-200 active:scale-[0.98]",
+                  chosen ? "shadow-card bg-white" : "hover:bg-white/60",
+                  reason && !chosen && "opacity-80",
                 )}
               >
                 <span
@@ -307,16 +314,30 @@ export function PackSizePicker({ className }: { className?: string }) {
   );
 }
 
+/** The heart of the wishlist for the chosen size (doc 16), in the corner of the picture since 2026-10-31. */
+export function PackSizeWishlist({ className }: { className?: string }) {
+  const { product, variant } = useSelection();
+  return (
+    <WishlistButton
+      productId={product.id}
+      variantId={variant.id}
+      name={productTitle(product.name, variant.packSize)}
+      look="box"
+      className={className}
+    />
+  );
+}
+
 /**
- * The buying part of the page: the add-to-cart control with the heart of
- * the wishlist beside it (which remembers the chosen size, doc 16); under
- * it, in one line, the stock of the chosen size ("In stock" behind a
- * green dot, or "Only N left" in wheat, from the fresh ordering the page
- * asks for) and the delivery estimate of the settings behind a truck
- * (owner, 2026-10-22); then the limits of the chosen size, and on phones
- * the add-to-cart control fixed above the tab bar. Nothing of the stock
- * or the delivery when the size cannot be ordered: the pill in the
- * button's place says so.
+ * The buying part of the page: the add-to-cart control, full width (the
+ * heart of the wishlist stands on the picture since 2026-10-31, after the
+ * owner's layout reference); under it, in one line, the stock of the
+ * chosen size ("In stock" behind a green dot, or "Only N left" in wheat,
+ * from the fresh ordering the page asks for) and the delivery estimate of
+ * the settings behind a truck (owner, 2026-10-22); then the limits of the
+ * chosen size, and on phones the add-to-cart control fixed above the tab
+ * bar. Nothing of the stock or the delivery when the size cannot be
+ * ordered: the pill in the button's place says so.
  */
 export function ProductPurchase({
   deliveryEstimate,
@@ -346,20 +367,7 @@ export function ProductPurchase({
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex items-center gap-3">
-        <AddToCart
-          variantId={variant.id}
-          name={name}
-          ordering={ordering}
-          className="min-w-0 flex-1 sm:max-w-sm"
-        />
-        <WishlistButton
-          productId={product.id}
-          variantId={variant.id}
-          name={name}
-          look="box"
-        />
-      </div>
+      <AddToCart variantId={variant.id} name={name} ordering={ordering} />
 
       {canOrder && (
         <ul className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">

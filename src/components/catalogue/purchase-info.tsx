@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
 import { PaymentMarks } from "./payment-marks";
 
-function Row({
+function Tile({
   icon,
   title,
   children,
@@ -18,7 +18,7 @@ function Row({
   children?: ReactNode;
 }) {
   return (
-    <li className="flex gap-3.5 py-4">
+    <li className="glass-soft flex flex-col gap-2.5 rounded-2xl p-4">
       <span
         aria-hidden="true"
         className="bg-leaf-50 text-leaf-700 grid size-9 shrink-0 place-items-center rounded-full"
@@ -35,16 +35,15 @@ function Row({
 
 /**
  * Delivery and payment at the point of decision (owner, 2026-10-19), set
- * since 2026-10-22 the way the leading grocers set their trust lines: two
- * flat rows between hairlines under the button, no panel, a small leaf
- * icon each. Where the shop delivers, what it costs and from which order
- * value it is free; that the customer pays securely at checkout, with the
- * four accepted methods as marks. (How long delivery takes stands under
- * the button with the stock, and the return policy on the full page, at
- * the owner's ask of 2026-10-22.) Every number comes from
- * `GET /v1/store/settings`; a missing one leaves its line out, and nothing
- * here is promised that the API does not say. The link leads to the full
- * page.
+ * since 2026-10-31 after the owner's layout reference as a row of small
+ * glass tiles under the button, a leaf icon on each: where the shop
+ * delivers, what it costs and from which order value it is free; that the
+ * customer pays securely at checkout, with the four accepted methods as
+ * marks; and the way to the full page as a slim row under the two. (How long
+ * delivery takes stands under the button with the stock, and the return
+ * policy on the full page, at the owner's ask of 2026-10-22.) Every
+ * number comes from `GET /v1/store/settings`; a missing one leaves its
+ * line out, and nothing here is promised that the API does not say.
  */
 export async function PurchaseInfo({
   settings,
@@ -70,15 +69,12 @@ export async function PurchaseInfo({
   const note = "text-ink-muted text-sm leading-snug";
 
   return (
-    <section
-      aria-labelledby="purchase-info"
-      className={cn("border-ink/8 border-t", className)}
-    >
+    <section aria-labelledby="purchase-info" className={className}>
       <h2 id="purchase-info" className="sr-only">
         {t("title")}
       </h2>
-      <ul className="divide-ink/8 divide-y">
-        <Row icon={<Truck className={icon} />} title={tHome("trustDelivery")}>
+      <ul className="grid gap-3 sm:grid-cols-2">
+        <Tile icon={<Truck className={icon} />} title={tHome("trustDelivery")}>
           {fee !== null && (
             <p className={note}>
               {fee === 0
@@ -92,21 +88,30 @@ export async function PurchaseInfo({
               )}
             </p>
           )}
-        </Row>
-        <Row icon={<ShieldCheck className={icon} />} title={tHome("trustPay")}>
+        </Tile>
+        <Tile icon={<ShieldCheck className={icon} />} title={tHome("trustPay")}>
           <p className={note}>{t("paymentText")}</p>
           <PaymentMarks label={t("paymentMethods")} className="mt-1.5" />
-        </Row>
+        </Tile>
+        <li className="flex sm:col-span-2">
+          <Link
+            href="/delivery-and-payment"
+            className={cn(
+              "glass-soft ease-glass hover:shadow-lift flex w-full items-center gap-3 rounded-2xl px-4 py-3 transition-[background-color,box-shadow,transform] duration-200 hover:bg-white/85 active:scale-[0.99]",
+            )}
+          >
+            <span className="text-leaf-700 min-w-0 flex-1 text-[0.9375rem] leading-snug font-semibold">
+              {t("more")}
+            </span>
+            <span
+              aria-hidden="true"
+              className="bg-leaf-50 text-leaf-700 grid size-9 shrink-0 place-items-center rounded-full"
+            >
+              <ArrowRight className={icon} />
+            </span>
+          </Link>
+        </li>
       </ul>
-      <p className="border-ink/8 border-t pt-3.5 text-sm">
-        <Link
-          href="/delivery-and-payment"
-          className="text-leaf-700 hover:text-leaf-800 inline-flex items-center gap-1 rounded-xs font-semibold"
-        >
-          {t("more")}
-          <ArrowRight aria-hidden="true" className="size-4" />
-        </Link>
-      </p>
     </section>
   );
 }

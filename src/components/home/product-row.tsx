@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -31,6 +31,11 @@ type Href = ComponentProps<typeof Link>["href"];
  * scrolling within a screen of the end asks for the next cards, and a
  * turn asked for at the end goes on as soon as they (or their placeholders)
  * arrive.
+ *
+ * The product page sets its rows larger (`heading="lg"`) and shows the
+ * link as a glass pill with an arrow (`linkLook="pill"`), after the
+ * owner's layout reference of 2026-10-31; the home page keeps the text
+ * link and the smaller heading.
  */
 export function ProductRow({
   id,
@@ -41,6 +46,8 @@ export function ProductRow({
   linkLabel,
   labels,
   more,
+  heading = "md",
+  linkLook = "text",
   children,
 }: {
   id: string;
@@ -54,6 +61,10 @@ export function ProductRow({
   labels: { back: string; forward: string };
   /** Whether cards beyond the children exist, and how to ask for them. */
   more?: { hasMore: boolean; load: () => void };
+  /** The size of the heading: the home page's, or the product page's. */
+  heading?: "md" | "lg";
+  /** The link to the full list: text, or a glass pill with an arrow. */
+  linkLook?: "text" | "pill";
   children: ReactNode;
 }) {
   const scroller = useRef<HTMLUListElement>(null);
@@ -131,7 +142,12 @@ export function ProductRow({
         <div className="min-w-0">
           <h2
             id={id}
-            className="font-display text-ink text-[1.625rem] sm:text-3xl"
+            className={cn(
+              "font-display text-ink",
+              heading === "lg"
+                ? "text-[1.875rem] sm:text-[2.25rem] lg:text-[2.5rem]"
+                : "text-[1.625rem] sm:text-3xl",
+            )}
           >
             {title}
           </h2>
@@ -143,9 +159,17 @@ export function ProductRow({
           <Link
             href={href}
             aria-label={linkLabel}
-            className="text-leaf-700 hover:bg-leaf-50/80 flex min-h-9 items-center rounded-full px-3 text-[0.9375rem] font-semibold whitespace-nowrap transition-colors duration-200"
+            className={cn(
+              "flex items-center rounded-full font-semibold whitespace-nowrap transition-[background-color,color,box-shadow] duration-200",
+              linkLook === "pill"
+                ? "glass-soft text-ink hover:shadow-lift min-h-11 gap-2 px-4 text-[0.9375rem] hover:bg-white/90"
+                : "text-leaf-700 hover:bg-leaf-50/80 min-h-9 px-3 text-[0.9375rem]",
+            )}
           >
             {link}
+            {linkLook === "pill" && (
+              <ArrowRight aria-hidden="true" className="size-4" />
+            )}
           </Link>
           <div
             className={cn(

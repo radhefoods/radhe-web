@@ -19,7 +19,8 @@ export function Price({
   className,
 }: {
   pricing: PriceView;
-  size?: "md" | "lg";
+  /** `xl`: the price of the product page, set like its headline. */
+  size?: "md" | "lg" | "xl";
   /** After the price per unit, on the same line: "Tax included.". */
   note?: ReactNode;
   className?: string;
@@ -35,7 +36,11 @@ export function Price({
         <span
           className={cn(
             "font-display leading-none",
-            size === "lg" ? "text-[2rem]" : "text-xl",
+            size === "xl"
+              ? "text-[2.5rem] sm:text-[2.75rem]"
+              : size === "lg"
+                ? "text-[2rem]"
+                : "text-xl",
             pricing.onSale && "text-red-600",
           )}
         >
@@ -47,7 +52,11 @@ export function Price({
             <s
               className={cn(
                 "text-ink-subtle font-medium",
-                size === "lg" ? "text-base" : "text-[0.8125rem]",
+                size === "xl"
+                  ? "text-lg"
+                  : size === "lg"
+                    ? "text-base"
+                    : "text-[0.8125rem]",
               )}
             >
               {formatMoney(pricing.regularPrice, locale)}
@@ -58,7 +67,7 @@ export function Price({
       <p
         className={cn(
           "text-ink-subtle tabular-nums",
-          size === "lg" ? "text-sm" : "text-xs",
+          size === "md" ? "text-xs" : "text-sm",
         )}
       >
         {formatBasePrice(pricing.basePrice, locale)}

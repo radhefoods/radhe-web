@@ -7,10 +7,12 @@ import { CategoryTiles } from "@/components/catalogue/category-tiles";
 import { ProductCard } from "@/components/catalogue/product-card";
 import { ProductGallery } from "@/components/catalogue/product-gallery";
 import {
+  PackSizeDiscount,
   PackSizeHeadline,
   PackSizePicker,
   PackSizePrice,
   PackSizeSku,
+  PackSizeWishlist,
   PackSizes,
   ProductPurchase,
 } from "@/components/catalogue/product-purchase";
@@ -23,6 +25,11 @@ import {
   getSettings,
   listProducts,
 } from "@/features/catalogue/data";
+import {
+  catalogueQuery,
+  featuredQuery,
+  popularProducts,
+} from "@/features/catalogue/home";
 import { Link, permanentRedirect } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
@@ -66,6 +73,10 @@ const hrefsOf = (slugs: LocalizedSlugs) => ({
 /** A card of a row: two and a sliver on phones, then three, four, five. */
 const cardSizes =
   "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
+
+/** A small glass chip above the headline: the category, the brand. */
+const chip =
+  "glass-soft inline-flex min-h-8 items-center rounded-full px-3 text-[0.8125rem] font-semibold";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await localeOf(params);
@@ -128,19 +139,47 @@ async function relatedProducts(
 }
 
 /**
+ * "Popular right now", as on the home page: the products the admin marked
+ * featured, or, while none is, the first of the catalogue; without the
+ * product of this page. Empty when the catalogue does not answer: the page
+ * stands without the row.
+ */
+async function popular(
+  product: ProductDetail,
+  locale: Locale,
+): Promise<ProductSummary[]> {
+  try {
+    const featured = (await listProducts(featuredQuery, locale)).items;
+    const catalogue =
+      featured.length > 0
+        ? []
+        : (await listProducts(catalogueQuery, locale)).items;
+    return popularProducts(featured, catalogue).filter(
+      (other) => other.id !== product.id,
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
  * The product page (redesigned 2026-10-19, set after the look of the
- * leading grocers on 2026-10-21 and again on 2026-10-22): the pictures on
- * the left, kept in view while the right column scrolls; on the right one
- * column without panels, read top to bottom: the brand, the name with the
- * chosen size and the subtitle; the price with the regular price, the
- * price per unit and "Tax included." (owner, 2026-10-28; the delivery fee
- * stands in the delivery row below); the pack sizes as tiles with their
- * prices; add to cart with the heart, the stock and the delivery estimate
- * under it; then, between hairlines, delivery and payment as two rows and
- * the two texts of the product as rows that fold open, closed at first
- * (the highlights are not shown any more, owner, 2026-10-28). Under all
- * that the products of the same category as a row and the categories of
- * the shop as tiles.
+ * leading grocers on 2026-10-21 and 22, and laid out after the owner's
+ * reference picture on 2026-10-31): the pictures on the left as a large
+ * white tile with the heart of the wishlist in its corner and the
+ * thumbnails under it, kept in view while the right column scrolls; on
+ * the right, read top to bottom, a row of chips (the category, the brand,
+ * the discount of the chosen size), the name with the chosen size, large,
+ * the subtitle; the price with the regular price, the price per unit and
+ * "Tax included." (owner, 2026-10-28); the pack sizes as one segmented
+ * bar; the add-to-cart button, full width, with the stock and the
+ * delivery estimate under it; then delivery and payment as three small
+ * tiles. Under both columns the two texts of the product as glass cards
+ * that fold open, closed at first (owner, 2026-10-22; the highlights are
+ * not shown any more, owner, 2026-10-28). Under all that the products of
+ * the same category as a row, the popular products as a second row and
+ * the categories of the shop as tiles, each row with a large heading and
+ * a pill that leads to the full list.
  */
 export default async function ProductPage({ params }: Props) {
   const locale = await localeOf(params);
@@ -153,17 +192,19 @@ export default async function ProductPage({ params }: Props) {
     permanentRedirect({ href: productHref(product.slug), locale });
   }
 
-  const [t, tNav, tCommon, tHome, related, settings, categories] =
+  const [t, tNav, tCommon, tHome, related, popularItems, settings, categories] =
     await Promise.all([
       getTranslations("product"),
       getTranslations("nav"),
       getTranslations("common"),
       getTranslations("home"),
       relatedProducts(product, locale),
+      popular(product, locale),
       getSettings(),
       getCategories(locale),
     ]);
   const brand = brandOf(product.brand);
+  const category = product.breadcrumbs.at(-1) ?? null;
   const shopCategories = categories.filter(
     (category) => category.productCount > 0,
   );
@@ -200,35 +241,61 @@ export default async function ProductPage({ params }: Props) {
       <PackSizes product={product}>
         <div
           data-fly-scope=""
-          className="mt-5 grid gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-[minmax(0,11fr)_minmax(0,10fr)] lg:gap-12"
+          className="mt-5 grid gap-8 md:grid-cols-2 md:gap-8 lg:grid-cols-[minmax(0,11fr)_minmax(0,10fr)] lg:gap-12"
         >
           <ProductGallery
             images={product.images}
             fallbackLabel={t("noPicture")}
+            corner={<PackSizeWishlist className="size-11 sm:size-12" />}
             className="md:sticky md:top-40 md:self-start"
           />
 
-          {/* The column of the decision, as the leading grocers set it:
-              the name, the price, the sizes, the button, then the trust
-              lines and the texts, every block parted from the next by one
-              hairline and nothing boxed (owner, 2026-10-21 and 22). */}
+          {/* The column of the decision: the chips, the name, the price,
+              the sizes, the button, then the trust tiles. */}
           <div className="flex flex-col">
-            <header className="flex flex-col gap-2">
-              {brand && (
-                <p className="text-leaf-700 text-xs font-bold tracking-[0.14em] uppercase">
-                  {brand}
-                </p>
-              )}
-              <PackSizeHeadline className="font-display text-ink text-[1.625rem] leading-[1.12] sm:text-[2rem]" />
+            <header className="flex flex-col gap-3">
+              <ul className="flex flex-wrap items-center gap-2">
+                {category && (
+                  <li>
+                    <Link
+                      href={{
+                        pathname: "/category/[slug]",
+                        params: { slug: category.slug },
+                      }}
+                      className={cn(
+                        chip,
+                        "text-ink hover:text-leaf-700 transition-colors duration-200 hover:bg-white/85",
+                      )}
+                    >
+                      {category.name}
+                    </Link>
+                  </li>
+                )}
+                {brand && (
+                  <li
+                    className={cn(
+                      chip,
+                      "text-leaf-700 text-xs tracking-[0.1em] uppercase",
+                    )}
+                  >
+                    {brand}
+                  </li>
+                )}
+                <PackSizeDiscount
+                  as="li"
+                  className="inline-flex min-h-8 items-center rounded-full bg-red-50 px-3 text-[0.8125rem] font-bold text-red-700 tabular-nums ring-1 ring-red-600/15"
+                />
+              </ul>
+              <PackSizeHeadline className="font-display text-ink text-[2.25rem] leading-[1.02] sm:text-[2.75rem] lg:text-[3.25rem]" />
               {(product.subtitle ?? product.shortDescription) && (
-                <p className="text-ink-muted">
+                <p className="text-ink-muted max-w-prose text-[1.0625rem] leading-relaxed">
                   {product.subtitle ?? product.shortDescription}
                 </p>
               )}
             </header>
 
             <PackSizePrice
-              className="mt-5"
+              className="mt-6"
               note={
                 <Link
                   href="/delivery-and-payment"
@@ -239,11 +306,11 @@ export default async function ProductPage({ params }: Props) {
               }
             />
 
-            <PackSizePicker className="mt-6" />
+            <PackSizePicker className="mt-7" />
 
             <ProductPurchase
               deliveryEstimate={settings?.delivery.estimate[locale] ?? null}
-              className="mt-6"
+              className="mt-7"
             />
 
             <PurchaseInfo
@@ -251,65 +318,62 @@ export default async function ProductPage({ params }: Props) {
               locale={locale}
               className="mt-7"
             />
-
-            {/* The texts of the product as flat rows that fold open, both
-                closed when the page opens (owner, 2026-10-22). */}
-            <div className="mt-5">
-              {hasAbout && (
-                <Disclosure
-                  id="product-about"
-                  title={t("description")}
-                  look="row"
-                >
-                  {product.description && (
-                    <p className="text-ink-muted max-w-prose whitespace-pre-line">
-                      {product.description}
-                    </p>
-                  )}
-                  {product.uses.length > 0 && (
-                    <div className={cn(product.description && "mt-4")}>
-                      <h3 className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase">
-                        {t("uses")}
-                      </h3>
-                      <ul className="mt-2 flex flex-wrap gap-2">
-                        {product.uses.map((use) => (
-                          <li
-                            key={use}
-                            className="glass-soft rounded-full px-3 py-1 text-sm font-semibold"
-                          >
-                            {use}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </Disclosure>
-              )}
-              <Disclosure id="product-details" title={t("details")} look="row">
-                <dl className="divide-ink/8 divide-y text-[0.9375rem]">
-                  {facts.map(
-                    ([label, value]) =>
-                      value && (
-                        <div
-                          key={label}
-                          className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[9rem_1fr] sm:gap-4"
-                        >
-                          <dt className="font-semibold">{label}</dt>
-                          <dd className="text-ink-muted whitespace-pre-line">
-                            {value}
-                          </dd>
-                        </div>
-                      ),
-                  )}
-                </dl>
-              </Disclosure>
-            </div>
           </div>
+        </div>
+
+        {/* The texts of the product as glass cards that fold open, both
+            closed when the page opens (owner, 2026-10-22), in a row under
+            the picture and the column. */}
+        <div className="mt-10 grid items-start gap-4 md:grid-cols-2 lg:mt-12">
+          {hasAbout && (
+            <Disclosure id="product-about" title={t("description")}>
+              {product.description && (
+                <p className="text-ink-muted max-w-prose whitespace-pre-line">
+                  {product.description}
+                </p>
+              )}
+              {product.uses.length > 0 && (
+                <div className={cn(product.description && "mt-4")}>
+                  <h3 className="text-ink-subtle text-xs font-bold tracking-[0.1em] uppercase">
+                    {t("uses")}
+                  </h3>
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {product.uses.map((use) => (
+                      <li
+                        key={use}
+                        className="glass-soft rounded-full px-3 py-1 text-sm font-semibold"
+                      >
+                        {use}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Disclosure>
+          )}
+          <Disclosure id="product-details" title={t("details")}>
+            <dl className="divide-ink/8 divide-y text-[0.9375rem]">
+              {facts.map(
+                ([label, value]) =>
+                  value && (
+                    <div
+                      key={label}
+                      className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[9rem_1fr] sm:gap-4"
+                    >
+                      <dt className="font-semibold">{label}</dt>
+                      <dd className="text-ink-muted whitespace-pre-line">
+                        {value}
+                      </dd>
+                    </div>
+                  ),
+              )}
+            </dl>
+          </Disclosure>
         </div>
       </PackSizes>
 
       {related && (
-        <div className="mt-12 lg:mt-16">
+        <div className="mt-14 lg:mt-20">
           <ProductRow
             id="product-related"
             title={t("related", { category: related.name })}
@@ -320,6 +384,8 @@ export default async function ProductPage({ params }: Props) {
             link={tCommon("viewAll")}
             linkLabel={t("relatedAll", { category: related.name })}
             labels={rowLabels}
+            heading="lg"
+            linkLook="pill"
           >
             {related.items.map((item) => (
               <ProductRowItem key={item.variantId}>
@@ -330,8 +396,29 @@ export default async function ProductPage({ params }: Props) {
         </div>
       )}
 
+      {popularItems.length > 0 && (
+        <div className="mt-14 lg:mt-20">
+          <ProductRow
+            id="product-popular"
+            title={tHome("featuredTitle")}
+            href="/products"
+            link={tCommon("viewAll")}
+            linkLabel={tHome("featuredAll")}
+            labels={rowLabels}
+            heading="lg"
+            linkLook="pill"
+          >
+            {popularItems.map((item) => (
+              <ProductRowItem key={item.variantId}>
+                <ProductCard product={item} imageSizes={cardSizes} />
+              </ProductRowItem>
+            ))}
+          </ProductRow>
+        </div>
+      )}
+
       {shopCategories.length > 0 && (
-        <div className="mt-12 lg:mt-16">
+        <div className="mt-14 lg:mt-20">
           <CategoryTiles
             id="product-categories"
             title={t("categoriesTitle")}
@@ -339,6 +426,8 @@ export default async function ProductPage({ params }: Props) {
             link={tNav("allProducts")}
             linkLabel={tHome("featuredAll")}
             labels={rowLabels}
+            heading="lg"
+            linkLook="pill"
           />
         </div>
       )}

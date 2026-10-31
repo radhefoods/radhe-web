@@ -27,6 +27,8 @@ export async function CategoryTiles({
   linkLabel,
   labels,
   standIns = {},
+  heading,
+  linkLook,
 }: {
   id: string;
   title: string;
@@ -37,6 +39,9 @@ export async function CategoryTiles({
   linkLabel: string;
   labels: { back: string; forward: string };
   standIns?: StandInPictures;
+  /** Passed on to the row: the product page sets both larger. */
+  heading?: ComponentProps<typeof ProductRow>["heading"];
+  linkLook?: ComponentProps<typeof ProductRow>["linkLook"];
 }) {
   const t = await getTranslations("product");
   // A card of a row: two and a sliver on phones, then three, four, five.
@@ -51,6 +56,8 @@ export async function CategoryTiles({
       link={link}
       linkLabel={linkLabel}
       labels={labels}
+      heading={heading}
+      linkLook={linkLook}
     >
       {categories.map((category) => (
         <ProductRowItem key={category.id}>
