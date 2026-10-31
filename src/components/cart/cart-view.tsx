@@ -74,7 +74,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
 
   return (
     <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:col-span-4 sm:grid-cols-subgrid sm:gap-x-4 sm:px-4 sm:py-3.5">
-      <div className="aspect-square self-center overflow-hidden rounded-md bg-white p-0.5">
+      <div className="ring-ink/5 aspect-square self-center overflow-hidden rounded-lg bg-white p-0.5 ring-1">
         <ProductImage
           image={product?.image ?? null}
           alt=""
@@ -168,14 +168,14 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-mist grid size-9 shrink-0 place-items-center self-center rounded-full transition-colors duration-150 sm:col-start-4 sm:-mr-1.5 sm:justify-self-end"
+          className="text-ink-muted hover:text-ink hover:bg-ink/6 grid size-9 shrink-0 place-items-center self-center rounded-full transition-[background-color,color,transform] duration-200 active:scale-90 sm:col-start-4 sm:-mr-1.5 sm:justify-self-end"
         >
           <Trash2 aria-hidden="true" className="size-[18px]" />
         </button>
       </div>
 
       {issue && (
-        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md bg-red-50 px-3.5 py-2.5 text-sm font-semibold text-red-800 sm:col-span-4">
+        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-red-50/90 px-3.5 py-2.5 text-sm font-semibold text-red-800 ring-1 ring-red-600/15 sm:col-span-4">
           <p className="min-w-0 flex-1">
             {t(`issue.${issue}`, { min, max: max ?? 0 })}
           </p>
@@ -212,7 +212,7 @@ function CartSkeleton() {
       <div className="space-y-3">
         {[0, 1].map((row) => (
           <div key={row} className="flex gap-4">
-            <Skeleton className="size-20 rounded-md" />
+            <Skeleton className="size-20 rounded-lg" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-2/3" />
               <Skeleton className="h-4 w-1/3" />
@@ -221,7 +221,7 @@ function CartSkeleton() {
           </div>
         ))}
       </div>
-      <Skeleton className="h-80 rounded-xl" />
+      <Skeleton className="h-80 rounded-2xl" />
     </div>
   );
 }
@@ -243,8 +243,10 @@ export function CartView() {
 
   if (cart.ready && cart.items.length === 0) {
     return (
-      <div className="bg-mist flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center">
-        <ShoppingBag aria-hidden="true" className="text-ink-subtle size-10" />
+      <div className="glass flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
+        <span className="bg-leaf-50 text-leaf-700 grid size-16 place-items-center rounded-full">
+          <ShoppingBag aria-hidden="true" className="size-7" />
+        </span>
         <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
         <p className="text-ink-muted max-w-md">{t("emptyText")}</p>
         <Link href="/products" className={buttonStyles()}>
@@ -286,7 +288,7 @@ export function CartView() {
             room for the margin that sets the stepper off by the bin's
             track, so that it stands in the middle of everything after
             the texts, the bin's corner included. */}
-        <ul className="border-line divide-line divide-y rounded-xl border bg-white sm:grid sm:grid-cols-[6rem_auto_minmax(7rem,1fr)_3.25rem] sm:gap-x-4 md:grid-cols-[6rem_auto_minmax(10rem,1fr)_3.25rem]">
+        <ul className="glass-strong divide-ink/8 divide-y rounded-2xl sm:grid sm:grid-cols-[6rem_auto_minmax(7rem,1fr)_3.25rem] sm:gap-x-4 md:grid-cols-[6rem_auto_minmax(10rem,1fr)_3.25rem]">
           {lines.map((line) => (
             <CartLine key={line.variantId} line={line} updating={updating} />
           ))}
@@ -295,7 +297,7 @@ export function CartView() {
 
       <aside
         aria-label={t("summary")}
-        className="border-line flex flex-col gap-4 rounded-xl border bg-white p-5 lg:sticky lg:top-28"
+        className="glass-strong flex flex-col gap-4 rounded-2xl p-5 lg:sticky lg:top-28"
       >
         <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
 
@@ -346,7 +348,7 @@ export function CartView() {
       </aside>
 
       {/* On phones the total and the way to the checkout stay in reach. */}
-      <div className="shadow-header fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-4 bg-white px-4 py-2.5 md:hidden">
+      <div className="glass-strong shadow-float fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-4 rounded-t-2xl px-4 py-2.5 md:hidden">
         <p className="flex min-w-0 flex-1 flex-col leading-tight">
           <span className="text-ink-muted text-sm">{t("total")}</span>
           <span

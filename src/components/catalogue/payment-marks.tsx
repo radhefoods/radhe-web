@@ -117,7 +117,7 @@ export function PaymentMarks({
       {MARKS.map(({ key, Mark }) => (
         <li
           key={key}
-          className="border-line flex h-8 w-12 items-center justify-center rounded-[7px] border bg-white px-1"
+          className="ring-ink/8 flex h-8 w-12 items-center justify-center rounded-lg bg-white px-1 shadow-[0_1px_2px_rgb(23_33_27/0.05)] ring-1"
         >
           <Mark />
         </li>

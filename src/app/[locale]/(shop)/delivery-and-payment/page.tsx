@@ -48,7 +48,7 @@ export default async function DeliveryPage({ params }: Props) {
   const estimate = settings?.delivery.estimate[locale] ?? null;
   const returnDays = settings?.returns.windowDays ?? 0;
   const title = "font-display text-xl text-ink";
-  const section = "border-line space-y-3 rounded-xl border bg-white p-5 sm:p-6";
+  const section = "glass-strong space-y-3 rounded-2xl p-5 sm:p-6";
 
   return (
     <article className="container-page max-w-3xl space-y-6 py-6 sm:py-10">
@@ -74,7 +74,7 @@ export default async function DeliveryPage({ params }: Props) {
         {tiers.length > 0 ? (
           <table className="w-full max-w-md text-left tabular-nums">
             <thead>
-              <tr className="border-line-strong border-b">
+              <tr className="border-ink/15 border-b">
                 <th scope="col" className="py-2 pr-4 font-bold">
                   {t("feeOrderValue")}
                 </th>
@@ -85,7 +85,7 @@ export default async function DeliveryPage({ params }: Props) {
             </thead>
             <tbody>
               {tiers.map((tier, index) => (
-                <tr key={tier.minOrderValue} className="border-line border-b">
+                <tr key={tier.minOrderValue} className="border-ink/8 border-b">
                   <td className="py-2.5 pr-4">
                     {feeStep(
                       tier.minOrderValue,

@@ -21,11 +21,14 @@ function slugsOf(category: Category): string[] {
   return [category.slug, ...category.children.flatMap(slugsOf)];
 }
 
+/* An item of the bar: a quiet pill that fills with frosted white under
+   the pointer and takes the leaf tint on the page of its category or
+   while its panel is open (2026-10-31). */
 const item =
-  "group-data-[open]:text-leaf-700 group-data-[open]:after:scale-x-100 relative flex h-12 items-center px-2.5 text-[0.9375rem] font-semibold whitespace-nowrap transition-colors duration-150 after:absolute after:inset-x-2.5 after:bottom-0 after:h-0.5 after:origin-left after:scale-x-0 after:rounded-full after:bg-leaf-600 after:transition-transform after:duration-200 hover:text-leaf-700 hover:after:scale-x-100 aria-[current=page]:text-leaf-700 aria-[current=page]:after:scale-x-100";
+  "group-data-[open]:bg-leaf-50/80 group-data-[open]:text-leaf-700 relative flex h-9 items-center rounded-full px-3.5 text-[0.9375rem] font-semibold whitespace-nowrap transition-[background-color,color] duration-200 ease-glass hover:bg-white/70 hover:text-leaf-700 aria-[current=page]:bg-leaf-50/80 aria-[current=page]:text-leaf-700";
 
 const subItem =
-  "flex items-center justify-between gap-6 rounded-md px-3 py-2.5 font-semibold transition-colors duration-150 hover:bg-mist hover:text-leaf-700 aria-[current=page]:text-leaf-700";
+  "flex items-center justify-between gap-6 rounded-lg px-3 py-2.5 font-semibold transition-colors duration-150 hover:bg-ink/5 hover:text-leaf-700 aria-[current=page]:bg-leaf-50/80 aria-[current=page]:text-leaf-700";
 
 /**
  * The category bar of wide screens (owner, 2026-10-16; centred since
@@ -94,7 +97,7 @@ export function CategoryNav({
 
   return (
     <nav ref={root} aria-label={t("categories")} className={className}>
-      <ul className="container-page flex flex-wrap items-center justify-center gap-x-1">
+      <ul className="container-page flex h-12 flex-wrap items-center justify-center gap-x-1">
         {/* The whole range first (owner, 2026-10-21), then the categories. */}
         <li className="group relative">
           <Link
@@ -151,7 +154,7 @@ export function CategoryNav({
                   href={categoryHref(category.slug)}
                   aria-current={active ? "page" : undefined}
                   onClick={close}
-                  className={cn(item, children.length > 0 && "pr-1")}
+                  className={cn(item, children.length > 0 && "pr-2")}
                 >
                   {category.name}
                 </Link>
@@ -162,7 +165,7 @@ export function CategoryNav({
                     aria-controls={panelId}
                     aria-label={t("subcategoriesOf", { name: category.name })}
                     onClick={() => setOpenId(open ? null : category.id)}
-                    className="text-ink-subtle hover:text-leaf-700 grid h-12 w-7 place-items-center rounded-sm transition-colors duration-150"
+                    className="text-ink-subtle hover:text-leaf-700 grid size-8 place-items-center rounded-full transition-colors duration-150 hover:bg-white/70"
                   >
                     <ChevronDown
                       aria-hidden="true"
@@ -181,9 +184,9 @@ export function CategoryNav({
                 <div
                   id={panelId}
                   hidden={!open}
-                  className="absolute top-full left-0 z-50 pt-1.5"
+                  className="absolute top-full left-0 z-50 pt-2"
                 >
-                  <ul className="border-line shadow-float animate-dropdown-in min-w-60 rounded-lg border-[1.5px] bg-white p-2 text-[0.9375rem]">
+                  <ul className="glass-strong shadow-float animate-dropdown-in min-w-60 rounded-2xl p-2 text-[0.9375rem]">
                     {children.map((child) => (
                       <li key={child.id}>
                         <Link
@@ -203,7 +206,7 @@ export function CategoryNav({
                           </span>
                         </Link>
                         {child.children.length > 0 && (
-                          <ul className="border-line mb-1 ml-3 border-l-2 pl-1.5 text-sm">
+                          <ul className="border-ink/8 mb-1 ml-3 border-l-2 pl-1.5 text-sm">
                             {child.children.map((grandchild) => (
                               <li key={grandchild.id}>
                                 <Link

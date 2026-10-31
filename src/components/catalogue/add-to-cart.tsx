@@ -71,10 +71,10 @@ export function AddToCart({
     return (
       <p
         className={cn(
-          "border-line text-ink-muted flex items-center justify-center gap-1.5 rounded-full border-[1.5px] px-4 py-2 text-center text-[0.8125rem] leading-tight font-semibold",
+          "text-ink-muted flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-center text-[0.8125rem] leading-tight font-semibold",
           look === "card"
-            ? "shadow-card min-h-10 bg-white px-3 text-xs"
-            : cn("bg-mist", height),
+            ? "glass-soft min-h-10 px-3 text-xs"
+            : cn("glass-soft", height),
           className,
         )}
       >
@@ -110,7 +110,7 @@ export function AddToCart({
           aria-label={t("addNamed", { name })}
           onClick={add}
           className={cn(
-            "from-leaf-500 to-leaf-600 hover:from-leaf-600 hover:to-leaf-700 grid size-10 shrink-0 place-items-center rounded-full bg-linear-to-b text-white shadow-[0_4px_12px_-3px_rgb(21_122_75_/_0.55)] transition-[background-image,box-shadow,transform] duration-150 hover:scale-105 hover:shadow-[0_8px_18px_-4px_rgb(21_122_75_/_0.6)] active:scale-95",
+            "leaf-gradient shadow-leaf hover:shadow-leaf-lg ease-glass grid size-10 shrink-0 place-items-center rounded-full text-white transition-[filter,box-shadow,transform] duration-200 hover:scale-105 hover:brightness-[1.06] active:scale-95",
             className,
           )}
         >

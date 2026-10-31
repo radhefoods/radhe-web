@@ -1,25 +1,21 @@
-import { DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 
-// Both families are downloaded when the shop is built and served from the
+// The family is downloaded when the shop is built and served from the
 // shop's own address: no request goes to Google when a customer visits.
 //
-// Both are variable fonts, so every weight the system uses comes from one
-// file per family. `subsets` names what is loaded ahead of the page: "latin"
-// covers English and German (umlauts, sharp s, the euro sign); the extended
-// Latin files remain in the style sheet and are fetched only when a page
-// shows such a letter, for example in a customer's name.
+// One family for everything, as Apple sets its interfaces (redesign of
+// 2026-10-31): Inter, a variable font, so every weight the system uses
+// comes from one file. Its optical-size axis keeps small text open and
+// lets headlines be set tight (`font-display`). `subsets` names what is
+// loaded ahead of the page: "latin" covers English and German (umlauts,
+// sharp s, the euro sign); the extended Latin files remain in the style
+// sheet and are fetched only when a page shows such a letter, for example
+// in a customer's name.
 
-/** Headlines, prices and the big numbers: heavy, tight. */
-export const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-plus-jakarta-sans",
-});
-
-/** Everything that is read or tapped. The optical size axis keeps small text open. */
-export const dmSans = DM_Sans({
+/** Everything: body text, controls, headlines and prices. */
+export const inter = Inter({
   subsets: ["latin"],
   axes: ["opsz"],
   display: "swap",
-  variable: "--font-dm-sans",
+  variable: "--font-inter",
 });

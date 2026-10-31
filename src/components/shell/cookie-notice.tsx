@@ -44,7 +44,7 @@ export function CookieNotice() {
   return (
     <aside
       aria-label={t("label")}
-      className="cookie-notice border-line shadow-float fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-50 flex flex-col gap-3 rounded-xl border bg-white p-4 text-[0.9375rem] sm:inset-x-auto sm:right-auto sm:bottom-5 sm:left-5 sm:max-w-sm"
+      className="cookie-notice glass-strong shadow-float fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 flex flex-col gap-3 rounded-2xl p-4 text-[0.9375rem] sm:inset-x-auto sm:right-auto sm:bottom-5 sm:left-5 sm:max-w-sm"
     >
       <p>{t("text")}</p>
       <div className="flex items-center gap-4">

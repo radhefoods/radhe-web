@@ -67,7 +67,7 @@ export function QuantityStepper({
     "m-0.5",
     BUTTON_SIZE[size],
     outline
-      ? "text-ink-muted hover:bg-mist hover:text-ink disabled:text-ink-subtle/50"
+      ? "text-ink-muted hover:bg-white/80 hover:text-ink disabled:text-ink-subtle/50"
       : "text-white hover:bg-white/20 disabled:text-white/45",
   );
   const icon =
@@ -83,8 +83,8 @@ export function QuantityStepper({
       className={cn(
         "inline-flex w-full items-center justify-between rounded-full font-bold",
         outline
-          ? "border-line-strong text-ink border-[1.5px] bg-white"
-          : "bg-leaf-600 text-white",
+          ? "glass-soft text-ink"
+          : "leaf-gradient shadow-leaf text-white",
         className,
       )}
     >

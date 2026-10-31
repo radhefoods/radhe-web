@@ -67,7 +67,7 @@ export function BillTotals({
             : formatMoney(totals.deliveryFee, locale)}
         </dd>
       </div>
-      <div className={cn(row, "border-line mt-1 border-t pt-3.5")}>
+      <div className={cn(row, "border-ink/8 mt-1 border-t pt-3.5")}>
         <dt className="flex flex-col">
           <span className="text-lg font-bold">{t("total")}</span>
           <span className="text-ink-muted text-sm">{t("totalNote")}</span>
@@ -108,8 +108,10 @@ export function FreeDeliveryProgress({
   return (
     <div
       className={cn(
-        "rounded-lg p-4",
-        reached ? "bg-leaf-50" : "bg-wheat-100",
+        "rounded-xl p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.7)] ring-1",
+        reached
+          ? "bg-leaf-50/90 ring-leaf-600/12"
+          : "bg-wheat-100/90 ring-wheat-800/12",
         className,
       )}
     >
@@ -137,11 +139,11 @@ export function FreeDeliveryProgress({
         </span>
       </p>
       <div
-        className="ring-ink/10 mt-3 h-3 overflow-hidden rounded-full bg-white ring-1 ring-inset"
+        className="ring-ink/8 mt-3 h-3 overflow-hidden rounded-full bg-white ring-1 ring-inset"
         aria-hidden="true"
       >
         <div
-          className="bg-leaf-600 h-full rounded-full transition-[width] duration-300"
+          className="leaf-gradient ease-glass h-full rounded-full shadow-[0_0_8px_rgb(21_122_75/0.35)] transition-[width] duration-500"
           style={{ width: `${percent}%` }}
         />
       </div>

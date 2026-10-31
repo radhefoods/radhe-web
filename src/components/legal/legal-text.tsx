@@ -52,7 +52,7 @@ export function LegalText({
                 {String(text)}
               </mark>
             ) : (
-              <code className="bg-mist rounded-xs px-1 text-[0.875em]">
+              <code className="bg-ink/6 rounded-xs px-1 text-[0.875em]">
                 {text}
               </code>
             ),

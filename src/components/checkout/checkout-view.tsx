@@ -105,7 +105,7 @@ function OrderLines({ bill }: { bill: Bill }) {
           onScroll={(event) => {
             if (event.currentTarget.scrollTop > 4) setScrolled(true);
           }}
-          className="divide-line -mr-3 max-h-[21rem] scrollbar-thin divide-y overflow-y-auto scroll-smooth pr-3"
+          className="divide-ink/8 -mr-3 max-h-[21rem] scrollbar-thin divide-y overflow-y-auto scroll-smooth pr-3"
         >
           {bill.lines.map((line) => {
             // A reduced size shows what is paid per pack and the regular price.
@@ -119,7 +119,7 @@ function OrderLines({ bill }: { bill: Bill }) {
                 className="flex items-center gap-3.5 py-3 first:pt-0 last:pb-0"
               >
                 <span className="relative shrink-0">
-                  <span className="border-line block size-14 overflow-hidden rounded-lg border bg-white p-1">
+                  <span className="ring-ink/6 block size-14 overflow-hidden rounded-lg bg-white p-1 ring-1">
                     <ProductImage
                       image={line.product?.image ?? null}
                       alt=""
@@ -129,7 +129,7 @@ function OrderLines({ bill }: { bill: Bill }) {
                   </span>
                   <span
                     aria-hidden="true"
-                    className="bg-wheat-400 text-ink ring-mist absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2"
+                    className="bg-wheat-400 text-ink absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[0.6875rem] leading-none font-bold tabular-nums ring-2 ring-white"
                   >
                     {line.quantity}
                   </span>
@@ -181,7 +181,7 @@ function OrderLines({ bill }: { bill: Bill }) {
         <div
           aria-hidden="true"
           className={cn(
-            "from-mist pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t to-transparent transition-opacity duration-200",
+            "pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-t from-white/90 to-transparent transition-opacity duration-200",
             hint ? "opacity-100" : "opacity-0",
           )}
         />
@@ -299,7 +299,7 @@ export function CheckoutView({
 
   if (bill.lines.length === 0) {
     return (
-      <div className="bg-mist flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center">
+      <div className="glass flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
         <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
         <p className="text-ink-muted">{t("emptyText")}</p>
         <Link href="/products" className={buttonStyles()}>
@@ -432,7 +432,7 @@ export function CheckoutView({
     <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_28rem]">
       {/* The steps as open sections between hairlines, no boxes and no
           numbers (owner, 2026-10-21 and 2026-10-22). */}
-      <div className="divide-line flex flex-col divide-y">
+      <div className="divide-ink/8 flex flex-col divide-y">
         <section aria-labelledby="checkout-address" className="pb-10">
           <h2 id="checkout-address" className={sectionTitle}>
             {t("addressTitle")}
@@ -449,10 +449,10 @@ export function CheckoutView({
                     <li key={address.id} className="relative">
                       <label
                         className={cn(
-                          "flex h-full cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 pr-20 transition-colors duration-150",
+                          "ease-glass flex h-full cursor-pointer gap-3 rounded-xl border-[1.5px] p-4 pr-20 transition-[background-color,border-color,box-shadow] duration-200",
                           checked
-                            ? "border-leaf-600 bg-leaf-50"
-                            : "border-line-strong hover:border-ink-subtle bg-white",
+                            ? "border-leaf-600 bg-leaf-50/90 shadow-[0_0_0_3px_rgb(21_122_75/0.12)]"
+                            : "border-transparent bg-white/70 shadow-[0_0_0_1px_rgb(23_33_27/0.08)] hover:bg-white hover:shadow-[0_0_0_1px_rgb(23_33_27/0.16)]",
                         )}
                       >
                         <input
@@ -569,7 +569,7 @@ export function CheckoutView({
           legal word). */}
       <aside
         aria-labelledby="checkout-summary"
-        className="bg-mist flex flex-col rounded-2xl p-5 sm:p-6 lg:sticky lg:top-24"
+        className="glass-strong flex flex-col rounded-3xl p-5 sm:p-6 lg:sticky lg:top-24"
       >
         <div className="flex items-baseline justify-between gap-4">
           <h2 id="checkout-summary" className={sectionTitle}>
@@ -583,7 +583,7 @@ export function CheckoutView({
         <OrderLines bill={bill} />
 
         {deliveryEstimate && (
-          <p className="border-line mt-4 flex items-center gap-2.5 border-t pt-4 text-sm">
+          <p className="border-ink/8 mt-4 flex items-center gap-2.5 border-t pt-4 text-sm">
             <Truck
               aria-hidden="true"
               className="text-leaf-700 size-5 shrink-0"
@@ -603,12 +603,12 @@ export function CheckoutView({
             setDiscountRemoved(null);
             client.setQueryData(cartQueryKey(locale), next);
           }}
-          className="border-line mt-4 border-t pt-4"
+          className="border-ink/8 mt-4 border-t pt-4"
         />
 
         <div
           className={cn(
-            "border-line mt-4 border-t pt-4",
+            "border-ink/8 mt-4 border-t pt-4",
             billQuery.isFetching && "opacity-50",
           )}
           aria-busy={billQuery.isFetching}
@@ -738,7 +738,7 @@ function CheckoutSkeleton() {
         <Skeleton className="h-32 rounded-md" />
         <Skeleton className="h-24 rounded-md" />
       </div>
-      <Skeleton className="h-96 rounded-xl" />
+      <Skeleton className="h-96 rounded-3xl" />
     </div>
   );
 }

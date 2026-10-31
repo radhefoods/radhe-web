@@ -37,7 +37,7 @@ import { formatPackSize } from "@/lib/format/product-name";
 type Href = ComponentProps<typeof Link>["href"];
 
 const badge =
-  "grid size-5 place-items-center rounded-full bg-leaf-600 text-[0.6875rem] leading-none text-white tabular-nums";
+  "grid size-5 place-items-center rounded-full leaf-gradient text-[0.6875rem] leading-none text-white tabular-nums";
 
 /** The state after one control changed; `null` for a control that is not a filter. */
 function changed(
@@ -346,7 +346,7 @@ export function ListingControls({
                   <button
                     type="button"
                     onClick={() => go(section.cleared)}
-                    className="text-leaf-700 border-line mt-1 flex min-h-10 w-full items-center rounded-sm border-t px-2.5 text-sm font-semibold hover:underline"
+                    className="text-leaf-700 border-ink/8 mt-1 flex min-h-10 w-full items-center rounded-sm border-t px-2.5 text-sm font-semibold hover:underline"
                   >
                     {t("clear")}
                   </button>
@@ -419,7 +419,7 @@ export function ListingControls({
                     replace
                     scroll={false}
                     aria-label={t("remove", { name: label })}
-                    className="bg-wheat-100 text-wheat-800 hover:bg-wheat-200 inline-flex min-h-9 items-center gap-1.5 rounded-full py-1 pr-2.5 pl-3.5 text-[0.8125rem] font-bold transition-colors duration-150"
+                    className="bg-wheat-100 text-wheat-800 hover:bg-wheat-200 inline-flex min-h-9 items-center gap-1.5 rounded-full py-1 pr-2.5 pl-3.5 text-[0.8125rem] font-bold shadow-[inset_0_1px_0_rgb(255_255_255/0.6)] transition-colors duration-150"
                   >
                     {label}
                     <X aria-hidden="true" className="size-3.5" />
@@ -448,7 +448,7 @@ export function ListingControls({
           returnFocusTo={opener === "sort" ? sortButton : filtersButton}
           footer={sheetFooter}
         >
-          <div className="divide-line -mt-3 divide-y">
+          <div className="divide-ink/8 -mt-3 divide-y">
             <Accordion title={t("sortBy")} note={sortLabel}>
               <FacetOptions
                 name="sort"
@@ -515,10 +515,10 @@ function Toggle({
       className={cn(
         pill,
         pillIdle,
-        dead && "text-ink-subtle hover:bg-mist cursor-not-allowed",
+        dead && "text-ink-subtle cursor-not-allowed hover:bg-transparent",
         tone === "sale"
-          ? "has-checked:border-red-600 has-checked:bg-red-50 has-checked:text-red-600"
-          : "has-checked:border-leaf-600 has-checked:bg-leaf-50 has-checked:text-leaf-700",
+          ? "has-checked:border-red-600/60 has-checked:bg-red-50/90 has-checked:text-red-600"
+          : "has-checked:border-leaf-600/60 has-checked:bg-leaf-50/90 has-checked:text-leaf-700",
         "has-focus-visible:outline-leaf-600 has-focus-visible:outline-3 has-focus-visible:outline-offset-2",
       )}
     >

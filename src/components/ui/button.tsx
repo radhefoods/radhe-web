@@ -6,17 +6,27 @@ export type ButtonVariant =
   "primary" | "secondary" | "quiet" | "wheat" | "ghost" | "pay" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
+/*
+ * Liquid-glass controls (2026-10-31): the primary is leaf, lit from above
+ * and with a soft green glow that deepens on hover; the secondary is a
+ * frosted white pill with the leaf word on it; quiet is text alone; wheat
+ * and ghost stand on the dark band; pay is the deeper leaf; danger is a
+ * white pill with a red word.
+ */
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-leaf-600 text-white hover:bg-leaf-700",
+  primary:
+    "leaf-gradient text-white shadow-leaf hover:shadow-leaf-lg hover:brightness-[1.04]",
   secondary:
-    "border-line-strong bg-white text-leaf-700 hover:border-leaf-600 hover:bg-leaf-50",
-  quiet: "px-3 text-leaf-700 hover:bg-leaf-50",
+    "glass text-leaf-700 hover:bg-white/85 hover:text-leaf-800 hover:shadow-lift",
+  quiet: "px-3 text-leaf-700 hover:bg-leaf-50/80",
   // The one action on a dark band: the highlight, with dark text.
-  wheat: "bg-wheat-400 text-ink hover:bg-wheat-500",
-  ghost: "border-white/50 text-white hover:border-white/80 hover:bg-white/10",
+  wheat:
+    "bg-wheat-400 text-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.5)] hover:bg-wheat-500",
+  ghost:
+    "border-white/40 bg-white/10 text-white backdrop-blur-md hover:border-white/70 hover:bg-white/20",
   // Paying is good news: the deeper leaf, not the leaf of ordering.
-  pay: "bg-leaf-700 text-white hover:bg-leaf-800",
-  danger: "border-red-600 bg-white text-red-600 hover:bg-red-50",
+  pay: "leaf-gradient-deep text-white shadow-leaf hover:shadow-leaf-lg hover:brightness-[1.04]",
+  danger: "glass text-red-600 hover:bg-red-50/90",
 };
 
 /* Pills need a little more room at the sides than a box did. */
@@ -42,9 +52,9 @@ export function buttonStyles({
   className,
 }: ButtonStyleOptions = {}): string {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] border-transparent text-center leading-tight font-bold transition-colors duration-150 select-none active:translate-y-px",
-    "disabled:cursor-not-allowed disabled:border-line disabled:bg-cloud disabled:text-ink-subtle disabled:active:translate-y-0",
-    "aria-disabled:cursor-not-allowed aria-disabled:border-line aria-disabled:bg-cloud aria-disabled:text-ink-subtle",
+    "inline-flex items-center justify-center gap-2 rounded-full border-[1.5px] border-transparent text-center leading-tight font-semibold transition-[background-color,border-color,color,box-shadow,transform,filter] duration-200 ease-[var(--ease-glass)] select-none active:scale-[0.98]",
+    "disabled:cursor-not-allowed disabled:border-transparent disabled:bg-cloud disabled:bg-none disabled:text-ink-subtle disabled:shadow-none disabled:brightness-100 disabled:active:scale-100",
+    "aria-disabled:cursor-not-allowed aria-disabled:border-transparent aria-disabled:bg-cloud aria-disabled:bg-none aria-disabled:text-ink-subtle aria-disabled:shadow-none",
     SIZES[size],
     VARIANTS[variant],
     block && "w-full",

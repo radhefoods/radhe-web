@@ -36,16 +36,16 @@ export function InvoiceList() {
         />
       ) : query.isPending ? (
         <div className="space-y-3" aria-hidden="true">
-          <Skeleton className="h-16 rounded-lg" />
-          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-16 rounded-2xl" />
         </div>
       ) : documents.length === 0 ? (
-        <p className="bg-mist text-ink-muted rounded-xl px-6 py-10 text-center">
+        <p className="glass text-ink-muted rounded-3xl px-6 py-10 text-center">
           {t("empty")}
         </p>
       ) : (
         <>
-          <ul className="border-line rounded-xl border bg-white px-5">
+          <ul className="glass-strong rounded-2xl px-5">
             {documents.map((document) => (
               <DocumentRow key={document.id} document={document} showOrder />
             ))}

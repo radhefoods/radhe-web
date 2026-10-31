@@ -61,11 +61,11 @@ export default async function HowItWorksPage({ params }: Props) {
         {steps.map((step, index) => (
           <li
             key={step.title}
-            className="bg-mist flex flex-col gap-3 rounded-lg p-6"
+            className="glass flex flex-col gap-3 rounded-2xl p-6"
           >
             <span
               aria-hidden="true"
-              className="font-display text-ink bg-wheat-400 grid size-10 place-items-center rounded-full text-lg"
+              className="font-display text-ink bg-wheat-400 grid size-10 place-items-center rounded-full text-lg shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]"
             >
               {index + 1}
             </span>
@@ -79,7 +79,7 @@ export default async function HowItWorksPage({ params }: Props) {
         <h2 id="how-faq" className="font-display text-ink text-2xl sm:text-3xl">
           {t("faqTitle")}
         </h2>
-        <dl className="divide-line border-line divide-y rounded-xl border bg-white px-5 sm:px-6">
+        <dl className="glass-strong divide-ink/8 divide-y rounded-3xl px-5 sm:px-6">
           {faq.map(({ question, answer }) => (
             <div key={question} className="py-5">
               <dt className="font-display text-lg">{question}</dt>

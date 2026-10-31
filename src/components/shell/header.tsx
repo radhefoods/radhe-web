@@ -14,16 +14,16 @@ import { SearchForm } from "./search-form";
 import { WishlistLink } from "./wishlist-link";
 
 /**
- * The top of every shop page, in three tiers like the stores people know:
- * the wheat strip with the promises of the shop, centred (wide screens
- * only); the white bar with the logo, the pill search that fills the bar
- * up to the language switch (owner, 2026-10-19), and at its right end the
- * language switch, the wishlist heart with its count, the
- * account and the cart (owner, 2026-10-19: in this order); and the centred
- * category bar with its dropdowns. On phones the search moves under the
- * logo, the categories sit behind the menu button, and the tab bar at the
- * bottom does the everyday navigation; the header then scrolls away with
- * the page.
+ * The top of every shop page, in three tiers like the stores people know,
+ * set as one sheet of frosted glass over the page (2026-10-31): the slim
+ * strip with the promises of the shop, centred (wide screens only); the
+ * bar with the logo, the pill search that fills the bar up to the language
+ * switch (owner, 2026-10-19), and at its right end the language switch,
+ * the wishlist heart with its count, the account and the cart (owner,
+ * 2026-10-19: in this order); and the centred category bar with its
+ * dropdowns. On phones the search moves under the logo, the categories
+ * sit behind the menu button, and the tab bar at the bottom does the
+ * everyday navigation; the header then scrolls away with the page.
  */
 export async function Header({
   locale,
@@ -41,16 +41,16 @@ export async function Header({
     getTranslations("site"),
   ]);
   const promise = "flex items-center gap-2 whitespace-nowrap";
-  const promiseIcon = "size-4 shrink-0";
+  const promiseIcon = "text-leaf-700 size-4 shrink-0";
 
   return (
     <>
       {/* A named region: every part of the page belongs to a landmark. */}
       <section
         aria-label={tSite("name")}
-        className="text-ink bg-wheat-400 hidden lg:block"
+        className="text-ink-muted border-ink/6 hidden border-b bg-white/40 lg:block"
       >
-        <ul className="container-page flex h-10 items-center justify-center gap-10 text-[0.8125rem] font-semibold">
+        <ul className="container-page flex h-9 items-center justify-center gap-10 text-[0.8125rem] font-semibold">
           <li className={promise}>
             <ShieldCheck aria-hidden="true" className={promiseIcon} />
             {tHome("trustPay")}
@@ -68,7 +68,7 @@ export async function Header({
         </ul>
       </section>
 
-      <header className="shadow-header z-40 bg-white md:sticky md:top-0">
+      <header className="shadow-header z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/65 md:sticky md:top-0">
         <div className="container-page flex flex-wrap items-center gap-x-2 gap-y-3 py-3 lg:h-20 lg:flex-nowrap lg:gap-x-8 lg:py-0">
           <Link
             href="/"
@@ -97,7 +97,7 @@ export async function Header({
         {categories.length > 0 && (
           <CategoryNav
             categories={categories}
-            className="border-line hidden border-t lg:block"
+            className="border-ink/6 hidden border-t lg:block"
           />
         )}
       </header>

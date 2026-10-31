@@ -73,7 +73,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
   const back = (
     <Link
       href={orderHref}
-      className="text-ink-muted hover:text-ink -ml-1 flex min-h-11 items-center gap-1 self-start rounded-sm text-[0.9375rem] font-semibold"
+      className="text-ink-muted hover:text-ink -ml-2 flex min-h-10 items-center gap-1 self-start rounded-full py-1 pr-3 pl-1.5 text-[0.9375rem] font-semibold transition-colors duration-200 hover:bg-white/60"
     >
       <ChevronLeft aria-hidden="true" className="size-5" />
       {t("back")}
@@ -93,7 +93,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
     return (
       <div className="space-y-4" aria-hidden="true">
         <Skeleton className="h-10 w-72" />
-        <Skeleton className="h-48 rounded-xl" />
+        <Skeleton className="h-48 rounded-2xl" />
       </div>
     );
   }
@@ -183,8 +183,10 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                 <li
                   key={item.variantId}
                   className={cn(
-                    "flex flex-col gap-3 rounded-lg border p-4",
-                    active ? "border-leaf-600 bg-leaf-50" : "border-line",
+                    "ease-glass flex flex-col gap-3 rounded-2xl border-[1.5px] p-4 transition-[background-color,border-color,box-shadow] duration-200",
+                    active
+                      ? "border-leaf-600 bg-leaf-50/90 shadow-[0_0_0_3px_rgb(21_122_75/0.12)]"
+                      : "glass-strong border-transparent",
                   )}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">

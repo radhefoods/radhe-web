@@ -17,7 +17,7 @@ function WishlistSkeleton() {
       aria-hidden="true"
     >
       {[0, 1, 2, 3].map((card) => (
-        <Skeleton key={card} className="aspect-[4/5] rounded-lg" />
+        <Skeleton key={card} className="aspect-[4/5] rounded-xl" />
       ))}
     </div>
   );
@@ -49,8 +49,10 @@ export function WishlistView() {
 
   if (items.length === 0) {
     return (
-      <div className="bg-mist flex flex-col items-center gap-4 rounded-xl px-6 py-16 text-center">
-        <Heart aria-hidden="true" className="text-ink-subtle size-10" />
+      <div className="glass flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
+        <span className="grid size-16 place-items-center rounded-full bg-red-50 text-red-600">
+          <Heart aria-hidden="true" className="size-7" />
+        </span>
         <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
         <p className="text-ink-muted max-w-md">{t("emptyText")}</p>
         <Link href="/products" className={buttonStyles()}>
@@ -97,7 +99,7 @@ export function WishlistView() {
       </div>
 
       {mode === "guest" && (
-        <p className="bg-mist rounded-md px-4 py-3 text-[0.9375rem]">
+        <p className="glass rounded-xl px-4 py-3 text-[0.9375rem]">
           {t("guestHint")}{" "}
           <Link
             href={{ pathname: "/sign-in", query: { returnTo: "/wishlist" } }}

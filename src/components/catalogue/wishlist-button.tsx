@@ -64,10 +64,10 @@ export function WishlistButton({
         }
         onClick={toggle}
         className={cn(
-          "text-ink grid shrink-0 place-items-center rounded-full bg-white transition-[color,box-shadow,border-color,transform] duration-150 hover:text-red-600 active:scale-90",
+          "text-ink ease-glass grid shrink-0 place-items-center rounded-full transition-[color,box-shadow,background-color,transform] duration-200 hover:text-red-600 active:scale-90",
           look === "tile"
-            ? "shadow-card hover:shadow-lift size-9"
-            : "border-line-strong size-12 border-[1.5px] hover:border-red-600 sm:size-13",
+            ? "glass-soft hover:shadow-lift size-9 hover:bg-white"
+            : "glass size-12 hover:bg-white/90 sm:size-13",
           saved && "text-red-600",
           className,
         )}

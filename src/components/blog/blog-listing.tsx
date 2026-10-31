@@ -29,8 +29,9 @@ const TAG_ROW = 12;
 
 const chip =
   "flex min-h-10 items-center gap-1.5 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-150";
-const quietChip = "bg-mist hover:bg-cloud";
-const activeChip = "bg-ink text-white";
+const quietChip = "glass-soft hover:bg-white/90";
+const activeChip =
+  "bg-ink text-white shadow-[0_6px_16px_-8px_rgb(23_33_27/0.5)]";
 
 /**
  * The body of a page of the blog (doc 19): the search field (on the blog's
@@ -84,7 +85,7 @@ export async function BlogListing({
           </label>
           <Search
             aria-hidden="true"
-            className="text-ink-subtle pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2"
+            className="text-ink-subtle pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2"
           />
           <input
             id={searchId}
@@ -97,12 +98,12 @@ export async function BlogListing({
             enterKeyHint="search"
             autoComplete="off"
             placeholder={t("searchPlaceholder")}
-            className="placeholder:text-ink-subtle bg-mist hover:bg-cloud focus-visible:outline-line-strong h-11 w-full rounded-sm border-0 pr-12 pl-10.5 text-[0.9375rem] transition-colors duration-150 focus-visible:bg-white focus-visible:outline-[1.5px] focus-visible:outline-offset-0"
+            className="placeholder:text-ink-subtle ease-glass focus-visible:outline-leaf-600/40 h-11 w-full rounded-full border-0 bg-white/60 pr-12 pl-11 text-[0.9375rem] shadow-[inset_0_1px_0_rgb(255_255_255/0.8),0_0_0_1px_rgb(23_33_27/0.07),0_4px_14px_-8px_rgb(23_33_27/0.12)] transition-[background-color,box-shadow] duration-200 hover:bg-white/80 focus-visible:bg-white focus-visible:shadow-[inset_0_1px_0_rgb(255_255_255/0.8),0_0_0_1px_rgb(23_33_27/0.1),0_8px_24px_-12px_rgb(23_33_27/0.2)] focus-visible:outline-[3px] focus-visible:outline-offset-0"
           />
           <button
             type="submit"
             aria-label={t("search")}
-            className="bg-leaf-600 hover:bg-leaf-700 absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full text-white transition-[background-color,transform] duration-150 active:scale-95"
+            className="leaf-gradient shadow-leaf absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full text-white transition-[filter,transform] duration-150 hover:brightness-[1.06] active:scale-95"
           >
             <Search aria-hidden="true" className="size-4" strokeWidth={2.5} />
           </button>
@@ -166,10 +167,10 @@ export async function BlogListing({
                     href={{ pathname: "/blog/tag/[tag]", params: { tag } }}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "border-line flex min-h-9 items-center rounded-full border-[1.5px] px-3 text-sm font-semibold transition-colors duration-150",
+                      "flex min-h-9 items-center rounded-full border-[1.5px] px-3 text-sm font-semibold transition-colors duration-200",
                       active
                         ? "border-ink bg-ink text-white"
-                        : "hover:border-line-strong text-ink-muted hover:text-ink",
+                        : "border-ink/10 text-ink-muted hover:border-ink/25 hover:text-ink hover:bg-white/60",
                     )}
                   >
                     #{tag}
@@ -182,7 +183,7 @@ export async function BlogListing({
       )}
 
       {page.items.length === 0 ? (
-        <div className="bg-mist flex flex-col items-center gap-3 rounded-xl px-6 py-14 text-center">
+        <div className="glass flex flex-col items-center gap-3 rounded-3xl px-6 py-14 text-center">
           <SearchX aria-hidden="true" className="text-ink-subtle size-10" />
           <h2 className="font-display text-ink text-2xl">
             {state.q ? tCatalogue("emptyTitle") : t("emptyTitle")}

@@ -59,8 +59,8 @@ export function MobileMenuPanel({
               <li key={category.id}>
                 <div
                   className={cn(
-                    "bg-mist flex min-h-13 items-stretch rounded-md transition-colors duration-150",
-                    isOpen && "bg-cloud",
+                    "ring-ink/6 ease-glass flex min-h-13 items-stretch rounded-xl bg-white/55 ring-1 transition-[background-color,box-shadow] duration-200",
+                    isOpen && "shadow-card bg-white/90",
                   )}
                 >
                   <Link
@@ -79,7 +79,7 @@ export function MobileMenuPanel({
                         name: category.name,
                       })}
                       onClick={() => setExpanded(isOpen ? null : category.id)}
-                      className="text-ink-subtle hover:text-leaf-700 grid w-13 shrink-0 place-items-center rounded-r-md transition-colors duration-150"
+                      className="text-ink-subtle hover:text-leaf-700 grid w-13 shrink-0 place-items-center rounded-r-xl transition-colors duration-150"
                     >
                       <ChevronDown
                         aria-hidden="true"
@@ -111,7 +111,7 @@ export function MobileMenuPanel({
                     <div className="min-h-0 overflow-hidden">
                       <ul
                         inert={!isOpen}
-                        className="border-line my-1 ml-4 flex flex-col border-l-2 pl-3"
+                        className="border-ink/8 my-1 ml-4 flex flex-col border-l-2 pl-3"
                       >
                         {children.map((sub) => (
                           <li key={sub.id}>
@@ -126,7 +126,7 @@ export function MobileMenuPanel({
                               </span>
                             </Link>
                             {sub.children.length > 0 && (
-                              <ul className="border-line mb-1 ml-2 flex flex-col border-l-2 pl-2 text-sm">
+                              <ul className="border-ink/8 mb-1 ml-2 flex flex-col border-l-2 pl-2 text-sm">
                                 {sub.children.map((grandchild) => (
                                   <li key={grandchild.id}>
                                     <Link

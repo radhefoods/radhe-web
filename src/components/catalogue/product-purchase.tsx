@@ -267,11 +267,13 @@ export function PackSizePicker({ className }: { className?: string }) {
                   select(size, event.currentTarget.href);
                 }}
                 className={cn(
-                  "flex min-h-14 min-w-22 flex-col justify-center gap-0.5 rounded-xl border-[1.5px] px-3.5 py-2 leading-tight transition-colors duration-150",
+                  "ease-glass flex min-h-14 min-w-22 flex-col justify-center gap-0.5 rounded-xl border-[1.5px] px-3.5 py-2 leading-tight transition-[background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.98]",
                   chosen
-                    ? "border-leaf-600 bg-leaf-50"
-                    : "border-line-strong hover:border-ink-subtle bg-white",
-                  reason && !chosen && "border-dashed",
+                    ? "border-leaf-600 bg-leaf-50/90 shadow-[0_0_0_3px_rgb(21_122_75/0.12)]"
+                    : "border-transparent bg-white/70 shadow-[0_0_0_1px_rgb(23_33_27/0.08)] hover:bg-white hover:shadow-[0_0_0_1px_rgb(23_33_27/0.16)]",
+                  reason &&
+                    !chosen &&
+                    "border-ink/15 border-dashed shadow-none",
                 )}
               >
                 <span
@@ -406,7 +408,7 @@ export function ProductPurchase({
       )}
 
       {/* On phones the same control stays in reach above the tab bar. */}
-      <div className="shadow-header fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-3 bg-white px-4 py-2.5 md:hidden">
+      <div className="glass-strong shadow-float fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-3 rounded-t-2xl px-4 py-2.5 md:hidden">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{name}</p>
           <p className="font-display text-lg tabular-nums">

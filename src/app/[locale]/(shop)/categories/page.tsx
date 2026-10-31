@@ -78,7 +78,7 @@ export default async function CategoriesPage({ params }: Props) {
       </header>
 
       {categories.length === 0 ? (
-        <p className="bg-mist text-ink-muted rounded-lg px-5 py-8 text-center">
+        <p className="glass text-ink-muted rounded-3xl px-5 py-8 text-center">
           {t("categoriesEmpty")}
         </p>
       ) : (
@@ -109,7 +109,7 @@ export default async function CategoriesPage({ params }: Props) {
                             pathname: "/category/[slug]",
                             params: { slug: child.slug },
                           }}
-                          className="bg-mist text-ink-muted hover:bg-cloud hover:text-leaf-700 inline-block rounded-full px-2.5 py-1 text-[0.8125rem] font-semibold transition-colors duration-150"
+                          className="glass-soft text-ink-muted hover:text-leaf-700 inline-block rounded-full px-2.5 py-1 text-[0.8125rem] font-semibold transition-colors duration-200 hover:bg-white/90"
                         >
                           {child.name}
                         </Link>

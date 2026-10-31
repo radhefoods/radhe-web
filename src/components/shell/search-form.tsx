@@ -488,9 +488,9 @@ export function SearchForm({
     onMouseEnter: () => setActive(index),
     style: beatOf(beat),
     className: cn(
-      "reveal-stagger rounded-lg transition-colors duration-150",
+      "reveal-stagger rounded-xl transition-colors duration-150",
       className,
-      active === index ? "bg-leaf-50" : "hover:bg-mist",
+      active === index ? "bg-leaf-50/90" : "hover:bg-ink/5",
     ),
   });
 
@@ -502,7 +502,7 @@ export function SearchForm({
         href={productHref(product)}
         {...option(index, beat, "flex items-center gap-3 px-2 py-1.5")}
       >
-        <span className="border-line block size-11 shrink-0 overflow-hidden rounded-md border bg-white p-0.5">
+        <span className="ring-ink/6 block size-11 shrink-0 overflow-hidden rounded-lg bg-white p-0.5 ring-1">
           <ProductImage
             image={product.image}
             alt=""
@@ -545,9 +545,13 @@ export function SearchForm({
     <Link
       key={product.variantId}
       href={productHref(product)}
-      {...option(index, beat, "bg-mist/60 flex flex-col gap-2 p-2")}
+      {...option(
+        index,
+        beat,
+        "ring-ink/5 flex flex-col gap-2 bg-white/60 p-2 ring-1",
+      )}
     >
-      <span className="block aspect-square overflow-hidden rounded-md bg-white p-2">
+      <span className="block aspect-square overflow-hidden rounded-lg bg-white p-2">
         <ProductImage
           image={product.image}
           alt=""
@@ -724,7 +728,7 @@ export function SearchForm({
             {...option(
               index,
               beat,
-              "border-line text-leaf-700 flex min-h-11 items-center justify-center gap-1.5 rounded-t-none border-t px-3 text-sm font-bold lg:col-span-2",
+              "border-ink/8 text-leaf-700 flex min-h-11 items-center justify-center gap-1.5 rounded-t-none border-t px-3 text-sm font-bold lg:col-span-2",
             )}
           >
             {t("searchAll", { q: words })}
@@ -775,7 +779,7 @@ export function SearchForm({
       </label>
       <Search
         aria-hidden="true"
-        className="text-ink-subtle pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2"
+        className="text-ink-subtle pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2"
       />
       <input
         id={id}
@@ -803,12 +807,12 @@ export function SearchForm({
         aria-activedescendant={
           present && active >= 0 ? optionId(id, active) : undefined
         }
-        className="placeholder:text-ink-subtle bg-mist hover:bg-cloud focus-visible:outline-line-strong h-10 w-full rounded-sm border-0 pr-12 pl-10.5 text-[0.9375rem] transition-colors duration-150 focus-visible:bg-white focus-visible:outline-[1.5px] focus-visible:outline-offset-0 lg:h-11"
+        className="placeholder:text-ink-subtle ease-glass focus-visible:outline-leaf-600/40 h-10 w-full rounded-full border-0 bg-white/60 pr-12 pl-11 text-[0.9375rem] shadow-[inset_0_1px_0_rgb(255_255_255/0.8),0_0_0_1px_rgb(23_33_27/0.07),0_4px_14px_-8px_rgb(23_33_27/0.12)] transition-[background-color,box-shadow] duration-200 hover:bg-white/80 focus-visible:bg-white focus-visible:shadow-[inset_0_1px_0_rgb(255_255_255/0.8),0_0_0_1px_rgb(23_33_27/0.1),0_8px_24px_-12px_rgb(23_33_27/0.2)] focus-visible:outline-[3px] focus-visible:outline-offset-0 lg:h-11"
       />
       <button
         type="submit"
         aria-label={t("search")}
-        className="bg-leaf-600 hover:bg-leaf-700 absolute top-1/2 right-1.5 grid size-7 -translate-y-1/2 place-items-center rounded-full text-white transition-[background-color,transform] duration-150 active:scale-95 lg:size-8"
+        className="leaf-gradient shadow-leaf absolute top-1/2 right-1.5 grid size-7 -translate-y-1/2 place-items-center rounded-full text-white transition-[filter,transform,box-shadow] duration-150 hover:brightness-[1.06] active:scale-95 lg:size-8"
       >
         <Search aria-hidden="true" className="size-4" strokeWidth={2.5} />
       </button>
@@ -821,7 +825,7 @@ export function SearchForm({
             aria-hidden="true"
             data-state={entered ? "open" : "closed"}
             onPointerDown={close}
-            className="bg-ink/40 fixed inset-0 z-30 opacity-0 transition-opacity duration-200 ease-out data-[state=open]:opacity-100"
+            className="bg-ink/30 fixed inset-0 z-30 opacity-0 backdrop-blur-[2px] transition-opacity duration-200 ease-out data-[state=open]:opacity-100"
           />,
           document.body,
         )}
@@ -836,7 +840,7 @@ export function SearchForm({
           // or the list would be gone before the click lands.
           onPointerDown={(event) => event.preventDefault()}
           style={{ height: entered ? height : 0 }}
-          className="border-line shadow-float absolute inset-x-0 top-full z-50 mt-2 -translate-y-1 overflow-hidden rounded-xl border bg-white text-left opacity-0 transition-[height,opacity,transform] duration-[260ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] data-[state=open]:translate-y-0 data-[state=open]:opacity-100"
+          className="shadow-float ease-glass absolute inset-x-0 top-full z-50 mt-2.5 -translate-y-1 scale-[0.985] overflow-hidden rounded-3xl bg-white/95 text-left opacity-0 backdrop-blur-2xl backdrop-saturate-150 transition-[height,opacity,transform] duration-[260ms] data-[state=open]:translate-y-0 data-[state=open]:scale-100 data-[state=open]:opacity-100"
         >
           <div
             ref={measure}

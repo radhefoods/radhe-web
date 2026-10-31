@@ -53,7 +53,7 @@ export function MobileMenu({ categories }: { categories: Category[] }) {
         onTouchStart={warmUp}
         onFocus={warmUp}
         onClick={openMenu}
-        className="bg-mist hover:bg-cloud grid size-12 place-items-center rounded-full transition-colors duration-150 lg:hidden"
+        className="glass-soft text-ink ease-glass grid size-11 place-items-center rounded-full transition-[background-color,transform] duration-200 hover:bg-white/85 active:scale-95 lg:hidden"
       >
         <Menu aria-hidden="true" className="size-6" />
       </button>

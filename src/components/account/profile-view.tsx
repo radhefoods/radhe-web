@@ -18,7 +18,7 @@ import { SignOutButton } from "./sign-out";
 
 const PHONE = /^\+[1-9]\d{6,14}$/;
 const sectionTitle = "font-display text-xl text-ink";
-const panel = "border-line flex flex-col gap-4 rounded-xl border bg-white p-5";
+const panel = "glass-strong flex flex-col gap-4 rounded-2xl p-5";
 
 /** Name, phone and the language of emails (`PATCH /v1/store/me`). */
 function DetailsForm({ customer }: { customer: Customer }) {
@@ -229,7 +229,7 @@ function CommunicationForm({ customer }: { customer: Customer }) {
       </p>
 
       {whatsappEnabled && (
-        <div className="border-line flex flex-col gap-4 border-t pt-4">
+        <div className="border-ink/8 flex flex-col gap-4 border-t pt-4">
           <h3 className="text-lg font-bold">{t("whatsappTitle")}</h3>
           <form
             className="flex flex-wrap items-end gap-3"

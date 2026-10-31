@@ -104,7 +104,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               <li key={child.id}>
                 <Link
                   href={categoryHref(child.slug)}
-                  className="bg-mist hover:bg-cloud flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-150"
+                  className="glass-soft ease-glass hover:text-leaf-700 flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-[background-color,color,transform] duration-200 hover:bg-white/90 active:scale-[0.98]"
                 >
                   {child.name}
                   <span className="text-ink-subtle text-xs tabular-nums">

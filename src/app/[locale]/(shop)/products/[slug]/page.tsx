@@ -205,7 +205,7 @@ export default async function ProductPage({ params }: Props) {
           <ProductGallery
             images={product.images}
             fallbackLabel={t("noPicture")}
-            className="md:sticky md:top-36 md:self-start"
+            className="md:sticky md:top-40 md:self-start"
           />
 
           {/* The column of the decision, as the leading grocers set it:
@@ -275,7 +275,7 @@ export default async function ProductPage({ params }: Props) {
                         {product.uses.map((use) => (
                           <li
                             key={use}
-                            className="bg-mist rounded-full px-3 py-1 text-sm font-semibold"
+                            className="glass-soft rounded-full px-3 py-1 text-sm font-semibold"
                           >
                             {use}
                           </li>
@@ -286,7 +286,7 @@ export default async function ProductPage({ params }: Props) {
                 </Disclosure>
               )}
               <Disclosure id="product-details" title={t("details")} look="row">
-                <dl className="divide-line divide-y text-[0.9375rem]">
+                <dl className="divide-ink/8 divide-y text-[0.9375rem]">
                   {facts.map(
                     ([label, value]) =>
                       value && (

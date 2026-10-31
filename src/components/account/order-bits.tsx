@@ -90,7 +90,7 @@ export function OrderCard({
   const t = useTranslations("orders");
   const locale = useLocale() as Locale;
   return (
-    <article className="border-line hover:border-line-strong hover:shadow-lift relative flex flex-col gap-3 rounded-lg border-[1.5px] bg-white p-4 transition-[box-shadow,border-color] duration-200 sm:p-5">
+    <article className="glass-strong hover:shadow-lift ease-glass relative flex flex-col gap-3 rounded-2xl p-4 transition-[box-shadow,transform,background-color] duration-300 hover:-translate-y-0.5 hover:bg-white/90 sm:p-5">
       <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
           <Heading className="text-lg font-bold">
@@ -129,7 +129,7 @@ export function OrderCard({
                     width={44}
                     height={44}
                     loading="lazy"
-                    className="bg-mist size-11 rounded-sm border-2 border-white object-cover"
+                    className="bg-mist size-11 rounded-lg border-2 border-white object-cover shadow-[0_1px_3px_rgb(23_33_27/0.1)]"
                   />
                 ),
             )}
@@ -181,7 +181,7 @@ export function DocumentRow({
   const credit = entry.type === "credit_note";
 
   return (
-    <li className="border-line flex flex-col gap-2 border-b py-3.5 last:border-b-0">
+    <li className="border-ink/8 flex flex-col gap-2 border-b py-3.5 last:border-b-0">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <p className="font-bold">

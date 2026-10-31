@@ -82,7 +82,7 @@ export function DiscountCode({
     const applied = discount.applied;
     return (
       <div className={cn("flex flex-col gap-2", className)}>
-        <div className="border-line flex items-center gap-3 rounded-lg border bg-white px-3 py-2.5">
+        <div className="ring-ink/6 flex items-center gap-3 rounded-xl bg-white/80 px-3 py-2.5 ring-1">
           <TicketPercent
             aria-hidden="true"
             className={cn(
@@ -149,7 +149,7 @@ export function DiscountCode({
           aria-describedby={reason ? errorId : undefined}
           // Shown in capitals like the code is stored; sent as typed. The
           // text stays 16 px on phones, where a smaller one makes iOS zoom.
-          className="border-line-strong text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 disabled:bg-cloud disabled:text-ink-subtle min-h-10 min-w-0 flex-1 rounded-md border-[1.5px] bg-white px-3 text-base uppercase focus-visible:outline-offset-1 aria-invalid:border-red-600 aria-invalid:bg-red-50 sm:text-sm"
+          className="border-line-strong text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 disabled:bg-cloud disabled:text-ink-subtle min-h-10 min-w-0 flex-1 rounded-full border-[1.5px] bg-white/90 px-3.5 text-base uppercase transition-[border-color,box-shadow] duration-200 focus-visible:outline-offset-1 aria-invalid:border-red-600 aria-invalid:bg-red-50 sm:text-sm"
         />
         <Button
           type="submit"

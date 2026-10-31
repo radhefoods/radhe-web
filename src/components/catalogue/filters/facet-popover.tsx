@@ -4,11 +4,13 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-/** A filter as a pill: mist at rest, a leaf tint while it narrows the list. */
+/** A filter as a pill: frosted white at rest, a leaf tint while it narrows the list. */
 export const pill =
-  "flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-2 px-4 text-sm font-bold whitespace-nowrap select-none transition-colors duration-150 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600";
-export const pillIdle = "border-transparent bg-mist hover:bg-cloud";
-export const pillActive = "border-leaf-600 bg-leaf-50 text-leaf-700";
+  "flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-4 text-sm font-semibold whitespace-nowrap select-none transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-glass active:scale-[0.98] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-leaf-600";
+export const pillIdle =
+  "glass-soft border-transparent text-ink hover:bg-white/90";
+export const pillActive =
+  "border-leaf-600/60 bg-leaf-50/90 text-leaf-700 shadow-[inset_0_1px_0_rgb(255_255_255/0.7)]";
 
 /**
  * A pill that opens a panel under it. A native `details`, so it works
@@ -86,7 +88,7 @@ export function FacetPopover({
       </summary>
       <div
         className={cn(
-          "border-line shadow-float absolute top-full z-30 mt-2 max-w-[calc(100vw-2rem)] rounded-lg border bg-white p-2",
+          "glass-strong shadow-float animate-dropdown-in absolute top-full z-30 mt-2 max-w-[calc(100vw-2rem)] rounded-2xl p-2",
           width,
           align === "right" ? "right-0" : "left-0",
         )}

@@ -122,7 +122,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           shop and the ticket with delivery and payment at a glance stands
           in, so the page never opens empty. */}
       {banners.length > 0 ? (
-        <div>
+        <div className="sm:container-page sm:pt-4 lg:pt-6">
           <h1 className="sr-only">{t("metaTitle")}</h1>
           <HeroCarousel
             banners={banners}
@@ -141,7 +141,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           />
         </div>
       ) : (
-        <section aria-labelledby="home-title" className="hero-band text-white">
+        <section
+          aria-labelledby="home-title"
+          className="hero-band text-white sm:mx-6 sm:mt-4 sm:rounded-3xl sm:shadow-[0_24px_60px_-28px_rgb(11_74_49/0.6)] lg:mx-auto lg:mt-6 lg:max-w-[80rem]"
+        >
           <div className="container-page grid items-center gap-10 py-10 sm:py-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-14 lg:py-16">
             <div>
               <Eyebrow>{t("eyebrow")}</Eyebrow>
@@ -180,7 +183,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </section>
       )}
 
-      <div className="container-page flex flex-col gap-10 py-6 lg:gap-12 lg:py-8">
+      <div className="container-page flex flex-col gap-12 py-8 lg:gap-14 lg:py-10">
         {/* The categories of the shop right under the hero (owner,
             2026-10-24): the cards of the categories in a row, "See all"
             leading to the page of all categories. A category the admin has

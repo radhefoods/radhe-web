@@ -48,7 +48,7 @@ import {
 } from "./order-payment";
 
 const sectionTitle = "font-display text-xl text-ink";
-const panel = "border-line rounded-xl border bg-white p-5";
+const panel = "glass-strong rounded-2xl p-5";
 
 // --- Progress ----------------------------------------------------------------
 
@@ -110,7 +110,7 @@ function Timeline({
                 aria-hidden="true"
                 className={cn(
                   "absolute top-7 bottom-0 left-[0.8125rem] w-0.5",
-                  step.state === "done" ? "bg-leaf-600" : "bg-line-strong",
+                  step.state === "done" ? "bg-leaf-600" : "bg-ink/10",
                 )}
               />
             )}
@@ -118,11 +118,11 @@ function Timeline({
               aria-hidden="true"
               className={cn(
                 "z-10 grid size-7 place-items-center rounded-full",
-                step.state === "done" && "bg-leaf-600 text-white",
+                step.state === "done" && "leaf-gradient text-white",
                 // The current step is the one with the halo.
                 step.state === "current" &&
-                  "bg-leaf-600 ring-leaf-600/25 ring-4",
-                step.state === "todo" && "border-line-strong border-2 bg-white",
+                  "leaf-gradient ring-leaf-600/20 shadow-leaf ring-4",
+                step.state === "todo" && "border-ink/15 border-2 bg-white",
                 step.state === "problem" && "bg-red-600 text-white",
               )}
             >
@@ -280,7 +280,7 @@ function ReturnCard({
   const [error, setError] = useState<unknown>(null);
 
   return (
-    <li className="border-line flex flex-col gap-2 border-b py-4 first:pt-0 last:border-b-0 last:pb-0">
+    <li className="border-ink/8 flex flex-col gap-2 border-b py-4 first:pt-0 last:border-b-0 last:pb-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-bold">
           {t("number", { returnNumber: request.returnNumber })}
@@ -317,7 +317,7 @@ function ReturnCard({
         ))}
       </ul>
       {request.answer && (
-        <p className="bg-mist rounded-md px-3.5 py-2.5 text-[0.9375rem]">
+        <p className="ring-ink/6 rounded-xl bg-white/70 px-3.5 py-2.5 text-[0.9375rem] ring-1">
           <span className="font-bold">{t("answer")}:</span> {request.answer}
         </p>
       )}
@@ -402,8 +402,8 @@ export function OrderDetailView({
     return (
       <div className="space-y-4" aria-hidden="true">
         <Skeleton className="h-10 w-72" />
-        <Skeleton className="h-48 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
@@ -467,7 +467,7 @@ function OrderBody({
       <header className="flex flex-col gap-3">
         <Link
           href="/account/orders"
-          className="hover:text-ink text-ink-muted -ml-1 flex min-h-11 items-center gap-1 self-start rounded-sm text-[0.9375rem] font-semibold"
+          className="hover:text-ink text-ink-muted -ml-2 flex min-h-10 items-center gap-1 self-start rounded-full py-1 pr-3 pl-1.5 text-[0.9375rem] font-semibold transition-colors duration-200 hover:bg-white/60"
         >
           <ChevronLeft aria-hidden="true" className="size-5" />
           {t("back")}
@@ -529,7 +529,7 @@ function OrderBody({
         <h2 id="order-items" className={cn(sectionTitle, "mb-2")}>
           {t("itemsTitle")}
         </h2>
-        <ul className="divide-line divide-y">
+        <ul className="divide-ink/8 divide-y">
           {order.items.map((item) => (
             <li key={item.variantId} className="flex gap-4 py-3.5">
               {item.imageUrl && (
@@ -540,7 +540,7 @@ function OrderBody({
                   width={64}
                   height={64}
                   loading="lazy"
-                  className="border-line size-16 shrink-0 rounded-md border bg-white object-contain p-1"
+                  className="ring-ink/6 size-16 shrink-0 rounded-lg bg-white object-contain p-1 ring-1"
                 />
               )}
               <div className="min-w-0 flex-1">
@@ -585,7 +585,7 @@ function OrderBody({
           ))}
         </ul>
         {order.adjustments.length > 0 && (
-          <div className="bg-mist mt-2 rounded-md px-3.5 py-3 text-sm">
+          <div className="ring-ink/6 mt-2 rounded-xl bg-white/70 px-3.5 py-3 text-sm ring-1">
             <p className="font-bold">{t("adjustmentsTitle")}</p>
             <ul>
               {order.adjustments.map((adjustment, index) => (
@@ -619,7 +619,7 @@ function OrderBody({
             discountCode={order.discount?.code ?? null}
           />
           {changed && (
-            <p className="text-ink-muted border-line mt-3 flex justify-between gap-4 border-t pt-3 text-sm tabular-nums">
+            <p className="text-ink-muted border-ink/8 mt-3 flex justify-between gap-4 border-t pt-3 text-sm tabular-nums">
               <span>{t("billAgreed")}</span>
               <span>{formatMoney(order.totals.total, locale)}</span>
             </p>

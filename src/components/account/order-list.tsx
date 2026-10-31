@@ -27,8 +27,10 @@ export function useOrders() {
 export function NoOrders() {
   const t = useTranslations("account");
   return (
-    <div className="bg-mist flex flex-col items-center gap-3 rounded-xl px-6 py-14 text-center">
-      <PackageOpen aria-hidden="true" className="text-ink-subtle size-10" />
+    <div className="glass flex flex-col items-center gap-3 rounded-3xl px-6 py-14 text-center">
+      <span className="bg-leaf-50 text-leaf-700 grid size-16 place-items-center rounded-full">
+        <PackageOpen aria-hidden="true" className="size-7" />
+      </span>
       <h2 className="font-display text-ink text-xl">{t("noOrdersTitle")}</h2>
       <p className="text-ink-muted max-w-md">{t("noOrdersText")}</p>
       <Link href="/products" className={buttonStyles()}>
@@ -57,8 +59,8 @@ export function OrderList() {
         />
       ) : query.isPending ? (
         <div className="space-y-3" aria-hidden="true">
-          <Skeleton className="h-32 rounded-lg" />
-          <Skeleton className="h-32 rounded-lg" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
         </div>
       ) : orders.length === 0 ? (
         <NoOrders />

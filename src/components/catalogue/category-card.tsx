@@ -38,13 +38,13 @@ export function CategoryCard({
         params: { slug: category.slug },
       }}
       className={cn(
-        "group border-line hover:border-line-strong hover:shadow-lift flex h-full flex-col rounded-lg border-[1.5px] bg-white p-2 transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5",
+        "group surface hover:shadow-lift ease-glass flex h-full flex-col rounded-xl p-2 transition-[box-shadow,transform] duration-300 hover:-translate-y-1",
         className,
       )}
     >
       <span
         className={cn(
-          "relative block aspect-[4/3] overflow-hidden rounded-md",
+          "relative block aspect-[4/3] overflow-hidden rounded-lg",
           // A product picture is a packshot on white (owner, 2026-10-23);
           // the category's own picture and the mark stand on mist.
           !image && standIn ? "bg-white" : "bg-mist",
@@ -62,7 +62,7 @@ export function CategoryCard({
             alt=""
             loading="lazy"
             decoding="async"
-            className="size-full object-cover transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.04]"
+            className="ease-glass size-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.05]"
           />
         ) : standIn ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -75,7 +75,7 @@ export function CategoryCard({
             alt=""
             loading="lazy"
             decoding="async"
-            className="size-full object-contain p-3 transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.04]"
+            className="ease-glass size-full object-contain p-3 transition-transform duration-500 motion-safe:group-hover:scale-[1.05]"
           />
         ) : (
           <span className="grid size-full place-items-center bg-[radial-gradient(closest-side,rgb(255_255_255_/_0.75),transparent)]">
@@ -96,7 +96,7 @@ export function CategoryCard({
         )}
         <span
           aria-hidden="true"
-          className="shadow-card text-leaf-700 group-hover:bg-leaf-600 absolute right-2 bottom-2 grid size-9 place-items-center rounded-full bg-white transition-colors duration-150 group-hover:text-white"
+          className="glass-soft text-leaf-700 ease-glass group-hover:leaf-gradient group-hover:shadow-leaf absolute right-2 bottom-2 grid size-9 place-items-center rounded-full transition-[background-color,color,box-shadow,transform] duration-200 group-hover:scale-105 group-hover:text-white"
         >
           <ArrowRight className="size-4" strokeWidth={2.5} />
         </span>

@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/format/money";
 
 function Tile({ value, label }: { value: string; label: string }) {
   return (
-    <div className="bg-mist rounded-md px-1 py-3.5 text-center">
+    <div className="ring-ink/5 rounded-lg bg-white/70 px-1 py-3.5 text-center ring-1">
       <span className="font-display block text-[1.75rem] leading-none tabular-nums sm:text-[2rem]">
         {value}
       </span>
@@ -29,10 +29,11 @@ function Fact({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-const card = "shadow-float text-ink relative rounded-xl bg-white p-6 sm:p-7";
+const card =
+  "glass-strong shadow-float text-ink relative rounded-2xl p-6 sm:p-7";
 /** The dashed inner border: a ticket rather than a form. */
 const ticket =
-  "border-line-strong pointer-events-none absolute inset-2 rounded-[18px] border-[1.5px] border-dashed";
+  "border-ink/15 pointer-events-none absolute inset-2 rounded-[24px] border-[1.5px] border-dashed";
 const pill =
   "inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-bold tracking-[0.1em] uppercase";
 const COLUMNS = ["", "grid-cols-1", "grid-cols-2", "grid-cols-3"];
@@ -93,13 +94,13 @@ export async function DeliveryPromiseCard({
             ))}
           </div>
         )}
-        <dl className="border-line-strong mt-5 grid grid-cols-2 gap-4 border-t-[1.5px] border-dashed pt-4 text-[0.9375rem]">
+        <dl className="border-ink/15 mt-5 grid grid-cols-2 gap-4 border-t-[1.5px] border-dashed pt-4 text-[0.9375rem]">
           <Fact label={t("payment")} value={t("paymentValue")} />
           <Fact label={t("area")} value={t("areaValue")} />
         </dl>
       </div>
       {/* The promise of the shop, stamped on the corner of the ticket. */}
-      <p className="bg-leaf-600 absolute -top-6 -right-2 grid size-28 -rotate-10 place-items-center rounded-full p-3 text-center text-[0.6875rem] leading-tight font-bold tracking-[0.06em] text-white uppercase shadow-[0_0_0_3px_#fff,0_0_0_5px_var(--color-leaf-600)] before:absolute before:inset-[0.45rem] before:rounded-full before:border-[1.5px] before:border-dashed before:border-white/70 sm:-top-7 sm:-right-3">
+      <p className="leaf-gradient absolute -top-6 -right-2 grid size-28 -rotate-10 place-items-center rounded-full p-3 text-center text-[0.6875rem] leading-tight font-bold tracking-[0.06em] text-white uppercase shadow-[0_0_0_3px_#fff,0_0_0_5px_var(--color-leaf-600),0_12px_28px_-10px_rgb(21_122_75/0.6)] before:absolute before:inset-[0.45rem] before:rounded-full before:border-[1.5px] before:border-dashed before:border-white/70 sm:-top-7 sm:-right-3">
         {t("seal")}
       </p>
     </section>

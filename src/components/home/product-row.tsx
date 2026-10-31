@@ -123,7 +123,7 @@ export function ProductRow({
   };
 
   const arrow =
-    "border-line-strong hover:border-leaf-600 hover:text-leaf-700 grid size-11 place-items-center rounded-full border-[1.5px] bg-white transition-[border-color,color,opacity] duration-150 disabled:cursor-default disabled:opacity-35 disabled:hover:border-line-strong disabled:hover:text-ink";
+    "glass-soft hover:text-leaf-700 ease-glass grid size-11 place-items-center rounded-full transition-[background-color,color,opacity,transform,box-shadow] duration-200 hover:bg-white/90 hover:shadow-lift active:scale-95 disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-ink disabled:hover:shadow-none disabled:active:scale-100";
 
   return (
     <section aria-labelledby={id}>
@@ -131,7 +131,7 @@ export function ProductRow({
         <div className="min-w-0">
           <h2
             id={id}
-            className="font-display text-ink text-[1.75rem] sm:text-3xl"
+            className="font-display text-ink text-[1.625rem] sm:text-3xl"
           >
             {title}
           </h2>
@@ -143,7 +143,7 @@ export function ProductRow({
           <Link
             href={href}
             aria-label={linkLabel}
-            className="text-leaf-700 rounded-sm text-[0.9375rem] font-bold whitespace-nowrap underline-offset-2 hover:underline"
+            className="text-leaf-700 hover:bg-leaf-50/80 flex min-h-9 items-center rounded-full px-3 text-[0.9375rem] font-semibold whitespace-nowrap transition-colors duration-200"
           >
             {link}
           </Link>

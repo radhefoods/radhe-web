@@ -88,10 +88,10 @@ export function CategoryRow({
           <ProductRowItem key={`placeholder-${index}`}>
             <div
               role={index === 0 ? "status" : undefined}
-              className="border-line flex h-full flex-col rounded-lg border-[1.5px] bg-white p-2"
+              className="surface flex h-full flex-col rounded-xl p-2"
             >
               {index === 0 && <span className="sr-only">{labels.loading}</span>}
-              <Skeleton className="aspect-square rounded-md" />
+              <Skeleton className="aspect-square rounded-lg" />
               <div className="flex flex-col gap-2 px-2 pt-3 pb-2">
                 <Skeleton className="h-4 w-4/5" />
                 <Skeleton className="h-4 w-1/2" />

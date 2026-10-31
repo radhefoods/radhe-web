@@ -31,7 +31,7 @@ import { formatMoney } from "@/lib/format/money";
 /** What the address of the order page says about the way back. */
 export type PaymentReturn = "success" | "cancelled" | null;
 
-const panel = "border-line rounded-xl border bg-white p-5";
+const panel = "glass-strong rounded-2xl p-5";
 const sectionTitle = "font-display text-xl text-ink";
 const link =
   "text-leaf-700 flex items-center gap-1.5 self-start rounded-xs font-semibold underline underline-offset-4";

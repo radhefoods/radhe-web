@@ -6,14 +6,16 @@ import { cn } from "@/lib/cn";
 
 type Href = ComponentProps<typeof Link>["href"];
 
-const pageLink = "grid size-11 place-items-center rounded-full";
+const pageLink =
+  "grid size-11 place-items-center rounded-full transition-[background-color,color,box-shadow,transform] duration-200 ease-[var(--ease-glass)]";
+const quiet = "glass-soft text-ink hover:bg-white/85 active:scale-95";
 
 /**
- * The pages of a list as round numbers with an arrow at either end: the
- * first, the last and those around the current one, the gaps as dots.
- * Every number is a link, so the pages work without scripts and can be
- * shared. Rendered only when there is more than one page. The product
- * lists and the blog share it.
+ * The pages of a list as round glass numbers with an arrow at either end:
+ * the first, the last and those around the current one, the gaps as dots;
+ * the current page is the leaf pill. Every number is a link, so the pages
+ * work without scripts and can be shared. Rendered only when there is
+ * more than one page. The product lists and the blog share it.
  */
 export function Pagination({
   page,
@@ -66,10 +68,8 @@ export function Pagination({
             aria-label={labels.pageOf(number, totalPages)}
             className={cn(
               pageLink,
-              "text-[0.9375rem] font-bold tabular-nums transition-colors duration-150",
-              number === page
-                ? "bg-leaf-600 text-white"
-                : "bg-mist hover:bg-cloud",
+              "text-[0.9375rem] font-semibold tabular-nums",
+              number === page ? "leaf-gradient shadow-leaf text-white" : quiet,
             )}
           >
             {number}
@@ -110,10 +110,7 @@ function PageLink({
       href={href}
       rel={rel}
       aria-label={label}
-      className={cn(
-        pageLink,
-        "bg-mist hover:bg-cloud transition-colors duration-150",
-      )}
+      className={cn(pageLink, quiet)}
     >
       {children}
     </Link>

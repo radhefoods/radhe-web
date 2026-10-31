@@ -217,7 +217,7 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
       <Button type="submit" size="lg" block loading={pending}>
         {t("create")}
       </Button>
-      <p className="border-line text-ink-muted border-t pt-5 text-center text-[0.9375rem]">
+      <p className="border-ink/8 text-ink-muted border-t pt-5 text-center text-[0.9375rem]">
         {t("haveAccount")}{" "}
         <Link href={signInHref} className={authLink}>
           {t("signIn")}

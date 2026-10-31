@@ -54,7 +54,11 @@ export function LocaleAlternates({ hrefs }: { hrefs: Alternates }) {
   return null;
 }
 
-/** EN | DE as a small pill; the current language is the dark side of it. */
+/**
+ * EN | DE as a segmented control: a frosted track, the current language on
+ * a white thumb with a soft shadow (2026-10-31, as the system settings of
+ * a phone set it).
+ */
 export function LocaleSwitcher({ className }: { className?: string }) {
   const t = useTranslations("language");
   const tNav = useTranslations("nav");
@@ -65,7 +69,7 @@ export function LocaleSwitcher({ className }: { className?: string }) {
 
   return (
     <nav aria-label={tNav("switchTo")} className={className}>
-      <ul className="bg-mist flex items-center gap-0.5 rounded-full p-0.5 text-sm font-bold">
+      <ul className="bg-ink/6 flex items-center gap-0.5 rounded-full p-0.5 text-[0.8125rem] font-bold">
         {locales.map((other) => {
           const active = other === locale;
           const href =
@@ -83,10 +87,10 @@ export function LocaleSwitcher({ className }: { className?: string }) {
                 aria-current={active ? "true" : undefined}
                 aria-label={t(other)}
                 className={cn(
-                  "grid h-9 min-w-10 place-items-center rounded-full px-2.5 uppercase transition-colors duration-150",
+                  "ease-glass grid h-8 min-w-9 place-items-center rounded-full px-2.5 uppercase transition-[background-color,color,box-shadow] duration-200",
                   active
-                    ? "bg-ink text-white"
-                    : "text-ink-muted hover:bg-cloud hover:text-ink",
+                    ? "text-ink bg-white shadow-[0_1px_2px_rgb(23_33_27/0.08),0_2px_8px_-2px_rgb(23_33_27/0.12)]"
+                    : "text-ink-muted hover:text-ink hover:bg-white/50",
                 )}
               >
                 {other}

@@ -86,7 +86,7 @@ export function AddressBook() {
         <>
           {error !== null && <ErrorAlert error={error} />}
           {addresses.length === 0 && editing === null && (
-            <p className="bg-mist text-ink-muted rounded-xl px-6 py-10 text-center">
+            <p className="glass text-ink-muted rounded-3xl px-6 py-10 text-center">
               {t("empty")}
             </p>
           )}
@@ -96,7 +96,7 @@ export function AddressBook() {
               editing === address.id ? (
                 <li
                   key={address.id}
-                  className="border-line rounded-lg border bg-white p-4 md:col-span-2"
+                  className="glass-strong rounded-2xl p-4 md:col-span-2"
                 >
                   <AddressForm
                     idPrefix={`address-${address.id}`}
@@ -109,12 +109,12 @@ export function AddressBook() {
               ) : (
                 <li
                   key={address.id}
-                  className="border-line flex flex-col gap-3 rounded-lg border bg-white p-4"
+                  className="glass-strong flex flex-col gap-3 rounded-2xl p-4"
                 >
                   <div className="flex items-start justify-between gap-3 text-[0.9375rem]">
                     <AddressBlock address={address} />
                     {address.isDefault && (
-                      <span className="bg-leaf-100 text-leaf-700 rounded-full px-2.5 py-1 text-xs font-bold">
+                      <span className="bg-leaf-50 text-leaf-700 ring-leaf-600/12 rounded-full px-2.5 py-1 text-xs font-bold ring-1">
                         {tAddress("default")}
                       </span>
                     )}
@@ -168,7 +168,7 @@ export function AddressBook() {
           </ul>
 
           {editing === "new" ? (
-            <div className="border-line rounded-lg border bg-white p-4">
+            <div className="glass-strong rounded-2xl p-4">
               <AddressForm
                 idPrefix="address-new"
                 showDefault={addresses.length > 0}

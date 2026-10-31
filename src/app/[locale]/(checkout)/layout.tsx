@@ -19,7 +19,7 @@ export default async function CheckoutLayout({
   const tNav = await getTranslations("nav");
   return (
     <>
-      <header className="shadow-header relative z-10 bg-white">
+      <header className="shadow-header sticky top-0 z-40 bg-white/95 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/65">
         <div className="container-page flex h-16 items-center justify-between gap-4">
           <Link href="/" aria-label={tNav("logoHome")} className="rounded-sm">
             <Logo className="h-10 md:h-11" />
@@ -27,7 +27,7 @@ export default async function CheckoutLayout({
           <div className="flex items-center gap-3">
             <Link
               href="/cart"
-              className="bg-mist hover:bg-cloud flex min-h-11 items-center gap-1 rounded-full pr-4 pl-2.5 text-[0.9375rem] font-semibold transition-colors duration-150"
+              className="glass-soft ease-glass flex min-h-11 items-center gap-1 rounded-full pr-4 pl-2.5 text-[0.9375rem] font-semibold transition-[background-color,transform] duration-200 hover:bg-white/85 active:scale-[0.98]"
             >
               <ChevronLeft aria-hidden="true" className="size-5" />
               {t("back")}

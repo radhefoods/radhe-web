@@ -37,7 +37,7 @@ export function CartSummaryBar() {
     <aside aria-label={t("title")} className="md:hidden">
       <Link
         href="/cart"
-        className="bg-leaf-600 fixed inset-x-4 bottom-[calc(4.125rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between gap-3 rounded-full py-1 pr-3.5 pl-4 text-sm font-bold text-white shadow-[0_6px_16px_-4px_rgb(23_33_27_/_0.35)]"
+        className="leaf-gradient fixed inset-x-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex min-h-11 items-center justify-between gap-3 rounded-full py-1 pr-3.5 pl-4 text-sm font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_10px_24px_-8px_rgb(21_122_75/0.6)] active:scale-[0.98]"
       >
         <span className="tabular-nums">
           {t("barItems", { count: cart.units })}

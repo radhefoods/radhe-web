@@ -13,7 +13,7 @@ import { Providers } from "@/features/providers";
 import { clientMessages } from "@/i18n/client-messages";
 import { localeOf } from "@/i18n/locale";
 import { routing } from "@/i18n/routing";
-import { dmSans, plusJakartaSans } from "../fonts";
+import { inter } from "../fonts";
 import "../globals.css";
 
 /** The logo on white, for links shared in chats and social networks. */
@@ -29,7 +29,7 @@ export function generateStaticParams() {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#f1f6f1",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -71,7 +71,7 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${dmSans.variable} ${plusJakartaSans.variable}`}
+      className={inter.variable}
       // The script below marks <html> before React takes over the page.
       suppressHydrationWarning
     >

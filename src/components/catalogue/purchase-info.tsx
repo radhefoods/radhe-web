@@ -19,7 +19,10 @@ function Row({
 }) {
   return (
     <li className="flex gap-3.5 py-4">
-      <span aria-hidden="true" className="text-leaf-700 mt-0.5 shrink-0">
+      <span
+        aria-hidden="true"
+        className="bg-leaf-50 text-leaf-700 grid size-9 shrink-0 place-items-center rounded-full"
+      >
         {icon}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -63,18 +66,18 @@ export async function PurchaseInfo({
     tiers[0]?.fee ??
     null;
   const freeFrom = settings?.deliveryFee.freeFrom ?? null;
-  const icon = "size-5";
+  const icon = "size-[18px]";
   const note = "text-ink-muted text-sm leading-snug";
 
   return (
     <section
       aria-labelledby="purchase-info"
-      className={cn("border-line border-t", className)}
+      className={cn("border-ink/8 border-t", className)}
     >
       <h2 id="purchase-info" className="sr-only">
         {t("title")}
       </h2>
-      <ul className="divide-line divide-y">
+      <ul className="divide-ink/8 divide-y">
         <Row icon={<Truck className={icon} />} title={tHome("trustDelivery")}>
           {fee !== null && (
             <p className={note}>
@@ -95,7 +98,7 @@ export async function PurchaseInfo({
           <PaymentMarks label={t("paymentMethods")} className="mt-1.5" />
         </Row>
       </ul>
-      <p className="border-line border-t pt-3.5 text-sm">
+      <p className="border-ink/8 border-t pt-3.5 text-sm">
         <Link
           href="/delivery-and-payment"
           className="text-leaf-700 hover:text-leaf-800 inline-flex items-center gap-1 rounded-xs font-semibold"

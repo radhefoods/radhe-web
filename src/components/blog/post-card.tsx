@@ -36,7 +36,7 @@ export async function PostCard({
   const Heading = headingLevel;
 
   return (
-    <article className="group border-line hover:border-line-strong hover:shadow-lift flex h-full flex-col overflow-hidden rounded-lg border-[1.5px] bg-white transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5">
+    <article className="group surface hover:shadow-lift ease-glass flex h-full flex-col overflow-hidden rounded-2xl transition-[box-shadow,transform] duration-300 hover:-translate-y-1">
       <Link
         href={href}
         tabIndex={-1}
@@ -47,7 +47,7 @@ export async function PostCard({
           image={post.featuredImage}
           sizes={CARD_SIZES}
           priority={priority}
-          className="transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.03]"
+          className="ease-glass transition-transform duration-500 motion-safe:group-hover:scale-[1.04]"
         />
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4 sm:p-5">

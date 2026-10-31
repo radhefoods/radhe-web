@@ -1,9 +1,13 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-/** The look of a text input, also for selects and textareas. */
+/**
+ * The look of a text input, also for selects and textareas: a white field
+ * with a faint outline that turns leaf with the focus (and keeps the
+ * standard outline, which keyboard users rely on), red when it is refused.
+ */
 export const controlStyles =
-  "min-h-12 w-full rounded-md border-[1.5px] border-line-strong bg-white px-3.5 text-base text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 focus-visible:outline-offset-1 disabled:bg-cloud disabled:text-ink-subtle disabled:hover:border-line-strong aria-invalid:border-red-600 aria-invalid:bg-red-50";
+  "min-h-12 w-full rounded-md border-[1.5px] border-line-strong bg-white/90 px-3.5 text-base text-ink shadow-[inset_0_1px_2px_rgb(23_33_27/0.04)] transition-[border-color,box-shadow,background-color] duration-200 placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 focus-visible:bg-white focus-visible:outline-offset-1 disabled:bg-cloud/70 disabled:text-ink-subtle disabled:shadow-none disabled:hover:border-line-strong aria-invalid:border-red-600 aria-invalid:bg-red-50";
 
 export interface TextFieldProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,

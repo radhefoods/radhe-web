@@ -27,7 +27,7 @@ export function AuthPage({
           </h1>
           {intro && <p className="text-ink-muted">{intro}</p>}
         </header>
-        <div className="border-line shadow-card rounded-xl border bg-white p-5 sm:p-7">
+        <div className="glass-strong shadow-float rounded-3xl p-5 sm:p-7">
           {children}
         </div>
       </div>

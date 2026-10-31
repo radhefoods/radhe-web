@@ -152,7 +152,7 @@ export default async function BlogPostPage({ params }: Props) {
         </header>
 
         {post.featuredImage && (
-          <figure className="bg-mist overflow-hidden rounded-xl">
+          <figure className="bg-mist/60 shadow-card overflow-hidden rounded-3xl">
             <PostImage
               image={post.featuredImage}
               sizes={HERO_SIZES}
@@ -163,7 +163,7 @@ export default async function BlogPostPage({ params }: Props) {
         )}
 
         {otherLanguage && (
-          <p className="bg-wheat-50 text-wheat-800 rounded-lg px-4 py-3 text-sm font-semibold">
+          <p className="bg-wheat-100/90 text-wheat-800 ring-wheat-800/12 rounded-xl px-4 py-3 text-sm font-semibold ring-1">
             {t(otherLanguage === "en" ? "onlyEnglish" : "onlyGerman")}
           </p>
         )}
@@ -175,13 +175,13 @@ export default async function BlogPostPage({ params }: Props) {
         </div>
 
         {post.tags.length > 0 && (
-          <nav aria-label={t("tags")} className="border-line border-t pt-6">
+          <nav aria-label={t("tags")} className="border-ink/8 border-t pt-6">
             <ul className="flex flex-wrap gap-2">
               {post.tags.map((tag) => (
                 <li key={tag}>
                   <Link
                     href={{ pathname: "/blog/tag/[tag]", params: { tag } }}
-                    className="border-line hover:border-line-strong text-ink-muted hover:text-ink flex min-h-9 items-center rounded-full border-[1.5px] px-3 text-sm font-semibold transition-colors duration-150"
+                    className="border-ink/10 text-ink-muted hover:border-ink/25 hover:text-ink flex min-h-9 items-center rounded-full border-[1.5px] px-3 text-sm font-semibold transition-colors duration-200 hover:bg-white/60"
                   >
                     #{tag}
                   </Link>

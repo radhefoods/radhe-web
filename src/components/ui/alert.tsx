@@ -3,11 +3,13 @@ import { cn } from "@/lib/cn";
 
 export type AlertTone = "info" | "good" | "warn" | "bad";
 
+/* Translucent tints with a faint outline of their own colour, so they sit
+   on glass and on the canvas alike (2026-10-31). */
 const TONES: Record<AlertTone, string> = {
-  info: "border-line bg-mist text-ink",
-  good: "border-leaf-100 bg-leaf-50 text-leaf-700",
-  warn: "border-wheat-200 bg-wheat-100 text-wheat-800",
-  bad: "border-red-200 bg-red-50 text-red-800",
+  info: "bg-white/70 text-ink ring-ink/8",
+  good: "bg-leaf-50/85 text-leaf-700 ring-leaf-600/15",
+  warn: "bg-wheat-100/90 text-wheat-800 ring-wheat-800/15",
+  bad: "bg-red-50/90 text-red-800 ring-red-600/20",
 };
 
 /**
@@ -31,7 +33,7 @@ export function Alert({
     <div
       role={tone === "bad" || tone === "warn" ? "alert" : "status"}
       className={cn(
-        "flex gap-3 rounded-md border px-4 py-3.5 text-[0.9375rem]",
+        "flex gap-3 rounded-lg px-4 py-3.5 text-[0.9375rem] shadow-[inset_0_1px_0_rgb(255_255_255/0.6)] ring-1",
         TONES[tone],
         className,
       )}

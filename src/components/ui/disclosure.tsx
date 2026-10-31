@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
  * summary is a button to assistive technology, and the content is in the
  * HTML the server sends whether open or not. The content glides open and
  * shut where the browser can animate `details` (`disclosure-fold`); else
- * it simply appears. Two looks: a white card (`card`), or a flat row
+ * it simply appears. Two looks: a glass card (`card`), or a flat row
  * between hairlines that stacks with its neighbours (`row`, the texts of
  * the product page since 2026-10-21). The title is a heading of the page;
  * its level follows the heading above it (`h2` by default).
@@ -38,9 +38,7 @@ export function Disclosure({
       open={defaultOpen}
       className={cn(
         "group disclosure-fold",
-        row
-          ? "border-line border-t last:border-b"
-          : "border-line rounded-xl border bg-white",
+        row ? "border-ink/8 border-t last:border-b" : "glass rounded-xl",
         className,
       )}
     >
@@ -58,10 +56,12 @@ export function Disclosure({
         >
           {title}
         </Heading>
-        <ChevronDown
+        <span
           aria-hidden="true"
-          className="text-ink-subtle size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"
-        />
+          className="bg-ink/6 text-ink-subtle group-hover:bg-ink/10 grid size-8 shrink-0 place-items-center rounded-full transition-[transform,background-color] duration-200 ease-[var(--ease-glass)] group-open:rotate-180"
+        >
+          <ChevronDown className="size-4" strokeWidth={2.25} />
+        </span>
       </summary>
       <div className={row ? "pb-5" : "px-5 pb-5 sm:px-6 sm:pb-6"}>
         {children}

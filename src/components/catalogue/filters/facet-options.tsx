@@ -54,10 +54,10 @@ export function FacetOptions({
             <li key={option.value}>
               <label
                 className={cn(
-                  "flex min-h-10 items-center gap-3 rounded-sm px-2.5 text-sm font-semibold",
+                  "flex min-h-10 items-center gap-3 rounded-lg px-2.5 text-sm font-semibold transition-colors duration-150",
                   dead
                     ? "text-ink-subtle cursor-not-allowed"
-                    : "hover:bg-mist cursor-pointer",
+                    : "hover:bg-ink/5 cursor-pointer",
                 )}
               >
                 <input
@@ -89,7 +89,7 @@ export function FacetOptions({
         <button
           type="button"
           onClick={() => onExpand(!expanded)}
-          className="text-leaf-700 flex min-h-10 items-center rounded-sm px-2.5 text-sm font-semibold hover:underline"
+          className="text-leaf-700 flex min-h-10 items-center rounded-lg px-2.5 text-sm font-semibold hover:underline"
         >
           {expanded ? t("showLess") : t("showMore", { count: options.length })}
         </button>

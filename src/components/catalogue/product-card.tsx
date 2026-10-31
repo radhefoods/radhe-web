@@ -17,32 +17,33 @@ import { ProductImage } from "./product-image";
 import { WishlistButton } from "./wishlist-button";
 
 const badge =
-  "rounded-full px-2 py-1 text-[0.6875rem] leading-none font-bold tabular-nums";
+  "rounded-full px-2 py-1 text-[0.6875rem] leading-none font-bold tabular-nums shadow-[0_1px_2px_rgb(23_33_27/0.12)]";
 
 /**
  * A product in a list, as the one pack size the API shows it as (doc 7).
- * The picture on white, as the packshots are shot (owner, 2026-10-23; the
- * mist tile showed as a frame around them), the discount and "only N left" badges in its
- * top left corner, the heart of the wishlist in its top right corner (doc
- * 16); under the tile the brand as a small tracked line (owner,
- * 2026-10-19; nothing when the admin left none), the name with the size
- * (the size in a quieter tone), then the last row: the price with the
- * regular price crossed out when reduced and the price per unit, and at
- * its end the round basket that adds the size, where the stepper unfolds
- * in its place (owner, 2026-10-28, evening: off the picture, into the
- * card's bottom right corner, level with the price on every card), both
- * in a slot of one size, so that the price keeps its width and its place
- * whichever is shown (owner, 2026-10-29). A card narrower than 14 rem
- * (phones, the home page's rows on small tablets) has no room for both
- * side by side: there the price has a line of its own and the slot stands
- * under it, at the right; the card decides by its own width (a container
- * query), as it stands in grids and rows of every width. Nothing
- * else (owner, 2026-10-16): the other sizes are chosen on the product
- * page. The name keeps two lines whether it needs them or not, so the
- * prices and the baskets of a row line up (owner, 2026-10-18). A size
- * that cannot be ordered shows its picture greyed and a quiet pill on the
- * tile, and no basket. The tile is the `data-fly-source` of the add
- * button: its picture flies into the cart.
+ * A solid white card with soft corners that lifts under the pointer
+ * (2026-10-31: no glass here, so the picture, the name and the price stay
+ * crisp). The picture on white, as the packshots are shot (owner,
+ * 2026-10-23), the discount and "only N left" badges in its top left
+ * corner, the heart of the wishlist in its top right corner (doc 16);
+ * under the tile the brand as a small tracked line (owner, 2026-10-19;
+ * nothing when the admin left none), the name with the size (the size in
+ * a quieter tone), then the last row: the price with the regular price
+ * crossed out when reduced and the price per unit, and at its end the
+ * round basket that adds the size, where the stepper unfolds in its place
+ * (owner, 2026-10-28, evening), both in a slot of one size, so that the
+ * price keeps its width and its place whichever is shown (owner,
+ * 2026-10-29). A card narrower than 14 rem (phones, the home page's rows
+ * on small tablets) has no room for both side by side: there the price
+ * has a line of its own and the slot stands under it, at the right; the
+ * card decides by its own width (a container query), as it stands in
+ * grids and rows of every width. Nothing else (owner, 2026-10-16): the
+ * other sizes are chosen on the product page. The name keeps two lines
+ * whether it needs them or not, so the prices and the baskets of a row
+ * line up (owner, 2026-10-18). A size that cannot be ordered shows its
+ * picture greyed and a quiet pill on the tile, and no basket. The tile is
+ * the `data-fly-source` of the add button: its picture flies into the
+ * cart.
  */
 export function ProductCard({
   product,
@@ -72,7 +73,7 @@ export function ProductCard({
   return (
     <article
       data-fly-scope=""
-      className="group border-line hover:border-line-strong hover:shadow-lift @container relative flex h-full flex-col rounded-lg border-[1.5px] bg-white p-2 transition-[box-shadow,border-color,transform] duration-200 hover:-translate-y-0.5"
+      className="group surface hover:shadow-lift ease-glass @container relative flex h-full flex-col rounded-xl p-2 transition-[box-shadow,transform] duration-300 hover:-translate-y-1"
     >
       <div className="relative">
         <Link
@@ -80,7 +81,7 @@ export function ProductCard({
           tabIndex={-1}
           aria-hidden="true"
           data-fly-source=""
-          className="relative block aspect-square overflow-hidden rounded-md bg-white p-3"
+          className="relative block aspect-square overflow-hidden rounded-lg bg-white p-3"
         >
           <ProductImage
             image={product.image}
@@ -89,7 +90,7 @@ export function ProductCard({
             priority={priority}
             fallbackLabel={t("noPicture")}
             className={cn(
-              "transition-transform duration-300 ease-out motion-safe:group-hover:scale-[1.04]",
+              "ease-glass transition-transform duration-500 motion-safe:group-hover:scale-[1.05]",
               unorderable && "opacity-40 grayscale",
             )}
           />

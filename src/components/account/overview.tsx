@@ -45,7 +45,7 @@ export function AccountOverview() {
       {toPay.length > 0 && (
         <section
           aria-labelledby="account-to-pay"
-          className="bg-wheat-100 rounded-xl p-5 sm:p-6"
+          className="bg-wheat-100/90 ring-wheat-800/12 rounded-2xl p-5 shadow-[inset_0_1px_0_rgb(255_255_255/0.7)] ring-1 sm:p-6"
         >
           <h2 id="account-to-pay" className="text-wheat-800 text-lg font-bold">
             {t("toPayTitle")}
@@ -80,8 +80,8 @@ export function AccountOverview() {
           />
         ) : query.isPending ? (
           <div className="space-y-3" aria-hidden="true">
-            <Skeleton className="h-32 rounded-lg" />
-            <Skeleton className="h-32 rounded-lg" />
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-2xl" />
           </div>
         ) : orders.length === 0 ? (
           <NoOrders />

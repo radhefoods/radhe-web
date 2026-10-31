@@ -42,8 +42,10 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
       ],
     },
     {
-      group: "Neutrals: white is the page, mist a quiet surface on it",
+      group:
+        "Neutrals: a very light green canvas is the page, white the cards on it, mist a quiet surface inside a panel",
       items: [
+        ["canvas", "bg-canvas"],
         ["white", "bg-white"],
         ["mist", "bg-mist"],
         ["cloud", "bg-cloud"],
@@ -80,7 +82,7 @@ const COLOURS: { group: string; items: [name: string, className: string][] }[] =
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="border-line space-y-5 border-t pt-8">
+    <section className="border-ink/8 space-y-5 border-t pt-8">
       <h2 className="font-display text-ink text-2xl">{title}</h2>
       {children}
     </section>
@@ -134,7 +136,7 @@ export default async function StyleguidePage({
               {items.map(([name, className]) => (
                 <li key={name} className="space-y-1 text-xs font-semibold">
                   <div
-                    className={`border-line h-14 rounded-md border ${className}`}
+                    className={`ring-ink/8 h-14 rounded-lg ring-1 ${className}`}
                   />
                   {name}
                 </li>
@@ -152,10 +154,10 @@ export default async function StyleguidePage({
           Reis, Mehl und Hülsenfrüchte
         </p>
         <p className="font-display text-xl">
-          Section title, Plus Jakarta Sans 800, 20 px
+          Section title, Inter 700 set tight, 20 px
         </p>
         <p className="text-[0.9375rem] font-semibold">
-          Product title, DM Sans 600, 15 px: India Gate Basmati-Reis, Classic, 5
+          Product title, Inter 600, 15 px: India Gate Basmati-Reis, Classic, 5
           kg
         </p>
         <p className="max-w-prose">
@@ -172,6 +174,37 @@ export default async function StyleguidePage({
             24,99 €
           </s>
         </p>
+      </Section>
+
+      <Section title="Glass">
+        <p className="text-ink-muted max-w-2xl">
+          The chrome of the shop is frosted glass over the soft green canvas:
+          five strengths, each with a white hairline along its top edge, a faint
+          outline and a soft fall. Products stay on solid white (
+          <code>surface</code>), so pictures and prices never lose clarity.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {(
+            [
+              ["glass", "The default: header, footer, dropdowns, pills"],
+              ["glass-strong", "Panels full of text: summaries, forms, legal"],
+              ["glass-soft", "Small controls on the page: pills, arrows"],
+              ["glass-leaf", "A leaf tint: a reached goal, a chosen tile"],
+              ["surface", "Solid white: product, category and post cards"],
+            ] as const
+          ).map(([name, note]) => (
+            <div key={name} className={`${name} rounded-2xl p-5`}>
+              <p className="font-display text-ink text-lg">{name}</p>
+              <p className="text-ink-muted mt-1 text-sm">{note}</p>
+            </div>
+          ))}
+          <div className="glass-dark rounded-2xl p-5 text-white">
+            <p className="font-display text-lg">glass-dark</p>
+            <p className="mt-1 text-sm text-white/80">
+              Dark glass for white text: tooltips, the carousel&apos;s dots
+            </p>
+          </div>
+        </div>
       </Section>
 
       <Section title="Buttons">

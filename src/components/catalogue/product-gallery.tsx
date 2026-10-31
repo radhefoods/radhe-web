@@ -34,7 +34,7 @@ export function ProductGallery({
     <div className={cn("flex flex-col gap-3", className)}>
       <div
         data-fly-source=""
-        className="border-line relative aspect-square overflow-hidden rounded-xl border bg-white p-6 sm:p-8"
+        className="surface relative aspect-square overflow-hidden rounded-2xl p-6 sm:p-8"
       >
         <ProductImage
           key={shown?.id ?? "none"}
@@ -43,7 +43,7 @@ export function ProductGallery({
           priority={shown === images[0]}
           fallbackLabel={fallbackLabel}
         />
-        <PackSizeDiscount className="absolute top-3 left-3 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold text-white tabular-nums" />
+        <PackSizeDiscount className="absolute top-3 left-3 rounded-full bg-red-600 px-3 py-1.5 text-sm font-bold text-white tabular-nums shadow-[0_2px_6px_rgb(23_33_27/0.15)]" />
       </div>
 
       {images.length > 1 && (
@@ -64,10 +64,10 @@ export function ProductGallery({
                   aria-pressed={current}
                   onClick={() => setIndex(position)}
                   className={cn(
-                    "block size-18 overflow-hidden rounded-md border-2 bg-white p-1.5 transition-colors duration-150 sm:size-20",
+                    "ease-glass block size-18 overflow-hidden rounded-lg bg-white p-1.5 ring-1 transition-[box-shadow,transform] duration-200 active:scale-95 sm:size-20",
                     current
-                      ? "border-leaf-600"
-                      : "border-line hover:border-line-strong",
+                      ? "ring-leaf-600 shadow-[0_0_0_3px_rgb(21_122_75/0.15)]"
+                      : "ring-ink/8 hover:ring-ink/20",
                   )}
                 >
                   <ProductImage

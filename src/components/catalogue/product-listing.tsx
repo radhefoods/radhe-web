@@ -124,7 +124,7 @@ export async function ProductListing({
         >
           <div className="pt-2">
             {page.items.length === 0 ? (
-              <div className="bg-mist flex flex-col items-center gap-3 rounded-xl px-6 py-14 text-center">
+              <div className="glass flex flex-col items-center gap-3 rounded-3xl px-6 py-14 text-center">
                 <SearchX
                   aria-hidden="true"
                   className="text-ink-subtle size-10"

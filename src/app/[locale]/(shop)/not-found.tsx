@@ -6,7 +6,7 @@ export default function NotFound() {
   const t = useTranslations("notFound");
   return (
     <div className="container-page flex flex-col items-center gap-4 py-20 text-center">
-      <p className="text-ink-muted text-sm font-bold tracking-wider uppercase">
+      <p className="glass-soft text-ink-muted rounded-full px-3 py-1 text-sm font-bold tracking-wider uppercase">
         404
       </p>
       <h1 className="font-display text-ink text-3xl sm:text-4xl">

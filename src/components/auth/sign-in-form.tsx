@@ -138,7 +138,7 @@ export function SignInForm({ returnTo }: { returnTo: ReturnTarget }) {
           {t("forgot")}
         </Link>
       </p>
-      <p className="border-line text-ink-muted border-t pt-5 text-center text-[0.9375rem]">
+      <p className="border-ink/8 text-ink-muted border-t pt-5 text-center text-[0.9375rem]">
         {t("noAccount")}{" "}
         <Link href={signUpHref} className={authLink}>
           {t("createAccount")}

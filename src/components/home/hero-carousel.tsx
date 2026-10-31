@@ -338,7 +338,7 @@ export function HeroCarousel({
       onPointerLeave={(event) => onPointer(event, false)}
       onFocus={(event) => onFocusChange(event, true)}
       onBlur={(event) => onFocusChange(event, false)}
-      className={cn("relative", className)}
+      className={cn("group/hero relative", className)}
     >
       <div
         ref={viewport}
@@ -348,7 +348,9 @@ export function HeroCarousel({
         onPointerCancel={endDrag}
         onClickCapture={onClickCapture}
         className={cn(
-          "bg-mist touch-pan-y overflow-hidden select-none",
+          // Edge to edge on phones; from `sm` a rounded glass-edged tile
+          // inside the page, as the cards under it (2026-10-31).
+          "bg-mist/60 touch-pan-y overflow-hidden select-none sm:rounded-3xl sm:shadow-[0_0_0_1px_rgb(23_33_27/0.06),0_24px_60px_-28px_rgb(23_33_27/0.35)]",
           looped && (dragging ? "cursor-grabbing" : "md:cursor-grab"),
         )}
       >
@@ -366,7 +368,7 @@ export function HeroCarousel({
       {looped && (
         /* The dots on a dark glass pill over the foot of the picture, where
            the admin keeps no text (doc 17). */
-        <ul className="bg-ink/45 absolute bottom-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center rounded-full px-1.5 py-1 backdrop-blur-sm sm:bottom-4">
+        <ul className="glass-dark absolute bottom-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center rounded-full px-1.5 py-1 sm:bottom-4">
           {banners.map((banner, position) => {
             const current = position === index;
             return (

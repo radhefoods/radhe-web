@@ -47,7 +47,10 @@ export function AccountShell({ children }: { children: ReactNode }) {
   return (
     <div className="container-page grid gap-6 py-6 sm:py-8 lg:grid-cols-[13rem_1fr] lg:gap-12">
       <nav aria-label={t("navLabel")} className="min-w-0">
-        <ul className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4 lg:mx-0 lg:flex-col lg:gap-0.5 lg:px-0">
+        {/* A segmented control on phones and tablets: a frosted track, the
+    current section on a white thumb; a column of pills from `lg`
+    (2026-10-31). */}
+        <ul className="glass-soft no-scrollbar lg:glass -mx-4 flex gap-1 overflow-x-auto rounded-full p-1 sm:mx-0 lg:flex-col lg:gap-0.5 lg:rounded-2xl lg:p-2">
           {SECTIONS.map(({ href, key }) => {
             const active =
               href === "/account"
@@ -59,10 +62,10 @@ export function AccountShell({ children }: { children: ReactNode }) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center rounded-full px-4 text-[0.9375rem] font-semibold whitespace-nowrap transition-colors duration-150",
+                    "ease-glass flex min-h-10 items-center rounded-full px-4 text-[0.9375rem] font-semibold whitespace-nowrap transition-[background-color,color,box-shadow] duration-200 lg:min-h-11 lg:rounded-xl",
                     active
-                      ? "bg-leaf-600 text-white"
-                      : "text-ink-muted hover:bg-mist hover:text-ink",
+                      ? "text-leaf-700 bg-white shadow-[0_1px_2px_rgb(23_33_27/0.08),0_4px_12px_-4px_rgb(23_33_27/0.16)]"
+                      : "text-ink-muted hover:text-ink hover:bg-white/60",
                   )}
                 >
                   {t(`nav.${key}`)}
@@ -78,8 +81,8 @@ export function AccountShell({ children }: { children: ReactNode }) {
         ) : (
           <div className="space-y-4" aria-hidden="true">
             <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-40 rounded-xl" />
-            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-2xl" />
+            <Skeleton className="h-40 rounded-2xl" />
           </div>
         )}
       </div>
