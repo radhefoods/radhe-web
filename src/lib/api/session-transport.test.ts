@@ -21,11 +21,11 @@ function apiError(status: number, code: string, details?: unknown): Response {
 
 /** A fetch that answers from a list of handlers, in order, per URL path. */
 function scriptedFetch(script: Record<string, Array<() => Response>>) {
-  const calls: { path: string; init: RequestInit }[] = [];
+  const calls: { path: string; url: string; init: RequestInit }[] = [];
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = new URL(String(input)).pathname;
-      calls.push({ path, init: init ?? {} });
+      calls.push({ path, url: String(input), init: init ?? {} });
       const next = script[path]?.shift();
       if (!next) throw new Error(`Unexpected call to ${path}`);
       return next();
@@ -59,7 +59,7 @@ describe("buildUrl", () => {
       localeAs: "header",
     });
     expect(calls[0].path).toBe("/v1/store/me/overview");
-    expect(String(fetch.mock.calls[0][0])).toBe(`${BASE}/v1/store/me/overview`);
+    expect(calls[0].url).toBe(`${BASE}/v1/store/me/overview`);
     expect(
       (calls[0].init.headers as Record<string, string>)["Accept-Language"],
     ).toBe("de");
