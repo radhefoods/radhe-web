@@ -140,6 +140,48 @@ export interface ReviewRecord {
   editedAt: string | null;
 }
 
+/** A problem report after a delivery (doc 23). */
+export interface IssueRecord {
+  /** "RF-1084-P1". */
+  issueNumber: string;
+  orderNumber: string;
+  customerId: string;
+  status: "open" | "in_review" | "resolved" | "rejected" | "cancelled";
+  reportedAt: string;
+  decidedAt: string | null;
+  items: {
+    productId: string;
+    variantId: string;
+    sku: string;
+    name: Translated;
+    packValue: number;
+    packUnit: "g" | "kg" | "ml" | "l" | "pcs";
+    quantity: number;
+    refundedQuantity: number;
+    unitPrice: number;
+  }[];
+  problems: (
+    "damaged" | "missing" | "wrong_item" | "not_fresh" | "late" | "other"
+  )[];
+  description: string;
+  /** The photos, by id in `db.issueImages`. */
+  imageIds: string[];
+  preferredResolution: "refund" | "replacement" | "none";
+  resolution: {
+    type: "refund" | "replacement" | "none";
+    amount: number;
+    note: string | null;
+    at: string;
+  } | null;
+  history: {
+    status: IssueRecord["status"];
+    at: string;
+    by: "customer" | "admin" | "system";
+    note: string | null;
+  }[];
+  locale: Locale;
+}
+
 /** One person invited by another (doc 21). */
 export interface ReferralRecord {
   id: string;
@@ -306,6 +348,9 @@ export const db = {
   referrals: [] as ReferralRecord[],
   /** Reviews by id (doc 22). */
   reviews: new Map<string, ReviewRecord>(),
+  /** Problem reports by number (doc 23), and their photos by id. */
+  issues: new Map<string, IssueRecord>(),
+  issueImages: new Map<string, { type: string; data: Buffer }>(),
   /** Open links of the password reset email, by token. */
   passwordResets: new Map<string, PasswordResetRecord>(),
   /** When each customer asked for a link, for the limit of three per hour. */
@@ -435,6 +480,8 @@ export function resetState(): void {
   db.pendingSignups.clear();
   db.referrals = [];
   db.reviews.clear();
+  db.issues.clear();
+  db.issueImages.clear();
   db.passwordResets.clear();
   db.passwordResetRequests.clear();
   db.orders.clear();

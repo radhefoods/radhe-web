@@ -14,6 +14,7 @@ const STATIC_TARGETS = [
   "/account/profile",
   "/account/referrals",
   "/account/reviews",
+  "/account/reports",
   "/wishlist",
 ] as const;
 

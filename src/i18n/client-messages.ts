@@ -28,6 +28,7 @@ const AREAS = {
     "address",
     "addressBook",
     "documents",
+    "issues",
     "orders",
     "payment",
     "profile",

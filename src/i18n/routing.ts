@@ -55,6 +55,10 @@ export const routing = defineRouting({
       en: "/account/orders/[orderNumber]/return",
       de: "/konto/bestellungen/[orderNumber]/ruecksendung",
     },
+    "/account/orders/[orderNumber]/report": {
+      en: "/account/orders/[orderNumber]/report",
+      de: "/konto/bestellungen/[orderNumber]/problem-melden",
+    },
     "/account/invoices": { en: "/account/invoices", de: "/konto/rechnungen" },
     "/account/addresses": { en: "/account/addresses", de: "/konto/adressen" },
     "/account/profile": { en: "/account/profile", de: "/konto/profil" },
@@ -63,6 +67,11 @@ export const routing = defineRouting({
       de: "/konto/empfehlungen",
     },
     "/account/reviews": { en: "/account/reviews", de: "/konto/bewertungen" },
+    "/account/reports": { en: "/account/reports", de: "/konto/meldungen" },
+    "/account/reports/[issueNumber]": {
+      en: "/account/reports/[issueNumber]",
+      de: "/konto/meldungen/[issueNumber]",
+    },
     "/wishlist": { en: "/wishlist", de: "/merkliste" },
     "/unsubscribe/[token]": "/unsubscribe/[token]",
     // The way back from Stripe and the links of the emails about a guest

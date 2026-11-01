@@ -59,6 +59,19 @@ import {
 } from "./content.ts";
 import { DEMO_EMAIL, DEMO_PASSWORD, seedDemoAccount } from "./demo.ts";
 import {
+  addIssueImages,
+  cancelIssue,
+  createIssue,
+  decideIssue,
+  findIssue,
+  issueView,
+  listIssues,
+  openIssuesOf,
+  orderIssues,
+  removeIssueImage,
+} from "./issues.ts";
+import { boundaryOf, parseMultipart, type MultipartBody } from "./multipart.ts";
+import {
   advanceOrder,
   cancelReturn,
   createReturn,
@@ -816,7 +829,7 @@ route("GET", "/v1/store/me/overview", (ctx) => {
           0,
         ),
         addresses: customer.addresses.length,
-        openIssues: 0,
+        openIssues: openIssuesOf(customer).length,
       },
       defaultAddress:
         customer.addresses.find((address) => address.isDefault) ?? null,
@@ -852,7 +865,8 @@ route("POST", "/v1/store/me/delete", (ctx) => {
     ),
   );
   const openReturns = openReturnsOf(customer).length;
-  if (open.length > 0 || openReturns > 0) {
+  const openIssues = openIssuesOf(customer).length;
+  if (open.length > 0 || openReturns > 0 || openIssues > 0) {
     throw new HttpError(
       409,
       "CUSTOMER_HAS_OPEN_ORDERS",
@@ -860,7 +874,7 @@ route("POST", "/v1/store/me/delete", (ctx) => {
       {
         orderNumbers: open.map((order) => order.orderNumber),
         openReturns,
-        openIssues: 0,
+        openIssues,
       },
     );
   }
@@ -1986,6 +2000,99 @@ route("POST", "/__mock/review", (ctx) => {
   return { status: 204 };
 });
 
+// --- 23 Problem reports (doc 23, CUSTOMER_ACCOUNTS 9) -------------------------
+
+route("GET", "/v1/store/orders/:orderNumber/issues", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const order = findOrder(customer, ctx.params.orderNumber);
+  return { body: orderIssues(order, ctx.locale) };
+});
+
+route("POST", "/v1/store/orders/:orderNumber/issues", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const order = findOrder(customer, ctx.params.orderNumber);
+  return {
+    status: 201,
+    body: { issue: createIssue(customer, order, ctx.body, ctx.locale) },
+  };
+});
+
+route("POST", "/v1/store/issues/:issueNumber/images", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const issue = findIssue(customer, ctx.params.issueNumber);
+  const multipart = (ctx.body as { multipart?: MultipartBody } | undefined)
+    ?.multipart;
+  if (!multipart) {
+    throw validationFailed("files", "send the pictures as multipart/form-data");
+  }
+  return {
+    status: 201,
+    body: { issue: addIssueImages(issue, multipart.files, ctx.locale) },
+  };
+});
+
+route("DELETE", "/v1/store/issues/:issueNumber/images/:imageId", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const issue = findIssue(customer, ctx.params.issueNumber);
+  return {
+    body: { issue: removeIssueImage(issue, ctx.params.imageId, ctx.locale) },
+  };
+});
+
+route("GET", "/v1/store/issues", (ctx) => ({
+  body: listIssues(requireCustomer(ctx), ctx.locale),
+}));
+
+route("GET", "/v1/store/issues/:issueNumber", (ctx) => {
+  const customer = requireCustomer(ctx);
+  return {
+    body: {
+      issue: issueView(findIssue(customer, ctx.params.issueNumber), ctx.locale),
+    },
+  };
+});
+
+route("POST", "/v1/store/issues/:issueNumber/cancel", (ctx) => {
+  const customer = requireCustomer(ctx);
+  return {
+    body: {
+      issue: cancelIssue(
+        findIssue(customer, ctx.params.issueNumber),
+        ctx.locale,
+      ),
+    },
+  };
+});
+
+/** A customer's photo, as uploaded. */
+route("GET", "/media/issues/:id", (ctx) => {
+  const image = db.issueImages.get(ctx.params.id);
+  if (!image) throw new HttpError(404, "NOT_FOUND", "No such picture.");
+  return {
+    raw: {
+      contentType: image.type,
+      content: image.data,
+      cacheControl: "public, max-age=60",
+    },
+  };
+});
+
+// Not part of the real API: the admin's decision on a report
+// (`{ issueNumber, action: "review" | "resolve" | "reject", note?, resolution?, amount? }`).
+route("POST", "/__mock/issue", (ctx) => {
+  const body = objectBody(ctx.body, [
+    "issueNumber",
+    "action",
+    "note",
+    "resolution",
+    "amount",
+  ]);
+  const issue = db.issues.get(String(body.issueNumber).toUpperCase());
+  if (!issue) throw validationFailed("issueNumber", "unknown report");
+  decideIssue(issue, ctx.body);
+  return { status: 204 };
+});
+
 // --- 17 Homepage banners (doc 17) -------------------------------------------
 
 route("GET", "/v1/store/banners", (ctx) => ({
@@ -2584,7 +2691,11 @@ export interface MockServerOptions {
 async function readBody(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of request) chunks.push(chunk as Buffer);
-  const text = Buffer.concat(chunks).toString("utf8");
+  const raw = Buffer.concat(chunks);
+  // The photos of a problem report come as multipart/form-data (doc 23).
+  const boundary = boundaryOf(request.headers["content-type"]);
+  if (boundary) return { multipart: parseMultipart(raw, boundary) };
+  const text = raw.toString("utf8");
   if (!text) return undefined;
   try {
     return JSON.parse(text);

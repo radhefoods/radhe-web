@@ -255,6 +255,61 @@ export function seedDemoAccount(
     editedAt: null,
   });
 
+  // A problem report on the delivered order (doc 23), resolved with a refund.
+  const deliveredOrder = [...db.orders.values()].find(
+    (record) =>
+      record.customerId === customer.id && record.delivery.deliveredAt,
+  );
+  if (deliveredOrder) {
+    const drink = deliveredOrder.items.find(
+      (item) => item.variantId === SKU.mangoDrink,
+    );
+    if (drink) {
+      db.issues.set(`${deliveredOrder.orderNumber}-P1`, {
+        issueNumber: `${deliveredOrder.orderNumber}-P1`,
+        orderNumber: deliveredOrder.orderNumber,
+        customerId: customer.id,
+        status: "resolved",
+        reportedAt: daysAgo(9),
+        decidedAt: daysAgo(8),
+        items: [
+          {
+            productId: drink.productId,
+            variantId: drink.variantId,
+            sku: drink.sku,
+            name: drink.name,
+            packValue: drink.packValue,
+            packUnit: drink.packUnit,
+            quantity: 1,
+            refundedQuantity: 1,
+            unitPrice: drink.unitPrice,
+          },
+        ],
+        problems: ["damaged"],
+        description: "One carton arrived crushed and leaking at the bottom.",
+        imageIds: [],
+        preferredResolution: "refund",
+        resolution: {
+          type: "refund",
+          amount: drink.unitPrice,
+          note: "Sorry about that! The carton is refunded.",
+          at: daysAgo(8),
+        },
+        history: [
+          { status: "open", at: daysAgo(9), by: "customer", note: null },
+          { status: "in_review", at: daysAgo(9), by: "admin", note: null },
+          {
+            status: "resolved",
+            at: daysAgo(8),
+            by: "admin",
+            note: "Sorry about that! The carton is refunded.",
+          },
+        ],
+        locale: customer.locale,
+      });
+    }
+  }
+
   // Two lists (doc 16.2): the favourites the heart fills, and one of her own.
   const productOf = (variantId: string) => findVariant(variantId)!.product.id;
   const now = new Date().toISOString();

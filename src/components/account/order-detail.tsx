@@ -39,6 +39,7 @@ import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { AddressBlock, DocumentRow, OrderStatusChips } from "./order-bits";
 import { OrderFeedback } from "./order-feedback";
+import { OrderIssues } from "./order-issues";
 import {
   formatPackSize,
   formatProductName,
@@ -760,6 +761,8 @@ export function OrderBody({
           )}
         </section>
       )}
+
+      {!guest && delivered && <OrderIssues order={order} className={panel} />}
 
       {!guest && <OrderFeedback order={order} className={panel} />}
 
