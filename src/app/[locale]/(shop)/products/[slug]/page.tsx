@@ -16,15 +16,19 @@ import {
   PackSizes,
   ProductPurchase,
 } from "@/components/catalogue/product-purchase";
+import { ProductReviews } from "@/components/catalogue/product-reviews";
 import { PurchaseInfo } from "@/components/catalogue/purchase-info";
+import { RatingStars } from "@/components/catalogue/rating-stars";
 import { ProductRow, ProductRowItem } from "@/components/home/product-row";
 import { Disclosure } from "@/components/ui/disclosure";
 import {
   getCategories,
   getProduct,
+  getProductReviews,
   getSettings,
   listProducts,
 } from "@/features/catalogue/data";
+import { AreaMessages } from "@/i18n/area-messages";
 import {
   catalogueQuery,
   featuredQuery,
@@ -192,18 +196,40 @@ export default async function ProductPage({ params }: Props) {
     permanentRedirect({ href: productHref(product.slug), locale });
   }
 
-  const [t, tNav, tCommon, tHome, related, popularItems, settings, categories] =
-    await Promise.all([
-      getTranslations("product"),
-      getTranslations("nav"),
-      getTranslations("common"),
-      getTranslations("home"),
-      relatedProducts(product, locale),
-      popular(product, locale),
-      getSettings(),
-      getCategories(locale),
-    ]);
+  const [
+    t,
+    tNav,
+    tCommon,
+    tHome,
+    related,
+    popularItems,
+    settings,
+    categories,
+    reviews,
+  ] = await Promise.all([
+    getTranslations("product"),
+    getTranslations("nav"),
+    getTranslations("common"),
+    getTranslations("home"),
+    relatedProducts(product, locale),
+    popular(product, locale),
+    getSettings(),
+    getCategories(locale),
+    getProductReviews(product.id, locale),
+  ]);
   const brand = brandOf(product.brand);
+  // The published reviews (doc 22): a chip that leads to the section.
+  const rating =
+    product.rating && product.rating.count > 0 ? product.rating : null;
+  const ratingLabel = rating
+    ? t("ratingLabel", {
+        average: rating.average.toLocaleString(locale, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }),
+        count: rating.count,
+      })
+    : null;
   const category = product.breadcrumbs.at(-1) ?? null;
   const shopCategories = categories.filter(
     (category) => category.productCount > 0,
@@ -279,6 +305,27 @@ export default async function ProductPage({ params }: Props) {
                     )}
                   >
                     {brand}
+                  </li>
+                )}
+                {rating && ratingLabel && (
+                  <li>
+                    <a
+                      href="#product-reviews"
+                      aria-label={ratingLabel}
+                      className={cn(
+                        chip,
+                        "text-ink gap-1.5 transition-colors duration-200 hover:bg-white/85",
+                      )}
+                    >
+                      <RatingStars average={rating.average} label="" />
+                      <span aria-hidden="true" className="tabular-nums">
+                        {rating.average.toLocaleString(locale, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        })}{" "}
+                        ({rating.count})
+                      </span>
+                    </a>
                   </li>
                 )}
                 <PackSizeDiscount
@@ -371,6 +418,15 @@ export default async function ProductPage({ params }: Props) {
           </Disclosure>
         </div>
       </PackSizes>
+
+      {/* The reviews (doc 22), under the texts; nothing on an API without them. */}
+      {reviews !== null && (
+        <div className="mt-14 lg:mt-20">
+          <AreaMessages area="catalogue">
+            <ProductReviews productId={product.id} initial={reviews} />
+          </AreaMessages>
+        </div>
+      )}
 
       {related && (
         <div className="mt-14 lg:mt-20">

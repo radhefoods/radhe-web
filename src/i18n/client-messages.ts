@@ -20,7 +20,7 @@ const BASE = [
 ] as const satisfies readonly Namespace[];
 
 const AREAS = {
-  catalogue: ["filters"],
+  catalogue: ["filters", "reviews"],
   signIn: ["auth"],
   checkout: ["address", "checkout"],
   account: [
@@ -33,6 +33,7 @@ const AREAS = {
     "profile",
     "referral",
     "returns",
+    "reviews",
   ],
   emailLinks: ["unsubscribe"],
   wishlist: ["wishlist"],

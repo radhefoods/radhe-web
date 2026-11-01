@@ -14,6 +14,7 @@ import {
 import { AddToCart } from "./add-to-cart";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
+import { RatingStars } from "./rating-stars";
 import { WishlistButton } from "./wishlist-button";
 
 const badge =
@@ -68,6 +69,9 @@ export function ProductCard({
   const unorderable = orderingReason(product.ordering) !== null;
   const onSale = product.pricing.onSale && !unorderable;
   const left = fewLeft(product.ordering);
+  // The published reviews (doc 22); nothing without any, or on an older API.
+  const rating =
+    product.rating && product.rating.count > 0 ? product.rating : null;
   const Heading = headingLevel;
 
   return (
@@ -130,9 +134,28 @@ export function ProductCard({
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 px-1.5 pt-3 pb-2 sm:px-2">
-        {brand && (
-          <p className="text-ink-subtle truncate text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase">
-            {brand}
+        {(brand || rating) && (
+          <p className="flex items-center justify-between gap-2 leading-4">
+            {brand && (
+              <span className="text-ink-subtle truncate text-[0.6875rem] font-bold tracking-[0.1em] uppercase">
+                {brand}
+              </span>
+            )}
+            {rating && (
+              <span className="text-ink-muted ml-auto flex shrink-0 items-center gap-1 text-[0.6875rem] font-semibold tabular-nums">
+                <RatingStars
+                  average={rating.average}
+                  label={t("ratingLabel", {
+                    average: rating.average.toLocaleString(locale, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    }),
+                    count: rating.count,
+                  })}
+                />
+                <span aria-hidden="true">{rating.count}</span>
+              </span>
+            )}
           </p>
         )}
         <Heading className="line-clamp-2 min-h-10 text-[0.9375rem] leading-5 font-semibold">

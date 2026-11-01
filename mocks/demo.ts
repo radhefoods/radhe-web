@@ -15,7 +15,9 @@ import {
 } from "./payments.ts";
 import {
   db,
+  hashPassword,
   legalDocuments,
+  newCustomer,
   type CustomerRecord,
   type OrderRecord,
 } from "./state.ts";
@@ -186,6 +188,72 @@ export function seedDemoAccount(
     // without orders rather than failing the sign-in.
   }
   customer.cart = [];
+
+  // Reviews (doc 22): hers of the delivered basmati, published with a
+  // reply, and one of the toor dal that waits; one by another customer.
+  const basmati = findVariant(SKU.basmati5kg)!.product.id;
+  const toorDal = findVariant(SKU.toorDal1kg)!.product.id;
+  db.reviews.set("66fb0000000000000000e001", {
+    id: "66fb0000000000000000e001",
+    customerId: customer.id,
+    productId: basmati,
+    orderNumber: "RF-1085",
+    rating: 5,
+    title: "Fluffy and fragrant",
+    text: "Long grains, cooks evenly and smells wonderful. The 5 kg bag keeps well.",
+    locale: "en",
+    status: "published",
+    rejectionNote: null,
+    reply: {
+      text: "Thank you, Priya! We are glad it cooked well for you.",
+      at: daysAgo(6),
+    },
+    createdAt: daysAgo(8),
+    updatedAt: daysAgo(8),
+    publishedAt: daysAgo(7),
+    editedAt: null,
+  });
+  db.reviews.set("66fb0000000000000000e002", {
+    id: "66fb0000000000000000e002",
+    customerId: customer.id,
+    productId: toorDal,
+    orderNumber: "RF-1085",
+    rating: 4,
+    title: null,
+    text: "Good quality dal, cooks in twenty minutes in the pressure cooker.",
+    locale: "en",
+    status: "pending",
+    rejectionNote: null,
+    reply: null,
+    createdAt: daysAgo(1),
+    updatedAt: daysAgo(1),
+    publishedAt: null,
+    editedAt: null,
+  });
+  const meera = newCustomer({
+    email: "meera@example.com",
+    locale: "en",
+    firstName: "Meera",
+    lastName: "Patel",
+    passwordHash: hashPassword("Mangoes-in-May-2026"),
+  });
+  db.reviews.set("66fb0000000000000000e003", {
+    id: "66fb0000000000000000e003",
+    customerId: meera.id,
+    productId: basmati,
+    orderNumber: null,
+    rating: 4,
+    title: "Very good rice",
+    text: "Slightly less aroma than the brand I used before, but excellent value.",
+    locale: "en",
+    status: "published",
+    rejectionNote: null,
+    reply: null,
+    createdAt: daysAgo(20),
+    updatedAt: daysAgo(20),
+    publishedAt: daysAgo(19),
+    editedAt: null,
+  });
 
   // Two lists (doc 16.2): the favourites the heart fills, and one of her own.
   const productOf = (variantId: string) => findVariant(variantId)!.product.id;

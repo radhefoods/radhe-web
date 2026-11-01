@@ -38,6 +38,7 @@ import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { AddressBlock, DocumentRow, OrderStatusChips } from "./order-bits";
+import { OrderFeedback } from "./order-feedback";
 import {
   formatPackSize,
   formatProductName,
@@ -463,6 +464,7 @@ export function OrderBody({
   const tDocuments = useTranslations("documents");
   const tProduct = useTranslations("product");
   const tReturns = useTranslations("returns");
+  const tReviews = useTranslations("reviews");
   const locale = useLocale() as Locale;
   const client = useQueryClient();
   const router = useRouter();
@@ -613,6 +615,19 @@ export function OrderBody({
                     {t("returnedQuantity", { count: item.returnedQuantity })}
                   </p>
                 )}
+                {/* A delivered product can be reviewed (doc 22); the reviews
+                    page opens the form for it. */}
+                {delivered && !guest && (
+                  <Link
+                    href={{
+                      pathname: "/account/reviews",
+                      query: { product: item.productId },
+                    }}
+                    className="text-leaf-700 mt-1 inline-block rounded-xs text-sm font-semibold underline underline-offset-4"
+                  >
+                    {tReviews("reviewItem")}
+                  </Link>
+                )}
               </div>
               <p className="shrink-0 font-bold tabular-nums">
                 {formatMoney(
@@ -745,6 +760,8 @@ export function OrderBody({
           )}
         </section>
       )}
+
+      {!guest && <OrderFeedback order={order} className={panel} />}
 
       {order.canCancel && paymentState.status !== "cancelled" && (
         <div>

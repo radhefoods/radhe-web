@@ -120,6 +120,26 @@ export interface PendingSignupRecord {
   lastSentAt: number;
 }
 
+/** A review of a product by a customer (doc 22); shown once published. */
+export interface ReviewRecord {
+  id: string;
+  customerId: string;
+  productId: string;
+  orderNumber: string | null;
+  rating: number;
+  title: string | null;
+  text: string;
+  locale: Locale;
+  status: "pending" | "published" | "rejected";
+  rejectionNote: string | null;
+  reply: { text: string; at: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+  /** Set when a published review was rewritten. */
+  editedAt: string | null;
+}
+
 /** One person invited by another (doc 21). */
 export interface ReferralRecord {
   id: string;
@@ -258,6 +278,13 @@ export interface OrderRecord {
   pendingUntil: string | null;
   /** The key that opens a guest order (doc 20); `null` for an account's order. */
   guestToken: string | null;
+  /** What the customer said after the delivery (doc 22), once. */
+  feedback: {
+    rating: number;
+    deliveryRating: number | null;
+    comment: string | null;
+    at: string;
+  } | null;
 }
 
 /** Order numbers continue after this one: the first order is RF-1085. */
@@ -277,6 +304,8 @@ export const db = {
   pendingSignups: new Map<string, PendingSignupRecord>(),
   /** Who invited whom (doc 21). */
   referrals: [] as ReferralRecord[],
+  /** Reviews by id (doc 22). */
+  reviews: new Map<string, ReviewRecord>(),
   /** Open links of the password reset email, by token. */
   passwordResets: new Map<string, PasswordResetRecord>(),
   /** When each customer asked for a link, for the limit of three per hour. */
@@ -405,6 +434,7 @@ export function resetState(): void {
   db.sessions.clear();
   db.pendingSignups.clear();
   db.referrals = [];
+  db.reviews.clear();
   db.passwordResets.clear();
   db.passwordResetRequests.clear();
   db.orders.clear();

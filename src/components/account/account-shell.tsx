@@ -15,6 +15,7 @@ const SECTIONS = [
   { href: "/account", key: "overview", count: null },
   { href: "/account/orders", key: "orders", count: "orders" },
   { href: "/account/invoices", key: "invoices", count: "invoices" },
+  { href: "/account/reviews", key: "reviews", count: null },
   { href: "/account/addresses", key: "addresses", count: "addresses" },
   { href: "/account/referrals", key: "referrals", count: null },
   { href: "/account/profile", key: "profile", count: null },
