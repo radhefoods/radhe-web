@@ -1128,7 +1128,8 @@ export interface Review {
 }
 
 export interface ReviewSummary {
-  average: number;
+  /** `null` without any review (as the API answers it). */
+  average: number | null;
   count: number;
   /** How many reviews gave each star, `"1"` to `"5"`. */
   distribution: Record<"1" | "2" | "3" | "4" | "5", number>;

@@ -22,6 +22,17 @@ import { OrderBody } from "./order-detail";
 import type { PaymentReturn } from "./order-payment";
 
 /**
+ * The API refused the token: the documented `403`, or the `400` it answers
+ * for a token that is not even shaped like one.
+ */
+function tokenRefused(error: unknown): boolean {
+  return (
+    hasErrorCode(error, "ORDER_TOKEN_INVALID") ||
+    hasErrorCode(error, "VALIDATION_FAILED")
+  );
+}
+
+/**
  * The order of a guest (doc 20), opened by the token of the link: the
  * same page as an account's order, read from the guest endpoint, without
  * returns and without the account around it. The way back from Stripe
@@ -66,15 +77,14 @@ export function GuestOrderView({
     staleTime: 0,
     retry: (failures, error) =>
       failures < 2 &&
-      !hasErrorCode(error, "ORDER_TOKEN_INVALID") &&
+      !tokenRefused(error) &&
       !hasErrorCode(error, "ORDER_NOT_FOUND"),
   });
   const order = orderQuery.data;
-  const invalid =
-    access === null || hasErrorCode(orderQuery.error, "ORDER_TOKEN_INVALID");
+  const invalid = access === null || tokenRefused(orderQuery.error);
   useEffect(() => {
     // A token the API refused is not kept: the next link brings the right one.
-    if (hasErrorCode(orderQuery.error, "ORDER_TOKEN_INVALID")) {
+    if (tokenRefused(orderQuery.error)) {
       forgetGuestToken(orderNumber);
     }
   }, [orderQuery.error, orderNumber]);

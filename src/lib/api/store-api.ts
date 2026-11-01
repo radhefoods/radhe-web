@@ -87,6 +87,12 @@ const seg = encodeURIComponent;
  * data with the Next.js cache).
  */
 export function createStoreApi(request: Requester) {
+  /**
+   * The routes added on 2026-11-01 refuse `?locale=` (their validation
+   * lists no such field): the language goes as `Accept-Language` (0.6).
+   */
+  const localized: Requester = (path, options) =>
+    request(path, { ...options, localeAs: "header" });
   return {
     // --- 1 Authentication ---------------------------------------------------
     /**
@@ -103,14 +109,14 @@ export function createStoreApi(request: Requester) {
       }),
     /** Finishes the sign-up with the code: the account, signed in (201). */
     signUpVerify: (input: SignUpVerifyInput, o?: CallOptions) =>
-      request<SignUpVerified>("/v1/store/auth/signup/verify", {
+      localized<SignUpVerified>("/v1/store/auth/signup/verify", {
         ...o,
         method: "POST",
         body: input,
       }),
     /** A new code for a sign-up that waits (204, whatever happened). */
     signUpResend: (input: { email: string }, o?: CallOptions) =>
-      request<void>("/v1/store/auth/signup/resend", {
+      localized<void>("/v1/store/auth/signup/resend", {
         ...o,
         method: "POST",
         body: input,
@@ -169,10 +175,10 @@ export function createStoreApi(request: Requester) {
       }),
     /** The account at a glance: counts, the standard address, the referral code (2). */
     getOverview: (o?: CallOptions) =>
-      request<AccountOverview>("/v1/store/me/overview", o),
+      localized<AccountOverview>("/v1/store/me/overview", o),
     /** Closes the account for good (204, cookies cleared). */
     deleteAccount: (input: DeleteAccountInput, o?: CallOptions) =>
-      request<void>("/v1/store/me/delete", {
+      localized<void>("/v1/store/me/delete", {
         ...o,
         method: "POST",
         body: input,
@@ -349,7 +355,7 @@ export function createStoreApi(request: Requester) {
       idempotencyKey: string,
       o?: CallOptions,
     ) =>
-      request<GuestCheckoutResult>("/v1/store/guest/checkout", {
+      localized<GuestCheckoutResult>("/v1/store/guest/checkout", {
         ...o,
         method: "POST",
         body: input,
@@ -361,13 +367,13 @@ export function createStoreApi(request: Requester) {
      * allows no header for it (0.5).
      */
     getGuestOrder: (orderNumber: string, token: string, o?: CallOptions) =>
-      request<GuestOrder>(`/v1/store/guest/orders/${seg(orderNumber)}`, {
+      localized<GuestOrder>(`/v1/store/guest/orders/${seg(orderNumber)}`, {
         ...o,
         query: { token },
       }),
     /** A payment page for a guest order that still waits. */
     payGuestOrder: (orderNumber: string, token: string, o?: CallOptions) =>
-      request<CheckoutSession>(
+      localized<CheckoutSession>(
         `/v1/store/guest/orders/${seg(orderNumber)}/pay`,
         { ...o, method: "POST", query: { token } },
       ),
@@ -377,7 +383,7 @@ export function createStoreApi(request: Requester) {
       input: { reason: CustomerCancellationReason; text?: string },
       o?: CallOptions,
     ) =>
-      request<{ order: OrderDetail }>(
+      localized<{ order: OrderDetail }>(
         `/v1/store/guest/orders/${seg(orderNumber)}/cancel`,
         { ...o, method: "POST", body: input, query: { token } },
       ),
@@ -470,27 +476,30 @@ export function createStoreApi(request: Requester) {
     // --- 16.2 Several named lists -------------------------------------------
     /** Every list of the customer, the default first. */
     listWishlists: (o?: CallOptions) =>
-      request<{ items: WishlistSummary[] }>("/v1/store/wishlists", o),
+      localized<{ items: WishlistSummary[] }>("/v1/store/wishlists", o),
     createWishlist: (
       input: WishlistInput & { name: string },
       o?: CallOptions,
     ) =>
-      request<{ wishlist: WishlistSummary }>("/v1/store/wishlists", {
+      localized<{ wishlist: WishlistSummary }>("/v1/store/wishlists", {
         ...o,
         method: "POST",
         body: input,
       }),
     getWishlistById: (id: Id, o?: CallOptions) =>
-      request<Wishlist>(`/v1/store/wishlists/${seg(id)}`, o),
+      localized<Wishlist>(`/v1/store/wishlists/${seg(id)}`, o),
     /** Renames the list, or makes it the default. */
     updateWishlist: (id: Id, input: WishlistInput, o?: CallOptions) =>
-      request<{ wishlist: WishlistSummary }>(`/v1/store/wishlists/${seg(id)}`, {
-        ...o,
-        method: "PATCH",
-        body: input,
-      }),
+      localized<{ wishlist: WishlistSummary }>(
+        `/v1/store/wishlists/${seg(id)}`,
+        {
+          ...o,
+          method: "PATCH",
+          body: input,
+        },
+      ),
     deleteWishlist: (id: Id, o?: CallOptions) =>
-      request<void>(`/v1/store/wishlists/${seg(id)}`, {
+      localized<void>(`/v1/store/wishlists/${seg(id)}`, {
         ...o,
         method: "DELETE",
       }),
@@ -500,12 +509,12 @@ export function createStoreApi(request: Requester) {
       variantId?: Id,
       o?: CallOptions,
     ) =>
-      request<Wishlist>(
+      localized<Wishlist>(
         `/v1/store/wishlists/${seg(id)}/items/${seg(productId)}`,
         { ...o, method: "PUT", body: variantId ? { variantId } : {} },
       ),
     removeWishlistItemFrom: (id: Id, productId: Id, o?: CallOptions) =>
-      request<Wishlist>(
+      localized<Wishlist>(
         `/v1/store/wishlists/${seg(id)}/items/${seg(productId)}`,
         { ...o, method: "DELETE" },
       ),
@@ -516,12 +525,12 @@ export function createStoreApi(request: Requester) {
       input: WishlistTransferInput,
       o?: CallOptions,
     ) =>
-      request<Wishlist>(
+      localized<Wishlist>(
         `/v1/store/wishlists/${seg(id)}/items/${seg(productId)}/transfer`,
         { ...o, method: "POST", body: input },
       ),
     clearWishlistById: (id: Id, o?: CallOptions) =>
-      request<Wishlist>(`/v1/store/wishlists/${seg(id)}/items`, {
+      localized<Wishlist>(`/v1/store/wishlists/${seg(id)}/items`, {
         ...o,
         method: "DELETE",
       }),
@@ -529,7 +538,7 @@ export function createStoreApi(request: Requester) {
     // --- 21 Referrals ---------------------------------------------------------
     /** The code, the link and the people who used it. */
     getReferral: (o?: CallOptions) =>
-      request<{ referral: Referral }>("/v1/store/me/referral", o),
+      localized<{ referral: Referral }>("/v1/store/me/referral", o),
 
     // --- 22 Reviews and order feedback ----------------------------------------
     /** The published reviews of a product, newest first, with the summary (22). */
@@ -538,28 +547,31 @@ export function createStoreApi(request: Requester) {
       query: ReviewQuery = {},
       o?: CallOptions,
     ) =>
-      request<ReviewPage>(`/v1/store/products/${seg(productId)}/reviews`, {
+      localized<ReviewPage>(`/v1/store/products/${seg(productId)}/reviews`, {
         ...o,
         query: { ...query },
       }),
     /** The customer's own reviews, with their status. */
     listMyReviews: (o?: CallOptions) =>
-      request<{ items: MyReview[] }>("/v1/store/me/reviews", o),
+      localized<{ items: MyReview[] }>("/v1/store/me/reviews", o),
     /** Every product of a delivered order, newest delivery first. */
     listReviewable: (o?: CallOptions) =>
-      request<{ items: ReviewableItem[] }>(
+      localized<{ items: ReviewableItem[] }>(
         "/v1/store/me/reviews/reviewable",
         o,
       ),
     /** Writes, or rewrites, the review of a product; it waits for approval. */
     saveReview: (productId: Id, input: SaveReviewInput, o?: CallOptions) =>
-      request<{ review: MyReview }>(`/v1/store/me/reviews/${seg(productId)}`, {
-        ...o,
-        method: "PUT",
-        body: input,
-      }),
+      localized<{ review: MyReview }>(
+        `/v1/store/me/reviews/${seg(productId)}`,
+        {
+          ...o,
+          method: "PUT",
+          body: input,
+        },
+      ),
     deleteReview: (productId: Id, o?: CallOptions) =>
-      request<void>(`/v1/store/me/reviews/${seg(productId)}`, {
+      localized<void>(`/v1/store/me/reviews/${seg(productId)}`, {
         ...o,
         method: "DELETE",
       }),
@@ -569,7 +581,7 @@ export function createStoreApi(request: Requester) {
       input: OrderFeedbackInput,
       o?: CallOptions,
     ) =>
-      request<{ feedback: OrderFeedback }>(
+      localized<{ feedback: OrderFeedback }>(
         `/v1/store/orders/${seg(orderNumber)}/feedback`,
         { ...o, method: "POST", body: input },
       ),
@@ -577,17 +589,20 @@ export function createStoreApi(request: Requester) {
     // --- 23 Problem reports ---------------------------------------------------
     /** The reports of an order, the window, and what can be named (23). */
     getOrderIssues: (orderNumber: string, o?: CallOptions) =>
-      request<OrderIssues>(`/v1/store/orders/${seg(orderNumber)}/issues`, o),
+      localized<OrderIssues>(`/v1/store/orders/${seg(orderNumber)}/issues`, o),
     createIssue: (
       orderNumber: string,
       input: CreateIssueInput,
       o?: CallOptions,
     ) =>
-      request<{ issue: Issue }>(`/v1/store/orders/${seg(orderNumber)}/issues`, {
-        ...o,
-        method: "POST",
-        body: input,
-      }),
+      localized<{ issue: Issue }>(
+        `/v1/store/orders/${seg(orderNumber)}/issues`,
+        {
+          ...o,
+          method: "POST",
+          body: input,
+        },
+      ),
     /** Up to five photos per report in all, JPEG, PNG or WebP. */
     uploadIssueImages: (
       issueNumber: string,
@@ -596,27 +611,30 @@ export function createStoreApi(request: Requester) {
     ) => {
       const formData = new FormData();
       for (const file of files) formData.append("files", file, file.name);
-      return request<{ issue: Issue }>(
+      return localized<{ issue: Issue }>(
         `/v1/store/issues/${seg(issueNumber)}/images`,
         { ...o, method: "POST", formData },
       );
     },
     deleteIssueImage: (issueNumber: string, imageId: Id, o?: CallOptions) =>
-      request<{ issue: Issue }>(
+      localized<{ issue: Issue }>(
         `/v1/store/issues/${seg(issueNumber)}/images/${seg(imageId)}`,
         { ...o, method: "DELETE" },
       ),
     /** The customer's reports, newest first. */
     listIssues: (o?: CallOptions) =>
-      request<{ items: Issue[] }>("/v1/store/issues", o),
+      localized<{ items: Issue[] }>("/v1/store/issues", o),
     getIssue: (issueNumber: string, o?: CallOptions) =>
-      request<{ issue: Issue }>(`/v1/store/issues/${seg(issueNumber)}`, o),
+      localized<{ issue: Issue }>(`/v1/store/issues/${seg(issueNumber)}`, o),
     /** Takes the report back while nobody looked at it. */
     cancelIssue: (issueNumber: string, o?: CallOptions) =>
-      request<{ issue: Issue }>(`/v1/store/issues/${seg(issueNumber)}/cancel`, {
-        ...o,
-        method: "POST",
-      }),
+      localized<{ issue: Issue }>(
+        `/v1/store/issues/${seg(issueNumber)}/cancel`,
+        {
+          ...o,
+          method: "POST",
+        },
+      ),
 
     // --- 17 Homepage banners ------------------------------------------------
     /** The live banners in display order; an empty list means no carousel (17). */

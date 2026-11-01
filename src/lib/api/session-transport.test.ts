@@ -49,6 +49,22 @@ describe("buildUrl", () => {
     ).toBe(`${BASE}/v1/store/products?locale=de&q=reis&page=2&onSale=true`);
   });
 
+  it("sends the language as a header where the query is refused", async () => {
+    const { fetch, calls } = scriptedFetch({
+      "/v1/store/me/overview": [() => json(200, { counts: {} })],
+    });
+    const request = createRequester({ baseUrl: BASE, fetch });
+    await request("/v1/store/me/overview", {
+      locale: "de",
+      localeAs: "header",
+    });
+    expect(calls[0].path).toBe("/v1/store/me/overview");
+    expect(String(fetch.mock.calls[0][0])).toBe(`${BASE}/v1/store/me/overview`);
+    expect(
+      (calls[0].init.headers as Record<string, string>)["Accept-Language"],
+    ).toBe("de");
+  });
+
   it("continues a query the path already carries", () => {
     expect(
       buildUrl(

@@ -101,10 +101,11 @@ export function ProductReviews({
   // The summary never changes with the filter: the first page knows it.
   const summary = initial?.summary ?? pages[0]?.summary ?? null;
   const reviews = pages.flatMap((page) => page.items);
+  const average = summary?.average ?? 0;
   const label =
     summary && summary.count > 0
       ? t("ratingLabel", {
-          average: decimal(summary.average, locale),
+          average: decimal(average, locale),
           count: summary.count,
         })
       : t("count", { count: 0 });
@@ -128,11 +129,11 @@ export function ProductReviews({
             <>
               <div className="flex items-end gap-3">
                 <p className="font-display text-ink text-[3rem] leading-none">
-                  {decimal(summary.average, locale)}
+                  {decimal(average, locale)}
                 </p>
                 <p className="text-ink-muted pb-1 text-sm">{t("outOf")}</p>
               </div>
-              <RatingStars average={summary.average} label={label} size="lg" />
+              <RatingStars average={average} label={label} size="lg" />
               <p className="text-ink-muted text-sm">
                 {t("count", { count: summary.count })}
               </p>

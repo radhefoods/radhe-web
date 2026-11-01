@@ -18,8 +18,14 @@ export interface RequestOptions {
   formData?: FormData;
   headers?: Record<string, string>;
   signal?: AbortSignal;
-  /** Sent as `?locale=`. Every store endpoint answers in one language. */
+  /** Every store endpoint answers in one language (0.6). */
   locale?: Locale;
+  /**
+   * How the language travels: as `?locale=` (the documented way of the
+   * older routes), or as `Accept-Language` for the routes of 2026-11-01,
+   * whose validation refuses query fields they do not list.
+   */
+  localeAs?: "query" | "header";
   /** Next.js data cache, server side only. */
   next?: { revalidate?: number | false; tags?: string[] };
   cache?: RequestCache;
@@ -109,9 +115,14 @@ export async function send(
   options: RequestOptions = {},
 ): Promise<Response> {
   const locale = options.locale ?? config.defaultLocale?.();
-  const url = buildUrl(config.baseUrl, path, { ...options.query, locale });
+  const asHeader = options.localeAs === "header";
+  const url = buildUrl(config.baseUrl, path, {
+    ...options.query,
+    ...(!asHeader && { locale }),
+  });
   const headers: Record<string, string> = {
     Accept: "application/json",
+    ...(asHeader && locale && { "Accept-Language": locale }),
     ...options.headers,
   };
   const init: RequestInit & { next?: RequestOptions["next"] } = {
