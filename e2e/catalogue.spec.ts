@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signupCode } from "./helpers";
 
 const MOCK = "http://localhost:3000";
 const PASSWORD = "Mangoes-in-May-2026";
@@ -891,6 +892,11 @@ test.describe("the wishlist", () => {
     await page.getByLabel("Email address").fill("wish@example.com");
     await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
+    // The code from the email makes the account (doc 1).
+    await page
+      .getByLabel("Code")
+      .fill(await signupCode(page.request, "wish@example.com"));
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page).toHaveURL(/\/en\/wishlist$/);
     await expect(card(page, "Chakki Atta")).toBeVisible();
     await expect(

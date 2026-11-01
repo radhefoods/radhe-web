@@ -97,6 +97,7 @@ import {
   type Locale,
   type PendingSignupRecord,
   type SessionRecord,
+  type WishlistListRecord,
 } from "./state.ts";
 import {
   bannerSvg,
@@ -803,8 +804,11 @@ route("GET", "/v1/store/me/overview", (ctx) => {
           ["confirmed", "processing", "dispatched"].includes(order.status),
         ).length,
         invoices: documentsOf(customer).length,
-        wishlists: 1,
-        wishlistItems: customer.wishlist.length,
+        wishlists: wishlistsOf(customer).length,
+        wishlistItems: customer.wishlists.reduce(
+          (sum, list) => sum + list.items.length,
+          0,
+        ),
         addresses: customer.addresses.length,
         openIssues: 0,
       },
@@ -863,7 +867,7 @@ route("POST", "/v1/store/me/delete", (ctx) => {
   customer.passwordHash = null;
   customer.referralCode = null;
   customer.addresses = [];
-  customer.wishlist = [];
+  customer.wishlists = [];
   customer.cart = [];
   customer.discountCode = null;
   customer.communication = {
@@ -1293,12 +1297,161 @@ function wishlistEntries(
   });
 }
 
-/** The stored list, with products that left the shop dropped (doc 16). */
-function storedWishlist(customer: CustomerRecord, locale: Locale) {
-  customer.wishlist = customer.wishlist.filter((entry) =>
-    soldProduct(entry.productId),
+const WISHLISTS_MAX = 20;
+const WISHLIST_NAME_MAX = 40;
+const DEFAULT_LIST_NAME = { en: "My Favourites", de: "Meine Favoriten" };
+
+let wishlistSequence = 0;
+
+function newWishlist(
+  customer: CustomerRecord,
+  name: string,
+  isDefault: boolean,
+): WishlistListRecord {
+  wishlistSequence += 1;
+  const now = new Date().toISOString();
+  const list: WishlistListRecord = {
+    id: `66fa${wishlistSequence.toString(16).padStart(20, "0")}`,
+    name,
+    isDefault,
+    items: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  customer.wishlists.push(list);
+  return list;
+}
+
+/**
+ * The default list (doc 16.2): the one the heart adds to and the old routes
+ * address. Without any list, a fresh one appears on the first look.
+ */
+function defaultWishlist(customer: CustomerRecord): WishlistListRecord {
+  const found = customer.wishlists.find((list) => list.isDefault);
+  if (found) return found;
+  if (customer.wishlists[0]) {
+    customer.wishlists[0].isDefault = true;
+    return customer.wishlists[0];
+  }
+  return newWishlist(customer, DEFAULT_LIST_NAME[customer.locale], true);
+}
+
+function findWishlist(
+  customer: CustomerRecord,
+  id: string,
+): WishlistListRecord {
+  const list = customer.wishlists.find((candidate) => candidate.id === id);
+  if (!OBJECT_ID.test(id) || !list) {
+    throw new HttpError(404, "WISHLIST_NOT_FOUND", "This list does not exist.");
+  }
+  return list;
+}
+
+/** Products that left the shop are dropped from a stored list (doc 16). */
+function tidyWishlist(list: WishlistListRecord): void {
+  list.items = list.items.filter((entry) => soldProduct(entry.productId));
+}
+
+function wishlistSummaryOf(list: WishlistListRecord) {
+  tidyWishlist(list);
+  return {
+    id: list.id,
+    name: list.name,
+    isDefault: list.isDefault,
+    count: list.items.length,
+    createdAt: list.createdAt,
+    updatedAt: list.updatedAt,
+  };
+}
+
+/** The lists, the default first, then by age. */
+function wishlistsOf(customer: CustomerRecord) {
+  defaultWishlist(customer);
+  return [...customer.wishlists].sort(
+    (a, b) => Number(b.isDefault) - Number(a.isDefault),
   );
-  return { body: wishlistView(customer.wishlist, locale) };
+}
+
+function listView(list: WishlistListRecord, locale: Locale) {
+  tidyWishlist(list);
+  return { body: wishlistView(list.items, locale, wishlistSummaryOf(list)) };
+}
+
+/** A list's name as the customer typed it: 1 to 40 characters, unique whatever the case. */
+function wishlistNameOf(
+  customer: CustomerRecord,
+  value: unknown,
+  except?: WishlistListRecord,
+): string {
+  const name = typeof value === "string" ? value.trim() : "";
+  if (name.length < 1 || name.length > WISHLIST_NAME_MAX) {
+    throw validationFailed("name", "name must be 1 to 40 characters");
+  }
+  const taken = customer.wishlists.some(
+    (list) => list !== except && list.name.toLowerCase() === name.toLowerCase(),
+  );
+  if (taken) {
+    throw new HttpError(
+      409,
+      "WISHLIST_NAME_TAKEN",
+      "A list with this name exists already.",
+    );
+  }
+  return name;
+}
+
+function makeDefaultWishlist(
+  customer: CustomerRecord,
+  list: WishlistListRecord,
+): void {
+  for (const candidate of customer.wishlists) {
+    candidate.isDefault = candidate === list;
+  }
+}
+
+/** Saves a product on a list, or changes its remembered size (doc 16). */
+function saveOnWishlist(
+  list: WishlistListRecord,
+  productId: string,
+  rawVariantId: unknown,
+): void {
+  const product = soldProduct(productId);
+  if (!product) {
+    throw new HttpError(
+      404,
+      "PRODUCT_NOT_FOUND",
+      "No such product, or it is not in the shop.",
+    );
+  }
+  let variantId: string | null = null;
+  if (rawVariantId !== undefined) {
+    if (typeof rawVariantId !== "string" || !OBJECT_ID.test(rawVariantId)) {
+      throw validationFailed("variantId", "variantId must be an id");
+    }
+    if (!enabledVariants(product).some((v) => v.id === rawVariantId)) {
+      throw new HttpError(
+        404,
+        "PRODUCT_VARIANT_NOT_FOUND",
+        "The pack size is not one of this product's, or is switched off.",
+      );
+    }
+    variantId = rawVariantId;
+  }
+  const existing = list.items.find((e) => e.productId === productId);
+  if (existing) {
+    existing.variantId = variantId;
+  } else if (list.items.length >= WISHLIST_MAX) {
+    throw new HttpError(400, "WISHLIST_FULL", "The wishlist is full.", {
+      maximum: WISHLIST_MAX,
+    });
+  } else {
+    list.items.unshift({
+      productId,
+      variantId,
+      addedAt: new Date().toISOString(),
+    });
+  }
+  list.updatedAt = new Date().toISOString();
 }
 
 route("POST", "/v1/store/wishlist/preview", (ctx) => {
@@ -1310,9 +1463,10 @@ route("POST", "/v1/store/wishlist/preview", (ctx) => {
   return { body: wishlistView(entries, ctx.locale) };
 });
 
-route("GET", "/v1/store/wishlist", (ctx) =>
-  storedWishlist(requireCustomer(ctx), ctx.locale),
-);
+route("GET", "/v1/store/wishlist", (ctx) => {
+  const customer = requireCustomer(ctx);
+  return listView(defaultWishlist(customer), ctx.locale);
+});
 
 function productIdParam(ctx: Context): string {
   if (!OBJECT_ID.test(ctx.params.productId)) {
@@ -1323,83 +1477,166 @@ function productIdParam(ctx: Context): string {
 
 route("PUT", "/v1/store/wishlist/items/:productId", (ctx) => {
   const customer = requireCustomer(ctx);
-  const productId = productIdParam(ctx);
   const body = objectBody(ctx.body, ["variantId"]);
-  const product = soldProduct(productId);
-  if (!product) {
-    throw new HttpError(
-      404,
-      "PRODUCT_NOT_FOUND",
-      "No such product, or it is not in the shop.",
-    );
-  }
-  let variantId: string | null = null;
-  if (body.variantId !== undefined) {
-    if (typeof body.variantId !== "string" || !OBJECT_ID.test(body.variantId)) {
-      throw validationFailed("variantId", "variantId must be an id");
-    }
-    if (!enabledVariants(product).some((v) => v.id === body.variantId)) {
-      throw new HttpError(
-        404,
-        "PRODUCT_VARIANT_NOT_FOUND",
-        "The pack size is not one of this product's, or is switched off.",
-      );
-    }
-    variantId = body.variantId;
-  }
-  const existing = customer.wishlist.find((e) => e.productId === productId);
-  if (existing) {
-    existing.variantId = variantId;
-  } else if (customer.wishlist.length >= WISHLIST_MAX) {
-    throw new HttpError(400, "WISHLIST_FULL", "The wishlist is full.", {
-      maximum: WISHLIST_MAX,
-    });
-  } else {
-    customer.wishlist.unshift({
-      productId,
-      variantId,
-      addedAt: new Date().toISOString(),
-    });
-  }
-  return storedWishlist(customer, ctx.locale);
+  const list = defaultWishlist(customer);
+  saveOnWishlist(list, productIdParam(ctx), body.variantId);
+  return listView(list, ctx.locale);
 });
 
 route("DELETE", "/v1/store/wishlist/items/:productId", (ctx) => {
   const customer = requireCustomer(ctx);
   const productId = productIdParam(ctx);
-  customer.wishlist = customer.wishlist.filter(
-    (e) => e.productId !== productId,
-  );
-  return storedWishlist(customer, ctx.locale);
+  const list = defaultWishlist(customer);
+  list.items = list.items.filter((e) => e.productId !== productId);
+  return listView(list, ctx.locale);
 });
 
 route("DELETE", "/v1/store/wishlist", (ctx) => {
   const customer = requireCustomer(ctx);
-  customer.wishlist = [];
-  return { body: wishlistView([], ctx.locale) };
+  const list = defaultWishlist(customer);
+  list.items = [];
+  return listView(list, ctx.locale);
 });
 
 route("POST", "/v1/store/wishlist/merge", (ctx) => {
   const customer = requireCustomer(ctx);
   const body = objectBody(ctx.body, ["items"]);
+  const list = defaultWishlist(customer);
   // The visitor's list is newest first: taken in reverse, each new product
   // lands at the front, so the order stays. Saved products keep their
   // size; a full list drops the rest silently.
   for (const entry of wishlistEntries(body.items).reverse()) {
     const product = soldProduct(entry.productId);
     if (!product) continue;
-    if (customer.wishlist.some((e) => e.productId === entry.productId)) {
-      continue;
-    }
-    if (customer.wishlist.length >= WISHLIST_MAX) break;
+    if (list.items.some((e) => e.productId === entry.productId)) continue;
+    if (list.items.length >= WISHLIST_MAX) break;
     const sold = enabledVariants(product).some((v) => v.id === entry.variantId);
-    customer.wishlist.unshift({
+    list.items.unshift({
       productId: entry.productId,
       variantId: sold ? entry.variantId : null,
       addedAt: new Date().toISOString(),
     });
   }
-  return storedWishlist(customer, ctx.locale);
+  return listView(list, ctx.locale);
+});
+
+// --- 16.2 Several named lists (doc 16.2, CUSTOMER_ACCOUNTS 6) --------------
+
+route("GET", "/v1/store/wishlists", (ctx) => ({
+  body: { items: wishlistsOf(requireCustomer(ctx)).map(wishlistSummaryOf) },
+}));
+
+route("POST", "/v1/store/wishlists", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const body = objectBody(ctx.body, ["name", "isDefault"]);
+  defaultWishlist(customer);
+  if (customer.wishlists.length >= WISHLISTS_MAX) {
+    throw new HttpError(
+      400,
+      "WISHLIST_LIMIT_REACHED",
+      "You can have up to 20 lists.",
+    );
+  }
+  const name = wishlistNameOf(customer, body.name);
+  if (body.isDefault !== undefined && typeof body.isDefault !== "boolean") {
+    throw validationFailed("isDefault", "isDefault must be a boolean value");
+  }
+  const list = newWishlist(customer, name, false);
+  if (body.isDefault === true) makeDefaultWishlist(customer, list);
+  return { status: 201, body: { wishlist: wishlistSummaryOf(list) } };
+});
+
+route("GET", "/v1/store/wishlists/:id", (ctx) => {
+  const customer = requireCustomer(ctx);
+  return listView(findWishlist(customer, ctx.params.id), ctx.locale);
+});
+
+route("PATCH", "/v1/store/wishlists/:id", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const list = findWishlist(customer, ctx.params.id);
+  const body = objectBody(ctx.body, ["name", "isDefault"]);
+  if (body.name !== undefined) {
+    list.name = wishlistNameOf(customer, body.name, list);
+  }
+  if (body.isDefault !== undefined && typeof body.isDefault !== "boolean") {
+    throw validationFailed("isDefault", "isDefault must be a boolean value");
+  }
+  // `false` is ignored: there is always one default.
+  if (body.isDefault === true) makeDefaultWishlist(customer, list);
+  list.updatedAt = new Date().toISOString();
+  return { body: { wishlist: wishlistSummaryOf(list) } };
+});
+
+route("DELETE", "/v1/store/wishlists/:id", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const list = findWishlist(customer, ctx.params.id);
+  customer.wishlists = customer.wishlists.filter((c) => c !== list);
+  // The oldest remaining list becomes the default; none: a fresh one appears later.
+  if (list.isDefault && customer.wishlists[0]) {
+    customer.wishlists[0].isDefault = true;
+  }
+  return { status: 204 };
+});
+
+route("PUT", "/v1/store/wishlists/:id/items/:productId", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const list = findWishlist(customer, ctx.params.id);
+  const body = objectBody(ctx.body, ["variantId"]);
+  saveOnWishlist(list, productIdParam(ctx), body.variantId);
+  return listView(list, ctx.locale);
+});
+
+route("DELETE", "/v1/store/wishlists/:id/items/:productId", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const list = findWishlist(customer, ctx.params.id);
+  const productId = productIdParam(ctx);
+  list.items = list.items.filter((e) => e.productId !== productId);
+  return listView(list, ctx.locale);
+});
+
+route("POST", "/v1/store/wishlists/:id/items/:productId/transfer", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const list = findWishlist(customer, ctx.params.id);
+  const productId = productIdParam(ctx);
+  const body = objectBody(ctx.body, ["to", "copy"]);
+  if (typeof body.to !== "string" || !OBJECT_ID.test(body.to)) {
+    throw validationFailed("to", "to must be an id");
+  }
+  if (body.copy !== undefined && typeof body.copy !== "boolean") {
+    throw validationFailed("copy", "copy must be a boolean value");
+  }
+  const target = findWishlist(customer, body.to);
+  const entry = list.items.find((e) => e.productId === productId);
+  if (!entry) {
+    throw new HttpError(
+      404,
+      "PRODUCT_NOT_FOUND",
+      "The product is not on this list.",
+    );
+  }
+  // A product that is on the other list already stays as it is there.
+  if (!target.items.some((e) => e.productId === productId)) {
+    if (target.items.length >= WISHLIST_MAX) {
+      throw new HttpError(400, "WISHLIST_FULL", "The wishlist is full.", {
+        maximum: WISHLIST_MAX,
+      });
+    }
+    target.items.unshift({ ...entry, addedAt: new Date().toISOString() });
+    target.updatedAt = new Date().toISOString();
+  }
+  if (body.copy !== true) {
+    list.items = list.items.filter((e) => e !== entry);
+    list.updatedAt = new Date().toISOString();
+  }
+  return listView(list, ctx.locale);
+});
+
+route("DELETE", "/v1/store/wishlists/:id/items", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const list = findWishlist(customer, ctx.params.id);
+  list.items = [];
+  list.updatedAt = new Date().toISOString();
+  return listView(list, ctx.locale);
 });
 
 // --- 17 Homepage banners (doc 17) -------------------------------------------

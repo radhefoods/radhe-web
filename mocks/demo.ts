@@ -19,7 +19,7 @@ import {
   type CustomerRecord,
   type OrderRecord,
 } from "./state.ts";
-import { billOf } from "./views.ts";
+import { billOf, findVariant } from "./views.ts";
 
 export const DEMO_EMAIL = "demo@radhefoods.de";
 /** Not a secret: the mock creates the account with it at the first sign-in. */
@@ -186,4 +186,35 @@ export function seedDemoAccount(
     // without orders rather than failing the sign-in.
   }
   customer.cart = [];
+
+  // Two lists (doc 16.2): the favourites the heart fills, and one of her own.
+  const productOf = (variantId: string) => findVariant(variantId)!.product.id;
+  const now = new Date().toISOString();
+  customer.wishlists = [
+    {
+      id: "66fa0000000000000000d001",
+      name: customer.locale === "de" ? "Meine Favoriten" : "My Favourites",
+      isDefault: true,
+      items: [
+        {
+          productId: productOf(SKU.basmati5kg),
+          variantId: SKU.basmati5kg,
+          addedAt: now,
+        },
+        { productId: productOf(SKU.toorDal1kg), variantId: null, addedAt: now },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: "66fa0000000000000000d002",
+      name: "Diwali",
+      isDefault: false,
+      items: [
+        { productId: productOf(SKU.khakhra), variantId: null, addedAt: now },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
 }

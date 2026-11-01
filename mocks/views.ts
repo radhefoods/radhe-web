@@ -1154,6 +1154,8 @@ export function wishlistView(
     addedAt: string | null;
   }[],
   locale: Locale,
+  /** Which list this is (doc 16.2); none for a visitor's preview. */
+  summary?: Wishlist["wishlist"],
 ): Wishlist {
   const items: WishlistItem[] = [];
   for (const entry of entries) {
@@ -1172,7 +1174,11 @@ export function wishlistView(
       ),
     });
   }
-  return { items, count: items.length };
+  return {
+    ...(summary && { wishlist: { ...summary, count: items.length } }),
+    items,
+    count: items.length,
+  };
 }
 
 // --- Homepage banners (doc 17) ----------------------------------------------

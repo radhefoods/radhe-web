@@ -20,12 +20,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  */
 export default async function WishlistPage({ params }: Props) {
   await localeOf(params);
-  const t = await getTranslations("wishlist");
+  // The title is the list's name for a customer (doc 16.2): the view sets it.
   return (
-    <div className="container-page space-y-5 py-6 sm:py-8">
-      <h1 className="font-display text-ink text-3xl sm:text-4xl">
-        {t("title")}
-      </h1>
+    <div className="container-page py-6 sm:py-8">
       <AreaMessages area="wishlist">
         <WishlistView />
       </AreaMessages>

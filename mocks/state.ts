@@ -83,11 +83,22 @@ export const legalDocuments: LegalRecord[] = [
 
 // --- Customers, sessions, carts (doc 1, 2, 8) --------------------------------
 
-/** One product on the wishlist (doc 16), with the size it was saved from. */
+/** One product on a wishlist (doc 16), with the size it was saved from. */
 export interface WishlistRecord {
   productId: string;
   variantId: string | null;
   addedAt: string;
+}
+
+/** One of a customer's lists (doc 16.2); the default is the heart's list. */
+export interface WishlistListRecord {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  /** Newest first, at most 200. */
+  items: WishlistRecord[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -158,8 +169,8 @@ export interface CustomerRecord {
   /** The discount code kept with the cart (doc 9.6), upper case, or `null`. */
   discountCode: string | null;
   addresses: Address[];
-  /** Newest first, at most 200. */
-  wishlist: WishlistRecord[];
+  /** Up to 20 lists; the default one is made on first use. */
+  wishlists: WishlistListRecord[];
 }
 
 export interface SessionRecord {
@@ -375,7 +386,7 @@ export function newCustomer(input: {
     cart: [],
     discountCode: null,
     addresses: [],
-    wishlist: [],
+    wishlists: [],
   };
   db.customers.set(customer.id, customer);
   return customer;
