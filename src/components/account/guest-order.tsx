@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo } from "react";
+import { forgetGuestCart } from "@/features/cart/cart";
 import { Alert } from "@/components/ui/alert";
 import { buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -77,6 +78,12 @@ export function GuestOrderView({
       forgetGuestToken(orderNumber);
     }
   }, [orderQuery.error, orderNumber]);
+  // Back from the payment page with the order paid: the browser's cart,
+  // which the order was made from, has done its work.
+  const paid = order?.paymentStatus === "paid";
+  useEffect(() => {
+    if (paymentReturn === "success" && paid) forgetGuestCart();
+  }, [paymentReturn, paid]);
 
   const toShop = (
     <Link

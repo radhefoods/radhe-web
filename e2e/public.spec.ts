@@ -1,6 +1,5 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
-
-const MOCK = "http://localhost:3000";
+import { createAccount, MOCK } from "./helpers";
 
 test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
@@ -12,13 +11,10 @@ test.beforeEach(async ({ request }) => {
  * email. Answers the token the marketing emails would carry.
  */
 async function tokensOf(request: APIRequestContext, email: string) {
-  await request.post(`${MOCK}/v1/store/auth/signup`, {
-    data: {
-      firstName: "Anna",
-      lastName: "Schmidt",
-      email,
-      password: "Mangoes-in-May-2026",
-    },
+  await createAccount(request, {
+    email,
+    firstName: "Anna",
+    lastName: "Schmidt",
   });
   const response = await request.get(
     `${MOCK}/__mock/tokens?email=${encodeURIComponent(email)}`,

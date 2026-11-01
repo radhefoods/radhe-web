@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createAccount, MOCK, PASSWORD } from "./helpers";
 
-const MOCK = "http://localhost:3000";
 const DEMO = "demo@radhefoods.de";
 
 // The demo account of the mock comes with six orders:
@@ -15,18 +15,9 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
 });
 
-const PASSWORD = "Mangoes-in-May-2026";
-
 /** Signs the browser in through the API; the account is created when new. */
 async function signIn(page: Page, email = DEMO) {
-  const created = await page.request.post(`${MOCK}/v1/store/auth/signup`, {
-    data: { firstName: "Priya", lastName: "Shah", email, password: PASSWORD },
-  });
-  if (created.status() === 409) {
-    await page.request.post(`${MOCK}/v1/store/auth/login`, {
-      data: { email, password: PASSWORD },
-    });
-  }
+  await createAccount(page.request, { email });
 }
 
 const payButton = (page: Page) =>
@@ -62,14 +53,7 @@ test.describe("the account", () => {
     request,
   }) => {
     // The account exists; this browser has no session yet.
-    await request.post(`${MOCK}/v1/store/auth/signup`, {
-      data: {
-        firstName: "Priya",
-        lastName: "Shah",
-        email: DEMO,
-        password: PASSWORD,
-      },
-    });
+    await createAccount(request, { email: DEMO });
     await page.goto("/en/account/orders/RF-1087");
     await expect(page).toHaveURL(
       /\/en\/sign-in\?returnTo=%2Faccount%2Forders%2FRF-1087$/,

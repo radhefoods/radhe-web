@@ -91,6 +91,15 @@ function writeGuest(items: readonly CartItemInput[]): void {
   window.dispatchEvent(new Event(GUEST_EVENT));
 }
 
+/**
+ * Empties the visitor's cart in the browser and tells every open cart
+ * about it: after a guest order was paid (doc 20), the cart did its work.
+ */
+export function forgetGuestCart(): void {
+  clearGuestCart();
+  window.dispatchEvent(new Event(GUEST_EVENT));
+}
+
 // --- Provider ---------------------------------------------------------------
 
 /** How long quick taps on plus and minus are collected into one request. */

@@ -124,3 +124,28 @@ describe("addressToFormValues", () => {
     });
   });
 });
+
+describe("the address of a guest order", () => {
+  it("goes without label and standard flag, empty optional fields as null", async () => {
+    const { guestAddressOf, toGuestAddressInput } =
+      await import("./address-schema");
+    const input = toGuestAddressInput({ ...valid, isDefault: true });
+    expect(input).toEqual({
+      firstName: valid.firstName,
+      lastName: valid.lastName,
+      company: valid.company || null,
+      street: valid.street,
+      houseNumber: valid.houseNumber,
+      additionalLine: valid.additionalLine || null,
+      postalCode: valid.postalCode,
+      city: valid.city,
+      countryCode: "DE",
+      phone: valid.phone ? valid.phone.replace(/[\s\-()/.]/g, "") : null,
+    });
+    expect(input).not.toHaveProperty("label");
+    expect(input).not.toHaveProperty("isDefault");
+    const card = guestAddressOf(valid);
+    expect(card).toMatchObject({ id: "guest", label: null, isDefault: false });
+    expect(card.city).toBe(valid.city);
+  });
+});

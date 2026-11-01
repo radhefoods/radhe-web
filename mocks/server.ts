@@ -87,10 +87,12 @@ import {
   hashPassword,
   isWeakPassword,
   legalDocuments,
+  makeReferralCode,
   newCustomer,
   resetState,
   type CustomerRecord,
   type Locale,
+  type PendingSignupRecord,
   type SessionRecord,
 } from "./state.ts";
 import {
@@ -365,6 +367,99 @@ function createAccount(
   return customer;
 }
 
+// --- The sign-up with an emailed code (doc 1, CUSTOMER_ACCOUNTS 1) -----------
+
+const SIGNUP_CODE_TTL_MS = 15 * 60_000;
+const SIGNUP_ATTEMPTS = 5;
+const SIGNUP_RESEND_AFTER_SECONDS = 60;
+const SIGNUP_RESENDS = 3;
+const REFERRAL_CODE = /^[A-Za-z0-9]{6,12}$/;
+
+function newSignupCode(): string {
+  return String(100_000 + (randomBytes(4).readUInt32BE(0) % 900_000));
+}
+
+/** A pending sign-up that still counts: not expired, attempts left. */
+function pendingSignupOf(email: string): PendingSignupRecord | undefined {
+  const pending = db.pendingSignups.get(email);
+  if (!pending) return undefined;
+  if (pending.expiresAt < Date.now() || pending.attemptsLeft <= 0) {
+    db.pendingSignups.delete(email);
+    return undefined;
+  }
+  return pending;
+}
+
+/**
+ * Whether the referral code of the sign-up counts (doc 21): the code must
+ * belong to another account, and the person must be new to the shop.
+ */
+function applyReferral(
+  customer: CustomerRecord,
+  code: string | null,
+): { applied: boolean; reason: string | null } {
+  if (!code) return { applied: false, reason: null };
+  const referrer = [...db.customers.values()].find(
+    (candidate) =>
+      candidate.referralCode !== null &&
+      candidate.referralCode.toUpperCase() === code.toUpperCase(),
+  );
+  if (!referrer) return { applied: false, reason: "unknown_code" };
+  if (referrer.id === customer.id)
+    return { applied: false, reason: "own_code" };
+  const paidAsGuest = [...db.orders.values()].some(
+    (order) => order.customerId === customer.id && order.payment.paidAmount > 0,
+  );
+  if (paidAsGuest) return { applied: false, reason: "already_customer" };
+  if (db.referrals.some((record) => record.referredId === customer.id)) {
+    return { applied: false, reason: "already_referred" };
+  }
+  db.referrals.push({
+    id: `66f9${randomBytes(10).toString("hex")}`,
+    code: referrer.referralCode!,
+    referrerId: referrer.id,
+    referredId: customer.id,
+    status: "registered",
+    registeredAt: new Date().toISOString(),
+    orderNumber: null,
+    qualifiedAt: null,
+    voidReason: null,
+    voidAt: null,
+  });
+  return { applied: true, reason: null };
+}
+
+/**
+ * The account, once the code was right: a guest record of the address
+ * becomes the account in place (doc 20), else the account is new.
+ */
+function completeSignUp(
+  pending: PendingSignupRecord,
+  mockBase: string,
+): CustomerRecord {
+  const guest = customerByEmail(pending.email);
+  if (guest && guest.kind === "guest") {
+    guest.firstName = pending.firstName;
+    guest.lastName = pending.lastName;
+    guest.locale = pending.locale;
+    guest.passwordHash = pending.passwordHash;
+    guest.kind = "registered";
+    guest.emailVerifiedAt = new Date().toISOString();
+    guest.referralCode = makeReferralCode();
+    return guest;
+  }
+  return createAccount(
+    {
+      email: pending.email,
+      locale: pending.locale,
+      firstName: pending.firstName,
+      lastName: pending.lastName,
+      passwordHash: pending.passwordHash,
+    },
+    mockBase,
+  );
+}
+
 route("POST", "/v1/store/auth/signup", (ctx) => {
   const body = objectBody(ctx.body, [
     "firstName",
@@ -372,32 +467,110 @@ route("POST", "/v1/store/auth/signup", (ctx) => {
     "email",
     "password",
     "locale",
+    "referralCode",
   ]);
   const firstName = nameOf(body, "firstName");
   const lastName = nameOf(body, "lastName");
   const email = emailOf(body.email);
   const password = passwordOf(body.password);
   const locale = optionalLocale(body.locale, ctx.locale);
+  if (
+    body.referralCode !== undefined &&
+    (typeof body.referralCode !== "string" ||
+      !REFERRAL_CODE.test(body.referralCode))
+  ) {
+    throw validationFailed(
+      "referralCode",
+      "referralCode must be 6 to 12 letters or digits",
+    );
+  }
   assertNotWeak(password, email);
-  if (customerByEmail(email)) {
+  // An address with guest orders only is not refused (doc 20).
+  if (customerByEmail(email)?.kind === "registered") {
     throw new HttpError(
       409,
       "CUSTOMER_EMAIL_TAKEN",
       "An account with this email already exists.",
     );
   }
-  const customer = createAccount(
-    {
+  const now = Date.now();
+  const code = newSignupCode();
+  // A sign-up started again for the same address replaces the one before.
+  db.pendingSignups.set(email, {
+    email,
+    firstName,
+    lastName,
+    locale,
+    passwordHash: hashPassword(password),
+    referralCode: (body.referralCode as string | undefined) ?? null,
+    code,
+    expiresAt: now + SIGNUP_CODE_TTL_MS,
+    attemptsLeft: SIGNUP_ATTEMPTS,
+    resends: 0,
+    lastSentAt: now,
+  });
+  console.log(`[mock] sign-up code email (${locale}) to ${email}: ${code}`);
+  return {
+    status: 202,
+    body: {
       email,
-      locale,
-      firstName,
-      lastName,
-      passwordHash: hashPassword(password),
+      validMinutes: SIGNUP_CODE_TTL_MS / 60_000,
+      resendAfterSeconds: SIGNUP_RESEND_AFTER_SECONDS,
     },
-    mockBaseOf(ctx),
-  );
-  console.log(`[mock] welcome email (${locale}) to ${email}`);
-  return { ...startSession(customer), status: 201 };
+  };
+});
+
+route("POST", "/v1/store/auth/signup/verify", (ctx) => {
+  const body = objectBody(ctx.body, ["email", "code"]);
+  const email = emailOf(body.email);
+  if (typeof body.code !== "string" || !/^\d{6}$/.test(body.code)) {
+    throw validationFailed("code", "code must be six digits");
+  }
+  const pending = pendingSignupOf(email);
+  if (!pending) {
+    throw new HttpError(
+      400,
+      "SIGNUP_NOT_FOUND",
+      "No sign-up waits for this address, or the code expired. Start again.",
+    );
+  }
+  if (pending.code !== body.code) {
+    pending.attemptsLeft -= 1;
+    if (pending.attemptsLeft <= 0) db.pendingSignups.delete(email);
+    throw new HttpError(400, "SIGNUP_CODE_INVALID", "The code is wrong.", {
+      attemptsLeft: pending.attemptsLeft,
+    });
+  }
+  db.pendingSignups.delete(email);
+  const customer = completeSignUp(pending, mockBaseOf(ctx));
+  const referral = applyReferral(customer, pending.referralCode);
+  console.log(`[mock] welcome email (${customer.locale}) to ${email}`);
+  const session = startSession(customer);
+  return {
+    ...session,
+    status: 201,
+    body: { ...(session.body as object), referral },
+  };
+});
+
+route("POST", "/v1/store/auth/signup/resend", (ctx) => {
+  const body = objectBody(ctx.body, ["email"]);
+  const email = emailOf(body.email);
+  const pending = pendingSignupOf(email);
+  // The same answer whatever happened: at most once a minute, three times.
+  if (
+    pending &&
+    pending.resends < SIGNUP_RESENDS &&
+    Date.now() - pending.lastSentAt >= SIGNUP_RESEND_AFTER_SECONDS * 1000
+  ) {
+    pending.code = newSignupCode();
+    pending.resends += 1;
+    pending.lastSentAt = Date.now();
+    console.log(
+      `[mock] sign-up code email (${pending.locale}) to ${email}: ${pending.code}`,
+    );
+  }
+  return { status: 204 };
 });
 
 route("POST", "/v1/store/auth/login", (ctx) => {
@@ -822,8 +995,29 @@ route("GET", "/v1/store/products/:slug", (ctx) => {
 // --- 8 Cart -----------------------------------------------------------------
 
 route("POST", "/v1/store/cart/preview", (ctx) => {
-  const body = objectBody(ctx.body, ["items"]);
-  return { body: billOf(cartItems(body.items, 1), ctx.locale) };
+  const body = objectBody(ctx.body, ["items", "discountCode"]);
+  const items = cartItems(body.items, 1);
+  // A visitor prices a code before the guest checkout (doc 20): the bill
+  // carries the discount, or the code with the reason it does not apply.
+  if (body.discountCode === undefined) {
+    return { body: billOf(items, ctx.locale) };
+  }
+  if (
+    typeof body.discountCode !== "string" ||
+    body.discountCode.trim() === "" ||
+    body.discountCode.length > 40
+  ) {
+    throw validationFailed(
+      "discountCode",
+      "discountCode must be 1 to 40 characters",
+    );
+  }
+  return {
+    body: billOf(items, ctx.locale, {
+      id: "",
+      discountCode: body.discountCode.trim().toUpperCase(),
+    }),
+  };
 });
 
 route("GET", "/v1/store/cart", (ctx) => {
@@ -1379,16 +1573,27 @@ route("POST", "/v1/unsubscribe/:token", (ctx) => {
 });
 
 // Not part of the real API: the tokens the emails would carry, for tests.
-// `passwordReset` is the open link of the password reset email, or null.
+// `passwordReset` is the open link of the password reset email, or null;
+// `signupCode` the code of a sign-up that waits, or null.
 route("GET", "/__mock/tokens", (ctx) => {
-  const customer = customerByEmail(ctx.url.searchParams.get("email") ?? "");
-  if (!customer) throw validationFailed("email", "unknown customer");
+  const email = (ctx.url.searchParams.get("email") ?? "").toLowerCase();
+  const customer = customerByEmail(email);
+  const pending = pendingSignupOf(email);
+  if (!customer && !pending)
+    throw validationFailed("email", "unknown customer");
   const passwordReset =
-    [...db.passwordResets].find(
-      ([, reset]) => reset.customerId === customer.id,
-    )?.[0] ?? null;
+    (customer &&
+      [...db.passwordResets].find(
+        ([, reset]) => reset.customerId === customer.id,
+      )?.[0]) ??
+    null;
   return {
-    body: { unsubscribe: unsubscribeTokenOf(customer), passwordReset },
+    body: {
+      unsubscribe: customer ? unsubscribeTokenOf(customer) : null,
+      passwordReset,
+      signupCode: pending?.code ?? null,
+      referralCode: customer?.referralCode ?? null,
+    },
   };
 });
 

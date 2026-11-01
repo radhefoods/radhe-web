@@ -1,6 +1,10 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { ChevronDown, Plus, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -10,12 +14,16 @@ import { ProductImage } from "@/components/catalogue/product-image";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { TextField } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { checkEmail, normalizeEmail } from "@/features/auth/validation";
 import { cartQueryKey, useCart } from "@/features/cart/cart";
 import { saleSavingsOf } from "@/features/cart/savings";
 import {
   addressToFormValues,
+  guestAddressOf,
   toAddressInput,
+  toGuestAddressInput,
   type AddressFormValues,
 } from "@/features/checkout/address-schema";
 import { ADDRESSES_QUERY_KEY, orderQueryKey } from "@/features/orders/orders";
@@ -28,6 +36,7 @@ import { ApiError, hasErrorCode } from "@/lib/api/errors";
 import type {
   Address,
   Bill,
+  CartItemInput,
   DiscountReason,
   Id,
   LegalSummary,
@@ -39,6 +48,7 @@ import {
 } from "@/lib/checkout/order-attempt";
 import { cn } from "@/lib/cn";
 import { formatDiscount, formatMoney } from "@/lib/format/money";
+import { rememberGuestToken } from "@/lib/orders/guest-token";
 import { AddressForm } from "./address-form";
 import { DiscountCode } from "./discount-code";
 import { productTitle } from "@/lib/format/product-name";
@@ -200,11 +210,71 @@ function OrderLines({ bill }: { bill: Bill }) {
 type Unavailable = "payments" | "shop";
 
 /**
+ * A visitor at the checkout chooses (doc 20): sign in, create an account,
+ * or order as a guest with an email address alone.
+ */
+function GuestChooser({ onGuest }: { onGuest: () => void }) {
+  const t = useTranslations("checkout");
+  return (
+    <section
+      aria-labelledby="checkout-choose"
+      className="glass-strong shadow-float mx-auto flex max-w-xl flex-col gap-5 rounded-3xl p-6 sm:p-8"
+    >
+      <h2 id="checkout-choose" className="font-display text-ink text-2xl">
+        {t("guest.chooseTitle")}
+      </h2>
+      <p className="text-ink-muted">{t("guest.chooseText")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Link
+          href={{ pathname: "/sign-in", query: { returnTo: "/checkout" } }}
+          className={buttonStyles({ size: "lg", className: "flex-1" })}
+        >
+          {t("guest.signIn")}
+        </Link>
+        <Button
+          variant="secondary"
+          size="lg"
+          className="flex-1"
+          onClick={onGuest}
+        >
+          {t("guest.continue")}
+        </Button>
+      </div>
+      <p className="text-ink-muted text-center text-sm">
+        {t("guest.noAccount")}{" "}
+        <Link
+          href={{ pathname: "/sign-up", query: { returnTo: "/checkout" } }}
+          className="text-leaf-700 rounded-xs font-semibold underline underline-offset-4"
+        >
+          {t("guest.createAccount")}
+        </Link>
+      </p>
+    </section>
+  );
+}
+
+/** A `DISCOUNT_NOT_APPLICABLE` as the API would answer it, from a preview that says so. */
+function refusedDiscount(bill: Bill): ApiError | null {
+  if (!bill.discount || bill.discount.applied) return null;
+  return new ApiError({
+    status: 400,
+    code: "DISCOUNT_NOT_APPLICABLE",
+    message: "This discount code cannot be applied.",
+    details: { code: bill.discount.code, reason: bill.discount.reason },
+  });
+}
+
+/**
  * The checkout: the delivery address and the consent to the exact versions
  * of the legal texts as two steps, the order as a summary beside them, and
- * the one button that places the order and leads to the payment page. The order is made of the
- * cart stored by the API; this page sends the address, the consent and the
- * total the customer saw (doc 9), and the browser goes to `checkout.url`.
+ * the one button that places the order and leads to the payment page. For
+ * a customer the order is made of the cart stored by the API; this page
+ * sends the address, the consent and the total the customer saw (doc 9).
+ * A visitor may order as a guest (doc 20): the email address first, then
+ * the address, the cart of the browser priced by the preview (with a
+ * discount code, if any), and the order made by the guest checkout with
+ * the token that opens it afterwards. Either way the browser goes to
+ * `checkout.url`.
  */
 export function CheckoutView({
   deliveryEstimate,
@@ -222,30 +292,42 @@ export function CheckoutView({
   const session = useSession({ force: true });
   const cart = useCart();
   const isCustomer = session.status === "customer";
+  const isGuest = session.status === "guest";
 
-  // Checkout needs an account: sign in first, then come back here.
-  useEffect(() => {
-    if (session.status === "guest") {
-      router.replace({
-        pathname: "/sign-in",
-        query: { returnTo: "/checkout" },
-      });
-    }
-  }, [session.status, router]);
+  // The guest checkout (doc 20): chosen on this page, with its own email,
+  // address and discount code; the cart is the browser's.
+  const [guestMode, setGuestMode] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestEmailProblem, setGuestEmailProblem] = useState<string | null>(
+    null,
+  );
+  const [guestAddress, setGuestAddress] = useState<AddressFormValues | null>(
+    null,
+  );
+  const [guestCode, setGuestCode] = useState<string | null>(null);
+  const asGuest = isGuest && guestMode;
+  const guestItems: CartItemInput[] = [...cart.items];
 
   // Everything is asked for again when the page opens: the bill and the
   // legal versions must be the current ones.
-  const ready = isCustomer && cart.ready;
+  const ready = (isCustomer || asGuest) && cart.ready;
   const billQuery = useQuery({
-    queryKey: cartQueryKey(locale),
-    queryFn: () => api.getCart(),
+    queryKey: isCustomer
+      ? cartQueryKey(locale)
+      : ["cart", "preview", locale, guestItems, guestCode],
+    queryFn: () =>
+      isCustomer
+        ? api.getCart()
+        : api.previewCart(guestItems, { discountCode: guestCode ?? undefined }),
     enabled: ready,
     staleTime: 0,
+    // A guest's code changes the key: the old bill stays until the new one is there.
+    placeholderData: keepPreviousData,
   });
   const addressQuery = useQuery({
     queryKey: ADDRESSES_QUERY_KEY,
     queryFn: () => api.listAddresses(),
-    enabled: ready,
+    enabled: ready && isCustomer,
   });
   const legalQuery = useQuery({
     queryKey: ["legal", locale],
@@ -277,11 +359,21 @@ export function CheckoutView({
   } | null>(null);
 
   const bill = billQuery.data;
-  const addresses = addressQuery.data?.items;
+  const addresses = isCustomer
+    ? addressQuery.data?.items
+    : guestAddress
+      ? [guestAddressOf(guestAddress)]
+      : [];
   const legal = legalQuery.data?.items;
-  const loadError = billQuery.error ?? addressQuery.error ?? legalQuery.error;
+  const loadError =
+    billQuery.error ??
+    (isCustomer ? addressQuery.error : null) ??
+    legalQuery.error;
 
-  if (session.status !== "customer") return <CheckoutSkeleton />;
+  if (session.status === "loading") return <CheckoutSkeleton />;
+  if (isGuest && !guestMode) {
+    return <GuestChooser onGuest={() => setGuestMode(true)} />;
+  }
   if (loadError && (!bill || !addresses || !legal)) {
     return (
       <ErrorAlert
@@ -328,6 +420,13 @@ export function CheckoutView({
   };
 
   async function saveAddress(values: AddressFormValues) {
+    if (asGuest) {
+      // A guest's address goes with the order, nowhere else.
+      setGuestAddress(values);
+      setChosenAddress(null);
+      setEditing(null);
+      return;
+    }
     const input = toAddressInput(values);
     const known = new Set(addresses!.map((address) => address.id));
     const result =
@@ -342,6 +441,11 @@ export function CheckoutView({
 
   async function place() {
     setAttempted(true);
+    if (asGuest) {
+      const problem = checkEmail(guestEmail);
+      setGuestEmailProblem(problem ? t("guest.emailInvalid") : null);
+      if (problem) return;
+    }
     if (!selected || !consent || showForm || !bill || !legal) return;
     setPlacing(true);
     setPlaceError(null);
@@ -350,22 +454,48 @@ export function CheckoutView({
     setRefusedLines([]);
     setDiscountRemoved(null);
     try {
-      const result = await api.checkout(
-        {
-          addressId: selected.id,
-          // The total the customer sees right now, with the discount code
-          // taken off. If the bill changed since, the API refuses and
-          // answers with the new one.
-          expectedTotal: bill.totals.total,
-          consent: { accepted: true, versions: consentVersions(legal) },
-          language: locale,
-        },
-        checkoutKey(),
-      );
+      const consentInput = {
+        accepted: true as const,
+        versions: consentVersions(legal),
+      };
+      // The total the customer sees right now, with the discount code
+      // taken off. If the bill changed since, the API refuses and answers
+      // with the new one.
+      const result = asGuest
+        ? await api.guestCheckout(
+            {
+              email: normalizeEmail(guestEmail),
+              items: guestItems,
+              address: toGuestAddressInput(guestAddress!),
+              ...(guestCode && { discountCode: guestCode }),
+              expectedTotal: bill.totals.total,
+              consent: consentInput,
+              language: locale,
+            },
+            checkoutKey(),
+          )
+        : await api.checkout(
+            {
+              addressId: selected.id,
+              expectedTotal: bill.totals.total,
+              consent: consentInput,
+              language: locale,
+            },
+            checkoutKey(),
+          );
       // An order answered: this attempt is over, the next gets a new key.
       clearCheckoutKey();
       const { orderNumber } = result.order;
-      client.setQueryData(orderQueryKey(orderNumber, locale), result.order);
+      if ("token" in result && typeof result.token === "string") {
+        // The key to the guest order, for this tab; the emails carry it too.
+        rememberGuestToken(orderNumber, result.token);
+        client.setQueryData(
+          orderQueryKey(orderNumber, locale, "guest"),
+          result.order,
+        );
+      } else {
+        client.setQueryData(orderQueryKey(orderNumber, locale), result.order);
+      }
       if (!isSafePaymentUrl(result.checkout.url)) {
         throw new ApiError({
           status: 502,
@@ -378,7 +508,14 @@ export function CheckoutView({
       window.location.assign(result.checkout.url);
     } catch (error) {
       setPlacing(false);
-      if (hasErrorCode(error, "ORDER_TOTAL_CHANGED")) {
+      if (hasErrorCode(error, "CUSTOMER_EMAIL_TAKEN")) {
+        // The address has an account: the sign-in, with the address filled
+        // in; the cart stays in the browser and comes along (doc 20).
+        router.push({
+          pathname: "/sign-in",
+          query: { returnTo: "/checkout", email: normalizeEmail(guestEmail) },
+        });
+      } else if (hasErrorCode(error, "ORDER_TOTAL_CHANGED")) {
         setTotalChanged({
           before: error.details.expectedTotal,
           after: error.details.total,
@@ -401,6 +538,7 @@ export function CheckoutView({
           code: error.details.code,
           reason: error.details.reason,
         });
+        setGuestCode(null);
         void billQuery.refetch();
       } else if (hasErrorCode(error, "PAYMENTS_NOT_CONFIGURED")) {
         setUnavailable("payments");
@@ -428,12 +566,56 @@ export function CheckoutView({
   const link = "font-semibold text-leaf-700 underline underline-offset-4";
   const itemCount = bill.lines.reduce((sum, line) => sum + line.quantity, 0);
 
+  // A guest prices a code with the preview (doc 20): a bill whose code
+  // does not apply is refused the way the account's cart would refuse it.
+  async function applyGuestCode(code: string): Promise<Bill> {
+    const next = await api.previewCart(guestItems, { discountCode: code });
+    const refused = refusedDiscount(next);
+    if (refused) throw refused;
+    setGuestCode(next.discount?.code ?? code);
+    return next;
+  }
+  async function removeGuestCode(): Promise<Bill> {
+    setGuestCode(null);
+    return api.previewCart(guestItems);
+  }
+
   return (
     <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_28rem]">
       {/* The steps as open sections between hairlines, no boxes and no
           numbers (owner, 2026-10-21 and 2026-10-22). */}
       <div className="divide-ink/8 flex flex-col divide-y">
-        <section aria-labelledby="checkout-address" className="pb-10">
+        {asGuest && (
+          <section aria-labelledby="checkout-email" className="pb-10">
+            <h2 id="checkout-email" className={sectionTitle}>
+              {t("guest.emailTitle")}
+            </h2>
+            <p className="text-ink-muted mt-0.5">{t("guest.emailIntro")}</p>
+            <TextField
+              id="checkout-guest-email"
+              label={t("guest.email")}
+              type="email"
+              name="email"
+              autoComplete="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              value={guestEmail}
+              onChange={(event) => {
+                setGuestEmail(event.target.value);
+                setGuestEmailProblem(null);
+              }}
+              error={guestEmailProblem}
+              className="mt-5 max-w-md"
+            />
+          </section>
+        )}
+
+        <section
+          aria-labelledby="checkout-address"
+          className={cn("pb-10", asGuest && "pt-10")}
+        >
           <h2 id="checkout-address" className={sectionTitle}>
             {t("addressTitle")}
           </h2>
@@ -503,6 +685,8 @@ export function CheckoutView({
                 }
               />
             ) : (
+              // A guest has the one address of the order.
+              !asGuest &&
               addresses.length < 10 && (
                 <Button variant="secondary" onClick={() => setEditing("new")}>
                   <Plus aria-hidden="true" className="size-5" />
@@ -601,8 +785,11 @@ export function CheckoutView({
           discount={bill.discount}
           onBill={(next) => {
             setDiscountRemoved(null);
-            client.setQueryData(cartQueryKey(locale), next);
+            // A guest's bill follows its code through the query's key.
+            if (isCustomer) client.setQueryData(cartQueryKey(locale), next);
           }}
+          apply={asGuest ? applyGuestCode : undefined}
+          remove={asGuest ? removeGuestCode : undefined}
           className="border-ink/8 mt-4 border-t pt-4"
         />
 
@@ -633,13 +820,19 @@ export function CheckoutView({
           )}
           {keyUsed && (
             <Alert tone="info" title={t("keyUsedTitle")}>
-              <p>{t("keyUsedText")}</p>
-              <Link
-                href="/account/orders"
-                className="font-bold underline underline-offset-4"
-              >
-                {t("toOrders")}
-              </Link>
+              {asGuest ? (
+                <p>{t("guest.keyUsedText")}</p>
+              ) : (
+                <>
+                  <p>{t("keyUsedText")}</p>
+                  <Link
+                    href="/account/orders"
+                    className="font-bold underline underline-offset-4"
+                  >
+                    {t("toOrders")}
+                  </Link>
+                </>
+              )}
             </Alert>
           )}
           {(!bill.canOrder || refusedLines.length > 0) && (

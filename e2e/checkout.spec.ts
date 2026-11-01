@@ -1,7 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-
-const MOCK = "http://localhost:3000";
-const PASSWORD = "Mangoes-in-May-2026";
+import { createAccount, MOCK, PASSWORD, signupCode } from "./helpers";
 
 test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
@@ -20,9 +18,7 @@ async function variantId(page: Page, slug: string): Promise<string> {
  */
 async function seedCustomer(page: Page, email = "priya@example.com") {
   const api = page.request;
-  await api.post(`${MOCK}/v1/store/auth/signup`, {
-    data: { firstName: "Priya", lastName: "Shah", email, password: PASSWORD },
-  });
+  await createAccount(api, { email });
   await api.post(`${MOCK}/v1/store/me/addresses`, {
     data: {
       firstName: "Priya",
@@ -78,12 +74,20 @@ test.describe("from the cart to the paid order", () => {
     await expect(summary).toContainText("Add €24.02 more for free delivery");
     await expect(summary).toContainText("You pay in the next step");
     await expect(summary).toContainText(
-      "sign in with your email and password, or create an account",
+      "sign in, create an account, or order as a guest",
     );
 
-    // Checkout needs an account: a new customer creates one from the
-    // sign-in page and comes back to the checkout.
+    // A visitor at the checkout chooses: a new customer creates an
+    // account from the sign-in page and comes back to the checkout.
     await summary.getByRole("link", { name: "Go to checkout" }).click();
+    await expect(page).toHaveURL(/\/en\/checkout$/);
+    await expect(
+      page.getByRole("heading", { name: "How would you like to order?" }),
+    ).toBeVisible();
+    await page
+      .getByRole("main")
+      .getByRole("link", { name: "Sign in", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/en\/sign-in\?returnTo=%2Fcheckout$/);
     await page.getByRole("link", { name: "Create an account" }).click();
     await expect(page).toHaveURL(/\/en\/sign-up\?returnTo=%2Fcheckout$/);
@@ -95,6 +99,12 @@ test.describe("from the cart to the paid order", () => {
     await page.getByLabel("Email address").fill("priya@example.com");
     await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
+    // The code from the email makes the account (doc 1).
+    await expect(page.getByText(/We sent a 6-digit code/)).toBeVisible();
+    await page
+      .getByLabel("Code")
+      .fill(await signupCode(page.request, "priya@example.com"));
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page).toHaveURL(/\/en\/checkout$/);
 
     // No address yet: the form is there at once.
@@ -532,7 +542,7 @@ test.describe("signing in and the password", () => {
     page,
     request,
   }) => {
-    await request.post(`${MOCK}/v1/store/auth/signup`, { data: anna });
+    await createAccount(request, anna);
     await page.goto("/en/sign-in");
     await page.getByLabel("Email address").fill("not-an-email");
     await password(page).fill(PASSWORD);
@@ -584,6 +594,18 @@ test.describe("signing in and the password", () => {
     ).toBeVisible();
     await password(page).fill(PASSWORD);
     await page.getByRole("button", { name: "Create account" }).click();
+    // The code step: a wrong code says how many tries are left, the right
+    // one signs in.
+    await expect(page.getByText(/We sent a 6-digit code/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Resend code \(\d+ s\)/ }),
+    ).toBeDisabled();
+    const code = await signupCode(page.request, "anna@example.com");
+    await page.getByLabel("Code").fill(code === "000000" ? "111111" : "000000");
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByText("Wrong code. 4 attempts left.")).toBeVisible();
+    await page.getByLabel("Code").fill(code);
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(page).toHaveURL(/\/en\/cart$/);
     await page.goto("/en/account");
     await expect(
@@ -609,7 +631,7 @@ test.describe("signing in and the password", () => {
     page,
     request,
   }) => {
-    await request.post(`${MOCK}/v1/store/auth/signup`, { data: anna });
+    await createAccount(request, anna);
     await page.goto("/en/sign-in");
     await page.getByRole("link", { name: "Forgot password?" }).click();
     await expect(page).toHaveURL(/\/en\/forgot-password$/);
@@ -678,7 +700,7 @@ test.describe("signing in and the password", () => {
     page,
     request,
   }) => {
-    await request.post(`${MOCK}/v1/store/auth/signup`, { data: anna });
+    await createAccount(request, anna);
     await page.goto("/en/sign-in?returnTo=https://evil.example/");
     await page.getByLabel("Email address").fill("anna@example.com");
     await password(page).fill(PASSWORD);
@@ -686,10 +708,20 @@ test.describe("signing in and the password", () => {
     await expect(page).toHaveURL(/localhost:3001\/en\/account$/);
   });
 
-  test("checkout without a session leads to sign-in first", async ({
+  test("checkout without a session offers to sign in, to sign up or to order as a guest", async ({
     page,
   }) => {
     await page.goto("/en/checkout");
+    await expect(
+      page.getByRole("heading", { name: "How would you like to order?" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Continue as guest" }),
+    ).toBeVisible();
+    await page
+      .getByRole("main")
+      .getByRole("link", { name: "Sign in", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/en\/sign-in\?returnTo=%2Fcheckout$/);
     await expect(
       page.getByText("Sign in to pay for your order."),

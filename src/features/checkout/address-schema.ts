@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Address, AddressInput } from "@/lib/api/types";
+import type { Address, AddressInput, GuestAddressInput } from "@/lib/api/types";
 
 // The delivery address form. The rules mirror the API (doc 3), so the form
 // catches what the API would refuse; the messages are keys of
@@ -52,6 +52,48 @@ export const EMPTY_ADDRESS: AddressFormValues = {
   phone: "",
   isDefault: false,
 };
+
+/** The one address of a guest order, as the checkout lists it with the cards. */
+export const GUEST_ADDRESS_ID = "guest";
+
+/** The address of a guest order (doc 20): a saved address without `label` and `isDefault`. */
+export function toGuestAddressInput(
+  values: AddressFormValues,
+): GuestAddressInput {
+  const input = toAddressInput(values);
+  return {
+    firstName: input.firstName,
+    lastName: input.lastName,
+    company: input.company,
+    street: input.street,
+    houseNumber: input.houseNumber,
+    additionalLine: input.additionalLine,
+    postalCode: input.postalCode,
+    city: input.city,
+    countryCode: "DE",
+    phone: input.phone,
+  };
+}
+
+/** The guest's address as the checkout shows it among the address cards. */
+export function guestAddressOf(values: AddressFormValues): Address {
+  const input = toGuestAddressInput(values);
+  return {
+    id: GUEST_ADDRESS_ID,
+    label: null,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    company: input.company ?? null,
+    street: input.street,
+    houseNumber: input.houseNumber,
+    additionalLine: input.additionalLine ?? null,
+    postalCode: input.postalCode,
+    city: input.city,
+    countryCode: "DE",
+    phone: input.phone ?? null,
+    isDefault: false,
+  };
+}
 
 export function addressToFormValues(address: Address): AddressFormValues {
   return {

@@ -1,24 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createAccount, MOCK } from "./helpers";
 
-const MOCK = "http://localhost:3000";
 const DEMO = "demo@radhefoods.de";
 
 test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
 });
 
-const PASSWORD = "Mangoes-in-May-2026";
-
 /** Signs the browser in through the API; the account is created when new. */
 async function signIn(page: Page, email = DEMO) {
-  const created = await page.request.post(`${MOCK}/v1/store/auth/signup`, {
-    data: { firstName: "Priya", lastName: "Shah", email, password: PASSWORD },
-  });
-  if (created.status() === 409) {
-    await page.request.post(`${MOCK}/v1/store/auth/login`, {
-      data: { email, password: PASSWORD },
-    });
-  }
+  await createAccount(page.request, { email });
 }
 
 test.describe("a change of the cart that fails", () => {

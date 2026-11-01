@@ -36,13 +36,20 @@ type Problems = Partial<
  * to the other two pages, "Forgot password?" and "Create an account", keep
  * the page the customer wanted to reach.
  */
-export function SignInForm({ returnTo }: { returnTo: ReturnTarget }) {
+export function SignInForm({
+  returnTo,
+  initialEmail = "",
+}: {
+  returnTo: ReturnTarget;
+  /** Filled in already: the address the guest checkout found an account for. */
+  initialEmail?: string;
+}) {
   const t = useTranslations("auth");
   const router = useRouter();
   const session = useSession();
   const { signedIn } = useSessionActions();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [problems, setProblems] = useState<Problems>({});
   const [error, setError] = useState<unknown>(null);

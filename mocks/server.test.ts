@@ -64,7 +64,15 @@ function customerApi() {
 const PASSWORD = "Mangoes-in-May-2026";
 const NAME = { firstName: "Anna", lastName: "Schmidt" };
 
-/** A signed-in customer; the account is created when it is new. */
+/** The code of a sign-up that waits for it (`GET /__mock/tokens`). */
+async function signupCode(email: string): Promise<string> {
+  const response = await fetch(
+    `${base}/__mock/tokens?email=${encodeURIComponent(email)}`,
+  );
+  return ((await response.json()) as { signupCode: string }).signupCode;
+}
+
+/** A signed-in customer; the account is created (with its code) when it is new. */
 async function signIn(email: string) {
   const client = customerApi();
   const result = await client.api
@@ -73,9 +81,12 @@ async function signIn(email: string) {
       if (!hasErrorCode(error, "CUSTOMER_EMAIL_TAKEN")) throw error;
       return client.api.login({ email, password: PASSWORD });
     });
-  // Until the mock asks for the emailed code, the sign-up signs in at once.
-  if (!("customer" in result)) throw new Error("The sign-up signed nobody in.");
-  return { ...client, customer: result.customer };
+  if ("customer" in result) return { ...client, customer: result.customer };
+  const verified = await client.api.signUpVerify({
+    email,
+    code: await signupCode(email),
+  });
+  return { ...client, customer: verified.customer };
 }
 
 beforeAll(async () => {
@@ -542,12 +553,8 @@ describe("sign-up, sign-in and the stored cart", () => {
   });
 
   it("refuses a second account for the address and a password that is easy to guess", async () => {
+    await signIn("anna@example.com");
     const { api } = customerApi();
-    await api.signUp({
-      ...NAME,
-      email: "Anna@Example.com",
-      password: PASSWORD,
-    });
     const taken = await api
       .signUp({ ...NAME, email: "anna@example.com", password: "Another-1" })
       .catch((e) => e);

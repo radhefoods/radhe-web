@@ -1,6 +1,6 @@
 // Everything the mock API remembers, in memory. A restart forgets it all.
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type {
   Address,
   DeliveryMethod,
@@ -90,6 +90,39 @@ export interface WishlistRecord {
   addedAt: string;
 }
 
+/**
+ * A sign-up that waits for its code (doc 1). The code is kept as typed:
+ * this is a mock, and the tests read it from `GET /__mock/tokens`.
+ */
+export interface PendingSignupRecord {
+  email: string;
+  firstName: string;
+  lastName: string;
+  locale: Locale;
+  passwordHash: string;
+  referralCode: string | null;
+  code: string;
+  expiresAt: number;
+  attemptsLeft: number;
+  /** How many more codes went out for this sign-up. */
+  resends: number;
+  lastSentAt: number;
+}
+
+/** One person invited by another (doc 21). */
+export interface ReferralRecord {
+  id: string;
+  code: string;
+  referrerId: string;
+  referredId: string;
+  status: "registered" | "qualified" | "void";
+  registeredAt: string;
+  orderNumber: string | null;
+  qualifiedAt: string | null;
+  voidReason: "refunded" | null;
+  voidAt: string | null;
+}
+
 export interface CustomerRecord {
   id: string;
   email: string;
@@ -105,6 +138,8 @@ export interface CustomerRecord {
   /** A record made by a guest checkout, until the person signs up (doc 20). */
   kind: "registered" | "guest";
   emailVerifiedAt: string | null;
+  /** The code of the referral link (doc 21); `null` for a guest record. */
+  referralCode: string | null;
   /** Blocked by Radhe Foods: cannot sign in or check out. */
   blocked: boolean;
   communication: {
@@ -225,6 +260,10 @@ export interface PasswordResetRecord {
 export const db = {
   customers: new Map<string, CustomerRecord>(),
   sessions: new Set<SessionRecord>(),
+  /** Sign-ups that wait for their code, by email (doc 1). */
+  pendingSignups: new Map<string, PendingSignupRecord>(),
+  /** Who invited whom (doc 21). */
+  referrals: [] as ReferralRecord[],
   /** Open links of the password reset email, by token. */
   passwordResets: new Map<string, PasswordResetRecord>(),
   /** When each customer asked for a link, for the limit of three per hour. */
@@ -252,6 +291,15 @@ export const REFRESH_TTL_SECONDS = 30 * 24 * 3600;
 /** A password reset link is valid this long and works once (doc 1). */
 export const RESET_TTL_SECONDS = 3600;
 export const RESET_MAX_PER_HOUR = 3;
+
+/** Eight letters and digits without the ones that look alike (doc 21). */
+export function makeReferralCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from(
+    randomBytes(8),
+    (byte) => alphabet[byte % alphabet.length],
+  ).join("");
+}
 
 /** The way the mock keeps passwords: never as typed, like the real API. */
 export function hashPassword(password: string): string {
@@ -310,6 +358,7 @@ export function newCustomer(input: {
     passwordHash: input.passwordHash,
     kind: input.passwordHash === null ? "guest" : "registered",
     emailVerifiedAt: input.passwordHash === null ? null : now,
+    referralCode: input.passwordHash === null ? null : makeReferralCode(),
     blocked: false,
     communication: {
       whatsappNumber: null,
@@ -340,6 +389,8 @@ export function customerByEmail(email: string): CustomerRecord | undefined {
 export function resetState(): void {
   db.customers.clear();
   db.sessions.clear();
+  db.pendingSignups.clear();
+  db.referrals = [];
   db.passwordResets.clear();
   db.passwordResetRequests.clear();
   db.orders.clear();

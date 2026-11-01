@@ -1049,7 +1049,8 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
 export function billOf(
   items: CartItemInput[],
   locale: Locale,
-  customer?: CustomerRecord,
+  /** The customer, or for a visitor's preview with a code just that (doc 20). */
+  customer?: Pick<CustomerRecord, "id" | "discountCode">,
 ): Bill {
   const lines = items.map((item) => lineOf(item, locale));
   let discount: Bill["discount"] = null;

@@ -26,12 +26,21 @@ import { formatMoney } from "@/lib/format/money";
 export function DiscountCode({
   discount,
   onBill,
+  apply: applyCode = (code) => api.applyDiscount(code),
+  remove: removeCode = () => api.removeDiscount(),
   className,
 }: {
   /** `bill.discount`: the code kept with the cart, or `null`. */
   discount: BillDiscount | null;
   /** The bill the API answered; replaces the one on the page. */
   onBill: (bill: Bill) => void;
+  /**
+   * How a code is tried and taken off: the account's cart by default; a
+   * guest prices the code with the preview instead (doc 20) and throws
+   * `DISCOUNT_NOT_APPLICABLE` itself when the preview says it does not apply.
+   */
+  apply?: (code: string) => Promise<Bill>;
+  remove?: () => Promise<Bill>;
   className?: string;
 }) {
   const t = useTranslations("checkout.discount");
@@ -52,7 +61,7 @@ export function DiscountCode({
     setError(null);
     try {
       // Sent as typed; the API upper-cases it.
-      onBill(await api.applyDiscount(typed));
+      onBill(await applyCode(typed));
       setCode("");
     } catch (caught) {
       if (hasErrorCode(caught, "DISCOUNT_NOT_APPLICABLE")) {
@@ -70,7 +79,7 @@ export function DiscountCode({
     setBusy(true);
     setError(null);
     try {
-      onBill(await api.removeDiscount());
+      onBill(await removeCode());
     } catch (caught) {
       setError(caught);
     } finally {

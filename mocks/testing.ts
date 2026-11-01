@@ -81,7 +81,19 @@ export function startMockApi() {
     base: () => base,
     guestApi: () => createStoreApi(createRequester({ baseUrl: base })),
     customerApi,
-    /** A signed-in customer; the account is created when it is new. */
+    /** The code of a sign-up that waits for it (`GET /__mock/tokens`). */
+    async signupCode(email: string): Promise<string> {
+      const response = await fetch(
+        `${base}/__mock/tokens?email=${encodeURIComponent(email)}`,
+      );
+      const tokens = (await response.json()) as { signupCode: string | null };
+      if (!tokens.signupCode) throw new Error(`No sign-up waits for ${email}.`);
+      return tokens.signupCode;
+    },
+    /**
+     * A signed-in customer; the account is created when it is new, with
+     * the code the mock "emailed" (doc 1).
+     */
     async signIn(email: string) {
       const client = customerApi();
       const result = await client.api
@@ -90,10 +102,12 @@ export function startMockApi() {
           if (!hasErrorCode(error, "CUSTOMER_EMAIL_TAKEN")) throw error;
           return client.api.login({ email, password: TEST_PASSWORD });
         });
-      // Until the mock asks for the emailed code, the sign-up signs in at once.
-      if (!("customer" in result))
-        throw new Error("The sign-up signed nobody in.");
-      return { ...client, customer: result.customer };
+      if ("customer" in result) return { ...client, customer: result.customer };
+      const verified = await client.api.signUpVerify({
+        email,
+        code: await this.signupCode(email),
+      });
+      return { ...client, customer: verified.customer };
     },
     /** A test control of the mock (`/__mock/...`). */
     async control(path: string, body?: unknown) {

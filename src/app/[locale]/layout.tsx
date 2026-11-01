@@ -8,6 +8,7 @@ import {
 } from "@/components/shell/cookie-notice";
 import { LocaleAlternatesProvider } from "@/components/shell/locale-switcher";
 import { NavigationProgress } from "@/components/shell/navigation-progress";
+import { ReferralCapture } from "@/components/shell/referral-capture";
 import { env } from "@/config/env";
 import { Providers } from "@/features/providers";
 import { clientMessages } from "@/i18n/client-messages";
@@ -87,6 +88,7 @@ export default async function LocaleLayout({
           {/* Reads the query of the address, which only the browser knows. */}
           <Suspense fallback={null}>
             <NavigationProgress />
+            <ReferralCapture />
           </Suspense>
           <Providers>
             <LocaleAlternatesProvider>{children}</LocaleAlternatesProvider>

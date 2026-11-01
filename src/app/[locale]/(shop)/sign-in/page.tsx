@@ -18,7 +18,14 @@ export default async function SignInPage({ params, searchParams }: Props) {
   await localeOf(params);
   const t = await getTranslations("auth");
   // Only pages of the shop's own list are accepted as a way back.
-  const returnTo = parseReturnTo((await searchParams).returnTo);
+  const { returnTo: wanted, email } = await searchParams;
+  const returnTo = parseReturnTo(wanted);
+  // The guest checkout sends the address that turned out to have an
+  // account (doc 20); anything else that is not an address is ignored.
+  const initialEmail =
+    typeof email === "string" && email.length <= 254 && email.includes("@")
+      ? email
+      : "";
 
   return (
     <AuthPage
@@ -26,7 +33,7 @@ export default async function SignInPage({ params, searchParams }: Props) {
       intro={returnTo === "/checkout" ? t("checkoutNote") : t("intro")}
     >
       <AreaMessages area="signIn">
-        <SignInForm returnTo={returnTo} />
+        <SignInForm returnTo={returnTo} initialEmail={initialEmail} />
       </AreaMessages>
     </AuthPage>
   );

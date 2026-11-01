@@ -58,7 +58,7 @@ const goodsOf = (line: BillLine) => line.lineTotal + line.discountAmount;
 export function checkDiscount(
   record: DiscountRecord,
   lines: BillLine[],
-  customer: CustomerRecord,
+  customer: Pick<CustomerRecord, "id">,
 ): DiscountReason | null {
   switch (stateOf(record)) {
     case "inactive":
