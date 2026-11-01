@@ -77,6 +77,12 @@ export function AddressForm({
 
   return (
     <form onSubmit={submit} noValidate className="grid gap-4 sm:grid-cols-2">
+      <TextField
+        {...field("label")}
+        hint={t("labelHint")}
+        maxLength={30}
+        className="sm:col-span-2"
+      />
       <TextField {...field("firstName")} autoComplete="given-name" required />
       <TextField {...field("lastName")} autoComplete="family-name" required />
       <TextField

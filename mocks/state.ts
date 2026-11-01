@@ -140,6 +140,8 @@ export interface CustomerRecord {
   emailVerifiedAt: string | null;
   /** The code of the referral link (doc 21); `null` for a guest record. */
   referralCode: string | null;
+  /** Closed for good (CUSTOMER_ACCOUNTS 3): everything personal is gone. */
+  deletedAt: string | null;
   /** Blocked by Radhe Foods: cannot sign in or check out. */
   blocked: boolean;
   communication: {
@@ -359,6 +361,7 @@ export function newCustomer(input: {
     kind: input.passwordHash === null ? "guest" : "registered",
     emailVerifiedAt: input.passwordHash === null ? null : now,
     referralCode: input.passwordHash === null ? null : makeReferralCode(),
+    deletedAt: null,
     blocked: false,
     communication: {
       whatsappNumber: null,

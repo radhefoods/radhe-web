@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateTime } from "./dates";
+import { formatDate, formatDateTime, formatMonthYear } from "./dates";
 
 describe("date-times in German time", () => {
   it("puts a late-evening UTC time on the right German day", () => {
@@ -30,5 +30,16 @@ describe("date-times in German time", () => {
 
   it("refuses anything that is not a date-time", () => {
     expect(() => formatDate("not a date", "en")).toThrow(RangeError);
+  });
+
+  it("prints the month and the year alone", () => {
+    expect(formatMonthYear("2025-03-01T10:00:00.000Z", "en")).toBe(
+      "March 2025",
+    );
+    expect(formatMonthYear("2025-03-01T10:00:00.000Z", "de")).toBe("März 2025");
+    // 23:30 UTC on 31 January is February in Berlin.
+    expect(formatMonthYear("2026-01-31T23:30:00.000Z", "en")).toBe(
+      "February 2026",
+    );
   });
 });

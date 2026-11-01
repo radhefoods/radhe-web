@@ -645,6 +645,11 @@ export function CheckoutView({
                           onChange={() => setChosenAddress(address.id)}
                         />
                         <span className="flex min-w-0 flex-col text-[0.9375rem]">
+                          {address.label && (
+                            <span className="text-ink-subtle mb-0.5 text-xs font-bold tracking-[0.1em] uppercase">
+                              {address.label}
+                            </span>
+                          )}
                           <AddressLines address={address} />
                           {address.isDefault && (
                             <span className="text-ink-muted mt-1 text-sm">

@@ -32,7 +32,9 @@ test.describe("the account", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Hello Priya" }),
     ).toBeVisible();
-    await expect(page.getByText(`Signed in as ${DEMO}`)).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Hello Priya" }),
+    ).toContainText(DEMO);
     await expect(
       page.getByRole("link", { name: "Order RF-1086: €36.95" }),
     ).toBeVisible();
@@ -46,6 +48,45 @@ test.describe("the account", () => {
     const refunded = page.getByRole("article").filter({ hasText: "RF-1088" });
     await expect(refunded).toContainText("Cancelled");
     await expect(refunded).toContainText("Refunded");
+  });
+
+  test("shows the account at a glance: the tiles, the standard address and the invitation link", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto("/en/account");
+    await expect(page.getByText("Namaste")).toBeVisible();
+    await expect(page.getByText(/Member since/)).toBeVisible();
+    const tiles = page
+      .getByRole("list")
+      .filter({ hasText: "Download any time" });
+    await expect(tiles.getByRole("link", { name: /Orders/ })).toContainText(
+      "6",
+    );
+    await expect(tiles.getByRole("link", { name: /Orders/ })).toContainText(
+      "2 on the way",
+    );
+    await expect(tiles.getByRole("link", { name: /Addresses/ })).toContainText(
+      "1",
+    );
+    await expect(
+      page.getByRole("region", { name: "Standard address" }),
+    ).toContainText("Hauptstraße 12");
+    const invite = page.getByRole("region", { name: "Invite friends" });
+    await expect(invite.getByLabel("Your invitation link")).toHaveValue(
+      /\/\?ref=[A-Z2-9]{8}$/,
+    );
+    await expect(invite).toContainText("0 signed up · 0 ordered");
+    // The sidebar carries the counts.
+    const nav = page.getByRole("navigation", { name: "Account" });
+    await expect(nav.getByRole("link", { name: /Orders/ })).toContainText("6");
+    await nav.getByRole("link", { name: "Referrals" }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Your invitations" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Nobody has used your link yet", { exact: false }),
+    ).toBeVisible();
   });
 
   test("a visitor is sent to sign in and comes back to the same order", async ({
@@ -270,13 +311,10 @@ test.describe("an order", () => {
     // An order given up unpaid is removed by the API (doc 9, 2026-11-01):
     // the account lands on its list instead of the order.
     await expect(page).toHaveURL(/\/en\/account\/orders$/);
-    const order = await (
-      await page.request.get(`${MOCK}/v1/store/orders/RF-1086`)
-    ).json();
-    expect(order.order).toMatchObject({
-      status: "cancelled",
-      payment: { paidAmount: 0 },
-    });
+    // From then on the order is hidden: its detail answers 404.
+    const gone = await page.request.get(`${MOCK}/v1/store/orders/RF-1086`);
+    expect(gone.status()).toBe(404);
+    await expect(page.getByRole("article")).toHaveCount(5);
   });
 
   test("a return is requested with a reason, and can be withdrawn", async ({
@@ -339,6 +377,7 @@ test.describe("documents, addresses, profile", () => {
     await expect(page.getByText("Hauptstraße 12")).toBeVisible();
 
     await page.getByRole("button", { name: "Add an address" }).click();
+    await page.getByLabel("Label (optional)").fill("Work");
     await page.getByLabel("First name").fill("Priya");
     await page.getByLabel("Last name").fill("Office");
     await page.getByLabel("Street").fill("Kastanienallee");
@@ -347,6 +386,9 @@ test.describe("documents, addresses, profile", () => {
     await page.getByLabel("City").fill("Berlin");
     await page.getByRole("button", { name: "Save address" }).click();
     await expect(page.getByText("Kastanienallee 7b")).toBeVisible();
+    await expect(
+      page.getByRole("listitem").filter({ hasText: "Kastanienallee 7b" }),
+    ).toContainText("Work");
 
     await page
       .getByRole("button", {
@@ -392,6 +434,43 @@ test.describe("documents, addresses, profile", () => {
 
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
     await expect(page).toHaveURL(/\/en$/);
+    await page.goto("/en/account");
+    await expect(page).toHaveURL(/\/en\/sign-in\?returnTo=%2Faccount$/);
+  });
+
+  test("the account is deleted with the password and a tick, unless an order is open", async ({
+    page,
+  }) => {
+    // The demo customer has orders on the way: the API refuses and says which.
+    await signIn(page);
+    await page.goto("/en/account/profile");
+    const section = page.getByRole("form", { name: "Delete account" });
+    await section.getByLabel("Your password").fill(PASSWORD);
+    await section.getByRole("button", { name: "Delete my account" }).click();
+    await expect(
+      section.getByText("Please tick the box to go on."),
+    ).toBeVisible();
+    await section.getByRole("checkbox").check();
+    await section.getByRole("button", { name: "Delete my account" }).click();
+    await expect(
+      section.getByText("Your account cannot be deleted yet"),
+    ).toBeVisible();
+    await expect(section).toContainText("RF-1086");
+    await expect(section).toContainText("1 open return");
+
+    // A customer without open orders: gone, and signed out.
+    await page.request.post(`${MOCK}/v1/store/auth/logout`);
+    await signIn(page, "anna@example.com");
+    await page.goto("/en/account/profile");
+    const fresh = page.getByRole("form", { name: "Delete account" });
+    await fresh.getByLabel("Your password").fill("not-the-one");
+    await fresh.getByRole("checkbox").check();
+    await fresh.getByRole("button", { name: "Delete my account" }).click();
+    await expect(fresh.getByText("The password is not right.")).toBeVisible();
+    await fresh.getByLabel("Your password").fill(PASSWORD);
+    await fresh.getByRole("button", { name: "Delete my account" }).click();
+    // A full load of the home page, which the dev server may still compile.
+    await expect(page).toHaveURL(/\/en$/, { timeout: 20_000 });
     await page.goto("/en/account");
     await expect(page).toHaveURL(/\/en\/sign-in\?returnTo=%2Faccount$/);
   });

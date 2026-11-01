@@ -80,6 +80,7 @@ describe("toAddressInput", () => {
     expect(
       toAddressInput({ ...valid, phone: "+49 (151) 1234-5678", company: " " }),
     ).toEqual({
+      label: null,
       firstName: "Max",
       lastName: "Müller",
       company: null,
@@ -96,6 +97,13 @@ describe("toAddressInput", () => {
 
   it("trims what was typed", () => {
     expect(toAddressInput({ ...valid, city: "  Berlin " }).city).toBe("Berlin");
+  });
+
+  it("keeps a label of up to 30 characters, empty as null", () => {
+    expect(toAddressInput({ ...valid, label: " Mummy " }).label).toBe("Mummy");
+    expect(problems({ ...valid, label: "x".repeat(31) })).toEqual({
+      label: "tooLong",
+    });
   });
 });
 

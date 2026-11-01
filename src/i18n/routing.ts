@@ -58,6 +58,10 @@ export const routing = defineRouting({
     "/account/invoices": { en: "/account/invoices", de: "/konto/rechnungen" },
     "/account/addresses": { en: "/account/addresses", de: "/konto/adressen" },
     "/account/profile": { en: "/account/profile", de: "/konto/profil" },
+    "/account/referrals": {
+      en: "/account/referrals",
+      de: "/konto/empfehlungen",
+    },
     "/wishlist": { en: "/wishlist", de: "/merkliste" },
     "/unsubscribe/[token]": "/unsubscribe/[token]",
     // The way back from Stripe and the links of the emails about a guest

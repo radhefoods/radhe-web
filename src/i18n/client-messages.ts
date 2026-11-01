@@ -31,6 +31,7 @@ const AREAS = {
     "orders",
     "payment",
     "profile",
+    "referral",
     "returns",
   ],
   emailLinks: ["unsubscribe"],

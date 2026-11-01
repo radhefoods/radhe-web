@@ -405,10 +405,25 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
   };
 }
 
-function ordersOf(customer: CustomerRecord): OrderRecord[] {
-  // Newest first.
+/**
+ * An unpaid order the customer or the admin cancelled is hidden from the
+ * customer at once (doc 9): not listed, its detail answers 404. One the
+ * API gave up (sold out, no payment) stays, with its reason.
+ */
+export function isHiddenOrder(order: OrderRecord): boolean {
+  return (
+    order.status === "cancelled" &&
+    order.payment.paidAmount === 0 &&
+    order.cancellation?.by !== "system"
+  );
+}
+
+/** The orders a customer sees, newest first. */
+export function ordersOf(customer: CustomerRecord): OrderRecord[] {
   return [...db.orders.values()]
-    .filter((order) => order.customerId === customer.id)
+    .filter(
+      (order) => order.customerId === customer.id && !isHiddenOrder(order),
+    )
     .reverse();
 }
 
@@ -417,7 +432,7 @@ export function findOrder(
   orderNumber: string,
 ): OrderRecord {
   const order = db.orders.get(orderNumber.toUpperCase());
-  if (!order || order.customerId !== customer.id) {
+  if (!order || order.customerId !== customer.id || isHiddenOrder(order)) {
     throw new HttpError(404, "ORDER_NOT_FOUND", "This order does not exist.");
   }
   return order;
@@ -433,7 +448,7 @@ export function findGuestOrder(
   token: string | undefined,
 ): OrderRecord {
   const order = db.orders.get(orderNumber.toUpperCase());
-  if (!order || order.guestToken === null) {
+  if (!order || order.guestToken === null || isHiddenOrder(order)) {
     throw new HttpError(404, "ORDER_NOT_FOUND", "This order does not exist.");
   }
   if (!token || token !== order.guestToken) {

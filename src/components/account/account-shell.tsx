@@ -4,18 +4,21 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useOverview } from "@/features/account/overview";
 import { useSession } from "@/features/session/session";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { parseReturnTo } from "@/lib/navigation/return-to";
 
+/** The entries, each with the count of the overview it shows (doc 2), if any. */
 const SECTIONS = [
-  { href: "/account", key: "overview" },
-  { href: "/account/orders", key: "orders" },
-  { href: "/account/invoices", key: "invoices" },
-  { href: "/account/addresses", key: "addresses" },
-  { href: "/account/profile", key: "profile" },
-  { href: "/wishlist", key: "wishlist" },
+  { href: "/account", key: "overview", count: null },
+  { href: "/account/orders", key: "orders", count: "orders" },
+  { href: "/account/invoices", key: "invoices", count: "invoices" },
+  { href: "/account/addresses", key: "addresses", count: "addresses" },
+  { href: "/account/referrals", key: "referrals", count: null },
+  { href: "/account/profile", key: "profile", count: null },
+  { href: "/wishlist", key: "wishlist", count: "wishlistItems" },
 ] as const;
 
 /**
@@ -29,6 +32,8 @@ export function AccountShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const params = useParams();
   const session = useSession({ force: true });
+  // The counts beside the entries, as in the owner's reference (2026-11-01).
+  const counts = useOverview().data?.counts;
 
   // The page to come back to: the address pattern, with the order number
   // filled in where the page has one.
@@ -51,11 +56,12 @@ export function AccountShell({ children }: { children: ReactNode }) {
     current section on a white thumb; a column of pills from `lg`
     (2026-10-31). */}
         <ul className="glass-soft no-scrollbar lg:glass -mx-4 flex gap-1 overflow-x-auto rounded-full p-1 sm:mx-0 lg:flex-col lg:gap-0.5 lg:rounded-2xl lg:p-2">
-          {SECTIONS.map(({ href, key }) => {
+          {SECTIONS.map(({ href, key, count }) => {
             const active =
               href === "/account"
                 ? pathname === "/account"
                 : pathname.startsWith(href);
+            const number = count && counts ? counts[count] : 0;
             return (
               <li key={href}>
                 <Link
@@ -69,6 +75,11 @@ export function AccountShell({ children }: { children: ReactNode }) {
                   )}
                 >
                   {t(`nav.${key}`)}
+                  {number > 0 && (
+                    <span className="bg-ink/6 text-ink-muted ml-2 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums">
+                      {number}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

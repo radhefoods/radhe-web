@@ -482,7 +482,7 @@ function summaryOf(document: InvoiceDetail): InvoiceSummary {
   };
 }
 
-function documentsOf(customer: CustomerRecord, orderNumber?: string) {
+export function documentsOf(customer: CustomerRecord, orderNumber?: string) {
   // Newest first.
   return [...db.invoices.values()]
     .filter(
@@ -607,6 +607,17 @@ export function returnWindowEnd(order: OrderRecord): string | null {
   return new Date(
     Date.parse(order.delivery.deliveredAt) + days * 86_400_000,
   ).toISOString();
+}
+
+/** The returns of a customer that wait for a decision or for the goods. */
+export function openReturnsOf(customer: CustomerRecord): ReturnRequest[] {
+  return [...db.returns.values()].filter((request) => {
+    const order = db.orders.get(request.orderNumber);
+    return (
+      order?.customerId === customer.id &&
+      (request.status === "requested" || request.status === "approved")
+    );
+  });
 }
 
 function returnsOf(order: OrderRecord): ReturnRequest[] {

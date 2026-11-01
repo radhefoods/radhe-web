@@ -141,3 +141,9 @@ export function formatDateTime(iso: IsoDateTime, locale: Locale): string {
   const text = `${dayAndMonth(parts, locale, "short")} ${parts.year}, ${clock(parts)}`;
   return locale === "de" ? `${text} Uhr` : text;
 }
+
+/** "November 2026", in German time: when an account was opened. */
+export function formatMonthYear(iso: IsoDateTime, locale: Locale): string {
+  const parts = partsInBusinessZone(iso);
+  return `${MONTHS[locale].long[parts.month]} ${parts.year}`;
+}

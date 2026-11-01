@@ -17,6 +17,8 @@ export function normalizePhone(value: string): string {
 const PHONE = /^\+[1-9]\d{6,14}$/;
 
 export const addressSchema = z.object({
+  /** The customer's own word for the address ("Home", "Work"), up to 30 characters. */
+  label: optional(30),
   firstName: required(80),
   lastName: required(80),
   company: optional(120),
@@ -41,6 +43,7 @@ export const addressSchema = z.object({
 export type AddressFormValues = z.infer<typeof addressSchema>;
 
 export const EMPTY_ADDRESS: AddressFormValues = {
+  label: "",
   firstName: "",
   lastName: "",
   company: "",
@@ -97,6 +100,7 @@ export function guestAddressOf(values: AddressFormValues): Address {
 
 export function addressToFormValues(address: Address): AddressFormValues {
   return {
+    label: address.label ?? "",
     firstName: address.firstName,
     lastName: address.lastName,
     company: address.company ?? "",
@@ -114,6 +118,7 @@ export function addressToFormValues(address: Address): AddressFormValues {
 export function toAddressInput(values: AddressFormValues): AddressInput {
   const parsed = addressSchema.parse(values);
   return {
+    label: parsed.label || null,
     firstName: parsed.firstName,
     lastName: parsed.lastName,
     company: parsed.company || null,

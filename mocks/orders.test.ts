@@ -322,7 +322,10 @@ describe("orders of a customer", () => {
     // The page was closed: paying on it leads back without a payment.
     const back = await payOnPage(result.checkout.url);
     expect(back.headers.get("location")).toContain("?payment=cancelled");
-    expect((await api.getOrder("RF-1085")).order.paymentStatus).toBe("pending");
+    // Given up unpaid, the order is hidden from the customer (doc 9).
+    const gone = await api.getOrder("RF-1085").catch((e) => e);
+    expect(hasErrorCode(gone, "ORDER_NOT_FOUND")).toBe(true);
+    expect((await api.listOrders()).items).toEqual([]);
   });
 
   it("cancels a paid order and puts its units back", async () => {
@@ -461,8 +464,9 @@ describe("guest checkout", () => {
       status: "cancelled",
       paymentStatus: "pending",
     });
+    // Given up unpaid, the order is gone for the guest too (doc 20).
     const page = await api.payGuestOrder("RF-1085", token).catch((e) => e);
-    expect(hasErrorCode(page, "ORDER_NOT_PAYABLE")).toBe(true);
+    expect(hasErrorCode(page, "ORDER_NOT_FOUND")).toBe(true);
   });
 
   it("says to sign in when the address has an account, and keeps a guest's orders under one record", async () => {

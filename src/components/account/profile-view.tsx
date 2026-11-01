@@ -14,6 +14,7 @@ import { locales, type Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import { fieldProblems } from "@/lib/api/errors";
 import type { Customer } from "@/lib/api/types";
+import { DeleteAccount } from "./delete-account";
 import { SignOutButton } from "./sign-out";
 
 const PHONE = /^\+[1-9]\d{6,14}$/;
@@ -322,6 +323,7 @@ export function ProfileView() {
           })}
         </p>
       </section>
+      <DeleteAccount className={panel} />
     </div>
   );
 }

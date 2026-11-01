@@ -45,6 +45,7 @@ import {
   guestCheckout,
   listOrders,
   orderDetail,
+  ordersOf,
   removeDiscount,
   resetFixtures,
 } from "./orders.ts";
@@ -62,12 +63,14 @@ import {
   cancelReturn,
   createReturn,
   decideReturn,
+  documentsOf,
   expirePaymentPage,
   failPayment,
   findInvoice,
   findReturn,
   invoicePdf,
   listInvoices,
+  openReturnsOf,
   orderPayment,
   orderReturns,
   paymentPage,
@@ -303,7 +306,8 @@ function requireCustomer(ctx: Context): CustomerRecord {
       session.accessExpiresAt > Date.now()
     ) {
       const customer = db.customers.get(session.customerId);
-      if (customer) return customer;
+      // A closed account has no session left; its token means nothing.
+      if (customer && customer.deletedAt === null) return customer;
     }
   }
   throw new HttpError(
@@ -759,6 +763,153 @@ route("PATCH", "/v1/store/me", (ctx) => {
   }
   customer.locale = optionalLocale(body.locale, customer.locale);
   return { body: { customer: customerView(customer) } };
+});
+
+/** The referral code and link of an account (doc 21). */
+function referralOf(customer: CustomerRecord) {
+  // Accounts from before the codes get one on first request.
+  customer.referralCode ??= makeReferralCode();
+  const mine = db.referrals.filter(
+    (record) => record.referrerId === customer.id,
+  );
+  return {
+    code: customer.referralCode,
+    link: `${SHOP_URL}/?ref=${customer.referralCode}`,
+    counts: {
+      registered: mine.filter((r) => r.status === "registered").length,
+      qualified: mine.filter((r) => r.status === "qualified").length,
+    },
+    records: mine,
+  };
+}
+
+/** "ra***@example.com": the invited person's address, masked (doc 21). */
+function maskEmail(email: string): string {
+  const [name, domain] = email.split("@");
+  return `${name.slice(0, 2)}***@${domain}`;
+}
+
+route("GET", "/v1/store/me/overview", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const orders = ordersOf(customer);
+  const referral = referralOf(customer);
+  return {
+    body: {
+      customer: customerView(customer),
+      memberSince: customer.createdAt,
+      counts: {
+        orders: orders.length,
+        openOrders: orders.filter((order) =>
+          ["confirmed", "processing", "dispatched"].includes(order.status),
+        ).length,
+        invoices: documentsOf(customer).length,
+        wishlists: 1,
+        wishlistItems: customer.wishlist.length,
+        addresses: customer.addresses.length,
+        openIssues: 0,
+      },
+      defaultAddress:
+        customer.addresses.find((address) => address.isDefault) ?? null,
+      referral: {
+        code: referral.code,
+        link: referral.link,
+        counts: referral.counts,
+      },
+      locale: customer.locale,
+    },
+  };
+});
+
+route("POST", "/v1/store/me/delete", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const body = objectBody(ctx.body, ["password", "confirm"]);
+  if (body.confirm !== true) {
+    throw validationFailed("confirm", "confirm must be true");
+  }
+  if (
+    typeof body.password !== "string" ||
+    customer.passwordHash !== hashPassword(body.password)
+  ) {
+    throw new HttpError(
+      401,
+      "CUSTOMER_CREDENTIALS_INVALID",
+      "The password is incorrect.",
+    );
+  }
+  const open = ordersOf(customer).filter((order) =>
+    ["pending_payment", "confirmed", "processing", "dispatched"].includes(
+      order.status,
+    ),
+  );
+  const openReturns = openReturnsOf(customer).length;
+  if (open.length > 0 || openReturns > 0) {
+    throw new HttpError(
+      409,
+      "CUSTOMER_HAS_OPEN_ORDERS",
+      "The account cannot be deleted while an order, a return or a report is open.",
+      {
+        orderNumbers: open.map((order) => order.orderNumber),
+        openReturns,
+        openIssues: 0,
+      },
+    );
+  }
+  // Everything personal goes; the record keeps its id for the books.
+  console.log(`[mock] goodbye email (${customer.locale}) to ${customer.email}`);
+  customer.email = `deleted:${customer.id}`;
+  customer.firstName = null;
+  customer.lastName = null;
+  customer.phone = null;
+  customer.passwordHash = null;
+  customer.referralCode = null;
+  customer.addresses = [];
+  customer.wishlist = [];
+  customer.cart = [];
+  customer.discountCode = null;
+  customer.communication = {
+    whatsappNumber: null,
+    whatsappOptIn: false,
+    whatsappOptInAt: null,
+    marketingOptIn: false,
+    marketingOptInAt: null,
+    marketingOptOutAt: null,
+  };
+  customer.deletedAt = new Date().toISOString();
+  db.referrals = db.referrals.filter(
+    (record) =>
+      record.referredId !== customer.id && record.referrerId !== customer.id,
+  );
+  for (const session of db.sessions) {
+    if (session.customerId === customer.id) db.sessions.delete(session);
+  }
+  return { status: 204, setCookies: clearCookies() };
+});
+
+route("GET", "/v1/store/me/referral", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const referral = referralOf(customer);
+  return {
+    body: {
+      referral: {
+        code: referral.code,
+        link: referral.link,
+        counts: referral.counts,
+        invitees: referral.records.map((record) => {
+          const invited = db.customers.get(record.referredId);
+          const gone = !invited || invited.deletedAt !== null;
+          return {
+            name: gone
+              ? null
+              : `${invited.firstName ?? ""} ${invited.lastName ?? ""}`.trim(),
+            email: gone ? null : maskEmail(invited.email),
+            status: record.status,
+            registeredAt: record.registeredAt,
+            qualifiedAt: record.qualifiedAt,
+          };
+        }),
+      },
+    },
+  };
 });
 
 route("PATCH", "/v1/store/me/communication", (ctx) => {

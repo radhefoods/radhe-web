@@ -112,7 +112,15 @@ export function AddressBook() {
                   className="glass-strong flex flex-col gap-3 rounded-2xl p-4"
                 >
                   <div className="flex items-start justify-between gap-3 text-[0.9375rem]">
-                    <AddressBlock address={address} />
+                    <div className="min-w-0">
+                      {/* The customer's own word for it, as the title (doc 3). */}
+                      {address.label && (
+                        <p className="text-ink-subtle mb-1 text-xs font-bold tracking-[0.1em] uppercase">
+                          {address.label}
+                        </p>
+                      )}
+                      <AddressBlock address={address} />
+                    </div>
                     {address.isDefault && (
                       <span className="bg-leaf-50 text-leaf-700 ring-leaf-600/12 rounded-full px-2.5 py-1 text-xs font-bold ring-1">
                         {tAddress("default")}
