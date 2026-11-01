@@ -355,3 +355,165 @@ describe("orders of a customer", () => {
     ).toBe(37);
   });
 });
+
+describe("guest checkout", () => {
+  const guestInput = async (email = "gita@example.com") => {
+    const api = mock.guestApi();
+    const items = [{ variantId: SKU.chakkiAtta5kg, quantity: 2 }];
+    const bill = await api.previewCart(items);
+    const legal = await api.listLegal();
+    return {
+      api,
+      input: {
+        email,
+        items,
+        address: home,
+        expectedTotal: bill.totals.total,
+        consent: {
+          accepted: true as const,
+          versions: Object.fromEntries(
+            legal.items.map((d) => [d.type, d.version]),
+          ),
+        },
+      },
+    };
+  };
+
+  it("makes an order without an account, opened by its token", async () => {
+    const { api, input } = await guestInput();
+    const result = await api.guestCheckout(input, "guest-attempt-0001");
+    expect(result.created).toBe(true);
+    expect(result.token).toMatch(/^[A-Za-z0-9_-]{20,}$/);
+    expect(result.order).toMatchObject({
+      orderNumber: "RF-1085",
+      isGuest: true,
+      status: "pending_payment",
+      total: 3097,
+    });
+    expect(result.order.deliveryAddress).toMatchObject({
+      firstName: "Priya",
+      city: "Frankfurt am Main",
+    });
+
+    const opened = await api.getGuestOrder("rf-1085", result.token);
+    expect(opened.order.orderNumber).toBe("RF-1085");
+    expect(opened.payment.canPayOnline).toBe(true);
+    expect(opened.documents).toEqual([]);
+
+    const wrong = await api
+      .getGuestOrder("RF-1085", "not-the-token-0000")
+      .catch((e) => e);
+    expect(hasErrorCode(wrong, "ORDER_TOKEN_INVALID")).toBe(true);
+    const unknown = await api
+      .getGuestOrder("RF-1099", result.token)
+      .catch((e) => e);
+    expect(hasErrorCode(unknown, "ORDER_NOT_FOUND")).toBe(true);
+
+    // The same attempt again answers the first order, with its token.
+    const again = await api.guestCheckout(input, "guest-attempt-0001");
+    expect(again.created).toBe(false);
+    expect(again.order.orderNumber).toBe("RF-1085");
+    expect(again.token).toBe(result.token);
+  });
+
+  it("is paid on the page, which leads back to the guest order page, and has its invoice", async () => {
+    const { api, input } = await guestInput();
+    const { token, checkout } = await api.guestCheckout(
+      input,
+      "guest-attempt-0002",
+    );
+    const back = await payOnPage(checkout.url);
+    expect(back.status).toBe(302);
+    expect(back.headers.get("location")).toBe(
+      `http://localhost:3001/guest/orders/RF-1085?token=${encodeURIComponent(token)}&payment=success`,
+    );
+    const paid = await api.getGuestOrder("RF-1085", token);
+    expect(paid.order.status).toBe("confirmed");
+    expect(paid.payment.status).toBe("paid");
+    expect(paid.documents).toHaveLength(1);
+    expect(paid.payment.invoice?.pdfPath).toBe(
+      `/v1/store/guest/orders/RF-1085/invoices/${paid.documents[0].number}/pdf`,
+    );
+    const pdf = await fetch(
+      `${mock.base()}${paid.payment.invoice!.pdfPath}?token=${encodeURIComponent(token)}`,
+    );
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers.get("content-type")).toBe("application/pdf");
+    const refused = await fetch(
+      `${mock.base()}${paid.payment.invoice!.pdfPath}?token=wrong-token-000`,
+    );
+    expect(refused.status).toBe(403);
+  });
+
+  it("can be given up unpaid by the guest; a wrong token cannot", async () => {
+    const { api, input } = await guestInput();
+    const { token } = await api.guestCheckout(input, "guest-attempt-0003");
+    const refused = await api
+      .cancelGuestOrder("RF-1085", "not-the-token-0000", {
+        reason: "changed_mind",
+      })
+      .catch((e) => e);
+    expect(hasErrorCode(refused, "ORDER_TOKEN_INVALID")).toBe(true);
+    const { order } = await api.cancelGuestOrder("RF-1085", token, {
+      reason: "changed_mind",
+    });
+    expect(order).toMatchObject({
+      status: "cancelled",
+      paymentStatus: "pending",
+    });
+    const page = await api.payGuestOrder("RF-1085", token).catch((e) => e);
+    expect(hasErrorCode(page, "ORDER_NOT_PAYABLE")).toBe(true);
+  });
+
+  it("says to sign in when the address has an account, and keeps a guest's orders under one record", async () => {
+    await mock.signIn("anna@example.com");
+    const { api, input } = await guestInput("anna@example.com");
+    const taken = await api
+      .guestCheckout(input, "guest-attempt-0004")
+      .catch((e) => e);
+    expect(hasErrorCode(taken, "CUSTOMER_EMAIL_TAKEN")).toBe(true);
+    if (hasErrorCode(taken, "CUSTOMER_EMAIL_TAKEN")) {
+      expect(taken.details).toEqual({ action: "sign_in" });
+    }
+    // A guest who orders twice has one record: the second order has the
+    // next number, under the same email.
+    const first = await guestInput("gita@example.com");
+    await first.api.guestCheckout(first.input, "guest-attempt-0005");
+    const second = await guestInput("gita@example.com");
+    const result = await second.api.guestCheckout(
+      second.input,
+      "guest-attempt-0006",
+    );
+    expect(result.order.orderNumber).toBe("RF-1086");
+    // A guest record cannot sign in: no password.
+    const login = await mock
+      .customerApi()
+      .api.login({ email: "gita@example.com", password: "anything-at-all" })
+      .catch((e) => e);
+    expect(hasErrorCode(login, "CUSTOMER_CREDENTIALS_INVALID")).toBe(true);
+  });
+
+  it("checks the body like the account checkout", async () => {
+    const { api, input } = await guestInput();
+    const noKey = await api.guestCheckout(input, "x").catch((e) => e);
+    expect(hasErrorCode(noKey, "IDEMPOTENCY_KEY_REQUIRED")).toBe(true);
+    const badEmail = await api
+      .guestCheckout({ ...input, email: "nope" }, "guest-attempt-0007")
+      .catch((e) => e);
+    expect(hasErrorCode(badEmail, "VALIDATION_FAILED")).toBe(true);
+    const withLabel = await api
+      .guestCheckout(
+        { ...input, address: { ...home, label: "Home" } as typeof home },
+        "guest-attempt-0008",
+      )
+      .catch((e) => e);
+    expect(hasErrorCode(withLabel, "VALIDATION_FAILED")).toBe(true);
+    const changed = await api
+      .guestCheckout(
+        { ...input, expectedTotal: input.expectedTotal + 1 },
+        "guest-attempt-0009",
+      )
+      .catch((e) => e);
+    expect(hasErrorCode(changed, "ORDER_TOTAL_CHANGED")).toBe(true);
+  });
+});

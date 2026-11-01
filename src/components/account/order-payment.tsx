@@ -3,19 +3,20 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { orderCalls, type OrderAccess } from "@/features/orders/order-access";
 import {
   orderDocumentsQueryKey,
+  orderPaymentQueryKey,
   orderQueryKey,
   ordersQueryKey,
 } from "@/features/orders/orders";
 import { isSafePaymentUrl } from "@/features/orders/payment-url";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { api } from "@/lib/api/browser";
 import { ApiError, hasErrorCode } from "@/lib/api/errors";
 import type { OrderDetail, OrderStatus, PaymentBlock } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
@@ -77,16 +78,18 @@ export interface PaymentState {
 export function usePaymentState(
   order: OrderDetail,
   paymentReturn: PaymentReturn,
+  access: OrderAccess,
 ): PaymentState {
   const locale = useLocale();
   const client = useQueryClient();
+  const calls = useMemo(() => orderCalls(access), [access]);
   // How often the API was asked on this page: the pace slows down after a while.
   const [checks, setChecks] = useState(0);
   const ask = paymentReturn !== null || order.status === "pending_payment";
   const query = useQuery({
-    queryKey: ["order-payment", order.orderNumber.toUpperCase()],
+    queryKey: orderPaymentQueryKey(order.orderNumber, calls.scope),
     queryFn: async () => {
-      const answer = await api.getOrderPayment(order.orderNumber);
+      const answer = await calls.getPayment(order.orderNumber);
       setChecks((count) => count + 1);
       return answer;
     },
@@ -112,11 +115,13 @@ export function usePaymentState(
       answer.payment.status !== order.paymentStatus
     ) {
       void client.invalidateQueries({
-        queryKey: orderQueryKey(order.orderNumber, locale),
+        queryKey: orderQueryKey(order.orderNumber, locale, calls.scope),
       });
-      void client.invalidateQueries({ queryKey: ordersQueryKey(locale) });
+      if (calls.scope === "account") {
+        void client.invalidateQueries({ queryKey: ordersQueryKey(locale) });
+      }
       void client.invalidateQueries({
-        queryKey: orderDocumentsQueryKey(order.orderNumber),
+        queryKey: orderDocumentsQueryKey(order.orderNumber, calls.scope),
       });
     }
   }, [
@@ -126,6 +131,7 @@ export function usePaymentState(
     order.orderNumber,
     client,
     locale,
+    calls,
   ]);
 
   const { refetch: refetchQuery } = query;
@@ -144,7 +150,11 @@ export function usePaymentState(
  * "Pay now": the open page of the order when there is one, else a new page
  * from `POST …/pay`. Only offered while `payment.canPayOnline`.
  */
-function usePayNow(orderNumber: string, state: PaymentState) {
+function usePayNow(
+  orderNumber: string,
+  state: PaymentState,
+  access: OrderAccess,
+) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const openUrl = state.payment.checkout?.url ?? null;
@@ -153,7 +163,7 @@ function usePayNow(orderNumber: string, state: PaymentState) {
     setStarting(true);
     setError(null);
     try {
-      const url = openUrl ?? (await api.createPaymentPage(orderNumber)).url;
+      const url = openUrl ?? (await orderCalls(access).pay(orderNumber)).url;
       goToPaymentPage(url);
     } catch (caught) {
       // Paid or cancelled meanwhile: the page shows the real state.
@@ -161,7 +171,7 @@ function usePayNow(orderNumber: string, state: PaymentState) {
       setError(caught);
       setStarting(false);
     }
-  }, [openUrl, orderNumber, refetch]);
+  }, [openUrl, orderNumber, refetch, access]);
   return { start, starting, error };
 }
 
@@ -214,6 +224,7 @@ export function PaymentOutcome({
   paymentReturn,
   payAtOnce,
   email,
+  access,
 }: {
   order: OrderDetail;
   state: PaymentState;
@@ -221,9 +232,10 @@ export function PaymentOutcome({
   /** `?pay=1` from the payment-failed email. */
   payAtOnce: boolean;
   email: string | null;
+  access: OrderAccess;
 }) {
   const t = useTranslations("payment");
-  const pay = usePayNow(order.orderNumber, state);
+  const pay = usePayNow(order.orderNumber, state, access);
   const { status, payment } = state;
   const waiting = status === "pending_payment";
 
@@ -326,13 +338,15 @@ export function PaymentOutcome({
 export function PaymentPanel({
   order,
   state,
+  access,
 }: {
   order: OrderDetail;
   state: PaymentState;
+  access: OrderAccess;
 }) {
   const t = useTranslations("payment");
   const locale = useLocale() as Locale;
-  const pay = usePayNow(order.orderNumber, state);
+  const pay = usePayNow(order.orderNumber, state, access);
   const { status, payment } = state;
   const waiting = status === "pending_payment";
   const paid = payment.status === "paid" || payment.status === "refunded";

@@ -9,13 +9,42 @@ import type {
 // What the account pages share about orders: the keys of their cached
 // answers, the colour of each status, and the steps of the progress line.
 
+/**
+ * Whose order it is: the signed-in customer's, read with the session, or a
+ * guest's, opened with its token (doc 20). The two never share a cache
+ * entry.
+ */
+export type OrderScope = "account" | "guest";
+
 export const ordersQueryKey = (locale: string) => ["orders", locale] as const;
-export const orderQueryKey = (orderNumber: string, locale: string) =>
-  ["order", orderNumber.toUpperCase(), locale] as const;
+export const orderQueryKey = (
+  orderNumber: string,
+  locale: string,
+  scope: OrderScope = "account",
+) =>
+  [
+    scope === "guest" ? "guest-order" : "order",
+    orderNumber.toUpperCase(),
+    locale,
+  ] as const;
+export const orderPaymentQueryKey = (
+  orderNumber: string,
+  scope: OrderScope = "account",
+) =>
+  [
+    scope === "guest" ? "guest-order-payment" : "order-payment",
+    orderNumber.toUpperCase(),
+  ] as const;
 export const orderReturnsQueryKey = (orderNumber: string, locale: string) =>
   ["order-returns", orderNumber.toUpperCase(), locale] as const;
-export const orderDocumentsQueryKey = (orderNumber: string) =>
-  ["order-documents", orderNumber.toUpperCase()] as const;
+export const orderDocumentsQueryKey = (
+  orderNumber: string,
+  scope: OrderScope = "account",
+) =>
+  [
+    scope === "guest" ? "guest-order-documents" : "order-documents",
+    orderNumber.toUpperCase(),
+  ] as const;
 export const ADDRESSES_QUERY_KEY = ["addresses"] as const;
 export const INVOICES_QUERY_KEY = ["invoices"] as const;
 

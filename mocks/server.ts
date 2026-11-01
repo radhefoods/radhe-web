@@ -23,11 +23,13 @@ import {
   type ServerResponse,
 } from "node:http";
 import { pathToFileURL } from "node:url";
-import type { CartItemInput, ProductQuery } from "../src/lib/api/types.ts";
+import type { ProductQuery } from "../src/lib/api/types.ts";
 import {
   HttpError,
   OBJECT_ID,
   PHONE,
+  cartItems,
+  emailOf,
   objectBody,
   validationFailed,
 } from "./errors.ts";
@@ -35,10 +37,14 @@ import {
   addresses,
   applyDiscount,
   cancelOrder,
+  cancelOrderRecord,
   checkout,
+  findGuestOrder,
   findOrder,
   getOrder,
+  guestCheckout,
   listOrders,
+  orderDetail,
   removeDiscount,
   resetFixtures,
 } from "./orders.ts";
@@ -197,16 +203,7 @@ function localeOf(url: URL, headers: IncomingMessage["headers"]): Locale {
 
 // --- Validation helpers (unknown fields are rejected, doc 0.2) --------------
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-function emailOf(value: unknown): string {
-  const email = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (!EMAIL.test(email) || email.length > 254) {
-    throw validationFailed("email", "email must be an email");
-  }
-  return email;
-}
 
 function optionalLocale(value: unknown, fallback: Locale): Locale {
   if (value === undefined) return fallback;
@@ -214,41 +211,6 @@ function optionalLocale(value: unknown, fallback: Locale): Locale {
     throw validationFailed("locale", "locale must be one of: en, de");
   }
   return value;
-}
-
-function cartItems(value: unknown, minimum: number): CartItemInput[] {
-  if (!Array.isArray(value) || value.length < minimum || value.length > 100) {
-    throw validationFailed("items", "items must contain 1 to 100 entries");
-  }
-  const seen = new Set<string>();
-  return value.map((entry, index) => {
-    const item = objectBody(entry, ["variantId", "quantity"]);
-    if (typeof item.variantId !== "string" || !OBJECT_ID.test(item.variantId)) {
-      throw validationFailed(
-        `items.${index}.variantId`,
-        "variantId must be an id",
-      );
-    }
-    if (
-      typeof item.quantity !== "number" ||
-      !Number.isInteger(item.quantity) ||
-      item.quantity < 1 ||
-      item.quantity > 10_000
-    ) {
-      throw validationFailed(
-        `items.${index}.quantity`,
-        "quantity must not be less than 1",
-      );
-    }
-    if (seen.has(item.variantId)) {
-      throw validationFailed(
-        "items",
-        "items must not contain a pack size twice",
-      );
-    }
-    seen.add(item.variantId);
-    return { variantId: item.variantId, quantity: item.quantity };
-  });
 }
 
 function booleanParam(url: URL, key: string): boolean | undefined {
@@ -1280,17 +1242,18 @@ function pageIsOpen(order: ReturnType<typeof orderOfPage>): boolean {
   );
 }
 
-/** Where Stripe sends the browser afterwards (doc 10.4). */
+/**
+ * Where Stripe sends the browser afterwards (doc 10.4): the order page of
+ * the account, or the guest order page with its token (doc 20).
+ */
 function backToOrder(
-  orderNumber: string,
+  order: ReturnType<typeof orderOfPage>,
   result: "success" | "cancelled",
 ): Result {
-  return {
-    status: 302,
-    headers: {
-      Location: `${SHOP_URL}/account/orders/${orderNumber}?payment=${result}`,
-    },
-  };
+  const location = order.guestToken
+    ? `${SHOP_URL}/guest/orders/${order.orderNumber}?token=${encodeURIComponent(order.guestToken)}&payment=${result}`
+    : `${SHOP_URL}/account/orders/${order.orderNumber}?payment=${result}`;
+  return { status: 302, headers: { Location: location } };
 }
 
 route("GET", "/__mock/stripe/:orderNumber", (ctx) => {
@@ -1311,18 +1274,86 @@ route("GET", "/__mock/stripe/:orderNumber", (ctx) => {
 route("GET", "/__mock/stripe/:orderNumber/pay", (ctx) => {
   const order = orderOfPage(ctx.params.orderNumber);
   // A closed page (the order was given up, or the page expired) pays nothing.
-  if (!pageIsOpen(order)) return backToOrder(order.orderNumber, "cancelled");
+  if (!pageIsOpen(order)) return backToOrder(order, "cancelled");
   if (ctx.url.searchParams.get("type") === "paypal") {
     // The bank approves now; Stripe's notification comes a moment later.
     settleLater(order);
   } else {
     settlePayment(order, "card");
   }
-  return backToOrder(order.orderNumber, "success");
+  return backToOrder(order, "success");
 });
 
 route("GET", "/__mock/stripe/:orderNumber/cancel", (ctx) =>
-  backToOrder(ctx.params.orderNumber.toUpperCase(), "cancelled"),
+  backToOrder(orderOfPage(ctx.params.orderNumber), "cancelled"),
+);
+
+// --- 20 Guest checkout ------------------------------------------------------
+
+route("POST", "/v1/store/guest/checkout", (ctx) => {
+  const key = ctx.headers["idempotency-key"];
+  return guestCheckout(
+    typeof key === "string" ? key : undefined,
+    ctx.body,
+    ctx.locale,
+    mockBaseOf(ctx),
+  );
+});
+
+/** The token of a guest order: `?token=` or the `X-Order-Token` header (doc 20). */
+function guestOrderOf(ctx: Context) {
+  const header = ctx.headers["x-order-token"];
+  const token =
+    ctx.url.searchParams.get("token") ??
+    (typeof header === "string" ? header : undefined);
+  return findGuestOrder(ctx.params.orderNumber, token);
+}
+
+route("GET", "/v1/store/guest/orders/:orderNumber", (ctx) => {
+  const order = guestOrderOf(ctx);
+  const customer = db.customers.get(order.customerId)!;
+  const payment = orderPayment(customer, order);
+  return {
+    body: {
+      order: orderDetail(order, ctx.locale),
+      payment: payment.payment,
+      documents: payment.documents,
+    },
+  };
+});
+
+route("POST", "/v1/store/guest/orders/:orderNumber/pay", (ctx) => ({
+  body: paymentPage(guestOrderOf(ctx), mockBaseOf(ctx)),
+}));
+
+route("POST", "/v1/store/guest/orders/:orderNumber/cancel", (ctx) => ({
+  body: cancelOrderRecord(guestOrderOf(ctx), ctx.body, ctx.locale),
+}));
+
+route(
+  "GET",
+  "/v1/store/guest/orders/:orderNumber/invoices/:number/pdf",
+  (ctx) => {
+    const order = guestOrderOf(ctx);
+    const customer = db.customers.get(order.customerId)!;
+    const document = findInvoice(customer, ctx.params.number);
+    if (document.orderNumber !== order.orderNumber) {
+      throw new HttpError(
+        404,
+        "INVOICE_NOT_FOUND",
+        "This document does not exist.",
+      );
+    }
+    return {
+      raw: {
+        contentType: "application/pdf",
+        content: invoicePdf(document),
+      },
+      headers: {
+        "Content-Disposition": `attachment; filename="${document.number}.pdf"`,
+      },
+    };
+  },
 );
 
 // --- Links in emails: no sign-in, the token is the key (doc 4) ---------------
@@ -1676,7 +1707,7 @@ export function createMockServer(options: MockServerOptions = {}): Server {
           );
           response.setHeader(
             "Access-Control-Allow-Headers",
-            "Content-Type, Authorization, X-Request-Id, Idempotency-Key",
+            "Content-Type, Authorization, X-Request-Id, Idempotency-Key, X-Order-Token",
           );
           response.setHeader("Access-Control-Max-Age", "600");
           return send(204);

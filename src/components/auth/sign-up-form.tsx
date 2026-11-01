@@ -20,7 +20,7 @@ import { useSession, useSessionActions } from "@/features/session/session";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import { fieldProblems, hasErrorCode } from "@/lib/api/errors";
+import { ApiError, fieldProblems, hasErrorCode } from "@/lib/api/errors";
 import {
   DEFAULT_RETURN_TARGET,
   returnHref,
@@ -85,14 +85,23 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
     if (Object.values(found).some(Boolean)) return;
     setPending(true);
     try {
-      const { customer } = await api.signUp({
+      const result = await api.signUp({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: normalizeEmail(email),
         password,
         locale,
       });
-      signedIn(customer);
+      if (!("customer" in result)) {
+        // The API asks for an emailed code (doc 1, 2026-11-01): the code
+        // step of the form follows in the next phase.
+        throw new ApiError({
+          status: 202,
+          code: "UNEXPECTED_RESPONSE",
+          message: "The sign-up waits for a code.",
+        });
+      }
+      signedIn(result.customer);
       router.replace(returnHref(returnTo));
     } catch (caught) {
       if (hasErrorCode(caught, "CUSTOMER_EMAIL_TAKEN")) {

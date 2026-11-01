@@ -472,6 +472,21 @@
     "viewNamed": "View order {orderNumber}",
     "loadMore": "Show older orders",
     "back": "All orders",
+    "gone": {
+      "title": "This order is gone.",
+      "text": "An order that was not paid is removed once it is cancelled."
+    },
+    "guest": {
+      "metaTitle": "Your order",
+      "backToShop": "Back to the shop",
+      "invalidTitle": "This link is not valid.",
+      "invalidText": "Open the link from our email about this order again: it carries the key that opens the order.",
+      "goneTitle": "This order no longer exists.",
+      "goneText": "An order that was not paid is removed once it is given up.",
+      "accountTitle": "All your orders in one place",
+      "accountText": "Create an account with the email address of this order: your orders, invoices and address are there.",
+      "accountCta": "Create an account"
+    },
     "status": {
       "pending_payment": "Waiting for payment",
       "confirmed": "Confirmed",
@@ -854,6 +869,24 @@
     "RETURN_NOT_FOUND": "We could not find this return.",
     "RETURN_TRANSITION_NOT_ALLOWED": "This return has already been decided and can no longer be withdrawn.",
     "reference": "Reference for our support: {requestId}",
-    "BLOG_POST_NOT_FOUND": "This article does not exist or is not published."
+    "BLOG_POST_NOT_FOUND": "This article does not exist or is not published.",
+    "SIGNUP_CODE_INVALID": "The code is not right.",
+    "SIGNUP_NOT_FOUND": "This code has expired or was used up. Please start the sign-up again.",
+    "CUSTOMER_HAS_OPEN_ORDERS": "Your account cannot be deleted while an order, a return or a report is still open.",
+    "ORDER_TOKEN_INVALID": "This link does not open this order.",
+    "WISHLIST_NOT_FOUND": "This list does not exist any more.",
+    "WISHLIST_NAME_TAKEN": "You already have a list with this name.",
+    "WISHLIST_LIMIT_REACHED": "You can have up to 20 lists. Delete one to add another.",
+    "REVIEW_NOT_ALLOWED": "You can review a product once it was delivered to you.",
+    "REVIEW_NOT_FOUND": "We could not find this review.",
+    "FEEDBACK_ALREADY_GIVEN": "You have already rated this order. Thank you!",
+    "FEEDBACK_NOT_POSSIBLE": "You can rate an order once it was delivered.",
+    "ISSUE_NOT_FOUND": "We could not find this report.",
+    "ISSUE_NOT_POSSIBLE": "A problem can be reported for a delivered order, up to five times.",
+    "ISSUE_WINDOW_CLOSED": "The time for reporting a problem with this order has passed.",
+    "ISSUE_QUANTITY_INVALID": "You can report at most as many units as were delivered to you.",
+    "ISSUE_TRANSITION_NOT_ALLOWED": "Radhe Foods is already looking at this report; it can no longer be taken back.",
+    "IMAGE_LIMIT_REACHED": "A report can have up to five photos.",
+    "IMAGE_INVALID": "Please use JPEG, PNG or WebP pictures."
   }
 }

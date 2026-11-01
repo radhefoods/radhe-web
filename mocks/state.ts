@@ -33,7 +33,7 @@ export const settings = {
   delivery: {
     estimate: { en: "2 to 4 working days", de: "2 bis 4 Werktage" },
   },
-  returns: { windowDays: 14 },
+  returns: { windowDays: 14, issueWindowDays: 14 },
   /** How long a payment page stays open, in minutes (`payments.checkoutMinutes`). */
   checkoutMinutes: 60,
 };
@@ -97,8 +97,14 @@ export interface CustomerRecord {
   lastName: string | null;
   phone: string | null;
   locale: Locale;
-  /** The password, hashed; the mock never keeps it as typed. */
-  passwordHash: string;
+  /**
+   * The password, hashed; the mock never keeps it as typed. `null` for a
+   * guest record (doc 20), which cannot sign in.
+   */
+  passwordHash: string | null;
+  /** A record made by a guest checkout, until the person signs up (doc 20). */
+  kind: "registered" | "guest";
+  emailVerifiedAt: string | null;
   /** Blocked by Radhe Foods: cannot sign in or check out. */
   blocked: boolean;
   communication: {
@@ -202,6 +208,8 @@ export interface OrderRecord {
   payment: PaymentRecord;
   /** When the cleanup gives an unpaid order up; `null` once paid or cancelled. */
   pendingUntil: string | null;
+  /** The key that opens a guest order (doc 20); `null` for an account's order. */
+  guestToken: string | null;
 }
 
 /** Order numbers continue after this one: the first order is RF-1085. */
@@ -287,9 +295,11 @@ export function newCustomer(input: {
   locale: Locale;
   firstName: string;
   lastName: string;
-  passwordHash: string;
+  /** `null` makes a guest record (doc 20). */
+  passwordHash: string | null;
 }): CustomerRecord {
   customerSequence += 1;
+  const now = new Date().toISOString();
   const customer: CustomerRecord = {
     id: `66f1${customerSequence.toString(16).padStart(20, "0")}`,
     email: input.email,
@@ -298,6 +308,8 @@ export function newCustomer(input: {
     phone: null,
     locale: input.locale,
     passwordHash: input.passwordHash,
+    kind: input.passwordHash === null ? "guest" : "registered",
+    emailVerifiedAt: input.passwordHash === null ? null : now,
     blocked: false,
     communication: {
       whatsappNumber: null,
@@ -307,7 +319,7 @@ export function newCustomer(input: {
       marketingOptInAt: null,
       marketingOptOutAt: null,
     },
-    createdAt: new Date().toISOString(),
+    createdAt: now,
     cart: [],
     discountCode: null,
     addresses: [],

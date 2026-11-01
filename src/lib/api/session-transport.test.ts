@@ -48,6 +48,20 @@ describe("buildUrl", () => {
       }),
     ).toBe(`${BASE}/v1/store/products?locale=de&q=reis&page=2&onSale=true`);
   });
+
+  it("continues a query the path already carries", () => {
+    expect(
+      buildUrl(
+        BASE,
+        "/v1/store/guest/orders/RF-1085/invoices/INV-1/pdf?token=abc",
+        {
+          locale: "en",
+        },
+      ),
+    ).toBe(
+      `${BASE}/v1/store/guest/orders/RF-1085/invoices/INV-1/pdf?token=abc&locale=en`,
+    );
+  });
 });
 
 describe("plain requester", () => {

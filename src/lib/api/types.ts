@@ -51,9 +51,18 @@ export interface Customer {
   locale: Locale;
   communication: Communication;
   createdAt: IsoDateTime;
+  /**
+   * `guest`: a record made by a guest checkout (20), without a password.
+   * Absent from an API older than 2026-11-01.
+   */
+  kind?: "registered" | "guest";
+  emailVerifiedAt?: IsoDateTime | null;
 }
 
-/** `POST /v1/store/auth/signup` (1): the account, signed in at once. */
+/**
+ * `POST /v1/store/auth/signup` (1): the details are kept aside and a code
+ * is emailed; the account is made by `signup/verify`.
+ */
 export interface SignUpInput {
   firstName: string;
   lastName: string;
@@ -61,6 +70,32 @@ export interface SignUpInput {
   password: string;
   /** Language of the account and its emails; else the request's language. */
   locale?: Locale;
+  /** The `ref` of a referral link (21); one that does not count never fails the sign-up. */
+  referralCode?: string;
+}
+
+/** The `202` of `signup`: a code is on its way. */
+export interface SignUpStarted {
+  email: string;
+  validMinutes: number;
+  /** "Resend code" is disabled for this long. */
+  resendAfterSeconds: number;
+}
+
+/** `POST /v1/store/auth/signup/verify` (1). */
+export interface SignUpVerifyInput {
+  email: string;
+  /** Six digits. */
+  code: string;
+}
+
+/** Why a referral code did not count at the sign-up (21). */
+export type ReferralFailReason =
+  "unknown_code" | "own_code" | "already_customer" | "already_referred";
+
+/** The `201` of `signup/verify`: signed in, and whether the referral counted. */
+export interface SignUpVerified extends SessionResult {
+  referral: { applied: boolean; reason: ReferralFailReason | null };
 }
 
 /** `POST /v1/store/auth/login` (1). */
@@ -88,10 +123,43 @@ export interface UpdateCommunicationInput {
   marketingOptIn?: boolean;
 }
 
+/** `GET /v1/store/me/overview` (2): the account at a glance. */
+export interface AccountOverview {
+  customer: Customer;
+  memberSince: IsoDateTime;
+  counts: {
+    /** The orders the customer sees. */
+    orders: number;
+    /** Confirmed, processing or dispatched. */
+    openOrders: number;
+    invoices: number;
+    wishlists: number;
+    /** Products over every list. */
+    wishlistItems: number;
+    addresses: number;
+    openIssues: number;
+  };
+  defaultAddress: Address | null;
+  referral: {
+    code: string;
+    link: string;
+    counts: { registered: number; qualified: number };
+  };
+  locale: Locale;
+}
+
+/** `POST /v1/store/me/delete` (2): closes the account for good. */
+export interface DeleteAccountInput {
+  password: string;
+  confirm: true;
+}
+
 // --- 3 Addresses ------------------------------------------------------------
 
 export interface Address {
   id: Id;
+  /** The customer's own word for it ("Home", "Work"), up to 30 characters, or `null`. */
+  label: string | null;
   firstName: string;
   lastName: string;
   company: string | null;
@@ -106,6 +174,8 @@ export interface Address {
 }
 
 export interface AddressInput {
+  /** `null` removes it. */
+  label?: string | null;
   firstName: string;
   lastName: string;
   company?: string | null;
@@ -147,7 +217,11 @@ export interface ShopSettings {
   /** How long delivery takes, as Radhe Foods words it, in both languages. */
   delivery: { estimate: Record<Locale, string> };
   /** Days after delivery for a return; `0` switches returns off. */
-  returns: { windowDays: number };
+  returns: {
+    windowDays: number;
+    /** Days after delivery for a problem report (23). Absent from an API older than 2026-11-01. */
+    issueWindowDays?: number;
+  };
 }
 
 /** Both must be published before any order can be placed. */
@@ -236,6 +310,12 @@ export interface Ordering {
 export interface Seo {
   title: string | null;
   description: string | null;
+}
+
+/** The average of the published reviews of a product, one decimal (22). */
+export interface ProductRating {
+  average: number;
+  count: number;
 }
 
 export interface LocalizedSlugs {
@@ -337,6 +417,11 @@ export interface ProductSummary {
   /** Every enabled size, smallest first, the shown one included. */
   variants: ProductVariant[];
   variantCount: number;
+  /**
+   * The published reviews, or `null` without any (22). Absent from an API
+   * older than 2026-11-01.
+   */
+  rating?: ProductRating | null;
 }
 
 /** The product page, opened on one size: the list entry plus the texts. */
@@ -574,6 +659,12 @@ export interface CartItemInput {
   quantity: number;
 }
 
+/** `POST /v1/store/cart/preview` (8): a visitor's cart priced, with a code since 20. */
+export interface CartPreviewInput {
+  items: CartItemInput[];
+  discountCode?: string;
+}
+
 // --- 9 Orders and checkout --------------------------------------------------
 
 /**
@@ -614,6 +705,8 @@ export interface OrderDelivery {
 
 export interface OrderSummary {
   orderNumber: string;
+  /** Placed without an account (20). Absent from an API older than 2026-11-01. */
+  isGuest?: boolean;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   /** When the checkout started. */
@@ -727,6 +820,10 @@ export interface OrderDetail extends OrderSummary {
     at: IsoDateTime;
     documents: { type: LegalType; version: number }[];
   };
+  /** What the customer said after the delivery (22), or `null`. Absent from an older API. */
+  feedback?: OrderFeedback | null;
+  /** Delivered, and no feedback given yet. */
+  canGiveFeedback?: boolean;
 }
 
 export type ConsentVersions = Partial<Record<LegalType, number>>;
@@ -746,6 +843,37 @@ export interface CheckoutResult {
   created: boolean;
   order: OrderDetail;
   checkout: CheckoutSession;
+}
+
+// --- 20 Guest checkout ------------------------------------------------------
+
+/** The address of a guest order: a saved address without `label` and `isDefault`. */
+export type GuestAddressInput = Omit<AddressInput, "label" | "isDefault">;
+
+/** Body of `POST /v1/store/guest/checkout`; the `Idempotency-Key` travels as a header. */
+export interface GuestCheckoutInput {
+  email: string;
+  items: CartItemInput[];
+  address: GuestAddressInput;
+  discountCode?: string;
+  /** `totals.total` of the preview the visitor saw. */
+  expectedTotal: Cents;
+  consent: { accepted: true; versions: ConsentVersions };
+  note?: string;
+  language?: Locale;
+}
+
+/** The order and, once, the token that opens it afterwards. Keep the token. */
+export interface GuestCheckoutResult extends CheckoutResult {
+  token: string;
+}
+
+/** `GET /v1/store/guest/orders/{orderNumber}`: the order, its payment and documents in one. */
+export interface GuestOrder {
+  order: OrderDetail;
+  payment: PaymentBlock;
+  /** The invoice and its credit notes; `pdfPath` needs `?token=` appended. */
+  documents: InvoiceSummary[];
 }
 
 // --- 10 Payments ------------------------------------------------------------
@@ -924,10 +1052,241 @@ export interface WishlistItem {
   product: ProductSummary;
 }
 
+/** One of the customer's lists (16.2); the default is the one the heart adds to. */
+export interface WishlistSummary {
+  id: Id;
+  name: string;
+  isDefault: boolean;
+  count: number;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+}
+
 /** The whole list at this moment, newest first: the answer of every wishlist endpoint. */
 export interface Wishlist {
+  /** Which list this is. Absent from an API older than 2026-11-01. */
+  wishlist?: WishlistSummary;
   items: WishlistItem[];
   count: number;
+}
+
+export interface WishlistInput {
+  /** Up to 40 characters, unique per customer whatever the case. */
+  name?: string;
+  /** `true` makes it the default; `false` is ignored. */
+  isDefault?: boolean;
+}
+
+/** `POST …/items/{productId}/transfer`: move, or copy, the product to list `to`. */
+export interface WishlistTransferInput {
+  to: Id;
+  copy?: boolean;
+}
+
+// --- 21 Referrals -----------------------------------------------------------
+
+export type ReferralStatus = "registered" | "qualified" | "void";
+
+export interface ReferralInvitee {
+  /** `null` once the invited person closed the account. */
+  name: string | null;
+  /** Masked ("ra***@example.com"), or `null`. */
+  email: string | null;
+  status: ReferralStatus;
+  registeredAt: IsoDateTime;
+  qualifiedAt: IsoDateTime | null;
+}
+
+/** `GET /v1/store/me/referral`: the code, the link and who used it. */
+export interface Referral {
+  code: string;
+  link: string;
+  counts: { registered: number; qualified: number };
+  invitees: ReferralInvitee[];
+}
+
+// --- 22 Product reviews and order feedback ----------------------------------
+
+export interface ReviewReply {
+  text: string;
+  at: IsoDateTime;
+}
+
+/** A published review as the product page shows it. */
+export interface Review {
+  id: Id;
+  rating: number;
+  title: string | null;
+  text: string;
+  locale: Locale;
+  /** The first name and the initial of the last name ("Priya S."). */
+  authorName: string;
+  verifiedPurchase: true;
+  publishedAt: IsoDateTime;
+  editedAt: IsoDateTime | null;
+  reply: ReviewReply | null;
+}
+
+export interface ReviewSummary {
+  average: number;
+  count: number;
+  /** How many reviews gave each star, `"1"` to `"5"`. */
+  distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
+}
+
+export interface ReviewPage extends Page<Review> {
+  summary: ReviewSummary;
+}
+
+export interface ReviewQuery {
+  page?: number;
+  limit?: number;
+  /** Only reviews with this many stars. */
+  rating?: number;
+}
+
+export type ReviewStatus = "pending" | "published" | "rejected";
+
+/** One of the customer's own reviews (`GET /v1/store/me/reviews`). */
+export interface MyReview {
+  id: Id;
+  productId: Id;
+  product: { id: Id; slug: string; name: string; imageUrl: string | null };
+  orderNumber: string | null;
+  rating: number;
+  title: string | null;
+  text: string;
+  locale: Locale;
+  status: ReviewStatus;
+  rejectionNote: string | null;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  publishedAt: IsoDateTime | null;
+}
+
+/** A product of a delivered order, with what was written for it so far. */
+export interface ReviewableItem {
+  product: { id: Id; slug: string; name: string; imageUrl: string | null };
+  orderNumber: string;
+  deliveredAt: IsoDateTime;
+  review: MyReview | null;
+}
+
+/** `PUT /v1/store/me/reviews/{productId}`: written, or rewritten (then it waits again). */
+export interface SaveReviewInput {
+  /** 1 to 5. */
+  rating: number;
+  title?: string;
+  /** 10 to 2000 characters. */
+  text: string;
+  orderNumber?: string;
+  locale?: Locale;
+}
+
+export interface OrderFeedback {
+  rating: number;
+  deliveryRating: number | null;
+  comment: string | null;
+  at: IsoDateTime;
+}
+
+/** `POST /v1/store/orders/{orderNumber}/feedback`: once per delivered order. */
+export interface OrderFeedbackInput {
+  rating: number;
+  deliveryRating?: number;
+  comment?: string;
+}
+
+// --- 23 Problem reports -----------------------------------------------------
+
+export type IssueProblem =
+  "damaged" | "missing" | "wrong_item" | "not_fresh" | "late" | "other";
+
+/** What the customer would like: a refund, a replacement, or just to tell. */
+export type IssueResolutionType = "refund" | "replacement" | "none";
+
+/**
+ * `open`: nobody looked yet (can be taken back, photos can be added).
+ * `in_review`: Radhe Foods is on it. `resolved`: see `resolution`.
+ * `rejected`: see the note. `cancelled`: taken back.
+ */
+export type IssueStatus =
+  "open" | "in_review" | "resolved" | "rejected" | "cancelled";
+
+export interface IssueItem {
+  productId: Id;
+  variantId: Id;
+  sku: string;
+  name: string;
+  packSize: PackSize;
+  quantity: number;
+  refundedQuantity: number;
+  unitPrice: Cents;
+}
+
+/** A customer's photo, stored like a product picture. */
+export interface IssueImage {
+  id: Id;
+  url: string;
+  sizes: {
+    small: ImageVariant;
+    medium: ImageVariant;
+    large: ImageVariant;
+  };
+}
+
+export interface IssueHistoryEntry {
+  status: IssueStatus;
+  at: IsoDateTime;
+  by: "customer" | "admin" | "system";
+  note: string | null;
+}
+
+export interface Issue {
+  /** "RF-1084-P1". */
+  issueNumber: string;
+  orderNumber: string;
+  status: IssueStatus;
+  reportedAt: IsoDateTime;
+  decidedAt: IsoDateTime | null;
+  items: IssueItem[];
+  problems: IssueProblem[];
+  description: string;
+  images: IssueImage[];
+  preferredResolution: IssueResolutionType;
+  resolution: {
+    type: IssueResolutionType;
+    /** Cents credited. */
+    amount: Cents;
+    note: string | null;
+    at: IsoDateTime;
+  } | null;
+  history: IssueHistoryEntry[];
+  canCancel: boolean;
+  canAddImages: boolean;
+}
+
+/** `GET /v1/store/orders/{orderNumber}/issues`: the reports, the window, what can be named. */
+export interface OrderIssues {
+  items: Issue[];
+  window: { possible: boolean; until: IsoDateTime | null };
+  /** One row per order item; `available` = delivered and kept. */
+  reportable: {
+    productId: Id;
+    variantId: Id;
+    sku: string;
+    available: number;
+  }[];
+}
+
+export interface CreateIssueInput {
+  /** Left out for a problem with the delivery as a whole. */
+  items?: { variantId: Id; quantity: number }[];
+  problems: IssueProblem[];
+  /** 10 to 2000 characters. */
+  description: string;
+  preferredResolution: IssueResolutionType;
+  locale?: Locale;
 }
 
 // --- 17 Homepage banners ----------------------------------------------------

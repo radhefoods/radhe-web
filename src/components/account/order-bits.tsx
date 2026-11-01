@@ -152,9 +152,9 @@ export function OrderCard({
   );
 }
 
-/** Fetches the PDF with the session and hands it to the browser as a file. */
-async function downloadPdf(number: string): Promise<void> {
-  const response = await session.raw(invoicePdfPath(number));
+/** Fetches the PDF (with the session, or by a guest's token path) and hands it to the browser as a file. */
+async function downloadPdf(number: string, path: string): Promise<void> {
+  const response = await session.raw(path);
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = url;
@@ -169,10 +169,13 @@ async function downloadPdf(number: string): Promise<void> {
 export function DocumentRow({
   document: entry,
   showOrder = false,
+  pdfPath = invoicePdfPath(entry.number),
 }: {
   document: InvoiceSummary;
   /** Name the order, where documents of several orders are listed. */
   showOrder?: boolean;
+  /** Where the PDF is: the session's path, or a guest order's with its token (doc 20). */
+  pdfPath?: string;
 }) {
   const t = useTranslations("documents");
   const locale = useLocale() as Locale;
@@ -224,7 +227,7 @@ export function DocumentRow({
               setBusy(true);
               setError(null);
               try {
-                await downloadPdf(entry.number);
+                await downloadPdf(entry.number, pdfPath);
               } catch (caught) {
                 setError(caught);
               } finally {

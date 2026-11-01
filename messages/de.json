@@ -472,6 +472,21 @@
     "viewNamed": "Bestellung {orderNumber} ansehen",
     "loadMore": "Ältere Bestellungen anzeigen",
     "back": "Alle Bestellungen",
+    "gone": {
+      "title": "Diese Bestellung gibt es nicht mehr.",
+      "text": "Eine nicht bezahlte Bestellung wird entfernt, sobald sie storniert wurde."
+    },
+    "guest": {
+      "metaTitle": "Ihre Bestellung",
+      "backToShop": "Zurück zum Shop",
+      "invalidTitle": "Dieser Link ist nicht gültig.",
+      "invalidText": "Öffnen Sie den Link aus unserer E-Mail zu dieser Bestellung erneut: Er enthält den Schlüssel, der die Bestellung öffnet.",
+      "goneTitle": "Diese Bestellung gibt es nicht mehr.",
+      "goneText": "Eine nicht bezahlte Bestellung wird entfernt, sobald sie aufgegeben wurde.",
+      "accountTitle": "Alle Bestellungen an einem Ort",
+      "accountText": "Legen Sie ein Konto mit der E-Mail-Adresse dieser Bestellung an: Ihre Bestellungen, Rechnungen und Ihre Adresse sind dann dort.",
+      "accountCta": "Konto anlegen"
+    },
     "status": {
       "pending_payment": "Wartet auf Zahlung",
       "confirmed": "Bestätigt",
@@ -854,6 +869,24 @@
     "RETURN_NOT_FOUND": "Wir konnten diese Rücksendung nicht finden.",
     "RETURN_TRANSITION_NOT_ALLOWED": "Über diese Rücksendung wurde bereits entschieden; sie kann nicht mehr zurückgezogen werden.",
     "reference": "Referenz für unseren Support: {requestId}",
-    "BLOG_POST_NOT_FOUND": "Diesen Artikel gibt es nicht oder er ist nicht veröffentlicht."
+    "BLOG_POST_NOT_FOUND": "Diesen Artikel gibt es nicht oder er ist nicht veröffentlicht.",
+    "SIGNUP_CODE_INVALID": "Der Code stimmt nicht.",
+    "SIGNUP_NOT_FOUND": "Dieser Code ist abgelaufen oder verbraucht. Bitte beginnen Sie die Registrierung von vorn.",
+    "CUSTOMER_HAS_OPEN_ORDERS": "Ihr Konto kann nicht gelöscht werden, solange eine Bestellung, eine Rücksendung oder eine Meldung offen ist.",
+    "ORDER_TOKEN_INVALID": "Dieser Link öffnet diese Bestellung nicht.",
+    "WISHLIST_NOT_FOUND": "Diese Liste gibt es nicht mehr.",
+    "WISHLIST_NAME_TAKEN": "Eine Liste mit diesem Namen gibt es schon.",
+    "WISHLIST_LIMIT_REACHED": "Sie können bis zu 20 Listen haben. Löschen Sie eine, um eine neue anzulegen.",
+    "REVIEW_NOT_ALLOWED": "Sie können ein Produkt bewerten, sobald es Ihnen geliefert wurde.",
+    "REVIEW_NOT_FOUND": "Wir konnten diese Bewertung nicht finden.",
+    "FEEDBACK_ALREADY_GIVEN": "Sie haben diese Bestellung schon bewertet. Danke!",
+    "FEEDBACK_NOT_POSSIBLE": "Sie können eine Bestellung bewerten, sobald sie geliefert wurde.",
+    "ISSUE_NOT_FOUND": "Wir konnten diese Meldung nicht finden.",
+    "ISSUE_NOT_POSSIBLE": "Ein Problem lässt sich bei einer gelieferten Bestellung melden, bis zu fünfmal.",
+    "ISSUE_WINDOW_CLOSED": "Die Frist, ein Problem mit dieser Bestellung zu melden, ist abgelaufen.",
+    "ISSUE_QUANTITY_INVALID": "Sie können höchstens so viele Einheiten melden, wie Ihnen geliefert wurden.",
+    "ISSUE_TRANSITION_NOT_ALLOWED": "Radhe Foods prüft diese Meldung bereits; sie lässt sich nicht mehr zurückziehen.",
+    "IMAGE_LIMIT_REACHED": "Eine Meldung kann bis zu fünf Fotos haben.",
+    "IMAGE_INVALID": "Bitte verwenden Sie Bilder im Format JPEG, PNG oder WebP."
   }
 }

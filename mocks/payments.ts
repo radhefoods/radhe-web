@@ -176,7 +176,10 @@ export function paymentBlockOf(order: OrderRecord): PaymentBlock {
         ? {
             number: payment.invoiceNumber,
             issuedAt: payment.invoiceIssuedAt,
-            pdfPath: `/v1/store/invoices/${payment.invoiceNumber}/pdf`,
+            // A guest adds `?token=` to it (doc 20).
+            pdfPath: order.guestToken
+              ? `/v1/store/guest/orders/${order.orderNumber}/invoices/${payment.invoiceNumber}/pdf`
+              : `/v1/store/invoices/${payment.invoiceNumber}/pdf`,
           }
         : null,
     checkout: page ? { url: page.url, expiresAt: page.expiresAt } : null,

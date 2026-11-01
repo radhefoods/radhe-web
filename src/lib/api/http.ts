@@ -14,6 +14,8 @@ export interface RequestOptions {
   query?: Record<string, QueryValue>;
   /** Sent as JSON. */
   body?: unknown;
+  /** Sent as `multipart/form-data` (the photos of a problem report, 23). */
+  formData?: FormData;
   headers?: Record<string, string>;
   signal?: AbortSignal;
   /** Sent as `?locale=`. Every store endpoint answers in one language. */
@@ -55,7 +57,10 @@ export function buildUrl(
     }
   }
   const search = params.toString();
-  return `${baseUrl}${path}${search ? `?${search}` : ""}`;
+  // A path that carries a query of its own (a guest's PDF path, 20) is
+  // continued, not started again.
+  const joiner = path.includes("?") ? "&" : "?";
+  return `${baseUrl}${path}${search ? `${joiner}${search}` : ""}`;
 }
 
 /** Turns an answer that is not 2xx into an `ApiError` (error format 0.4). */
@@ -115,7 +120,10 @@ export async function send(
     signal: options.signal,
   };
   if (config.credentials) init.credentials = config.credentials;
-  if (options.body !== undefined) {
+  if (options.formData) {
+    // The browser sets the content type with the boundary itself.
+    init.body = options.formData;
+  } else if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
     init.body = JSON.stringify(options.body);
   }

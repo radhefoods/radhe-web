@@ -2,11 +2,15 @@
 // of a checkout in the order the documentation lists them, the order that
 // waits for its payment, and what the customer can do with it.
 
+import { randomBytes } from "node:crypto";
 import type {
   Address,
+  CartItemInput,
   CheckoutResult,
+  ConsentVersions,
   CursorPage,
   CustomerCancellationReason,
+  GuestCheckoutResult,
   OrderAddress,
   OrderDetail,
   OrderSummary,
@@ -23,12 +27,16 @@ import {
   HttpError,
   OBJECT_ID,
   PHONE,
+  cartItems,
+  emailOf,
   objectBody,
   validationFailed,
 } from "./errors.ts";
 import {
+  customerByEmail,
   db,
   legalDocuments,
+  newCustomer,
   type CustomerRecord,
   type Locale,
   type OrderRecord,
@@ -118,6 +126,7 @@ export function removeDiscount(customer: CustomerRecord, locale: Locale) {
 // --- 3 Addresses ------------------------------------------------------------
 
 const ADDRESS_KEYS = [
+  "label",
   "firstName",
   "lastName",
   "company",
@@ -130,6 +139,11 @@ const ADDRESS_KEYS = [
   "phone",
   "isDefault",
 ];
+
+/** The address of a guest order: a saved address without `label` and `isDefault`. */
+const GUEST_ADDRESS_KEYS = ADDRESS_KEYS.filter(
+  (key) => key !== "label" && key !== "isDefault",
+);
 
 function text(
   body: Record<string, unknown>,
@@ -163,11 +177,15 @@ function optionalText(
 function addressFields(
   raw: unknown,
   partial: boolean,
+  allowed = ADDRESS_KEYS,
 ): Partial<Omit<Address, "id">> {
-  const body = objectBody(raw, ADDRESS_KEYS);
+  const body = objectBody(raw, allowed);
   const fields: Partial<Omit<Address, "id">> = {};
   const has = (key: string) => !partial || body[key] !== undefined;
 
+  if (body.label !== undefined) {
+    fields.label = optionalText(body, "label", 30);
+  }
   if (has("firstName")) fields.firstName = text(body, "firstName", 1, 80);
   if (has("lastName")) fields.lastName = text(body, "lastName", 1, 80);
   if (has("street")) fields.street = text(body, "street", 1, 120);
@@ -245,6 +263,7 @@ export const addresses = {
     addressSequence += 1;
     const address: Address = {
       id: `66e1${addressSequence.toString(16).padStart(20, "0")}`,
+      label: fields.label ?? null,
       firstName: fields.firstName!,
       lastName: fields.lastName!,
       company: fields.company ?? null,
@@ -306,6 +325,7 @@ function trackingUrlOf(order: OrderRecord, locale: Locale): string | null {
 function summaryOf(order: OrderRecord, locale: Locale): OrderSummary {
   return {
     orderNumber: order.orderNumber,
+    isGuest: order.guestToken !== null,
     status: order.status,
     paymentStatus: order.paymentStatus,
     placedAt: order.placedAt,
@@ -403,31 +423,42 @@ export function findOrder(
   return order;
 }
 
+/**
+ * A guest order by its token (doc 20): `403 ORDER_TOKEN_INVALID` without
+ * the right token, `404 ORDER_NOT_FOUND` for an order that does not exist
+ * (or is not a guest order).
+ */
+export function findGuestOrder(
+  orderNumber: string,
+  token: string | undefined,
+): OrderRecord {
+  const order = db.orders.get(orderNumber.toUpperCase());
+  if (!order || order.guestToken === null) {
+    throw new HttpError(404, "ORDER_NOT_FOUND", "This order does not exist.");
+  }
+  if (!token || token !== order.guestToken) {
+    throw new HttpError(
+      403,
+      "ORDER_TOKEN_INVALID",
+      "The token does not open this order.",
+    );
+  }
+  return order;
+}
+
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 const LEGAL_TYPES = ["terms", "privacy"] as const;
 
-/**
- * `POST /v1/store/checkout`, with the checks in the documented order. The
- * order is created as `pending_payment` with a payment page on the mock;
- * nothing is reserved and the cart is kept until the payment goes through.
- */
-export function checkout(
-  customer: CustomerRecord,
-  key: string | undefined,
-  raw: unknown,
-  locale: Locale,
-  mockBase: string,
-): { status: 200 | 201; body: CheckoutResult } {
-  const body = objectBody(raw, [
-    "addressId",
-    "expectedTotal",
-    "consent",
-    "note",
-    "language",
-  ]);
-  if (typeof body.addressId !== "string" || !OBJECT_ID.test(body.addressId)) {
-    throw validationFailed("addressId", "addressId must be an id");
-  }
+/** What the account checkout and the guest checkout both send (doc 9, 20). */
+interface CheckoutFields {
+  expectedTotal: number;
+  versions: ConsentVersions;
+  note: string | null;
+  language: Locale | undefined;
+}
+
+/** The fields the two checkouts share, checked as the API does. */
+function checkoutFields(body: Record<string, unknown>): CheckoutFields {
   const expectedTotal = body.expectedTotal;
   if (
     typeof expectedTotal !== "number" ||
@@ -468,7 +499,37 @@ export function checkout(
   ) {
     throw validationFailed("language", "language must be one of: en, de");
   }
+  return {
+    expectedTotal,
+    versions: versions as ConsentVersions,
+    note,
+    language: body.language as Locale | undefined,
+  };
+}
 
+/**
+ * `POST /v1/store/checkout`, with the checks in the documented order. The
+ * order is created as `pending_payment` with a payment page on the mock;
+ * nothing is reserved and the cart is kept until the payment goes through.
+ */
+export function checkout(
+  customer: CustomerRecord,
+  key: string | undefined,
+  raw: unknown,
+  locale: Locale,
+  mockBase: string,
+): { status: 200 | 201; body: CheckoutResult } {
+  const body = objectBody(raw, [
+    "addressId",
+    "expectedTotal",
+    "consent",
+    "note",
+    "language",
+  ]);
+  if (typeof body.addressId !== "string" || !OBJECT_ID.test(body.addressId)) {
+    throw validationFailed("addressId", "addressId must be an id");
+  }
+  const fields = checkoutFields(body);
   if (!key || !IDEMPOTENCY_KEY.test(key)) {
     throw new HttpError(
       400,
@@ -512,6 +573,151 @@ export function checkout(
       "This address does not exist.",
     );
   }
+  return placeOrder(
+    customer,
+    key,
+    { ...fields, address, items: customer.cart, guestToken: null },
+    locale,
+    mockBase,
+  );
+}
+
+/**
+ * `POST /v1/store/guest/checkout` (doc 20): the cart, the address and the
+ * email come in the body; the order belongs to a guest record of that
+ * email and is opened with a token afterwards.
+ */
+export function guestCheckout(
+  key: string | undefined,
+  raw: unknown,
+  locale: Locale,
+  mockBase: string,
+): { status: 200 | 201; body: GuestCheckoutResult } {
+  const body = objectBody(raw, [
+    "email",
+    "items",
+    "address",
+    "discountCode",
+    "expectedTotal",
+    "consent",
+    "note",
+    "language",
+  ]);
+  const email = emailOf(body.email);
+  const items = cartItems(body.items, 1);
+  const addressFieldsOf = addressFields(
+    body.address,
+    false,
+    GUEST_ADDRESS_KEYS,
+  );
+  if (
+    body.discountCode !== undefined &&
+    (typeof body.discountCode !== "string" || body.discountCode.length > 40)
+  ) {
+    throw validationFailed("discountCode", "discountCode must be a string");
+  }
+  const fields = checkoutFields(body);
+  if (!key || !IDEMPOTENCY_KEY.test(key)) {
+    throw new HttpError(
+      400,
+      "IDEMPOTENCY_KEY_REQUIRED",
+      "Send an Idempotency-Key header: 8 to 64 letters, digits, hyphens or underscores, for example a UUID.",
+    );
+  }
+
+  let customer = customerByEmail(email);
+  if (customer && customer.kind === "registered") {
+    throw new HttpError(
+      409,
+      "CUSTOMER_EMAIL_TAKEN",
+      "This email address has an account. Sign in to order.",
+      { action: "sign_in" },
+    );
+  }
+  if (customer?.blocked) {
+    throw new HttpError(403, "CUSTOMER_BLOCKED", "This account is blocked.");
+  }
+  customer ??= newCustomer({
+    email,
+    locale: fields.language ?? locale,
+    firstName: addressFieldsOf.firstName!,
+    lastName: addressFieldsOf.lastName!,
+    passwordHash: null,
+  });
+  // The guest's one address: there when the person signs up later.
+  const address: Address = {
+    id: customer.addresses[0]?.id ?? `66e1${randomBytes(10).toString("hex")}`,
+    label: null,
+    firstName: addressFieldsOf.firstName!,
+    lastName: addressFieldsOf.lastName!,
+    company: addressFieldsOf.company ?? null,
+    street: addressFieldsOf.street!,
+    houseNumber: addressFieldsOf.houseNumber!,
+    additionalLine: addressFieldsOf.additionalLine ?? null,
+    postalCode: addressFieldsOf.postalCode!,
+    city: addressFieldsOf.city!,
+    countryCode: "DE",
+    phone: addressFieldsOf.phone ?? null,
+    isDefault: true,
+  };
+  customer.addresses = [address];
+  const guestToken = randomBytes(24).toString("base64url");
+  const result = placeOrder(
+    customer,
+    key,
+    {
+      ...fields,
+      address,
+      items,
+      discountCode:
+        typeof body.discountCode === "string"
+          ? body.discountCode.trim().toUpperCase() || null
+          : null,
+      guestToken,
+    },
+    locale,
+    mockBase,
+  );
+  const order = db.orders.get(result.body.order.orderNumber)!;
+  return {
+    status: result.status,
+    body: { ...result.body, token: order.guestToken! },
+  };
+}
+
+/** What makes an order, once the body and the key are checked. */
+interface OrderIntent extends CheckoutFields {
+  address: Address;
+  items: CartItemInput[];
+  /** A guest's code from the body; an account's is kept with its cart. */
+  discountCode?: string | null;
+  guestToken: string | null;
+}
+
+function placeOrder(
+  customer: CustomerRecord,
+  key: string,
+  intent: OrderIntent,
+  locale: Locale,
+  mockBase: string,
+): { status: 200 | 201; body: CheckoutResult } {
+  const { address, expectedTotal, versions, note, guestToken } = intent;
+  const body = { language: intent.language };
+  // The same attempt again: the first order and its page, nothing else happens.
+  const existing = [...db.orders.values()].find(
+    (order) => order.customerId === customer.id && order.idempotencyKey === key,
+  );
+  if (existing) {
+    const page = paymentPage(existing, mockBase);
+    return {
+      status: 200,
+      body: {
+        created: false,
+        order: orderDetail(existing, locale),
+        checkout: page,
+      },
+    };
+  }
 
   const published = new Map(legalDocuments.map((d) => [d.type, d.version]));
   const missing = LEGAL_TYPES.filter((type) => !published.has(type));
@@ -534,10 +740,18 @@ export function checkout(
     );
   }
 
-  if (customer.cart.length === 0) {
+  if (intent.items.length === 0) {
     throw new HttpError(409, "CART_EMPTY", "The cart is empty.");
   }
-  const bill = billOf(customer.cart, locale, customer);
+  // A guest's code travels with the body; the bill is priced as if it
+  // were kept with the cart.
+  const bill = billOf(
+    intent.items,
+    locale,
+    intent.discountCode === undefined
+      ? customer
+      : { ...customer, discountCode: intent.discountCode },
+  );
   const issues = bill.lines.filter((line) => line.issue !== null);
   if (issues.length > 0) {
     throw new HttpError(
@@ -601,7 +815,7 @@ export function checkout(
     status: "pending_payment",
     paymentStatus: "pending",
     placedAt: now,
-    language: (body.language as Locale | undefined) ?? customer.locale,
+    language: body.language ?? customer.locale,
     items: bill.lines.map((line) => {
       const { product, variant } = findVariant(line.variantId)!;
       return {
@@ -673,6 +887,7 @@ export function checkout(
       stockTaken: false,
     },
     pendingUntil: null,
+    guestToken,
   };
   db.orders.set(order.orderNumber, order);
   if (bill.discount) reserveDiscount(findDiscount(bill.discount.code)!);
@@ -733,7 +948,15 @@ export function cancelOrder(
   raw: unknown,
   locale: Locale,
 ) {
-  const order = findOrder(customer, orderNumber);
+  return cancelOrderRecord(findOrder(customer, orderNumber), raw, locale);
+}
+
+/** The cancel of an order already found: the account's, or a guest's (doc 20). */
+export function cancelOrderRecord(
+  order: OrderRecord,
+  raw: unknown,
+  locale: Locale,
+) {
   const body = objectBody(raw, ["reason", "text"]);
   if (!CANCEL_REASONS.includes(body.reason as CustomerCancellationReason)) {
     throw validationFailed(

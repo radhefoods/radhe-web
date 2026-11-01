@@ -104,6 +104,7 @@ describe("addressToFormValues", () => {
     expect(
       addressToFormValues({
         id: "66e1a2b3c4d5e6f7a8b9c0d1",
+        label: null,
         firstName: "Max",
         lastName: "Müller",
         company: null,

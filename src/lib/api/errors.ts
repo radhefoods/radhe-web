@@ -36,8 +36,11 @@ export const API_ERROR_CODES = [
   "PASSWORD_RESET_INVALID",
   "AUTH_REFRESH_INVALID",
   "CUSTOMER_BLOCKED",
+  "SIGNUP_CODE_INVALID",
+  "SIGNUP_NOT_FOUND",
   // account (2, 3)
   "CUSTOMER_NOT_FOUND",
+  "CUSTOMER_HAS_OPEN_ORDERS",
   "ADDRESS_LIMIT_REACHED",
   "ADDRESS_NOT_FOUND",
   // legal and catalogue (6, 7)
@@ -74,6 +77,24 @@ export const API_ERROR_CODES = [
   "RETURN_TRANSITION_NOT_ALLOWED",
   // wishlist (16)
   "WISHLIST_FULL",
+  "WISHLIST_NOT_FOUND",
+  "WISHLIST_NAME_TAKEN",
+  "WISHLIST_LIMIT_REACHED",
+  // guest checkout (20)
+  "ORDER_TOKEN_INVALID",
+  // reviews and feedback (22)
+  "REVIEW_NOT_ALLOWED",
+  "REVIEW_NOT_FOUND",
+  "FEEDBACK_ALREADY_GIVEN",
+  "FEEDBACK_NOT_POSSIBLE",
+  // problem reports (23)
+  "ISSUE_NOT_FOUND",
+  "ISSUE_NOT_POSSIBLE",
+  "ISSUE_WINDOW_CLOSED",
+  "ISSUE_QUANTITY_INVALID",
+  "ISSUE_TRANSITION_NOT_ALLOWED",
+  "IMAGE_LIMIT_REACHED",
+  "IMAGE_INVALID",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
@@ -97,6 +118,15 @@ export interface FieldProblem {
 /** `details` per code, as documented with each endpoint. */
 export interface ErrorDetails {
   VALIDATION_FAILED: FieldProblem[];
+  /** How many tries are left (five in all). */
+  SIGNUP_CODE_INVALID: { attemptsLeft: number };
+  /** At the guest checkout: the address has an account, offer the sign-in. */
+  CUSTOMER_EMAIL_TAKEN: { action?: "sign_in" } | undefined;
+  CUSTOMER_HAS_OPEN_ORDERS: {
+    orderNumbers: string[];
+    openReturns: number;
+    openIssues: number;
+  };
   ADDRESS_LIMIT_REACHED: { maximum: number };
   CART_FULL: { maximum: number };
   COMPANY_DETAILS_MISSING: { missing: string[] };

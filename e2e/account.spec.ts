@@ -283,11 +283,16 @@ test.describe("an order", () => {
     const dialog = page.getByRole("dialog", { name: "Cancel order RF-1086" });
     await expect(dialog).toContainText("This order is not paid yet.");
     await dialog.getByRole("button", { name: "Cancel the order now" }).click();
-    await expect(page.getByText("Your order is cancelled.")).toBeVisible();
-    await expect(page.getByRole("region", { name: "Payment" })).toContainText(
-      "Nothing was charged for this order.",
-    );
-    await expect(payButton(page)).toHaveCount(0);
+    // An order given up unpaid is removed by the API (doc 9, 2026-11-01):
+    // the account lands on its list instead of the order.
+    await expect(page).toHaveURL(/\/en\/account\/orders$/);
+    const order = await (
+      await page.request.get(`${MOCK}/v1/store/orders/RF-1086`)
+    ).json();
+    expect(order.order).toMatchObject({
+      status: "cancelled",
+      payment: { paidAmount: 0 },
+    });
   });
 
   test("a return is requested with a reason, and can be withdrawn", async ({

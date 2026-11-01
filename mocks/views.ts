@@ -101,7 +101,10 @@ export function settingsView(): ShopSettings {
       freeFrom: freeDeliveryFrom(),
     },
     delivery: { estimate: { ...settings.delivery.estimate } },
-    returns: { windowDays: settings.returns.windowDays },
+    returns: {
+      windowDays: settings.returns.windowDays,
+      issueWindowDays: settings.returns.issueWindowDays,
+    },
   };
 }
 
@@ -1111,6 +1114,8 @@ export function customerView(record: CustomerRecord): Customer {
     locale: record.locale,
     communication: { ...record.communication },
     createdAt: record.createdAt,
+    kind: record.kind,
+    emailVerifiedAt: record.emailVerifiedAt,
   };
 }
 

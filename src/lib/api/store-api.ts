@@ -1,6 +1,7 @@
 import type { Locale } from "@/i18n/routing";
 import type { RequestOptions, Requester } from "./http";
 import type {
+  AccountOverview,
   Address,
   AddressInput,
   AddressList,
@@ -12,25 +13,36 @@ import type {
   BlogQuery,
   BlogTag,
   CartItemInput,
+  CartPreviewInput,
   Category,
   CategoryDetail,
   CheckoutInput,
   CheckoutResult,
   CheckoutSession,
   Communication,
+  CreateIssueInput,
   CreateReturnInput,
   CursorPage,
   Customer,
   CustomerCancellationReason,
+  DeleteAccountInput,
   Faqs,
+  GuestCheckoutInput,
+  GuestCheckoutResult,
+  GuestOrder,
   Id,
   InvoiceDetail,
   InvoiceSummary,
+  Issue,
   LegalDocument,
   LegalSummary,
   LegalType,
   LoginInput,
+  MyReview,
   OrderDetail,
+  OrderFeedback,
+  OrderFeedbackInput,
+  OrderIssues,
   OrderPayment,
   OrderReturns,
   OrderSummary,
@@ -39,15 +51,26 @@ import type {
   ProductFacets,
   ProductList,
   ProductQuery,
+  Referral,
   ReturnRequest,
+  ReviewPage,
+  ReviewQuery,
+  ReviewableItem,
+  SaveReviewInput,
   SessionResult,
   ShopSettings,
   SignUpInput,
+  SignUpStarted,
+  SignUpVerified,
+  SignUpVerifyInput,
   UnsubscribeResult,
   UpdateCommunicationInput,
   UpdateProfileInput,
   Wishlist,
   WishlistEntryInput,
+  WishlistInput,
+  WishlistSummary,
+  WishlistTransferInput,
 } from "./types";
 
 /** What a single call may set besides its own parameters. */
@@ -66,9 +89,28 @@ const seg = encodeURIComponent;
 export function createStoreApi(request: Requester) {
   return {
     // --- 1 Authentication ---------------------------------------------------
-    /** Creates the account and signs it in on this device (201). */
+    /**
+     * Starts the sign-up: a code is emailed (202, `SignUpStarted`) and
+     * `signUpVerify` makes the account. An API older than 2026-11-01
+     * created the account at once (201, `SessionResult`): the form tells
+     * the two apart by `customer` in the answer.
+     */
     signUp: (input: SignUpInput, o?: CallOptions) =>
-      request<SessionResult>("/v1/store/auth/signup", {
+      request<SignUpStarted | SessionResult>("/v1/store/auth/signup", {
+        ...o,
+        method: "POST",
+        body: input,
+      }),
+    /** Finishes the sign-up with the code: the account, signed in (201). */
+    signUpVerify: (input: SignUpVerifyInput, o?: CallOptions) =>
+      request<SignUpVerified>("/v1/store/auth/signup/verify", {
+        ...o,
+        method: "POST",
+        body: input,
+      }),
+    /** A new code for a sign-up that waits (204, whatever happened). */
+    signUpResend: (input: { email: string }, o?: CallOptions) =>
+      request<void>("/v1/store/auth/signup/resend", {
         ...o,
         method: "POST",
         body: input,
@@ -123,6 +165,16 @@ export function createStoreApi(request: Requester) {
       request<{ communication: Communication }>("/v1/store/me/communication", {
         ...o,
         method: "PATCH",
+        body: input,
+      }),
+    /** The account at a glance: counts, the standard address, the referral code (2). */
+    getOverview: (o?: CallOptions) =>
+      request<AccountOverview>("/v1/store/me/overview", o),
+    /** Closes the account for good (204, cookies cleared). */
+    deleteAccount: (input: DeleteAccountInput, o?: CallOptions) =>
+      request<void>("/v1/store/me/delete", {
+        ...o,
+        method: "POST",
         body: input,
       }),
 
@@ -197,12 +249,21 @@ export function createStoreApi(request: Requester) {
       request<{ product: ProductDetail }>(`/v1/store/products/${seg(slug)}`, o),
 
     // --- 8 Cart -------------------------------------------------------------
-    previewCart: (items: CartItemInput[], o?: CallOptions) =>
-      request<Bill>("/v1/store/cart/preview", {
-        ...o,
+    /** A visitor's cart priced; with `discountCode` the bill carries the discount (20). */
+    previewCart: (
+      items: CartItemInput[],
+      o?: CallOptions & { discountCode?: string },
+    ) => {
+      const { discountCode, ...rest } = o ?? {};
+      const body: CartPreviewInput = discountCode
+        ? { items, discountCode }
+        : { items };
+      return request<Bill>("/v1/store/cart/preview", {
+        ...rest,
         method: "POST",
-        body: { items },
-      }),
+        body,
+      });
+    },
     getCart: (o?: CallOptions) => request<Bill>("/v1/store/cart", o),
     mergeCart: (items: CartItemInput[], o?: CallOptions) =>
       request<Bill>("/v1/store/cart/merge", {
@@ -275,6 +336,50 @@ export function createStoreApi(request: Requester) {
       request<{ order: OrderDetail }>(
         `/v1/store/orders/${seg(orderNumber)}/cancel`,
         { ...o, method: "POST", body: input },
+      ),
+
+    // --- 20 Guest checkout --------------------------------------------------
+    /**
+     * An order without an account, from the browser's cart (20): answers
+     * the order, its payment page and the token that opens the order
+     * afterwards. The idempotency key as for the account checkout.
+     */
+    guestCheckout: (
+      input: GuestCheckoutInput,
+      idempotencyKey: string,
+      o?: CallOptions,
+    ) =>
+      request<GuestCheckoutResult>("/v1/store/guest/checkout", {
+        ...o,
+        method: "POST",
+        body: input,
+        headers: { "Idempotency-Key": idempotencyKey },
+      }),
+    /**
+     * The guest order, its payment and documents; asks Stripe about an
+     * open page first. The token travels in the query: the API's CORS
+     * allows no header for it (0.5).
+     */
+    getGuestOrder: (orderNumber: string, token: string, o?: CallOptions) =>
+      request<GuestOrder>(`/v1/store/guest/orders/${seg(orderNumber)}`, {
+        ...o,
+        query: { token },
+      }),
+    /** A payment page for a guest order that still waits. */
+    payGuestOrder: (orderNumber: string, token: string, o?: CallOptions) =>
+      request<CheckoutSession>(
+        `/v1/store/guest/orders/${seg(orderNumber)}/pay`,
+        { ...o, method: "POST", query: { token } },
+      ),
+    cancelGuestOrder: (
+      orderNumber: string,
+      token: string,
+      input: { reason: CustomerCancellationReason; text?: string },
+      o?: CallOptions,
+    ) =>
+      request<{ order: OrderDetail }>(
+        `/v1/store/guest/orders/${seg(orderNumber)}/cancel`,
+        { ...o, method: "POST", body: input, query: { token } },
       ),
 
     // --- 10 Payments --------------------------------------------------------
@@ -362,6 +467,157 @@ export function createStoreApi(request: Requester) {
         body: { items },
       }),
 
+    // --- 16.2 Several named lists -------------------------------------------
+    /** Every list of the customer, the default first. */
+    listWishlists: (o?: CallOptions) =>
+      request<{ items: WishlistSummary[] }>("/v1/store/wishlists", o),
+    createWishlist: (
+      input: WishlistInput & { name: string },
+      o?: CallOptions,
+    ) =>
+      request<{ wishlist: WishlistSummary }>("/v1/store/wishlists", {
+        ...o,
+        method: "POST",
+        body: input,
+      }),
+    getWishlistById: (id: Id, o?: CallOptions) =>
+      request<Wishlist>(`/v1/store/wishlists/${seg(id)}`, o),
+    /** Renames the list, or makes it the default. */
+    updateWishlist: (id: Id, input: WishlistInput, o?: CallOptions) =>
+      request<{ wishlist: WishlistSummary }>(`/v1/store/wishlists/${seg(id)}`, {
+        ...o,
+        method: "PATCH",
+        body: input,
+      }),
+    deleteWishlist: (id: Id, o?: CallOptions) =>
+      request<void>(`/v1/store/wishlists/${seg(id)}`, {
+        ...o,
+        method: "DELETE",
+      }),
+    saveWishlistItemTo: (
+      id: Id,
+      productId: Id,
+      variantId?: Id,
+      o?: CallOptions,
+    ) =>
+      request<Wishlist>(
+        `/v1/store/wishlists/${seg(id)}/items/${seg(productId)}`,
+        { ...o, method: "PUT", body: variantId ? { variantId } : {} },
+      ),
+    removeWishlistItemFrom: (id: Id, productId: Id, o?: CallOptions) =>
+      request<Wishlist>(
+        `/v1/store/wishlists/${seg(id)}/items/${seg(productId)}`,
+        { ...o, method: "DELETE" },
+      ),
+    /** Moves the product to another list, or copies it; answers this list afterwards. */
+    transferWishlistItem: (
+      id: Id,
+      productId: Id,
+      input: WishlistTransferInput,
+      o?: CallOptions,
+    ) =>
+      request<Wishlist>(
+        `/v1/store/wishlists/${seg(id)}/items/${seg(productId)}/transfer`,
+        { ...o, method: "POST", body: input },
+      ),
+    clearWishlistById: (id: Id, o?: CallOptions) =>
+      request<Wishlist>(`/v1/store/wishlists/${seg(id)}/items`, {
+        ...o,
+        method: "DELETE",
+      }),
+
+    // --- 21 Referrals ---------------------------------------------------------
+    /** The code, the link and the people who used it. */
+    getReferral: (o?: CallOptions) =>
+      request<{ referral: Referral }>("/v1/store/me/referral", o),
+
+    // --- 22 Reviews and order feedback ----------------------------------------
+    /** The published reviews of a product, newest first, with the summary (22). */
+    listProductReviews: (
+      productId: Id,
+      query: ReviewQuery = {},
+      o?: CallOptions,
+    ) =>
+      request<ReviewPage>(`/v1/store/products/${seg(productId)}/reviews`, {
+        ...o,
+        query: { ...query },
+      }),
+    /** The customer's own reviews, with their status. */
+    listMyReviews: (o?: CallOptions) =>
+      request<{ items: MyReview[] }>("/v1/store/me/reviews", o),
+    /** Every product of a delivered order, newest delivery first. */
+    listReviewable: (o?: CallOptions) =>
+      request<{ items: ReviewableItem[] }>(
+        "/v1/store/me/reviews/reviewable",
+        o,
+      ),
+    /** Writes, or rewrites, the review of a product; it waits for approval. */
+    saveReview: (productId: Id, input: SaveReviewInput, o?: CallOptions) =>
+      request<{ review: MyReview }>(`/v1/store/me/reviews/${seg(productId)}`, {
+        ...o,
+        method: "PUT",
+        body: input,
+      }),
+    deleteReview: (productId: Id, o?: CallOptions) =>
+      request<void>(`/v1/store/me/reviews/${seg(productId)}`, {
+        ...o,
+        method: "DELETE",
+      }),
+    /** How the order and its delivery were, once per delivered order. */
+    giveOrderFeedback: (
+      orderNumber: string,
+      input: OrderFeedbackInput,
+      o?: CallOptions,
+    ) =>
+      request<{ feedback: OrderFeedback }>(
+        `/v1/store/orders/${seg(orderNumber)}/feedback`,
+        { ...o, method: "POST", body: input },
+      ),
+
+    // --- 23 Problem reports ---------------------------------------------------
+    /** The reports of an order, the window, and what can be named (23). */
+    getOrderIssues: (orderNumber: string, o?: CallOptions) =>
+      request<OrderIssues>(`/v1/store/orders/${seg(orderNumber)}/issues`, o),
+    createIssue: (
+      orderNumber: string,
+      input: CreateIssueInput,
+      o?: CallOptions,
+    ) =>
+      request<{ issue: Issue }>(`/v1/store/orders/${seg(orderNumber)}/issues`, {
+        ...o,
+        method: "POST",
+        body: input,
+      }),
+    /** Up to five photos per report in all, JPEG, PNG or WebP. */
+    uploadIssueImages: (
+      issueNumber: string,
+      files: File[],
+      o?: CallOptions,
+    ) => {
+      const formData = new FormData();
+      for (const file of files) formData.append("files", file, file.name);
+      return request<{ issue: Issue }>(
+        `/v1/store/issues/${seg(issueNumber)}/images`,
+        { ...o, method: "POST", formData },
+      );
+    },
+    deleteIssueImage: (issueNumber: string, imageId: Id, o?: CallOptions) =>
+      request<{ issue: Issue }>(
+        `/v1/store/issues/${seg(issueNumber)}/images/${seg(imageId)}`,
+        { ...o, method: "DELETE" },
+      ),
+    /** The customer's reports, newest first. */
+    listIssues: (o?: CallOptions) =>
+      request<{ items: Issue[] }>("/v1/store/issues", o),
+    getIssue: (issueNumber: string, o?: CallOptions) =>
+      request<{ issue: Issue }>(`/v1/store/issues/${seg(issueNumber)}`, o),
+    /** Takes the report back while nobody looked at it. */
+    cancelIssue: (issueNumber: string, o?: CallOptions) =>
+      request<{ issue: Issue }>(`/v1/store/issues/${seg(issueNumber)}/cancel`, {
+        ...o,
+        method: "POST",
+      }),
+
     // --- 17 Homepage banners ------------------------------------------------
     /** The live banners in display order; an empty list means no carousel (17). */
     listBanners: (o?: CallOptions) =>
@@ -394,4 +650,13 @@ export type StoreApi = ReturnType<typeof createStoreApi>;
 /** Path of an invoice PDF, relative to the API base URL (needs the session). */
 export function invoicePdfPath(number: string): string {
   return `/v1/store/invoices/${seg(number)}/pdf`;
+}
+
+/** Path of a guest order's invoice PDF, with the token that opens the order (20). */
+export function guestInvoicePdfPath(
+  orderNumber: string,
+  number: string,
+  token: string,
+): string {
+  return `/v1/store/guest/orders/${seg(orderNumber)}/invoices/${seg(number)}/pdf?token=${seg(token)}`;
 }

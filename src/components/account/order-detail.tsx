@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ExternalLink, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
 import { orderSavingsOf } from "@/features/cart/savings";
 import { Alert } from "@/components/ui/alert";
@@ -13,19 +13,22 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { controlStyles } from "@/components/ui/field";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { orderCalls, type OrderAccess } from "@/features/orders/order-access";
 import {
   RETURN_STATUS_TONE,
   buildTimeline,
   orderDocumentsQueryKey,
+  orderPaymentQueryKey,
   orderQueryKey,
   orderReturnsQueryKey,
   ordersQueryKey,
   type TimelineStep,
 } from "@/features/orders/orders";
 import { useSession } from "@/features/session/session";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
+import { hasErrorCode } from "@/lib/api/errors";
 import type {
   CustomerCancellationReason,
   OrderDetail,
@@ -173,9 +176,11 @@ const CANCEL_REASONS: CustomerCancellationReason[] = [
 
 function CancelOrder({
   order,
+  access,
   onCancelled,
 }: {
   order: OrderDetail;
+  access: OrderAccess;
   onCancelled: (order: OrderDetail) => void;
 }) {
   const t = useTranslations("orders.cancel");
@@ -193,7 +198,7 @@ function CancelOrder({
     setBusy(true);
     setError(null);
     try {
-      const result = await api.cancelOrder(order.orderNumber, {
+      const result = await orderCalls(access).cancel(order.orderNumber, {
         reason,
         text: text.trim() || undefined,
       });
@@ -381,17 +386,28 @@ export function OrderDetailView({
     queryKey: orderQueryKey(orderNumber, locale),
     queryFn: async () => (await api.getOrder(orderNumber)).order,
     staleTime: 0,
+    // An order that is gone stays gone: no point asking again.
+    retry: (failures, error) =>
+      failures < 2 && !hasErrorCode(error, "ORDER_NOT_FOUND"),
   });
   const order = orderQuery.data;
 
   if (orderQuery.error && !order) {
+    // An unpaid order that was cancelled is removed (doc 9): nothing to show.
+    const gone = hasErrorCode(orderQuery.error, "ORDER_NOT_FOUND");
     return (
       <div className="space-y-4">
-        <ErrorAlert
-          error={orderQuery.error}
-          title={tAccount("loadError")}
-          onRetry={() => void orderQuery.refetch()}
-        />
+        {gone ? (
+          <Alert tone="info" title={t("gone.title")}>
+            {t("gone.text")}
+          </Alert>
+        ) : (
+          <ErrorAlert
+            error={orderQuery.error}
+            title={tAccount("loadError")}
+            onRetry={() => void orderQuery.refetch()}
+          />
+        )}
         <Link href="/account/orders" className={buttonStyles({ size: "sm" })}>
           {t("back")}
         </Link>
@@ -410,6 +426,7 @@ export function OrderDetailView({
   return (
     <OrderBody
       order={order}
+      access={ACCOUNT}
       paymentReturn={paymentReturn}
       payAtOnce={payAtOnce}
       deliveryEstimate={deliveryEstimate}
@@ -418,14 +435,25 @@ export function OrderDetailView({
   );
 }
 
-function OrderBody({
+const ACCOUNT: OrderAccess = { kind: "account" };
+
+/**
+ * The order itself, for the account page and for the guest order page
+ * (doc 20): the same timeline, payment, items, bill, address and
+ * documents; a guest has no returns and no account to go back to, and
+ * sees instead the way to one.
+ */
+export function OrderBody({
   order,
+  access,
   paymentReturn,
   payAtOnce,
   deliveryEstimate,
   refetch,
 }: {
   order: OrderDetail;
+  /** Whose order, and how it is read. */
+  access: OrderAccess;
   paymentReturn: PaymentReturn;
   payAtOnce: boolean;
   deliveryEstimate: string | null;
@@ -437,41 +465,51 @@ function OrderBody({
   const tReturns = useTranslations("returns");
   const locale = useLocale() as Locale;
   const client = useQueryClient();
+  const router = useRouter();
   const session = useSession();
   const [justCancelled, setJustCancelled] = useState(false);
   const { orderNumber } = order;
+  const guest = access.kind === "guest";
+  const calls = useMemo(() => orderCalls(access), [access]);
 
-  const paymentState = usePaymentState(order, paymentReturn);
+  const paymentState = usePaymentState(order, paymentReturn, access);
   const invoiced = Boolean(order.payment.invoice);
   const delivered = Boolean(order.delivery.deliveredAt);
 
   const documentsQuery = useQuery({
-    queryKey: orderDocumentsQueryKey(orderNumber),
-    queryFn: () => api.listInvoices({ orderNumber, limit: 100 }),
+    queryKey: orderDocumentsQueryKey(orderNumber, calls.scope),
+    queryFn: () => calls.listDocuments(orderNumber),
     enabled: invoiced,
   });
+  // Returns are asked for with the session: nothing of them for a guest.
   const returnsQuery = useQuery({
     queryKey: orderReturnsQueryKey(orderNumber, locale),
     queryFn: () => api.getOrderReturns(orderNumber),
-    enabled: delivered,
+    enabled: delivered && !guest,
   });
 
   const changed =
     order.finalTotals.total !== order.totals.total ||
     order.adjustments.length > 0;
-  const documents = documentsQuery.data?.items ?? [];
+  const documents = documentsQuery.data ?? [];
   const returns = returnsQuery.data?.items ?? [];
+  const backLink =
+    "hover:text-ink text-ink-muted -ml-2 flex min-h-10 items-center gap-1 self-start rounded-full py-1 pr-3 pl-1.5 text-[0.9375rem] font-semibold transition-colors duration-200 hover:bg-white/60";
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
-        <Link
-          href="/account/orders"
-          className="hover:text-ink text-ink-muted -ml-2 flex min-h-10 items-center gap-1 self-start rounded-full py-1 pr-3 pl-1.5 text-[0.9375rem] font-semibold transition-colors duration-200 hover:bg-white/60"
-        >
-          <ChevronLeft aria-hidden="true" className="size-5" />
-          {t("back")}
-        </Link>
+        {guest ? (
+          <Link href="/" className={backLink}>
+            <ChevronLeft aria-hidden="true" className="size-5" />
+            {t("guest.backToShop")}
+          </Link>
+        ) : (
+          <Link href="/account/orders" className={backLink}>
+            <ChevronLeft aria-hidden="true" className="size-5" />
+            {t("back")}
+          </Link>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-ink text-3xl sm:text-4xl">
             {t("orderNumber", { orderNumber: order.orderNumber })}
@@ -491,7 +529,8 @@ function OrderBody({
         state={paymentState}
         paymentReturn={paymentReturn}
         payAtOnce={payAtOnce}
-        email={session.customer?.email ?? null}
+        email={guest ? null : (session.customer?.email ?? null)}
+        access={access}
       />
       {justCancelled && <Alert tone="good">{t("cancel.done")}</Alert>}
 
@@ -522,7 +561,7 @@ function OrderBody({
           )}
         </section>
 
-        <PaymentPanel order={order} state={paymentState} />
+        <PaymentPanel order={order} state={paymentState} access={access} />
       </div>
 
       <section aria-labelledby="order-items" className={panel}>
@@ -655,13 +694,17 @@ function OrderBody({
           </h2>
           <ul>
             {documents.map((document) => (
-              <DocumentRow key={document.id} document={document} />
+              <DocumentRow
+                key={document.id}
+                document={document}
+                pdfPath={calls.pdfPath(orderNumber, document.number)}
+              />
             ))}
           </ul>
         </section>
       )}
 
-      {(order.returns.possible || returns.length > 0) && (
+      {!guest && (order.returns.possible || returns.length > 0) && (
         <section aria-labelledby="order-returns" className={panel}>
           <h2 id="order-returns" className={cn(sectionTitle, "mb-3")}>
             {tReturns("title")}
@@ -707,21 +750,55 @@ function OrderBody({
         <div>
           <CancelOrder
             order={order}
+            access={access}
             onCancelled={(cancelled) => {
+              void client.invalidateQueries({
+                queryKey: orderPaymentQueryKey(orderNumber, calls.scope),
+              });
+              if (!guest) {
+                void client.invalidateQueries({
+                  queryKey: ordersQueryKey(locale),
+                });
+              }
+              // An order given up unpaid is removed by the API (doc 9):
+              // the account goes to its list, which no longer has it.
+              if (!guest && cancelled.payment.paidAmount === 0) {
+                client.removeQueries({
+                  queryKey: orderQueryKey(orderNumber, locale),
+                });
+                router.replace("/account/orders");
+                return;
+              }
               client.setQueryData(
-                orderQueryKey(orderNumber, locale),
+                orderQueryKey(orderNumber, locale, calls.scope),
                 cancelled,
               );
-              void client.invalidateQueries({
-                queryKey: ordersQueryKey(locale),
-              });
-              void client.invalidateQueries({
-                queryKey: ["order-payment", orderNumber.toUpperCase()],
-              });
               setJustCancelled(true);
             }}
           />
         </div>
+      )}
+
+      {guest && (
+        <section
+          aria-labelledby="order-account"
+          className="glass flex flex-col gap-3 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <h2 id="order-account" className={sectionTitle}>
+              {t("guest.accountTitle")}
+            </h2>
+            <p className="text-ink-muted mt-1 text-[0.9375rem]">
+              {t("guest.accountText")}
+            </p>
+          </div>
+          <Link
+            href="/sign-up"
+            className={buttonStyles({ variant: "secondary", size: "sm" })}
+          >
+            {t("guest.accountCta")}
+          </Link>
+        </section>
       )}
     </div>
   );

@@ -90,6 +90,9 @@ export function startMockApi() {
           if (!hasErrorCode(error, "CUSTOMER_EMAIL_TAKEN")) throw error;
           return client.api.login({ email, password: TEST_PASSWORD });
         });
+      // Until the mock asks for the emailed code, the sign-up signs in at once.
+      if (!("customer" in result))
+        throw new Error("The sign-up signed nobody in.");
       return { ...client, customer: result.customer };
     },
     /** A test control of the mock (`/__mock/...`). */

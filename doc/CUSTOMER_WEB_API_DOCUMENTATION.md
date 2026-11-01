@@ -17,17 +17,23 @@ A product comes in one or more **pack sizes** (`variants`): the product holds th
 6. Shop settings and legal texts
 7. Catalogue
 8. Cart
-9. Orders and checkout
+9. Orders and checkout (9.6: discount codes on the checkout page)
 10. Payments
 11. Invoices and credit notes
 12. Returns
 13. Status reference
 14. What depends on the server configuration
 15. Integration checklist
-16. Wishlist
+16. Wishlist (16.2: several named lists)
 17. Homepage banners
 18. FAQ
 19. Blog
+20. Guest checkout
+21. Referrals
+22. Product reviews and order feedback
+23. Problem reports
+
+Added on 2026-11-01 (`doc/CUSTOMER_ACCOUNTS.md` has the long version): the sign-up needs an emailed code (section 1), guest checkout (20), closing an account and the account overview (2), address labels (3), orders given up unpaid are hidden and deleted (9), several wishlists (16), referrals (21), reviews and order feedback (22), problem reports (23).
 
 ---
 
@@ -125,11 +131,11 @@ Two styles exist:
 
 ## 1. Customer authentication
 
-Sign-up and sign-in with **email and password**. There is no email code and no Google sign-in. Guests can browse and price a cart; they must sign in to check out. `doc/CUSTOMER_AUTH.md` is the long version of this section, with the flows screen by screen.
+Sign-up and sign-in with **email and password**. The sign-up proves the address with a six-digit code sent by email; signing in afterwards needs no code. There is no Google sign-in. Visitors can browse, price a cart, and order as guests (section 20). `doc/CUSTOMER_AUTH.md` is the long version of the sign-in and password flows; section 1 of `doc/CUSTOMER_ACCOUNTS.md` describes the code step.
 
 ### `POST /v1/store/auth/signup`
 
-**Purpose:** Create the account and sign it in on this device. A welcome email follows in the customer's language.
+**Purpose:** Start the sign-up: the details are kept aside and a code is emailed. The account is created by `POST /v1/store/auth/signup/verify` with that code. The welcome email follows then.
 
 **Authentication:** none. Rate limit 5 per minute per IP.
 
@@ -145,6 +151,19 @@ Sign-up and sign-in with **email and password**. There is no email code and no G
 | `email` | string | yes | valid email, ≤254 chars; stored lower-case |
 | `password` | string | yes | 8 to 128 characters; not a common password, not one repeated character, not the own email name |
 | `locale` | `en` \| `de` | no | Language of the account and its emails. Defaults to `Accept-Language`. |
+| `referralCode` | string, 6–12 letters or digits | no | The `ref` of a referral link (section 21). A code that does not count never fails the sign-up. |
+
+**Success Response (202):** `{ "email": "anna@example.com", "validMinutes": 15, "resendAfterSeconds": 60 }`. No account exists yet.
+
+**Possible Errors:** `409 CUSTOMER_EMAIL_TAKEN` (an account with this email exists; offer sign-in and "forgot password"; an address with guest orders only is not refused), `400 PASSWORD_TOO_WEAK`, `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
+
+### `POST /v1/store/auth/signup/verify`
+
+**Purpose:** Finish the sign-up with the code from the email, create the account and sign it in on this device. A guest record with the same email becomes the account (section 20).
+
+**Authentication:** none. Rate limit 10 per minute per IP.
+
+**Request Body:** `{ "email": "anna@example.com", "code": "483920" }`
 
 **Success Response (201)** + both cookies set:
 
@@ -165,17 +184,28 @@ Sign-up and sign-in with **email and password**. There is no email code and no G
       "marketingOptInAt": null,
       "marketingOptOutAt": null
     },
-    "createdAt": "2026-10-18T10:00:00.000Z"
+    "createdAt": "2026-10-18T10:00:00.000Z",
+    "kind": "registered",
+    "emailVerifiedAt": "2026-10-18T10:00:00.000Z"
   },
-  "accessTokenExpiresInSeconds": 900
+  "accessTokenExpiresInSeconds": 900,
+  "referral": { "applied": false, "reason": null }
 }
 ```
 
+`referral.reason` ∈ `unknown_code`, `own_code`, `already_customer`, `already_referred` when a code was given and did not count.
+
 **Possible Errors:**
 
-- `409 CUSTOMER_EMAIL_TAKEN` – an account with this email exists; offer sign-in and "forgot password".
-- `400 PASSWORD_TOO_WEAK` – too easy to guess; the customer chooses another one.
+- `400 SIGNUP_CODE_INVALID` – wrong code; `details.attemptsLeft` says how many tries are left (five in all).
+- `400 SIGNUP_NOT_FOUND` – no sign-up waits for this address, the code expired (15 minutes), the attempts are used up, or the sign-up was finished already: start again at `signup`, or sign in.
 - `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
+
+### `POST /v1/store/auth/signup/resend`
+
+**Purpose:** Email a new code for a sign-up that waits. The old code stops working. At most once a minute and three times per sign-up; answers the same whatever happened.
+
+**Authentication:** none. Rate limit 5 per minute per IP. **Request Body:** `{ "email": "anna@example.com" }`. **Success Response (204).**
 
 ### `POST /v1/store/auth/login`
 
@@ -343,15 +373,32 @@ Show the wording of the two consents clearly (they are dated for the record). Wh
 
 ---
 
+### `GET /v1/store/me/overview`
+
+**Purpose:** The account at a glance, in one call: the profile, "member since", counts (orders, open orders, invoices, wishlists and their products, addresses, open problem reports), the default address, the referral code and link. Section 4 of `doc/CUSTOMER_ACCOUNTS.md` shows the answer.
+
+**Authentication:** customer session. **Success Response (200):** `{ "customer", "memberSince", "counts": { "orders", "openOrders", "invoices", "wishlists", "wishlistItems", "addresses", "openIssues" }, "defaultAddress", "referral": { "code", "link", "counts": { "registered", "qualified" } }, "locale" }`.
+
+### `POST /v1/store/me/delete`
+
+**Purpose:** Close the account for good: everything personal is removed, every session ends, the email address is free for a new account; orders and invoices stay for the books with no person attached. No way back. Section 3 of `doc/CUSTOMER_ACCOUNTS.md`.
+
+**Authentication:** customer session. Rate limit 5 per minute. **Request Body:** `{ "password": "…", "confirm": true }`. **Success Response (204)**, cookies cleared.
+
+**Possible Errors:** `401 CUSTOMER_CREDENTIALS_INVALID` (wrong password), `409 CUSTOMER_HAS_OPEN_ORDERS` with `details { orderNumbers, openReturns, openIssues }` (an order waits for its payment, delivery or refund, or a return or report is open), `400 VALIDATION_FAILED`.
+
+---
+
 ## 3. Delivery addresses
 
-Up to 10 addresses per customer, Germany only. One is the default and is proposed at checkout. Orders keep a copy of the address they were placed with.
+Up to 10 addresses per customer, Germany only. One is the default and is proposed at checkout. Orders keep a copy of the address they were placed with. Every address may carry a `label` the customer chose ("Home", "Work", "Mummy"; up to 30 characters); send it on create and update, `null` removes it.
 
 **Address object:**
 
 ```json
 {
   "id": "66f1a2b3c4d5e6f7a8b9c0e2",
+  "label": "Home",
   "firstName": "Max",
   "lastName": "Müller",
   "company": null,
@@ -986,9 +1033,12 @@ A line whose pack size left the shop, and the bill of goods at two VAT rates:
 | `lines[].productId` | ObjectId string or `null` | Its product; `null` when the pack size is not in the shop. |
 | `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `product_unavailable`, `sold_out` | Why this line cannot be ordered as it is. Show it on the line. `product_not_found`: the pack size or its product is gone, or the product is no longer active. `product_unavailable`: the product or this size was switched off. `quantity_above_maximum` also means "more than in stock" (`ordering.maxQuantity` is capped by the stock). |
 | `lines[].ordering` | Ordering block or `null` | Of this pack size. `null` when the line is `product_not_found`. Inside `lines[].product` the `ordering` fields (on the entry and in its `variants`) are always `null`; use the line-level one. |
+| `lines[].discountAmount` | int cents | What the discount code of the checkout page takes off this line; `0` without one (section 9.6). |
 | `lines[].product` | product entry or `null` | The product list entry (section 7) with this pack size selected: its `displayName`, `packSize`, `pricing` and `image` are the line's. `null` when the line is `product_not_found` (then `unitPrice`, `lineTotal`, `vatRate`, `vatAmount` are `0`). |
 | `totals` | object | Computed over issue-free lines only. `vat[]` is grouped by rate; the delivery fee is shared across the rates in proportion to the net value of the goods. An empty bill has `deliveryFee: 0` and `vat: []`. |
-| `delivery.freeFrom` | int cents or `null` | Goods value from which delivery is free. `missingForFree` = what is still missing (`0` when reached; `null` when there is no free tier). |
+| `delivery.freeFrom` | int cents or `null` | Goods value from which delivery is free. `missingForFree` = what is still missing (`0` when reached; `null` when there is no free tier). Counts what is paid for the goods after the discount. |
+| `totals.discount` | int cents | What the discount code takes off the goods; `0` without one. `subtotal` is the goods before it; `total = subtotal − discount + deliveryFee`. |
+| `discount` | object or `null` | The discount code of the checkout page: `{ code, type, value, amount, applied, reason }` (section 9.6). |
 
 ### `POST /v1/store/cart/preview`
 
@@ -1105,6 +1155,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 ```json
 {
   "orderNumber": "RF-1001",
+  "isGuest": false,
   "status": "dispatched",
   "paymentStatus": "paid",
   "placedAt": "2026-10-16T10:15:00.000Z",
@@ -1203,6 +1254,8 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 - `deliveryAddress`: `company`, `additionalLine`, `phone` are **absent** when they were not set.
 - `canCancel`: whether `POST …/cancel` is allowed right now: always while `pending_payment`; for a paid order by the rule of the shop (section 9.5).
 - `returns.until`: end of the return window (delivery + `returns.windowDays`, ISO) or `null` when not delivered or returns are switched off; `returns.possible` is `true` while the window is open and something can still be sent back.
+- `isGuest`: placed without an account (section 20). `feedback`: what the customer said after the delivery (`{ rating, deliveryRating, comment, at }` or `null`); `canGiveFeedback` while it is delivered and none was given (section 22).
+- An order may be paid for **72 hours**; when nothing was paid by then it is deleted. An unpaid order that was cancelled is not listed and its detail answers `404` (it is deleted after 72 hours too). Paid orders stay, cancelled or not.
 - `cancellation`: `null` or `{ "reason": "changed_mind", "text": "…", "by": "customer" | "admin" | "system", "at": "…" }`. `text` is only shown when `by` is `customer`. Reasons by `by`: see section 13.
 
 ### `POST /v1/store/checkout`
@@ -1270,6 +1323,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 - `409 CART_EMPTY`.
 - `409 ORDER_ITEMS_NOT_ORDERABLE` – `details.lines[]`: `{ productId, variantId, sku, quantity, issue, minQuantity, maxQuantity, remaining }`, one per cart line with an issue (`productId`, `sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`). Show the lines and send the customer back to the cart.
 - `409 ORDER_TOTAL_CHANGED` – `details: { expectedTotal, total, totals }` (`totals` is the new bill's totals). Show the new total and let the customer confirm again.
+- `409 DISCOUNT_NOT_APPLICABLE` – `details: { code, reason }`: the discount code stopped applying and was removed from the cart (section 9.6). Load the bill again.
 - `409 ORDER_NOT_PAYABLE` – the key was sent again for an order that was paid or cancelled meanwhile (`details: { status, paymentStatus }`).
 - `502 PAYMENT_PROVIDER_ERROR` – Stripe could not be reached or returned no page; ask to try again.
 - `429 RATE_LIMITED`.
@@ -1346,6 +1400,37 @@ Radhe Foods sets until when a paid order can be cancelled by the customer. An un
 | `until_dispatched` (default) | `pending_payment`, `confirmed`, `processing` |
 
 The setting is not exposed to the shop: use `order.canCancel` rather than computing this yourself.
+
+---
+
+### 9.6 Discount codes on the checkout page
+
+A customer may enter one promotional code on the checkout page (not on the cart page). The code is checked against the cart and kept with it; from then on **every cart endpoint** answers the bill with the discount, until the order is paid or the code is removed. `doc/DISCOUNT_CODES.md` has the rules and the arithmetic; in short: the discount comes off the goods in proportion to each line, never off delivery, VAT is computed on what is paid, and free delivery counts what is paid for the goods.
+
+The bill (section 8.1) carries `lines[].discountAmount` (cents taken off the line), `totals.discount` (the amount; `totals.subtotal` stays the goods before it, `totals.total = subtotal − discount + deliveryFee`) and:
+
+```json
+"discount": { "code": "DIWALI10", "type": "percent", "value": 10, "amount": 180, "applied": true, "reason": null }
+```
+
+`discount` is `null` while no code is entered. A code that was applied and later stops applying (the cart shrank below the minimum, the code ran out) stays with `applied: false`, `amount: 0` and a `reason`, so the page can say so.
+
+#### `PUT /v1/store/checkout/discount`
+
+**Body:** `{ "code": "diwali10" }` (any case, at most 40 characters). **Rate limit:** 20 per minute.
+
+- `200`: the bill with the discount (the code replaces one applied before).
+- `400 DISCOUNT_NOT_APPLICABLE`, `details: { code, reason }`; nothing is kept. `reason`: `not_found`, `inactive`, `not_started`, `expired`, `exhausted`, `already_used` (one order per customer, and this customer paid one with it), `below_minimum`, `nothing_eligible` (every product in the cart is on sale and the code excludes those).
+
+#### `DELETE /v1/store/checkout/discount`
+
+Removes the code. `200` with the bill.
+
+#### At `POST /v1/store/checkout`
+
+`expectedTotal` is the `totals.total` of the bill with the discount. The order is made with the code, one use of it is reserved for the order, and the payment counts it; an order given up unpaid frees the use again. New refusal: `409 DISCOUNT_NOT_APPLICABLE` with `details: { code, reason }`: the code stopped applying and was removed from the cart; load the bill again and tell the customer.
+
+The order carries `discount { code, type, value, amount, state }` (`state`: `reserved` until paid, `used` once paid, `released` when given up), `items[].discountAmount`, `totals.discount` and `finalTotals.discount`; orders from before discount codes answer `discount: null` and `0`. Invoices and credit notes (section 11) list the discount as negative lines per VAT rate named `Discount DIWALI10` / `Rabatt DIWALI10`, and carry `totals.discount`.
 
 ---
 
@@ -1512,7 +1597,7 @@ The invoice (`INV-2026-000001`) is issued the moment the payment is captured, is
 }
 ```
 
-- `lines` are the goods, in the language of the order; the delivery fee is in `totals.deliveryFee`. A credit note lists what is credited; when a whole order is credited, the delivery fee appears as a line of its own (`Delivery` / `Lieferung`).
+- `lines` are the goods, in the language of the order, followed by one negative line per VAT rate for a discount code (`Discount DIWALI10`, `quantity: 1`, `lineTotal: -80`) when the order had one; the delivery fee is in `totals.deliveryFee`. `totals.discount` is what the code took off (`0` without one). A credit note lists what is credited; when a whole order is credited, the delivery fee appears as a line of its own (`Delivery` / `Lieferung`).
 - `creditReference`: for a credit note, what it is for: the return number (`RF-1001-R1`) or the corrected product with the reason (`RF-00042: missing`). `null` on invoices.
 - `footer` is free text from the company settings, or `null`.
 
@@ -1739,7 +1824,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 6. Checkout page: `GET /v1/store/me/addresses` (address chooser), `GET /v1/store/legal` (consent versions and links), `GET /v1/store/cart` (`canOrder`, `totals.total` → `expectedTotal`), then `POST /v1/store/checkout` with an `Idempotency-Key` and redirect to `checkout.url`; handle `ORDER_TOTAL_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `LEGAL_VERSION_CHANGED`, `CART_EMPTY`, `PAYMENTS_NOT_CONFIGURED`.
 7. The way back from Stripe: `/account/orders/<orderNumber>?payment=success|cancelled` (sign-in required) → `GET …/payment`; poll while a page is still open after `?payment=success`; "Pay now" → `POST …/pay` → redirect.
 8. Order page while `pending_payment`: "Pay now" when `canPayOnline` (the open `payment.checkout.url`, else `POST …/pay`), "Cancel order" (`canCancel`); `?pay=1` from the payment-failed email opens the payment page at once.
-9. Account: orders list/detail (status, `delivery` with the tracking link, items with `displayName`, `adjustments`, `finalTotal`), cancel when `canCancel`; the `payment` block with `invoice.pdfPath`; invoices and PDFs; returns within `returns.until`, requested by the item's `variantId`.
+9. Account: orders list/detail (status, `delivery` with the tracking link, items with `displayName`, `adjustments`, `finalTotal`), cancel when `canCancel` (after cancelling an unpaid order go to the list: it is hidden from then on); the `payment` block with `invoice.pdfPath`; invoices and PDFs; returns within `returns.until`, requested by the item's `variantId`; the overview `GET /v1/store/me/overview` for the account home; address labels; "Delete account" in the settings.
 10. Pages without sign-in: `/unsubscribe/<token>` (link in marketing emails) and `/reset-password?token=<token>` (link in the password reset email); announcement emails also link to `/products/<slug>` (English slug) and the shop root.
 11. Emails the API sends, all linking to `/account/orders/<orderNumber>`: order confirmed (with the invoice PDF), cancelled, dispatched (tracking), delivered (return window), payment failed (`?pay=1`), refund completed, return requested / approved / rejected / completed. Announcements go to customers with `marketingOptIn`.
 12. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.
@@ -1747,6 +1832,12 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 14. Homepage carousel (section 17, `doc/BANNERS.md`): `GET /v1/store/banners`; nothing rendered when empty; the picture's ratio kept on every screen; `srcset` from `sizes`; external links in a new tab.
 15. FAQ page (section 18, `doc/FAQ.md`): `GET /v1/store/faqs?locale=…`, groups as headings with their questions in the order given, Markdown answers, `FAQPage` structured data, nothing shown when `groups` is empty.
 16. Blog (section 19, `doc/BLOG.md`): list, article, category and tag pages from `GET /v1/store/blog/…`; Markdown content with the existing renderer; `seo`, `featuredImage` and `alternates` for the meta tags, Open Graph, `hreflang` and `Article` structured data; drafts and scheduled posts answer 404.
+17. Sign-up with the emailed code (section 1): the code step after the form, "Resend code", `SIGNUP_CODE_INVALID` / `SIGNUP_NOT_FOUND`; `ref` from the URL sent as `referralCode`.
+18. Guest checkout (section 20): "Continue as guest" on the checkout page, `POST /v1/store/guest/checkout`, the page `/guest/orders/<orderNumber>?token=…` for the way back from Stripe and the links in the emails.
+19. Several wishlists (section 16.2): the list chooser, new, rename, make default, delete, move and copy; the heart keeps using the default list.
+20. Referrals (section 21): the code, the link and the invitees in the account.
+21. Reviews and feedback (section 22): stars from `rating` on cards and product pages, the reviews section on the product page, "Write a review" for delivered products, the feedback form on delivered orders.
+22. Problem reports (section 23): the "Report a problem" page from a delivered order, the photos, the report page with its history, the reports list in the account.
 
 ---
 
@@ -1773,10 +1864,14 @@ Every answer is the whole list, newest first:
 | `GET /v1/store/wishlist` | customer | | 200, the list |
 | `PUT /v1/store/wishlist/items/{productId}` | customer | `{ "variantId"? }` | 200, the list. Adds the product or changes its remembered size |
 | `DELETE /v1/store/wishlist/items/{productId}` | customer | | 200, the list |
-| `DELETE /v1/store/wishlist` | customer | | 200, `{ "items": [], "count": 0 }` |
+| `DELETE /v1/store/wishlist` | customer | | 200, the emptied list |
 | `POST /v1/store/wishlist/merge` | customer | as `preview` | 200, the merged list; existing entries keep their size, nothing is doubled |
 
 **Errors:** `404 PRODUCT_NOT_FOUND` (unknown or not in the shop), `404 PRODUCT_VARIANT_NOT_FOUND` (not a sold size of this product), `400 WISHLIST_FULL` (`details: { maximum: 200 }`), `400 VALIDATION_FAILED`, `429 RATE_LIMITED`.
+
+### 16.2 Several named lists
+
+Since 2026-11-01 a customer has one **default** list, which the routes above address and the heart adds to, and up to 20 lists under names of their own. The answers above start with `"wishlist": { "id", "name", "isDefault", "count", "createdAt", "updatedAt" }` before `items`. The named lists live under `/v1/store/wishlists`: `GET` (all, the default first), `POST { name, isDefault? }`, `GET`/`PATCH { name?, isDefault? }`/`DELETE …/{id}`, `PUT`/`DELETE …/{id}/items/{productId}`, `POST …/{id}/items/{productId}/transfer { to, copy? }` (move or copy to another list), `DELETE …/{id}/items`. Errors `404 WISHLIST_NOT_FOUND`, `409 WISHLIST_NAME_TAKEN`, `400 WISHLIST_LIMIT_REACHED`. Section 6 of `doc/CUSTOMER_ACCOUNTS.md` has the table in full.
 
 ---
 
@@ -1866,3 +1961,21 @@ A list entry:
 ```
 
 `featuredImage` is `null` without a picture; `summary` and `category` may be `null`. Routes of the shop: `/blog`, `/blog/[slug]`, `/blog/category/[slug]`, `/blog/tag/[tag]`; the language switch of an article goes to `alternates[otherLocale]`.
+
+---
+
+## 20. Guest checkout
+
+Ordering without an account. The visitor sends the cart from the browser, the address and the email to `POST /v1/store/guest/checkout` (header `Idempotency-Key`; body `{ email, items: [{ variantId, quantity }], address: { …as a saved address, without label and isDefault… }, discountCode?, expectedTotal, consent, note?, language? }`), gets `201 { created, token, order, checkout: { url, expiresAt } }` and is sent to Stripe. The order belongs to a guest record of that email; the **token** opens it afterwards (`?token=` or header `X-Order-Token`): `GET /v1/store/guest/orders/{orderNumber}` (`{ order, payment, documents }`), `POST …/pay`, `POST …/cancel`, `GET …/invoices/{number}/pdf`. The way back from Stripe and every email about the order lead to `/guest/orders/<orderNumber>?token=<token>`. `POST /v1/store/cart/preview` takes `discountCode` so a guest can price a code first. `409 CUSTOMER_EMAIL_TAKEN` with `details.action: "sign_in"` when the address has an account; `403 ORDER_TOKEN_INVALID` for a wrong token. A guest who signs up with the same email gets the orders, invoices and the address in the account. Section 2 of `doc/CUSTOMER_ACCOUNTS.md` has the detail.
+
+## 21. Referrals
+
+`GET /v1/store/me/referral` → `{ referral: { code, link, counts: { registered, qualified }, invitees: [{ name, email (masked), status, registeredAt, qualifiedAt }] } }`. The shop reads `ref` from the URL and sends it as `referralCode` with the sign-up; the verify answer says whether it counted. A referral is `registered` at the sign-up and `qualified` when the invited person's first delivered order stands with nothing to refund; `void` when the goods of that order are all credited later. No rewards yet. Section 7 of `doc/CUSTOMER_ACCOUNTS.md`.
+
+## 22. Product reviews and order feedback
+
+Products carry `rating: { average, count } | null` on every catalogue answer. Public: `GET /v1/store/products/{productId}/reviews?page=&limit=&rating=` → the published reviews, newest first, with `summary { average, count, distribution }`. Signed in: `GET /v1/store/me/reviews` (own, with status and `rejectionNote`), `GET /v1/store/me/reviews/reviewable` (products of delivered orders with what was written), `PUT /v1/store/me/reviews/{productId}` `{ rating, title?, text, orderNumber?, locale? }` (waits for approval; `403 REVIEW_NOT_ALLOWED` without a delivered order), `DELETE /v1/store/me/reviews/{productId}`. Order feedback: `POST /v1/store/orders/{orderNumber}/feedback` `{ rating, deliveryRating?, comment? }` once per delivered order (`409 FEEDBACK_ALREADY_GIVEN`, `409 FEEDBACK_NOT_POSSIBLE`); the order carries `feedback` and `canGiveFeedback`. Section 8 of `doc/CUSTOMER_ACCOUNTS.md`.
+
+## 23. Problem reports
+
+After a delivery, within `returns.issueWindowDays` of `GET /v1/store/settings`: `GET /v1/store/orders/{orderNumber}/issues` (`items`, `window { possible, until }`, `reportable[]`), `POST /v1/store/orders/{orderNumber}/issues` `{ items?: [{ variantId, quantity }], problems: [damaged | missing | wrong_item | not_fresh | late | other], description, preferredResolution: refund | replacement | none }` → `201 { issue }` ("RF-1084-P1"), `POST /v1/store/issues/{issueNumber}/images` (multipart `files`, up to five), `DELETE …/images/{imageId}`, `GET /v1/store/issues`, `GET /v1/store/issues/{issueNumber}`, `POST …/cancel` while `open`. Statuses `open`, `in_review`, `resolved` (with `resolution { type, amount, note, at }`), `rejected`, `cancelled`; the customer is emailed when the report is received, resolved or rejected. Errors `ISSUE_NOT_POSSIBLE`, `ISSUE_WINDOW_CLOSED`, `ISSUE_QUANTITY_INVALID`, `ISSUE_TRANSITION_NOT_ALLOWED`, `IMAGE_LIMIT_REACHED`. Section 9 of `doc/CUSTOMER_ACCOUNTS.md`.
