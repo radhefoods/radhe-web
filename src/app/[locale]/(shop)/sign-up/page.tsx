@@ -5,6 +5,7 @@ import { SignUpForm } from "@/components/auth/sign-up-form";
 import { AreaMessages } from "@/i18n/area-messages";
 import { localeOf } from "@/i18n/locale";
 import { parseReturnTo } from "@/lib/navigation/return-to";
+import { isReferralCode } from "@/lib/referral/referral-code";
 
 type Props = PageProps<"/[locale]/sign-up">;
 
@@ -20,8 +21,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SignUpPage({ params, searchParams }: Props) {
   await localeOf(params);
   const t = await getTranslations("auth");
+  const query = await searchParams;
   // The same way back as the sign-in page: the checkout, an order, the account.
-  const returnTo = parseReturnTo((await searchParams).returnTo);
+  const returnTo = parseReturnTo(query.returnTo);
+  // A referral link may lead here directly (doc 21): `/sign-up?ref=<code>`.
+  const linkCode = isReferralCode(query.ref) ? query.ref.toUpperCase() : null;
 
   return (
     <AuthPage
@@ -31,7 +35,7 @@ export default async function SignUpPage({ params, searchParams }: Props) {
       }
     >
       <AreaMessages area="signIn">
-        <SignUpForm returnTo={returnTo} />
+        <SignUpForm returnTo={returnTo} linkCode={linkCode} />
       </AreaMessages>
     </AuthPage>
   );

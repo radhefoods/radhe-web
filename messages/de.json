@@ -365,6 +365,18 @@
     "startAgain": "Von vorn beginnen",
     "doneTitle": "Ihr Konto ist bereit.",
     "referralApplied": "Ihre Einladung wurde gezählt. Danke!",
+    "referralCode": "Empfehlungscode (optional)",
+    "referralHaveCode": "Haben Sie einen Empfehlungscode?",
+    "referralHint": "Geben Sie den Code aus dem Einladungslink ein, den Sie erhalten haben.",
+    "referralFromLink": "Aus Ihrem Einladungslink übernommen. Sie können ihn ändern.",
+    "referralInvalid": "Ein Empfehlungscode hat 6 bis 12 Buchstaben oder Ziffern.",
+    "referralNotApplied": {
+      "unknown_code": "Der Empfehlungscode {code} ist nicht bekannt und wurde daher nicht übernommen. Ihr Konto funktioniert trotzdem.",
+      "own_code": "Ihren eigenen Empfehlungscode können Sie nicht verwenden; er wurde nicht übernommen.",
+      "already_customer": "Sie haben schon bei uns bestellt, daher gilt der Empfehlungscode {code} nicht.",
+      "already_referred": "Sie wurden bereits eingeladen, daher wurde der Empfehlungscode {code} nicht übernommen.",
+      "other": "Der Empfehlungscode {code} konnte nicht übernommen werden. Ihr Konto funktioniert trotzdem."
+    },
     "continue": "Weiter",
     "forgotMetaTitle": "Passwort vergessen",
     "forgotTitle": "Passwort vergessen?",
@@ -1072,6 +1084,12 @@
     "text": "Dieser Shop verwendet nur die Cookies und den Speicher, die er zum Funktionieren braucht: für die Anmeldung, Ihren Warenkorb und Ihre Sprache. Kein Tracking, keine Werbung.",
     "more": "Details",
     "ok": "OK"
+  },
+  "invitation": {
+    "title": "Sie wurden eingeladen",
+    "text": "Der Empfehlungscode <b>{code}</b> wird übernommen, wenn Sie Ihr Konto anlegen.",
+    "action": "Konto anlegen",
+    "dismiss": "Hinweis ausblenden"
   },
   "notFound": {
     "title": "Seite nicht gefunden",

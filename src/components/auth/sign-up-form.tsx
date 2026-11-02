@@ -1,13 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type FormEvent,
-} from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -28,25 +22,30 @@ import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import { fieldProblems, hasErrorCode } from "@/lib/api/errors";
-import type { SignUpStarted } from "@/lib/api/types";
+import type { ReferralFailReason, SignUpStarted } from "@/lib/api/types";
 import {
   DEFAULT_RETURN_TARGET,
   returnHref,
   type ReturnTarget,
 } from "@/lib/navigation/return-to";
 import {
+  checkReferralCode,
   forgetReferralCode,
-  storedReferralCode,
+  normalizeReferralCode,
+  REFERRAL_CODE_MAX,
+  rememberReferralCode,
 } from "@/lib/referral/referral-code";
+import { useReferralCode } from "@/lib/referral/use-referral-code";
 import { authLink } from "./auth-page";
 
-type Field = "firstName" | "lastName" | "email" | "password";
+type Field = "firstName" | "lastName" | "email" | "password" | "referralCode";
 type Problem =
   | NameProblem
   | EmailProblem
   | PasswordProblem
   | "passwordWeak"
-  | "fieldInvalid";
+  | "fieldInvalid"
+  | "referralInvalid";
 type Problems = Partial<Record<Field, Problem>>;
 
 /** Six digits, as the email carries them. */
@@ -85,7 +84,7 @@ function CodeStep({
 }: {
   started: SignUpStarted;
   onVerified: (
-    referral: { applied: boolean },
+    referral: { applied: boolean; reason: ReferralFailReason | null },
     customer: Parameters<ReturnType<typeof useSessionActions>["signedIn"]>[0],
   ) => void;
   onStartAgain: () => void;
@@ -216,16 +215,36 @@ function CodeStep({
   );
 }
 
+/** What became of the referral code once the account was made (doc 21). */
+type ReferralOutcome = {
+  code: string;
+  applied: boolean;
+  reason: ReferralFailReason | null;
+};
+
 /**
  * Creating the account (doc 1): first and last name, email, password; then
  * the code from the email, which makes the account and signs it in. The
  * customer goes on to where they came from, and the cart of the visit
  * follows (the cart itself hands it over). An address that has an account
  * already says so at the field, with the ways to sign in and to a new
- * password. A referral code kept from a link (doc 21) travels with the
- * sign-up; when it counted, a line says so before going on.
+ * password.
+ *
+ * The referral code (doc 21): the code of the invitation link (`?ref=` on
+ * this page, or kept from an earlier visit) fills an optional "Referral
+ * code" field, which can be changed; without one the field waits behind
+ * "Have a referral code?". The code travels with the sign-up, the API
+ * applies it once the emailed code was right, and the answer says whether
+ * it counted: a line says so, or why not, before going on.
  */
-export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
+export function SignUpForm({
+  returnTo,
+  linkCode = null,
+}: {
+  returnTo: ReturnTarget;
+  /** The `ref` of this page's address, already checked. */
+  linkCode?: string | null;
+}) {
   const t = useTranslations("auth");
   const locale = useLocale() as Locale;
   const router = useRouter();
@@ -244,15 +263,27 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
   /** The code step, once the API emailed one; `done` while the referral line shows. */
   const [step, setStep] = useState<
     | { kind: "form"; expired?: boolean }
-    | { kind: "code"; started: SignUpStarted }
-    | { kind: "done" }
+    | { kind: "code"; started: SignUpStarted; referralCode: string | null }
+    | { kind: "done"; referral: ReferralOutcome }
   >({ kind: "form" });
-  // The code of a referral link, read only in the browser.
-  const referralCode = useSyncExternalStore(
-    () => () => {},
-    () => storedReferralCode(),
-    () => null,
-  );
+
+  // The referral code: the link of this page first, then the one kept from
+  // an earlier link (browser only, so it appears once the page is live),
+  // and what the customer typed over either.
+  const keptCode = useReferralCode();
+  const knownCode = linkCode ?? keptCode;
+  const [typedCode, setTypedCode] = useState<string | null>(null);
+  const referralCode = typedCode ?? knownCode ?? "";
+  const [codeFieldOpen, setCodeFieldOpen] = useState(false);
+  const showCodeField = codeFieldOpen || knownCode !== null;
+  // Whether the field still shows the code of the link, untouched.
+  const fromLink = knownCode !== null && typedCode === null;
+  const referralInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // A link opened on this very page is kept like a link to any page.
+    if (linkCode) rememberReferralCode(linkCode);
+  }, [linkCode]);
 
   useEffect(() => {
     if (session.status === "customer" && step.kind !== "done") {
@@ -273,11 +304,19 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
       lastName: checkName(lastName),
       email: checkEmail(email),
       password: checkPassword(password),
+      referralCode: checkReferralCode(referralCode),
     });
     setProblems(found);
     setEmailTaken(false);
     setError(null);
-    if (Object.values(found).some(Boolean)) return;
+    if (Object.values(found).some(Boolean)) {
+      if (found.referralCode) referralInput.current?.focus();
+      return;
+    }
+    const code = normalizeReferralCode(referralCode) || null;
+    // Kept until the account exists: a page reloaded during the code step,
+    // or a sign-up started again, still knows the code.
+    if (code) rememberReferralCode(code);
     setPending(true);
     try {
       const result = await api.signUp({
@@ -286,7 +325,7 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
         email: normalizeEmail(email),
         password,
         locale,
-        ...(referralCode && { referralCode }),
+        ...(code && { referralCode: code }),
       });
       if ("customer" in result) {
         // An API older than 2026-11-01 made the account at once.
@@ -296,7 +335,7 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
         return;
       }
       setPending(false);
-      setStep({ kind: "code", started: result });
+      setStep({ kind: "code", started: result, referralCode: code });
     } catch (caught) {
       if (hasErrorCode(caught, "CUSTOMER_EMAIL_TAKEN")) {
         setEmailTaken(true);
@@ -307,12 +346,24 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
       } else {
         const fromApi = fieldProblems(caught);
         const fields = (
-          ["firstName", "lastName", "email", "password"] as const
+          [
+            "firstName",
+            "lastName",
+            "email",
+            "password",
+            "referralCode",
+          ] as const
         ).filter((field) => field in fromApi);
         if (fields.length > 0) {
           setProblems(
-            Object.fromEntries(fields.map((field) => [field, "fieldInvalid"])),
+            Object.fromEntries(
+              fields.map((field) => [
+                field,
+                field === "referralCode" ? "referralInvalid" : "fieldInvalid",
+              ]),
+            ),
           );
+          if (fields.includes("referralCode")) referralInput.current?.focus();
         } else {
           setError(caught);
         }
@@ -327,12 +378,18 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
       : { pathname: "/sign-in" as const, query: { returnTo } };
 
   if (step.kind === "code") {
+    const sentCode = step.referralCode;
     return (
       <CodeStep
         started={step.started}
         onVerified={(referral) => {
-          if (referral.applied) setStep({ kind: "done" });
-          else router.replace(returnHref(returnTo));
+          // Without a code there is nothing to say: straight on.
+          if (sentCode === null) router.replace(returnHref(returnTo));
+          else
+            setStep({
+              kind: "done",
+              referral: { code: sentCode, ...referral },
+            });
         }}
         onStartAgain={() => setStep({ kind: "form" })}
         onExpired={() => setStep({ kind: "form", expired: true })}
@@ -341,11 +398,20 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
   }
 
   if (step.kind === "done") {
+    const { referral } = step;
     return (
       <div className="flex flex-col gap-5">
-        <Alert tone="good" title={t("doneTitle")}>
-          {t("referralApplied")}
-        </Alert>
+        {referral.applied ? (
+          <Alert tone="good" title={t("doneTitle")}>
+            {t("referralApplied")}
+          </Alert>
+        ) : (
+          <Alert tone="info" title={t("doneTitle")}>
+            {t(`referralNotApplied.${referral.reason ?? "other"}`, {
+              code: referral.code,
+            })}
+          </Alert>
+        )}
         <Button
           size="lg"
           block
@@ -439,6 +505,41 @@ export function SignUpForm({ returnTo }: { returnTo: ReturnTarget }) {
         hint={t("passwordHint")}
         error={problems.password && t(problems.password)}
       />
+      {showCodeField ? (
+        <TextField
+          id="sign-up-referral"
+          label={t("referralCode")}
+          name="referralCode"
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          maxLength={REFERRAL_CODE_MAX}
+          inputRef={referralInput}
+          autoFocus={codeFieldOpen && knownCode === null}
+          value={referralCode}
+          onChange={(event) => {
+            setTypedCode(event.target.value.toUpperCase().replace(/\s+/g, ""));
+            clear("referralCode");
+          }}
+          hint={fromLink ? t("referralFromLink") : t("referralHint")}
+          error={problems.referralCode && t(problems.referralCode)}
+          className="sm:max-w-72"
+          style={{
+            letterSpacing: "0.08em",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        />
+      ) : (
+        <div className="-mt-1">
+          <button
+            type="button"
+            onClick={() => setCodeFieldOpen(true)}
+            className={authLink}
+          >
+            {t("referralHaveCode")}
+          </button>
+        </div>
+      )}
       <p className="text-ink-muted text-sm">
         {t.rich("legalNote", {
           privacy: (chunks) => (

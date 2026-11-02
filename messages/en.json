@@ -365,6 +365,18 @@
     "startAgain": "Start again",
     "doneTitle": "Your account is ready.",
     "referralApplied": "Your invitation counted. Thank you!",
+    "referralCode": "Referral code (optional)",
+    "referralHaveCode": "Have a referral code?",
+    "referralHint": "Enter the code from the invitation link you received.",
+    "referralFromLink": "Taken from your invitation link. You can change it.",
+    "referralInvalid": "A referral code has 6 to 12 letters or digits.",
+    "referralNotApplied": {
+      "unknown_code": "The referral code {code} is not known, so it was not applied. Your account works all the same.",
+      "own_code": "You cannot use your own referral code, so it was not applied.",
+      "already_customer": "You have ordered from us before, so the referral code {code} does not apply.",
+      "already_referred": "You were invited before, so the referral code {code} was not applied.",
+      "other": "The referral code {code} could not be applied. Your account works all the same."
+    },
     "continue": "Continue",
     "forgotMetaTitle": "Forgot password",
     "forgotTitle": "Forgot your password?",
@@ -1072,6 +1084,12 @@
     "text": "This shop uses only the cookies and storage it needs to work: for signing in, your cart and your language. No tracking, no advertising.",
     "more": "Details",
     "ok": "OK"
+  },
+  "invitation": {
+    "title": "You have been invited",
+    "text": "The referral code <b>{code}</b> will be applied when you create your account.",
+    "action": "Create account",
+    "dismiss": "Hide this note"
   },
   "notFound": {
     "title": "Page not found",

@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -19,6 +19,8 @@ export interface TextFieldProps extends Omit<
   hint?: ReactNode;
   /** Shown instead of the hint, and marks the field as invalid. */
   error?: ReactNode;
+  /** The input itself, to focus it. */
+  inputRef?: Ref<HTMLInputElement>;
 }
 
 /**
@@ -30,6 +32,7 @@ export function TextField({
   label,
   hint,
   error,
+  inputRef,
   className,
   ...props
 }: TextFieldProps) {
@@ -41,6 +44,7 @@ export function TextField({
       </label>
       <input
         id={id}
+        ref={inputRef}
         className={controlStyles}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}

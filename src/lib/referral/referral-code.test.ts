@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   REFERRAL_KEEP_MS,
   REFERRAL_STORAGE_KEY,
+  checkReferralCode,
   forgetReferralCode,
   isReferralCode,
+  normalizeReferralCode,
   rememberReferralCode,
   storedReferralCode,
 } from "./referral-code";
@@ -61,6 +63,15 @@ describe("the code of a referral link", () => {
       JSON.stringify({ code: "bad code", expiresAt: NOW + 1 }),
     );
     expect(storedReferralCode(storage, NOW)).toBeNull();
+  });
+
+  it("is typed in any case, with or without spaces around it", () => {
+    expect(normalizeReferralCode(" k7q3xm9p ")).toBe("K7Q3XM9P");
+    expect(checkReferralCode("")).toBeNull();
+    expect(checkReferralCode("   ")).toBeNull();
+    expect(checkReferralCode("k7q3xm9p")).toBeNull();
+    expect(checkReferralCode("K7Q")).toBe("referralInvalid");
+    expect(checkReferralCode("K7Q3-XM9P")).toBe("referralInvalid");
   });
 
   it("works without storage", () => {

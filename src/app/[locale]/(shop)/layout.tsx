@@ -3,6 +3,7 @@ import { CartSummaryBar } from "@/components/cart/cart-summary-bar";
 import { WishlistProblem } from "@/components/catalogue/wishlist-problem";
 import { Footer } from "@/components/shell/footer";
 import { Header } from "@/components/shell/header";
+import { InvitationNotice } from "@/components/shell/invitation-notice";
 import { TabBar } from "@/components/shell/tab-bar";
 import { getCategories, getSettings } from "@/features/catalogue/data";
 import { localeOf } from "@/i18n/locale";
@@ -25,6 +26,7 @@ export default async function ShopLayout({
         categories={categories}
         freeFrom={settings?.deliveryFee.freeFrom ?? null}
       />
+      <InvitationNotice />
       <main id="main" className="flex-1">
         {children}
       </main>

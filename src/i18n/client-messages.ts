@@ -17,6 +17,7 @@ const BASE = [
   "product",
   "cart",
   "cookieNotice",
+  "invitation",
 ] as const satisfies readonly Namespace[];
 
 const AREAS = {
