@@ -105,6 +105,9 @@ test.describe("from the cart to the paid order", () => {
       .getByLabel("Code")
       .fill(await signupCode(page.request, "priya@example.com"));
     await page.getByRole("button", { name: "Confirm" }).click();
+    // The welcome coins (REWARDS 8), then on to the checkout.
+    await expect(page.getByText("You received 100 coins.")).toBeVisible();
+    await page.getByRole("button", { name: "Continue" }).click();
     await expect(page).toHaveURL(/\/en\/checkout$/);
 
     // No address yet: the form is there at once.
@@ -609,6 +612,8 @@ test.describe("signing in and the password", () => {
     await expect(page.getByText("Wrong code. 4 attempts left.")).toBeVisible();
     await page.getByLabel("Code").fill(code);
     await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByText("You received 100 coins.")).toBeVisible();
+    await page.getByRole("button", { name: "Continue" }).click();
     await expect(page).toHaveURL(/\/en\/cart$/);
     await page.goto("/en/account");
     await expect(
