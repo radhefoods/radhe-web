@@ -92,7 +92,11 @@ function CodeStep({
 }: {
   started: SignUpStarted;
   onVerified: (
-    referral: { applied: boolean; reason: ReferralFailReason | null },
+    outcome: {
+      referral: { applied: boolean; reason: ReferralFailReason | null };
+      /** The coins the sign-up gave (REWARDS 8); 0 on an older API. */
+      welcomeCoins: number;
+    },
     customer: Parameters<ReturnType<typeof useSessionActions>["signedIn"]>[0],
   ) => void;
   onStartAgain: () => void;
@@ -134,7 +138,13 @@ function CodeStep({
       });
       signedIn(result.customer);
       forgetReferralCode();
-      onVerified(result.referral, result.customer);
+      onVerified(
+        {
+          referral: result.referral,
+          welcomeCoins: result.rewards?.welcomeCoins ?? 0,
+        },
+        result.customer,
+      );
     } catch (caught) {
       setPending(false);
       if (hasErrorCode(caught, "SIGNUP_CODE_INVALID")) {
@@ -287,11 +297,14 @@ export function SignUpForm({
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
   const passwordInput = useRef<HTMLInputElement>(null);
-  /** The code step, once the API emailed one; `done` while the referral line shows. */
+  /**
+   * The code step, once the API emailed one; `done` while the welcome
+   * coins or the referral line show.
+   */
   const [step, setStep] = useState<
     | { kind: "form"; expired?: boolean }
     | { kind: "code"; started: SignUpStarted; referralCode: string | null }
-    | { kind: "done"; referral: ReferralOutcome }
+    | { kind: "done"; referral: ReferralOutcome | null; welcomeCoins: number }
   >({ kind: "form" });
 
   // The referral code: the link of this page first, then the one kept from
@@ -474,14 +487,17 @@ export function SignUpForm({
     return (
       <CodeStep
         started={step.started}
-        onVerified={(referral) => {
-          // Without a code there is nothing to say: straight on.
-          if (sentCode === null) router.replace(returnHref(returnTo));
-          else
+        onVerified={({ referral, welcomeCoins }) => {
+          // Without a code and without coins there is nothing to say.
+          if (sentCode === null && welcomeCoins === 0) {
+            router.replace(returnHref(returnTo));
+          } else {
             setStep({
               kind: "done",
-              referral: { code: sentCode, ...referral },
+              referral: sentCode ? { code: sentCode, ...referral } : null,
+              welcomeCoins,
             });
+          }
         }}
         onStartAgain={() => setStep({ kind: "form" })}
         onExpired={() => setStep({ kind: "form", expired: true })}
@@ -490,20 +506,26 @@ export function SignUpForm({
   }
 
   if (step.kind === "done") {
-    const { referral } = step;
+    const { referral, welcomeCoins } = step;
+    // Good news in green; a referral that did not count makes it a note.
+    const tone = referral && !referral.applied ? "info" : "good";
     return (
       <div className="flex flex-col gap-5">
-        {referral.applied ? (
-          <Alert tone="good" title={t("doneTitle")}>
-            {t("referralApplied")}
-          </Alert>
-        ) : (
-          <Alert tone="info" title={t("doneTitle")}>
-            {t(`referralNotApplied.${referral.reason ?? "other"}`, {
-              code: referral.code,
-            })}
-          </Alert>
-        )}
+        <Alert tone={tone} title={t("doneTitle")}>
+          {welcomeCoins > 0 && (
+            <p>{t("welcomeCoins", { coins: welcomeCoins })}</p>
+          )}
+          {referral &&
+            (referral.applied ? (
+              <p>{t("referralApplied")}</p>
+            ) : (
+              <p>
+                {t(`referralNotApplied.${referral.reason ?? "other"}`, {
+                  code: referral.code,
+                })}
+              </p>
+            ))}
+        </Alert>
         <Button
           size="lg"
           block

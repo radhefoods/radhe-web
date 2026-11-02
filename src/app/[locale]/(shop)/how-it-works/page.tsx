@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { RewardsRules } from "@/components/rewards/rewards-rules";
 import { buttonStyles } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
+import { REVALIDATE, serverApi } from "@/lib/api/server";
+import type { RewardsProgram } from "@/lib/api/types";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 import { JsonLd } from "@/lib/seo/json-ld";
 
@@ -20,12 +23,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** The shop explained: three steps, then the questions customers ask. */
+/**
+ * The rules of the coins (REWARDS 8), or `null` while the program is off,
+ * on an API without it (404), or when the API cannot be reached: the page
+ * then simply has no coins section.
+ */
+async function programOf(): Promise<RewardsProgram | null> {
+  try {
+    const { program } = await serverApi.getRewardsProgram({
+      next: { revalidate: REVALIDATE.settings },
+    });
+    return program.enabled ? program : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The shop explained: three steps, the coins while the program is on,
+ * then the questions customers ask.
+ */
 export default async function HowItWorksPage({ params }: Props) {
   await localeOf(params);
-  const [t, tHome] = await Promise.all([
+  const [t, tHome, tRewards, program] = await Promise.all([
     getTranslations("help.howItWorks"),
     getTranslations("home"),
+    getTranslations("rewards"),
+    programOf(),
   ]);
   const steps = [
     { title: tHome("step1Title"), text: tHome("step1Text") },
@@ -74,6 +98,29 @@ export default async function HowItWorksPage({ params }: Props) {
           </li>
         ))}
       </ol>
+
+      {program && (
+        <section
+          id="coins"
+          aria-labelledby="how-coins"
+          className="scroll-mt-28 space-y-4"
+        >
+          <h2
+            id="how-coins"
+            className="font-display text-ink text-2xl sm:text-3xl"
+          >
+            {tRewards("publicTitle")}
+          </h2>
+          <p className="text-ink-muted max-w-2xl">{tRewards("publicIntro")}</p>
+          <RewardsRules program={program} />
+          <Link
+            href="/account/coins"
+            className="text-leaf-700 inline-block rounded-xs font-bold underline underline-offset-4"
+          >
+            {tRewards("publicLink")}
+          </Link>
+        </section>
+      )}
 
       <section aria-labelledby="how-faq" className="space-y-4">
         <h2 id="how-faq" className="font-display text-ink text-2xl sm:text-3xl">
