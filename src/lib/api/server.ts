@@ -23,6 +23,8 @@ export const REVALIDATE = {
   legal: 300,
   /** The FAQ and the blog: the API allows five minutes (doc 18, 19). */
   content: 300,
+  /** What customers say: a new review shows within minutes of its approval. */
+  reviews: 300,
 } as const;
 
 /** Tags for on-demand revalidation, should the API notify the shop one day. */
@@ -31,6 +33,7 @@ export const TAGS = {
   settings: "settings",
   legal: "legal",
   content: "content",
+  reviews: "reviews",
 } as const;
 
 /**

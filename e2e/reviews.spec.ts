@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createAccount, MOCK } from "./helpers";
 
-// Product reviews and order feedback (doc 22). The demo account has a
-// delivered order RF-1085 (basmati 5 kg, toor dal, mango drink), a
-// published review of the basmati with a reply, and a pending one of the
-// toor dal; another customer's review of the basmati is published too.
+// Order reviews (doc ORDER_REVIEWS): a delivered order is reviewed once,
+// from its page, with stars and words; the admin publishes it; the shop
+// shows it among "What our customers say". The demo account has the
+// delivered RF-1085 with a published review and the dispatched RF-1087;
+// another customer has a published and a pending review.
 
 const DEMO = "demo@radhefoods.de";
 
@@ -19,115 +20,138 @@ async function signIn(page: Page) {
   });
 }
 
-test.describe("reviews on the product", () => {
-  test("the cards show the stars; the product page carries no reviews section (owner, 2026-11-02)", async ({
+test.describe("order reviews", () => {
+  test("a delivered order is reviewed once from its page, waits for approval, then shows among what customers say", async ({
     page,
     request,
   }) => {
-    // The demo account seeds the reviews when it is created.
-    await createAccount(request, { email: DEMO });
-    await page.goto("/en/products?q=basmati");
+    await signIn(page);
+    // The admin delivers RF-1087: it can be reviewed now.
+    await request.post(`${MOCK}/__mock/order`, {
+      data: { orderNumber: "RF-1087", actions: ["deliver"] },
+    });
+    await page.goto("/en/account/reviews");
+    const open = page.getByRole("region", { name: "Orders you can review" });
+    await expect(open).toContainText("Order RF-1087");
+    await expect(open).not.toContainText("Order RF-1085");
+    const mine = page.getByRole("region", { name: "Your reviews" });
     await expect(
-      page
-        .getByRole("img", { name: /Rated 4[.,]5 out of 5 by 2 customers/ })
-        .first(),
-    ).toBeVisible();
-    await page.goto("/en/products/basmati-rice-5kg");
+      mine.getByRole("listitem").filter({ hasText: "RF-1085" }),
+    ).toContainText("Published");
+    await expect(mine).toContainText("Reply from Radhe Foods");
+
+    await open.getByRole("link", { name: "Write a review" }).click();
+    await expect(page).toHaveURL(/\/en\/account\/orders\/RF-1087$/);
+    const section = page.getByRole("region", { name: "Your review" });
+    await section.getByRole("button", { name: "Submit review" }).click();
     await expect(
-      page.getByRole("heading", { level: 1, name: /Basmati Rice/ }),
+      section.getByText("Please choose a number of stars."),
     ).toBeVisible();
-    await expect(page.getByRole("region", { name: "Reviews" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /Rated 4[.,]5/ })).toHaveCount(
+    await expect(
+      section.getByText("Please write at least 10 characters."),
+    ).toBeVisible();
+    await section.getByRole("radio", { name: "4 stars" }).check();
+    await section
+      .getByLabel("Tell us about your experience")
+      .fill("Quick delivery, the rice was well packed and fresh.");
+    await section.getByRole("button", { name: "Submit review" }).click();
+    await expect(section).toContainText(
+      "Thank you. Your review will be shown once Radhe Foods has read it.",
+    );
+    await expect(section).toContainText("Waiting for approval");
+    await expect(
+      section.getByRole("button", { name: "Submit review" }),
+    ).toHaveCount(0);
+    await page.reload();
+    await expect(
+      page.getByRole("region", { name: "Your review" }),
+    ).toContainText("Waiting for approval");
+    // No way to write a second one, nothing to edit or delete.
+    await expect(
+      page.getByRole("button", { name: "Submit review" }),
+    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Edit|Delete/ })).toHaveCount(
       0,
     );
-  });
-});
 
-test.describe("the reviews of a customer", () => {
-  test("a delivered product is reviewed from the order, the review waits for approval, is edited and deleted", async ({
+    // Published with an answer: among what customers say, with the summary.
+    await request.post(`${MOCK}/__mock/review`, {
+      data: { orderNumber: "RF-1087", action: "approve" },
+    });
+    await request.post(`${MOCK}/__mock/review`, {
+      data: {
+        orderNumber: "RF-1087",
+        action: "reply",
+        text: "Thank you, Priya!",
+      },
+    });
+    await page.goto("/en/reviews");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "What our customers say" }),
+    ).toBeVisible();
+    await expect(page.getByText(/of 5 from 3 orders/)).toBeVisible();
+    const card = page
+      .getByRole("article")
+      .filter({ hasText: "Quick delivery, the rice" });
+    await expect(card).toContainText("Priya S.");
+    await expect(card).toContainText("Verified order");
+    await expect(card).toContainText("Reply from Radhe Foods");
+    await expect(card).toContainText("Thank you, Priya!");
+    // The pending review of the other customer is not public.
+    await expect(page.getByText("kaju katli")).toHaveCount(0);
+
+    // Narrowed to four stars: Priya's and Meera's.
+    await page.getByRole("link", { name: /4 stars/ }).click();
+    await expect(page).toHaveURL(/\/en\/reviews\?rating=4$/);
+    await expect(page.getByRole("article")).toHaveCount(2);
+    await page.getByRole("link", { name: "Show all reviews" }).click();
+    await expect(page.getByRole("article")).toHaveCount(3);
+
+    // The account shows it published; nothing waits any more.
+    await page.goto("/en/account/reviews");
+    await expect(
+      page
+        .getByRole("region", { name: "Your reviews" })
+        .getByRole("listitem")
+        .filter({ hasText: "RF-1087" }),
+    ).toContainText("Published");
+    await expect(
+      page.getByRole("region", { name: "Orders you can review" }),
+    ).toContainText("Nothing to review yet");
+  });
+
+  test("the home page carries the section; products carry no stars; a dispatched order has no form", async ({
     page,
   }) => {
     await signIn(page);
-    await page.goto("/en/account/orders/RF-1085");
-    await page
-      .getByRole("listitem")
-      .filter({ hasText: "Mango Drink" })
-      .getByRole("link", { name: "Write a review" })
-      .click();
-    await expect(page).toHaveURL(/\/en\/account\/reviews\?product=/);
-    const sheet = page.getByRole("dialog", { name: /Your review of/ });
-    await expect(sheet).toBeVisible();
-    await sheet.getByRole("button", { name: "Save review" }).click();
+    await page.goto("/en");
+    const section = page.getByRole("region", {
+      name: "What our customers say",
+    });
+    await expect(section).toContainText("Priya S.");
+    await expect(section).toContainText("Verified order");
     await expect(
-      sheet.getByText("Please choose a number of stars."),
-    ).toBeVisible();
-    await sheet.getByRole("radio", { name: "4 stars" }).check();
-    await sheet.getByLabel("Your review").fill("Too short");
-    await sheet.getByRole("button", { name: "Save review" }).click();
-    await expect(
-      sheet.getByText("Please write at least 10 characters."),
-    ).toBeVisible();
-    await sheet
-      .getByLabel("Your review")
-      .fill("Sweet and refreshing, the children loved it.");
-    await sheet.getByRole("button", { name: "Save review" }).click();
-    await expect(
-      page.getByText(
-        "Thank you. Your review is shown once we have approved it.",
-      ),
-    ).toBeVisible();
+      section.getByRole("link", { name: "All reviews" }),
+    ).toHaveAttribute("href", "/en/reviews");
 
-    const mine = page.getByRole("region", { name: "Your reviews" });
-    const drink = mine.getByRole("listitem").filter({ hasText: "Mango Drink" });
-    await expect(drink).toContainText("Waiting for approval");
-    await expect(
-      mine.getByRole("listitem").filter({ hasText: "Basmati Rice" }),
-    ).toContainText("Published");
-    await expect(
-      page.getByRole("region", { name: "Waiting for your review" }),
-    ).toContainText("Nothing to review yet");
+    await page.goto("/en/products?q=basmati");
+    await expect(page.getByRole("img", { name: /Rated/ })).toHaveCount(0);
+    await page.goto("/en/products/basmati-rice-5kg");
+    await expect(page.getByRole("region", { name: "Reviews" })).toHaveCount(0);
 
-    await drink.getByRole("button", { name: "Edit" }).click();
-    const edit = page.getByRole("dialog", { name: /Your review of/ });
-    await edit.getByLabel("Title (optional)").fill("Summer in a carton");
-    await edit.getByRole("button", { name: "Save review" }).click();
-    await expect(drink).toContainText("Summer in a carton");
-
-    await drink.getByRole("button", { name: "Delete" }).click();
-    await drink.getByRole("button", { name: "Yes, delete" }).click();
+    // Dispatched, not delivered: nothing about a review on the order.
+    await page.goto("/en/account/orders/RF-1087");
     await expect(
-      mine.getByRole("listitem").filter({ hasText: "Mango Drink" }),
+      page.getByRole("heading", { level: 1, name: /RF-1087/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Your review" })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole("region", { name: "How was it?" })).toHaveCount(
+      0,
+    );
+    await expect(
+      page.getByRole("link", { name: "Write a review" }),
     ).toHaveCount(0);
-    await expect(
-      page.getByRole("region", { name: "Waiting for your review" }),
-    ).toContainText("Mango Drink");
-  });
-
-  test("a delivered order is rated once", async ({ page }) => {
-    await signIn(page);
-    await page.goto("/en/account/orders/RF-1085");
-    const feedback = page.getByRole("region", { name: "How was it?" });
-    await feedback.getByRole("button", { name: "Send" }).click();
-    await expect(
-      feedback.getByText("Please choose a number of stars."),
-    ).toBeVisible();
-    await feedback
-      .getByRole("group", { name: "Your order" })
-      .getByRole("radio", { name: "5 stars" })
-      .check();
-    await feedback
-      .getByRole("group", { name: "The delivery (optional)" })
-      .getByRole("radio", { name: "4 stars" })
-      .check();
-    await feedback.getByLabel(/Anything to add/).fill("Quick and friendly.");
-    await feedback.getByRole("button", { name: "Send" }).click();
-    await expect(feedback).toContainText("Thank you for your feedback.");
-    await expect(feedback).toContainText("You rated this order 5 out of 5.");
-    await expect(feedback).toContainText("The delivery: 4 out of 5.");
-    await page.reload();
-    await expect(
-      page.getByRole("region", { name: "How was it?" }),
-    ).toContainText("You rated this order 5 out of 5.");
-    await expect(page.getByRole("button", { name: "Send" })).toHaveCount(0);
   });
 });

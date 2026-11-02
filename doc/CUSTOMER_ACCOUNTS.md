@@ -154,6 +154,8 @@ Every registered account has a code (8 letters and digits, made on first request
 
 ## 8. Product reviews and order feedback
 
+> **Superseded on 2026-11-02** by `ORDER_REVIEWS.md`: a customer reviews a delivered order as a whole, once; products carry no rating, and the order feedback is gone. This section stays for the record only.
+
 ### Reviews
 
 One review per customer and product, for a product of a **delivered** order. Every review waits for the admin before the shop shows it; a published review that is rewritten waits again. The rating of a product is the average of its published reviews, with one decimal, and comes with every product in the catalogue: `rating: { average, count }` or `null` on list entries and product pages.

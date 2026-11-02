@@ -13,6 +13,7 @@ export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/how-it-works", priority: 0.6 },
   { href: "/delivery-and-payment", priority: 0.6 },
   { href: "/faq", priority: 0.5 },
+  { href: "/reviews", priority: 0.5 },
   { href: "/blog", priority: 0.6 },
   { href: "/legal/terms", priority: 0.2 },
   { href: "/legal/privacy", priority: 0.2 },

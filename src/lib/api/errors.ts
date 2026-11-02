@@ -82,11 +82,10 @@ export const API_ERROR_CODES = [
   "WISHLIST_LIMIT_REACHED",
   // guest checkout (20)
   "ORDER_TOKEN_INVALID",
-  // reviews and feedback (22)
-  "REVIEW_NOT_ALLOWED",
+  // order reviews (doc ORDER_REVIEWS)
+  "REVIEW_NOT_POSSIBLE",
+  "REVIEW_ALREADY_WRITTEN",
   "REVIEW_NOT_FOUND",
-  "FEEDBACK_ALREADY_GIVEN",
-  "FEEDBACK_NOT_POSSIBLE",
   // problem reports (23)
   "ISSUE_NOT_FOUND",
   "ISSUE_NOT_POSSIBLE",

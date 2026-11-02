@@ -322,7 +322,7 @@ function trackingUrlOf(order: OrderRecord, locale: Locale): string | null {
   return null;
 }
 
-function summaryOf(order: OrderRecord, locale: Locale): OrderSummary {
+export function summaryOf(order: OrderRecord, locale: Locale): OrderSummary {
   return {
     orderNumber: order.orderNumber,
     isGuest: order.guestToken !== null,
@@ -402,8 +402,6 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
     returns: returnsInfo(order),
     cancellation: order.cancellation,
     acceptedTerms: order.consent,
-    feedback: order.feedback,
-    canGiveFeedback: delivered && order.feedback === null,
   };
 }
 
@@ -905,7 +903,6 @@ function placeOrder(
     },
     pendingUntil: null,
     guestToken,
-    feedback: null,
   };
   db.orders.set(order.orderNumber, order);
   if (bill.discount) reserveDiscount(findDiscount(bill.discount.code)!);

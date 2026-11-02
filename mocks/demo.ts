@@ -189,46 +189,25 @@ export function seedDemoAccount(
   }
   customer.cart = [];
 
-  // Reviews (doc 22): hers of the delivered basmati, published with a
-  // reply, and one of the toor dal that waits; one by another customer.
-  const basmati = findVariant(SKU.basmati5kg)!.product.id;
-  const toorDal = findVariant(SKU.toorDal1kg)!.product.id;
+  // Reviews (doc ORDER_REVIEWS): hers of the delivered RF-1085, published
+  // with a reply; two by another customer of orders of her own, one of
+  // them still waiting, so the public list has more than one voice.
   db.reviews.set("66fb0000000000000000e001", {
     id: "66fb0000000000000000e001",
     customerId: customer.id,
-    productId: basmati,
     orderNumber: "RF-1085",
     rating: 5,
-    title: "Fluffy and fragrant",
-    text: "Long grains, cooks evenly and smells wonderful. The 5 kg bag keeps well.",
+    text: "Everything arrived fresh and well packed. The basmati cooks evenly and the mango drink was a hit with the children.",
     locale: "en",
     status: "published",
     rejectionNote: null,
     reply: {
-      text: "Thank you, Priya! We are glad it cooked well for you.",
+      text: "Thank you, Priya! We are glad it all arrived well.",
       at: daysAgo(6),
     },
-    createdAt: daysAgo(8),
+    writtenAt: daysAgo(8),
     updatedAt: daysAgo(8),
     publishedAt: daysAgo(7),
-    editedAt: null,
-  });
-  db.reviews.set("66fb0000000000000000e002", {
-    id: "66fb0000000000000000e002",
-    customerId: customer.id,
-    productId: toorDal,
-    orderNumber: "RF-1085",
-    rating: 4,
-    title: null,
-    text: "Good quality dal, cooks in twenty minutes in the pressure cooker.",
-    locale: "en",
-    status: "pending",
-    rejectionNote: null,
-    reply: null,
-    createdAt: daysAgo(1),
-    updatedAt: daysAgo(1),
-    publishedAt: null,
-    editedAt: null,
   });
   const meera = newCustomer({
     email: "meera@example.com",
@@ -237,22 +216,33 @@ export function seedDemoAccount(
     lastName: "Patel",
     passwordHash: hashPassword("Mangoes-in-May-2026"),
   });
-  db.reviews.set("66fb0000000000000000e003", {
-    id: "66fb0000000000000000e003",
+  db.reviews.set("66fb0000000000000000e002", {
+    id: "66fb0000000000000000e002",
     customerId: meera.id,
-    productId: basmati,
-    orderNumber: null,
+    orderNumber: "RF-1042",
     rating: 4,
-    title: "Very good rice",
-    text: "Slightly less aroma than the brand I used before, but excellent value.",
+    text: "Good selection and quick delivery. One packet of khakhra was a little crushed, but everything else was perfect.",
     locale: "en",
     status: "published",
     rejectionNote: null,
     reply: null,
-    createdAt: daysAgo(20),
+    writtenAt: daysAgo(20),
     updatedAt: daysAgo(20),
     publishedAt: daysAgo(19),
-    editedAt: null,
+  });
+  db.reviews.set("66fb0000000000000000e003", {
+    id: "66fb0000000000000000e003",
+    customerId: meera.id,
+    orderNumber: "RF-1051",
+    rating: 5,
+    text: "Lovely sweets, the kaju katli was gone within a day.",
+    locale: "en",
+    status: "pending",
+    rejectionNote: null,
+    reply: null,
+    writtenAt: daysAgo(1),
+    updatedAt: daysAgo(1),
+    publishedAt: null,
   });
 
   // A problem report on the delivered order (doc 23), resolved with a refund.

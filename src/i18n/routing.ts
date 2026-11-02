@@ -32,6 +32,7 @@ export const routing = defineRouting({
       de: "/lieferung-und-zahlung",
     },
     "/faq": "/faq",
+    "/reviews": { en: "/reviews", de: "/bewertungen" },
     "/blog": "/blog",
     "/blog/[slug]": "/blog/[slug]",
     "/blog/category/[slug]": {

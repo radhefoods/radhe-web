@@ -46,6 +46,7 @@ import {
   listOrders,
   orderDetail,
   ordersOf,
+  summaryOf,
   removeDiscount,
   resetFixtures,
 } from "./orders.ts";
@@ -135,11 +136,6 @@ import {
   setMediaBase,
   settingsView,
   soldProduct,
-  defaultVariant,
-  findProduct,
-  productImageUrl,
-  ratingOf,
-  variantSlug,
   wishlistView,
 } from "./views.ts";
 
@@ -1659,104 +1655,63 @@ route("DELETE", "/v1/store/wishlists/:id/items", (ctx) => {
   return listView(list, ctx.locale);
 });
 
-// --- 22 Product reviews and order feedback (doc 22, CUSTOMER_ACCOUNTS 8) ----
+// --- Order reviews (doc ORDER_REVIEWS) ---------------------------------------
 
 const REVIEW_TEXT_MIN = 10;
 const REVIEW_TEXT_MAX = 2000;
 
-/** The products of the customer's delivered orders, newest delivery first. */
-function deliveredProducts(customer: CustomerRecord) {
-  return ordersOf(customer)
-    .filter((order) => order.delivery.deliveredAt !== null)
-    .sort(
-      (a, b) =>
-        Date.parse(b.delivery.deliveredAt!) -
-        Date.parse(a.delivery.deliveredAt!),
-    )
-    .flatMap((order) =>
-      order.items.map((item) => ({
-        productId: item.productId,
-        orderNumber: order.orderNumber,
-        deliveredAt: order.delivery.deliveredAt!,
-      })),
-    );
-}
-
-function productRefOf(productId: string, locale: Locale) {
-  const p = findProduct(productId);
-  return {
-    id: productId,
-    slug: p ? variantSlug(p, defaultVariant(p), locale) : productId,
-    name: p ? p.name[locale] || p.name.en : productId,
-    imageUrl: productImageUrl(productId, "small"),
-  };
-}
-
-/** A review as the customer sees it among their own (doc 22). */
-function myReviewView(review: ReviewRecord, locale: Locale) {
-  return {
-    id: review.id,
-    productId: review.productId,
-    product: productRefOf(review.productId, locale),
-    orderNumber: review.orderNumber,
-    rating: review.rating,
-    title: review.title,
-    text: review.text,
-    locale: review.locale,
-    status: review.status,
-    rejectionNote: review.rejectionNote,
-    createdAt: review.createdAt,
-    updatedAt: review.updatedAt,
-    publishedAt: review.publishedAt,
-  };
-}
-
 /** "Priya S.": the first name and the initial of the last name. */
 function authorNameOf(review: ReviewRecord): string {
   const customer = db.customers.get(review.customerId);
-  if (!customer || customer.deletedAt) return "Radhe Foods customer";
-  const initial = customer.lastName?.trim().charAt(0);
-  return `${customer.firstName ?? ""}${initial ? ` ${initial}.` : ""}`.trim();
+  if (!customer) return "Customer";
+  const first = customer.firstName ?? "Customer";
+  const initial = (customer.lastName ?? "").trim().charAt(0);
+  return initial ? `${first} ${initial}.` : first;
 }
 
-function publishedReviewView(review: ReviewRecord) {
+/** A review as everyone sees it. */
+function publicReviewView(review: ReviewRecord) {
   return {
     id: review.id,
     rating: review.rating,
-    title: review.title,
     text: review.text,
     locale: review.locale,
     authorName: authorNameOf(review),
-    verifiedPurchase: true,
+    verifiedPurchase: true as const,
+    writtenAt: review.writtenAt,
     publishedAt: review.publishedAt,
-    editedAt: review.editedAt,
     reply: review.reply,
   };
 }
 
-function myReviewsOf(customer: CustomerRecord): ReviewRecord[] {
-  return [...db.reviews.values()]
-    .filter((review) => review.customerId === customer.id)
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+/** A review as its author sees it: the public view with the order and the status. */
+function myReviewView(review: ReviewRecord) {
+  return {
+    ...publicReviewView(review),
+    orderNumber: review.orderNumber,
+    status: review.status,
+    rejectionNote: review.rejectionNote,
+  };
 }
 
-route("GET", "/v1/store/products/:productId/reviews", (ctx) => {
-  const productId = ctx.params.productId;
-  if (!OBJECT_ID.test(productId)) {
-    throw validationFailed("productId", "The id in the URL is not valid.");
-  }
+function reviewOfOrder(orderNumber: string): ReviewRecord | undefined {
+  return [...db.reviews.values()].find(
+    (review) => review.orderNumber === orderNumber,
+  );
+}
+
+route("GET", "/v1/store/reviews", (ctx) => {
   const page = intParam(ctx.url, "page", 1, 500) ?? 1;
-  const limit = intParam(ctx.url, "limit", 1, 100) ?? 10;
+  const limit = intParam(ctx.url, "limit", 1, 50) ?? 10;
   const rating = intParam(ctx.url, "rating", 1, 5);
   const published = [...db.reviews.values()]
-    .filter(
-      (review) =>
-        review.productId === productId && review.status === "published",
-    )
+    .filter((review) => review.status === "published")
     .sort((a, b) => Date.parse(b.publishedAt!) - Date.parse(a.publishedAt!));
   const distribution = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+  let sum = 0;
   for (const review of published) {
     distribution[String(review.rating) as keyof typeof distribution] += 1;
+    sum += review.rating;
   }
   const filtered =
     rating === undefined
@@ -1767,13 +1722,16 @@ route("GET", "/v1/store/products/:productId/reviews", (ctx) => {
     body: {
       items: filtered
         .slice((page - 1) * limit, page * limit)
-        .map(publishedReviewView),
+        .map(publicReviewView),
       page,
       limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       summary: {
-        average: ratingOf(productId)?.average ?? 0,
+        average:
+          published.length > 0
+            ? Math.round((sum / published.length) * 10) / 10
+            : null,
         count: published.length,
         distribution,
       },
@@ -1781,47 +1739,22 @@ route("GET", "/v1/store/products/:productId/reviews", (ctx) => {
   };
 });
 
-route("GET", "/v1/store/me/reviews", (ctx) => {
+route("GET", "/v1/store/orders/:orderNumber/review", (ctx) => {
   const customer = requireCustomer(ctx);
+  const order = findOrder(customer, ctx.params.orderNumber);
+  const review = reviewOfOrder(order.orderNumber);
   return {
     body: {
-      items: myReviewsOf(customer).map((review) =>
-        myReviewView(review, ctx.locale),
-      ),
+      review: review ? myReviewView(review) : null,
+      canReview: order.delivery.deliveredAt !== null && !review,
     },
   };
 });
 
-route("GET", "/v1/store/me/reviews/reviewable", (ctx) => {
+route("POST", "/v1/store/orders/:orderNumber/review", (ctx) => {
   const customer = requireCustomer(ctx);
-  const seen = new Set<string>();
-  const items = [];
-  for (const entry of deliveredProducts(customer)) {
-    if (seen.has(entry.productId)) continue;
-    seen.add(entry.productId);
-    const review = myReviewsOf(customer).find(
-      (candidate) => candidate.productId === entry.productId,
-    );
-    items.push({
-      product: productRefOf(entry.productId, ctx.locale),
-      orderNumber: entry.orderNumber,
-      deliveredAt: entry.deliveredAt,
-      review: review ? myReviewView(review, ctx.locale) : null,
-    });
-  }
-  return { body: { items } };
-});
-
-route("PUT", "/v1/store/me/reviews/:productId", (ctx) => {
-  const customer = requireCustomer(ctx);
-  const productId = productIdParam(ctx);
-  const body = objectBody(ctx.body, [
-    "rating",
-    "title",
-    "text",
-    "orderNumber",
-    "locale",
-  ]);
+  const order = findOrder(customer, ctx.params.orderNumber);
+  const body = objectBody(ctx.body, ["rating", "text", "locale"]);
   const rating = body.rating;
   if (
     typeof rating !== "number" ||
@@ -1833,149 +1766,79 @@ route("PUT", "/v1/store/me/reviews/:productId", (ctx) => {
   }
   const text = typeof body.text === "string" ? body.text.trim() : "";
   if (text.length < REVIEW_TEXT_MIN || text.length > REVIEW_TEXT_MAX) {
-    throw validationFailed("text", "text must be 10 to 2000 characters");
-  }
-  if (
-    body.title !== undefined &&
-    (typeof body.title !== "string" || body.title.trim().length > 120)
-  ) {
-    throw validationFailed("title", "title must be at most 120 characters");
-  }
-  if (body.orderNumber !== undefined && typeof body.orderNumber !== "string") {
-    throw validationFailed("orderNumber", "orderNumber must be a string");
-  }
-  const locale = optionalLocale(body.locale, ctx.locale);
-  const delivered = deliveredProducts(customer).find(
-    (entry) => entry.productId === productId,
-  );
-  if (!delivered) {
-    throw new HttpError(
-      403,
-      "REVIEW_NOT_ALLOWED",
-      "No delivered order of yours has this product.",
-    );
-  }
-  const now = new Date().toISOString();
-  const title =
-    typeof body.title === "string" ? body.title.trim() || null : null;
-  const existing = myReviewsOf(customer).find(
-    (review) => review.productId === productId,
-  );
-  let review: ReviewRecord;
-  if (existing) {
-    // Rewritten: it waits for the admin again.
-    review = existing;
-    review.rating = rating;
-    review.title = title;
-    review.text = text;
-    review.locale = locale;
-    review.editedAt = review.status === "published" ? now : review.editedAt;
-    review.status = "pending";
-    review.rejectionNote = null;
-    review.updatedAt = now;
-    review.orderNumber =
-      (body.orderNumber as string | undefined) ?? review.orderNumber;
-  } else {
-    review = {
-      id: `66fb${randomBytes(10).toString("hex")}`,
-      customerId: customer.id,
-      productId,
-      orderNumber:
-        (body.orderNumber as string | undefined) ?? delivered.orderNumber,
-      rating,
-      title,
-      text,
-      locale,
-      status: "pending",
-      rejectionNote: null,
-      reply: null,
-      createdAt: now,
-      updatedAt: now,
-      publishedAt: null,
-      editedAt: null,
-    };
-    db.reviews.set(review.id, review);
-  }
-  return { body: { review: myReviewView(review, ctx.locale) } };
-});
-
-route("DELETE", "/v1/store/me/reviews/:productId", (ctx) => {
-  const customer = requireCustomer(ctx);
-  const productId = productIdParam(ctx);
-  const existing = myReviewsOf(customer).find(
-    (review) => review.productId === productId,
-  );
-  if (!existing) {
-    throw new HttpError(404, "REVIEW_NOT_FOUND", "No review of this product.");
-  }
-  db.reviews.delete(existing.id);
-  return { status: 204 };
-});
-
-route("POST", "/v1/store/orders/:orderNumber/feedback", (ctx) => {
-  const customer = requireCustomer(ctx);
-  const order = findOrder(customer, ctx.params.orderNumber);
-  const body = objectBody(ctx.body, ["rating", "deliveryRating", "comment"]);
-  for (const key of ["rating", "deliveryRating"] as const) {
-    const value = body[key];
-    if (key === "deliveryRating" && value === undefined) continue;
-    if (
-      typeof value !== "number" ||
-      !Number.isInteger(value) ||
-      value < 1 ||
-      value > 5
-    ) {
-      throw validationFailed(key, `${key} must be 1 to 5`);
-    }
-  }
-  if (
-    body.comment !== undefined &&
-    (typeof body.comment !== "string" || body.comment.length > 1000)
-  ) {
     throw validationFailed(
-      "comment",
-      "comment must be at most 1000 characters",
+      "text",
+      `text must be ${REVIEW_TEXT_MIN} to ${REVIEW_TEXT_MAX} characters`,
     );
   }
   if (order.delivery.deliveredAt === null) {
     throw new HttpError(
       409,
-      "FEEDBACK_NOT_POSSIBLE",
+      "REVIEW_NOT_POSSIBLE",
       "The order is not delivered yet.",
+      { status: order.status },
     );
   }
-  if (order.feedback) {
+  if (reviewOfOrder(order.orderNumber)) {
     throw new HttpError(
       409,
-      "FEEDBACK_ALREADY_GIVEN",
-      "Feedback was given for this order already.",
+      "REVIEW_ALREADY_WRITTEN",
+      "The order has its review.",
     );
   }
-  order.feedback = {
-    rating: body.rating as number,
-    deliveryRating: (body.deliveryRating as number | undefined) ?? null,
-    comment:
-      typeof body.comment === "string" ? body.comment.trim() || null : null,
-    at: new Date().toISOString(),
+  const now = new Date().toISOString();
+  const review: ReviewRecord = {
+    id: `66fb${randomBytes(10).toString("hex")}`,
+    customerId: customer.id,
+    orderNumber: order.orderNumber,
+    rating,
+    text,
+    locale:
+      body.locale === "de" || body.locale === "en" ? body.locale : ctx.locale,
+    status: "pending",
+    rejectionNote: null,
+    reply: null,
+    writtenAt: now,
+    updatedAt: now,
+    publishedAt: null,
   };
-  return { status: 201, body: { feedback: order.feedback } };
+  db.reviews.set(review.id, review);
+  return { status: 201, body: { review: myReviewView(review) } };
+});
+
+route("GET", "/v1/store/me/reviews", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const items = [...db.reviews.values()]
+    .filter((review) => review.customerId === customer.id)
+    .sort((a, b) => Date.parse(b.writtenAt) - Date.parse(a.writtenAt))
+    .map(myReviewView);
+  return { body: { items } };
+});
+
+route("GET", "/v1/store/me/reviews/reviewable", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const items = ordersOf(customer)
+    .filter(
+      (order) =>
+        order.delivery.deliveredAt !== null &&
+        !reviewOfOrder(order.orderNumber),
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(b.delivery.deliveredAt!) -
+        Date.parse(a.delivery.deliveredAt!),
+    )
+    .slice(0, 50)
+    .map((order) => summaryOf(order, ctx.locale));
+  return { body: { items } };
 });
 
 // Not part of the real API: the admin's decision on a review, for tests
-// and for looking at the shop (`{ email, productId, action, note?, text? }`).
+// and for looking at the shop (`{ orderNumber, action, note?, text? }`).
 route("POST", "/__mock/review", (ctx) => {
-  const body = objectBody(ctx.body, [
-    "email",
-    "productId",
-    "action",
-    "note",
-    "text",
-  ]);
-  const customer = customerByEmail(String(body.email).toLowerCase());
-  const review =
-    customer &&
-    myReviewsOf(customer).find((r) => r.productId === body.productId);
-  if (!review) throw validationFailed("productId", "no such review");
+  const body = objectBody(ctx.body, ["orderNumber", "action", "note", "text"]);
+  const review = reviewOfOrder(String(body.orderNumber));
+  if (!review) throw validationFailed("orderNumber", "no such review");
   const now = new Date().toISOString();
   switch (body.action) {
     case "approve":
@@ -1990,10 +1853,13 @@ route("POST", "/__mock/review", (ctx) => {
     case "reply":
       review.reply = { text: String(body.text ?? ""), at: now };
       break;
+    case "delete":
+      db.reviews.delete(review.id);
+      return { status: 204 };
     default:
       throw validationFailed(
         "action",
-        "action must be approve, reject or reply",
+        "action must be approve, reject, reply or delete",
       );
   }
   review.updatedAt = now;

@@ -2,9 +2,10 @@ import { Star } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
- * Five stars with the average filled to the decimal (doc 22): a grey row
- * with a wheat row clipped over it. The figure beside them is the
- * caller's; the spoken label carries the whole meaning.
+ * Five stars with the average filled to the decimal: a grey row with a
+ * wheat row clipped over it. The figure beside them is the caller's; the
+ * spoken label carries the whole meaning. Since 2026-11-02 only for the
+ * reviews of orders (doc ORDER_REVIEWS): nothing on a product is rated.
  */
 export function RatingStars({
   average,
@@ -31,7 +32,7 @@ export function RatingStars({
           key={index}
           aria-hidden="true"
           className={cn(star, filled ? "fill-current" : "fill-ink/10")}
-          strokeWidth={filled ? 0 : 0}
+          strokeWidth={0}
         />
       ))}
     </span>

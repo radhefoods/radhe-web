@@ -339,19 +339,6 @@ function variantView(
   };
 }
 
-/** The average of the published reviews, one decimal, or `null` (doc 22). */
-export function ratingOf(productId: string): ProductSummary["rating"] {
-  const published = [...db.reviews.values()].filter(
-    (review) => review.productId === productId && review.status === "published",
-  );
-  if (published.length === 0) return null;
-  const sum = published.reduce((total, review) => total + review.rating, 0);
-  return {
-    average: Math.round((sum / published.length) * 10) / 10,
-    count: published.length,
-  };
-}
-
 /**
  * The list entry of a product (doc 7): the product shown as one of its pack
  * sizes, the default one unless another is asked for.
@@ -395,7 +382,6 @@ export function productSummary(
     image: imageView(p, locale),
     variants,
     variantCount: variants.length,
-    rating: ratingOf(p.id),
   };
 }
 

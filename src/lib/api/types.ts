@@ -312,12 +312,6 @@ export interface Seo {
   description: string | null;
 }
 
-/** The average of the published reviews of a product, one decimal (22). */
-export interface ProductRating {
-  average: number;
-  count: number;
-}
-
 export interface LocalizedSlugs {
   en: string;
   de: string;
@@ -417,11 +411,6 @@ export interface ProductSummary {
   /** Every enabled size, smallest first, the shown one included. */
   variants: ProductVariant[];
   variantCount: number;
-  /**
-   * The published reviews, or `null` without any (22). Absent from an API
-   * older than 2026-11-01.
-   */
-  rating?: ProductRating | null;
 }
 
 /** The product page, opened on one size: the list entry plus the texts. */
@@ -820,10 +809,6 @@ export interface OrderDetail extends OrderSummary {
     at: IsoDateTime;
     documents: { type: LegalType; version: number }[];
   };
-  /** What the customer said after the delivery (22), or `null`. Absent from an older API. */
-  feedback?: OrderFeedback | null;
-  /** Delivered, and no feedback given yet. */
-  canGiveFeedback?: boolean;
 }
 
 export type ConsentVersions = Partial<Record<LegalType, number>>;
@@ -1105,42 +1090,45 @@ export interface Referral {
   invitees: ReferralInvitee[];
 }
 
-// --- 22 Product reviews and order feedback ----------------------------------
+// --- Order reviews (doc ORDER_REVIEWS) ---------------------------------------
 
 export interface ReviewReply {
   text: string;
   at: IsoDateTime;
 }
 
-/** A published review as the product page shows it. */
+/** A published review of a delivered order, as everyone sees it. */
 export interface Review {
   id: Id;
+  /** 1 to 5. */
   rating: number;
-  title: string | null;
   text: string;
   locale: Locale;
   /** The first name and the initial of the last name ("Priya S."). */
   authorName: string;
+  /** Always true: every review belongs to a delivered order. */
   verifiedPurchase: true;
+  writtenAt: IsoDateTime;
   publishedAt: IsoDateTime;
-  editedAt: IsoDateTime | null;
   reply: ReviewReply | null;
 }
 
 export interface ReviewSummary {
-  /** `null` without any review (as the API answers it). */
+  /** One decimal; `null` without any review. */
   average: number | null;
   count: number;
   /** How many reviews gave each star, `"1"` to `"5"`. */
   distribution: Record<"1" | "2" | "3" | "4" | "5", number>;
 }
 
+/** `GET /v1/store/reviews`: the published reviews, newest first; the summary counts all of them. */
 export interface ReviewPage extends Page<Review> {
   summary: ReviewSummary;
 }
 
 export interface ReviewQuery {
   page?: number;
+  /** Up to 50. */
   limit?: number;
   /** Only reviews with this many stars. */
   rating?: number;
@@ -1148,54 +1136,29 @@ export interface ReviewQuery {
 
 export type ReviewStatus = "pending" | "published" | "rejected";
 
-/** One of the customer's own reviews (`GET /v1/store/me/reviews`). */
-export interface MyReview {
-  id: Id;
-  productId: Id;
-  product: { id: Id; slug: string; name: string; imageUrl: string | null };
-  orderNumber: string | null;
-  rating: number;
-  title: string | null;
-  text: string;
-  locale: Locale;
+/** The customer's own review of an order, whatever its status. */
+export interface MyReview extends Omit<Review, "publishedAt"> {
+  orderNumber: string;
   status: ReviewStatus;
+  /** The admin's note when rejected. */
   rejectionNote: string | null;
-  createdAt: IsoDateTime;
-  updatedAt: IsoDateTime;
   publishedAt: IsoDateTime | null;
 }
 
-/** A product of a delivered order, with what was written for it so far. */
-export interface ReviewableItem {
-  product: { id: Id; slug: string; name: string; imageUrl: string | null };
-  orderNumber: string;
-  deliveredAt: IsoDateTime;
+/** `GET /v1/store/orders/{orderNumber}/review`. */
+export interface OrderReviewState {
   review: MyReview | null;
+  /** Delivered, and no review yet. */
+  canReview: boolean;
 }
 
-/** `PUT /v1/store/me/reviews/{productId}`: written, or rewritten (then it waits again). */
-export interface SaveReviewInput {
+/** `POST /v1/store/orders/{orderNumber}/review`: written once. */
+export interface WriteReviewInput {
   /** 1 to 5. */
   rating: number;
-  title?: string;
   /** 10 to 2000 characters. */
   text: string;
-  orderNumber?: string;
   locale?: Locale;
-}
-
-export interface OrderFeedback {
-  rating: number;
-  deliveryRating: number | null;
-  comment: string | null;
-  at: IsoDateTime;
-}
-
-/** `POST /v1/store/orders/{orderNumber}/feedback`: once per delivered order. */
-export interface OrderFeedbackInput {
-  rating: number;
-  deliveryRating?: number;
-  comment?: string;
 }
 
 // --- 23 Problem reports -----------------------------------------------------

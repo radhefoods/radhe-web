@@ -4,6 +4,10 @@ import { getTranslations } from "next-intl/server";
 import { CategoryTiles } from "@/components/catalogue/category-tiles";
 import { ProductCard } from "@/components/catalogue/product-card";
 import { CategoryRow } from "@/components/home/category-row";
+import {
+  CustomerReviews,
+  HOME_REVIEWS,
+} from "@/components/home/customer-reviews";
 import { DeliveryPromiseCard } from "@/components/home/delivery-promise-card";
 import { HeroCarousel } from "@/components/home/hero-carousel";
 import { ProductRow, ProductRowItem } from "@/components/home/product-row";
@@ -26,6 +30,7 @@ import {
   popularProducts,
   rowQuery,
 } from "@/features/catalogue/home";
+import { getReviews } from "@/features/reviews/data";
 import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
@@ -65,18 +70,27 @@ async function products(
   }
 }
 
+/** The newest published reviews for the home page; none when the API is away. */
+async function reviewsPreview(locale: Locale) {
+  try {
+    return await getReviews({ limit: HOME_REVIEWS }, locale);
+  } catch {
+    return null;
+  }
+}
+
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const locale = await localeOf(params);
-  const [t, tSite, settings, categories, featured, banners] = await Promise.all(
-    [
+  const [t, tSite, settings, categories, featured, banners, reviews] =
+    await Promise.all([
       getTranslations("home"),
       getTranslations("site"),
       getSettings(),
       getCategories(locale),
       products(featuredQuery, locale).then((list) => list?.items ?? []),
       getBanners(locale),
-    ],
-  );
+      reviewsPreview(locale),
+    ]);
   // One row per main category that has products, in the order of the
   // admin, each with its pack sizes in rounds: the smallest size of every
   // product first, in the admin's order (owner, 2026-10-16 and
@@ -249,6 +263,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             ))}
           </CategoryRow>
         ))}
+
+        {/* What customers say about their delivered orders (ORDER_REVIEWS
+            4), only while there is a published review. */}
+        {reviews && <CustomerReviews page={reviews} locale={locale} />}
       </div>
     </>
   );

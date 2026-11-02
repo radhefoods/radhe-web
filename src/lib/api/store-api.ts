@@ -40,8 +40,7 @@ import type {
   LoginInput,
   MyReview,
   OrderDetail,
-  OrderFeedback,
-  OrderFeedbackInput,
+  OrderReviewState,
   OrderIssues,
   OrderPayment,
   OrderReturns,
@@ -55,8 +54,6 @@ import type {
   ReturnRequest,
   ReviewPage,
   ReviewQuery,
-  ReviewableItem,
-  SaveReviewInput,
   SessionResult,
   ShopSettings,
   SignUpInput,
@@ -71,6 +68,7 @@ import type {
   WishlistInput,
   WishlistSummary,
   WishlistTransferInput,
+  WriteReviewInput,
 } from "./types";
 
 /** What a single call may set besides its own parameters. */
@@ -540,50 +538,34 @@ export function createStoreApi(request: Requester) {
     getReferral: (o?: CallOptions) =>
       localized<{ referral: Referral }>("/v1/store/me/referral", o),
 
-    // --- 22 Reviews and order feedback ----------------------------------------
-    /** The published reviews of a product, newest first, with the summary (22). */
-    listProductReviews: (
-      productId: Id,
-      query: ReviewQuery = {},
-      o?: CallOptions,
-    ) =>
-      localized<ReviewPage>(`/v1/store/products/${seg(productId)}/reviews`, {
-        ...o,
-        query: { ...query },
-      }),
-    /** The customer's own reviews, with their status. */
-    listMyReviews: (o?: CallOptions) =>
-      localized<{ items: MyReview[] }>("/v1/store/me/reviews", o),
-    /** Every product of a delivered order, newest delivery first. */
-    listReviewable: (o?: CallOptions) =>
-      localized<{ items: ReviewableItem[] }>(
-        "/v1/store/me/reviews/reviewable",
+    // --- Order reviews (doc ORDER_REVIEWS) ------------------------------------
+    /** The published reviews of delivered orders, newest first, with the summary. */
+    listReviews: (query: ReviewQuery = {}, o?: CallOptions) =>
+      localized<ReviewPage>("/v1/store/reviews", { ...o, query: { ...query } }),
+    /** The customer's review of an order, and whether one can be written. */
+    getOrderReview: (orderNumber: string, o?: CallOptions) =>
+      localized<OrderReviewState>(
+        `/v1/store/orders/${seg(orderNumber)}/review`,
         o,
       ),
-    /** Writes, or rewrites, the review of a product; it waits for approval. */
-    saveReview: (productId: Id, input: SaveReviewInput, o?: CallOptions) =>
-      localized<{ review: MyReview }>(
-        `/v1/store/me/reviews/${seg(productId)}`,
-        {
-          ...o,
-          method: "PUT",
-          body: input,
-        },
-      ),
-    deleteReview: (productId: Id, o?: CallOptions) =>
-      localized<void>(`/v1/store/me/reviews/${seg(productId)}`, {
-        ...o,
-        method: "DELETE",
-      }),
-    /** How the order and its delivery were, once per delivered order. */
-    giveOrderFeedback: (
+    /** Writes the one review of a delivered order; it waits for approval. */
+    writeOrderReview: (
       orderNumber: string,
-      input: OrderFeedbackInput,
+      input: WriteReviewInput,
       o?: CallOptions,
     ) =>
-      localized<{ feedback: OrderFeedback }>(
-        `/v1/store/orders/${seg(orderNumber)}/feedback`,
+      localized<{ review: MyReview }>(
+        `/v1/store/orders/${seg(orderNumber)}/review`,
         { ...o, method: "POST", body: input },
+      ),
+    /** The customer's own reviews, newest first, whatever their status. */
+    listMyReviews: (o?: CallOptions) =>
+      localized<{ items: MyReview[] }>("/v1/store/me/reviews", o),
+    /** The delivered orders without a review, newest delivery first. */
+    listReviewable: (o?: CallOptions) =>
+      localized<{ items: OrderSummary[] }>(
+        "/v1/store/me/reviews/reviewable",
+        o,
       ),
 
     // --- 23 Problem reports ---------------------------------------------------

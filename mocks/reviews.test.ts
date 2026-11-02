@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { hasErrorCode } from "../src/lib/api/errors.ts";
 import { SKU } from "./data/catalogue.ts";
-import { startMockApi, TEST_PASSWORD } from "./testing.ts";
+import { startMockApi } from "./testing.ts";
 
-// Product reviews and order feedback (doc 22, CUSTOMER_ACCOUNTS 8), through
-// the shop's API client.
+// Order reviews (doc ORDER_REVIEWS), through the shop's API client: one
+// review per delivered order, waiting for the admin, then public.
 
 const mock = startMockApi();
 
-/** A customer with a delivered order of two products. */
-async function delivered(email = "priya@example.com") {
+/** A customer with a paid order, delivered unless said otherwise. */
+async function ordered(email = "priya@example.com", deliver = true) {
   const client = await mock.signIn(email);
   const { items } = await client.api.createAddress({
     firstName: "Priya",
@@ -36,164 +36,148 @@ async function delivered(email = "priya@example.com") {
     `attempt-${email.replace(/\W/g, "")}`,
   );
   await fetch(`${checkout.url}/pay?type=card`, { redirect: "manual" });
-  await mock.control("order", {
-    orderNumber: order.orderNumber,
-    actions: ["deliver"],
-  });
-  const rice = (await client.api.getProduct("basmati-rice-1kg")).product;
-  return { ...client, orderNumber: order.orderNumber, rice };
+  if (deliver) {
+    await mock.control("order", {
+      orderNumber: order.orderNumber,
+      actions: ["deliver"],
+    });
+  }
+  return { ...client, orderNumber: order.orderNumber };
 }
 
-describe("product reviews", () => {
-  it("is allowed for a delivered product, waits for approval, then shows on the product", async () => {
-    const { api, orderNumber, rice } = await delivered();
-    const nothing = await api.listProductReviews(rice.id);
-    expect(nothing.summary).toEqual({
-      average: 0,
+describe("order reviews", () => {
+  it("is written once for a delivered order, waits for approval, then shows among what customers say", async () => {
+    const { api, orderNumber } = await ordered();
+    expect(await api.getOrderReview(orderNumber)).toEqual({
+      review: null,
+      canReview: true,
+    });
+    expect(
+      (await api.listReviewable()).items.map((order) => order.orderNumber),
+    ).toEqual([orderNumber]);
+    expect((await mock.guestApi().listReviews()).summary).toEqual({
+      average: null,
       count: 0,
       distribution: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 },
     });
-    const reviewable = await api.listReviewable();
-    expect(reviewable.items.map((item) => item.orderNumber)).toEqual([
-      orderNumber,
-      orderNumber,
-    ]);
-    expect(reviewable.items[0].review).toBeNull();
 
-    const notBought = (await api.listProducts({ q: "khakhra" })).items[0];
-    const refused = await api
-      .saveReview(notBought.id, { rating: 5, text: "Never had it, sorry." })
-      .catch((e) => e);
-    expect(hasErrorCode(refused, "REVIEW_NOT_ALLOWED")).toBe(true);
     const tooShort = await api
-      .saveReview(rice.id, { rating: 5, text: "Nice" })
+      .writeOrderReview(orderNumber, { rating: 5, text: "Nice" })
       .catch((e) => e);
     expect(hasErrorCode(tooShort, "VALIDATION_FAILED")).toBe(true);
+    const noStars = await api
+      .writeOrderReview(orderNumber, {
+        rating: 0,
+        text: "Arrived well packed.",
+      })
+      .catch((e) => e);
+    expect(hasErrorCode(noStars, "VALIDATION_FAILED")).toBe(true);
 
-    const { review } = await api.saveReview(rice.id, {
+    const { review } = await api.writeOrderReview(orderNumber, {
       rating: 5,
-      title: "Lovely",
-      text: "Cooks evenly and smells wonderful.",
-      orderNumber,
+      text: "Everything arrived fresh and well packed.",
     });
     expect(review).toMatchObject({
-      productId: rice.id,
+      orderNumber,
       status: "pending",
       rating: 5,
-      title: "Lovely",
+      authorName: "Anna S.",
+      verifiedPurchase: true,
+      rejectionNote: null,
+      publishedAt: null,
     });
-    expect(review.product.slug).toBe("basmati-rice-1kg");
-    // Not shown until approved; the product has no rating yet.
-    expect((await api.listProductReviews(rice.id)).items).toEqual([]);
-    expect(
-      (await api.getProduct("basmati-rice-1kg")).product.rating,
-    ).toBeNull();
-    expect((await api.listReviewable()).items[0].review?.id).toBe(review.id);
+    expect((await api.getOrderReview(orderNumber)).canReview).toBe(false);
+    expect((await api.listReviewable()).items).toEqual([]);
+    // Not public until approved.
+    expect((await mock.guestApi().listReviews()).items).toEqual([]);
+    const again = await api
+      .writeOrderReview(orderNumber, { rating: 4, text: "A second attempt." })
+      .catch((e) => e);
+    expect(hasErrorCode(again, "REVIEW_ALREADY_WRITTEN")).toBe(true);
 
+    await mock.control("review", { orderNumber, action: "approve" });
     await mock.control("review", {
-      email: "priya@example.com",
-      productId: rice.id,
-      action: "approve",
-    });
-    await mock.control("review", {
-      email: "priya@example.com",
-      productId: rice.id,
+      orderNumber,
       action: "reply",
       text: "Thank you!",
     });
-    const shown = await api.listProductReviews(rice.id);
+    const shown = await mock.guestApi().listReviews();
     expect(shown.summary).toMatchObject({ average: 5, count: 1 });
     expect(shown.items[0]).toMatchObject({
       authorName: "Anna S.",
       verifiedPurchase: true,
       reply: { text: "Thank you!" },
     });
-    expect((await api.getProduct("basmati-rice-1kg")).product.rating).toEqual({
-      average: 5,
-      count: 1,
+    expect((await api.listMyReviews()).items[0]).toMatchObject({
+      status: "published",
+      reply: { text: "Thank you!" },
     });
-    const mine = await api.listMyReviews();
-    expect(mine.items[0].status).toBe("published");
-
-    // Rewritten: it waits again, marked as edited once published.
-    const rewritten = await api.saveReview(rice.id, {
-      rating: 4,
-      text: "Still good, a little less aroma this time.",
-    });
-    expect(rewritten.review.status).toBe("pending");
-    expect((await api.listProductReviews(rice.id)).items).toEqual([]);
 
     await mock.control("review", {
-      email: "priya@example.com",
-      productId: rice.id,
+      orderNumber,
       action: "reject",
-      note: "Please keep to the product.",
+      note: "Please keep to the order.",
     });
     expect((await api.listMyReviews()).items[0]).toMatchObject({
       status: "rejected",
-      rejectionNote: "Please keep to the product.",
+      rejectionNote: "Please keep to the order.",
     });
-    await api.deleteReview(rice.id);
+    expect((await mock.guestApi().listReviews()).summary.count).toBe(0);
+
+    // Deleted by the admin: the order can be reviewed again.
+    await mock.control("review", { orderNumber, action: "delete" });
+    expect((await api.getOrderReview(orderNumber)).canReview).toBe(true);
     expect((await api.listMyReviews()).items).toEqual([]);
-    const gone = await api.deleteReview(rice.id).catch((e) => e);
-    expect(hasErrorCode(gone, "REVIEW_NOT_FOUND")).toBe(true);
+  });
+
+  it("refuses an order that is not delivered, and another customer's order", async () => {
+    const { api, orderNumber } = await ordered("max@example.com", false);
+    expect(await api.getOrderReview(orderNumber)).toEqual({
+      review: null,
+      canReview: false,
+    });
+    expect((await api.listReviewable()).items).toEqual([]);
+    const early = await api
+      .writeOrderReview(orderNumber, {
+        rating: 5,
+        text: "Looking forward to it.",
+      })
+      .catch((e) => e);
+    expect(hasErrorCode(early, "REVIEW_NOT_POSSIBLE")).toBe(true);
+    const other = await mock.signIn("nina@example.com");
+    const notMine = await other.api.getOrderReview(orderNumber).catch((e) => e);
+    expect(hasErrorCode(notMine, "ORDER_NOT_FOUND")).toBe(true);
   });
 
   it("filters by stars and pages the list", async () => {
-    const { api, rice } = await delivered();
-    await api.saveReview(rice.id, { rating: 3, text: "Average, honestly." });
+    const first = await ordered();
+    await first.api.writeOrderReview(first.orderNumber, {
+      rating: 3,
+      text: "Average, honestly.",
+    });
     await mock.control("review", {
-      email: "priya@example.com",
-      productId: rice.id,
+      orderNumber: first.orderNumber,
       action: "approve",
     });
-    const other = await delivered("max@example.com");
-    await other.api.saveReview(rice.id, { rating: 5, text: "Best rice ever!" });
+    const second = await ordered("max@example.com");
+    await second.api.writeOrderReview(second.orderNumber, {
+      rating: 5,
+      text: "Best delivery so far!",
+    });
     await mock.control("review", {
-      email: "max@example.com",
-      productId: rice.id,
+      orderNumber: second.orderNumber,
       action: "approve",
     });
-    const all = await mock.guestApi().listProductReviews(rice.id, { limit: 1 });
+    const all = await mock.guestApi().listReviews({ limit: 1 });
     expect(all.total).toBe(2);
     expect(all.totalPages).toBe(2);
+    expect(all.items[0].text).toBe("Best delivery so far!");
     expect(all.summary).toMatchObject({ average: 4, count: 2 });
     expect(all.summary.distribution).toMatchObject({ "3": 1, "5": 1 });
-    const fives = await mock
-      .guestApi()
-      .listProductReviews(rice.id, { rating: 5 });
+    const fives = await mock.guestApi().listReviews({ rating: 5 });
     expect(fives.items.map((r) => r.rating)).toEqual([5]);
     expect(fives.summary.count).toBe(2);
-  });
-});
-
-describe("order feedback", () => {
-  it("is given once per delivered order and carried by the order", async () => {
-    const { api, orderNumber } = await delivered();
-    const before = (await api.getOrder(orderNumber)).order;
-    expect(before.canGiveFeedback).toBe(true);
-    expect(before.feedback).toBeNull();
-    const { feedback } = await api.giveOrderFeedback(orderNumber, {
-      rating: 5,
-      deliveryRating: 4,
-      comment: "Quick and friendly.",
-    });
-    expect(feedback).toMatchObject({
-      rating: 5,
-      deliveryRating: 4,
-      comment: "Quick and friendly.",
-    });
-    const after = (await api.getOrder(orderNumber)).order;
-    expect(after.canGiveFeedback).toBe(false);
-    expect(after.feedback?.rating).toBe(5);
-    const again = await api
-      .giveOrderFeedback(orderNumber, { rating: 1 })
-      .catch((e) => e);
-    expect(hasErrorCode(again, "FEEDBACK_ALREADY_GIVEN")).toBe(true);
-    const bad = await api
-      .giveOrderFeedback(orderNumber, { rating: 6 })
-      .catch((e) => e);
-    expect(hasErrorCode(bad, "VALIDATION_FAILED")).toBe(true);
-    expect(TEST_PASSWORD).toBeTruthy();
+    const page2 = await mock.guestApi().listReviews({ limit: 1, page: 2 });
+    expect(page2.items[0].text).toBe("Average, honestly.");
   });
 });
