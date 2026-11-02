@@ -13,6 +13,14 @@ import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
 
 /**
+ * The compact field of the summary column (owner, 2026-10-28), a size
+ * smaller than the controls of a form; the text stays 16 px on phones,
+ * where a smaller one makes iOS zoom. Shared with the coins (REWARDS 8).
+ */
+export const compactInput =
+  "border-line-strong text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 disabled:bg-cloud disabled:text-ink-subtle min-h-10 min-w-0 flex-1 rounded-full border-[1.5px] bg-white/90 px-3.5 text-base transition-[border-color,box-shadow] duration-200 focus-visible:outline-offset-1 aria-invalid:border-red-600 aria-invalid:bg-red-50 sm:text-sm";
+
+/**
  * The discount code of the checkout page (doc 9.6): a field with "Apply"
  * while no code is kept with the cart, both a size smaller than the
  * controls of a form (owner, 2026-10-28: compact, one line of the
@@ -156,9 +164,8 @@ export function DiscountCode({
           spellCheck={false}
           aria-invalid={reason ? true : undefined}
           aria-describedby={reason ? errorId : undefined}
-          // Shown in capitals like the code is stored; sent as typed. The
-          // text stays 16 px on phones, where a smaller one makes iOS zoom.
-          className="border-line-strong text-ink placeholder:text-ink-subtle hover:border-ink-subtle focus-visible:border-leaf-600 disabled:bg-cloud disabled:text-ink-subtle min-h-10 min-w-0 flex-1 rounded-full border-[1.5px] bg-white/90 px-3.5 text-base uppercase transition-[border-color,box-shadow] duration-200 focus-visible:outline-offset-1 aria-invalid:border-red-600 aria-invalid:bg-red-50 sm:text-sm"
+          // Shown in capitals like the code is stored; sent as typed.
+          className={cn(compactInput, "uppercase")}
         />
         <Button
           type="submit"

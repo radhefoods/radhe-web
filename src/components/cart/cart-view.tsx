@@ -314,6 +314,7 @@ export function CartView() {
             totals={bill.totals}
             savings={saleSavingsOf(bill.lines)}
             discountCode={bill.discount?.applied ? bill.discount.code : null}
+            coins={bill.rewards?.applied ? bill.rewards.coins : null}
           />
         </div>
         <p className="sr-only" role="status">

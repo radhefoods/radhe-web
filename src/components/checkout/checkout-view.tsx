@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ChevronDown, Plus, Truck } from "lucide-react";
+import { ChevronDown, Coins, Plus, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
@@ -39,6 +39,7 @@ import type {
   CartItemInput,
   DiscountReason,
   Id,
+  RewardsReason,
 } from "@/lib/api/types";
 import {
   checkoutKey,
@@ -50,6 +51,7 @@ import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { rememberGuestToken } from "@/lib/orders/guest-token";
 import { AddressForm } from "./address-form";
 import { DiscountCode } from "./discount-code";
+import { RedeemCoins } from "./redeem-coins";
 import { productTitle } from "@/lib/format/product-name";
 
 function AddressLines({ address }: { address: Address }) {
@@ -356,6 +358,10 @@ export function CheckoutView({
     code: string;
     reason: DiscountReason;
   } | null>(null);
+  /** The coins stopped applying at checkout and were dropped (REWARDS 5). */
+  const [rewardsRemoved, setRewardsRemoved] = useState<RewardsReason | null>(
+    null,
+  );
 
   const bill = billQuery.data;
   const addresses = isCustomer
@@ -450,6 +456,7 @@ export function CheckoutView({
     setLegalChanged(false);
     setRefusedLines([]);
     setDiscountRemoved(null);
+    setRewardsRemoved(null);
     try {
       const consentInput = {
         accepted: true as const,
@@ -536,6 +543,12 @@ export function CheckoutView({
           reason: error.details.reason,
         });
         setGuestCode(null);
+        void billQuery.refetch();
+      } else if (hasErrorCode(error, "REWARDS_NOT_APPLICABLE")) {
+        // The coins stopped applying (the balance shrank, the rules
+        // changed); the API dropped them from the cart. The bill is loaded
+        // again and the customer may order without them.
+        setRewardsRemoved(error.details.reason);
         void billQuery.refetch();
       } else if (hasErrorCode(error, "PAYMENTS_NOT_CONFIGURED")) {
         setUnavailable("payments");
@@ -747,6 +760,19 @@ export function CheckoutView({
           className="border-ink/8 mt-4 border-t pt-4"
         />
 
+        {/* The coins (REWARDS 8), for customers: the bill it answers
+            replaces the one on the page the same way. */}
+        {isCustomer && (
+          <RedeemCoins
+            rewards={bill.rewards}
+            onBill={(next) => {
+              setRewardsRemoved(null);
+              client.setQueryData(cartQueryKey(locale), next);
+            }}
+            className="border-ink/8 mt-4 border-t pt-4"
+          />
+        )}
+
         <div
           className={cn(
             "border-ink/8 mt-4 border-t pt-4",
@@ -758,7 +784,14 @@ export function CheckoutView({
             totals={bill.totals}
             savings={saleSavingsOf(bill.lines)}
             discountCode={bill.discount?.applied ? bill.discount.code : null}
+            coins={bill.rewards?.applied ? bill.rewards.coins : null}
           />
+          {(bill.rewards?.earn ?? 0) > 0 && (
+            <p className="text-leaf-700 mt-3 flex items-center gap-2 text-sm font-semibold">
+              <Coins aria-hidden="true" className="size-4 shrink-0" />
+              {t("rewards.earn", { coins: bill.rewards!.earn })}
+            </p>
+          )}
         </div>
 
         <div className="mt-5 flex flex-col gap-4 empty:hidden">
@@ -816,6 +849,11 @@ export function CheckoutView({
             >
               {t(`discount.reason.${discountRemoved.reason}`)}{" "}
               {t("discount.removedText")}
+            </Alert>
+          )}
+          {rewardsRemoved && (
+            <Alert tone="warn" title={t("rewards.removedTitle")}>
+              {t(`rewards.reason.${rewardsRemoved}`)} {t("rewards.removedText")}
             </Alert>
           )}
           {totalChanged && (

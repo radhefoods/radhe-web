@@ -658,6 +658,7 @@ export function OrderBody({
             totals={changed ? order.finalTotals : order.totals}
             savings={orderSavingsOf(order.items, changed)}
             discountCode={order.discount?.code ?? null}
+            coins={order.rewards?.coins ?? null}
           />
           {changed && (
             <p className="text-ink-muted border-ink/8 mt-3 flex justify-between gap-4 border-t pt-3 text-sm tabular-nums">

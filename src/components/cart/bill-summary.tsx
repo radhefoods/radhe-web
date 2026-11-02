@@ -8,9 +8,10 @@ import { formatMoney } from "@/lib/format/money";
 /**
  * The bill in numbers (owner, 2026-10-28): the goods at their regular
  * prices, what the sale prices take off ("Discount"), what the discount
- * code takes off (named by the code, doc 9.6), the delivery, and the
+ * code takes off (named by the code, doc 9.6), what the redeemed coins
+ * take off (named by their count, REWARDS 8), the delivery, and the
  * total with "Tax included." under it; no VAT lines. The total, the
- * delivery and the code's amount are the API's; the saving is the
+ * delivery, the code's and the coins' amounts are the API's; the saving is the
  * caller's sum of the regular prices over the paid ones (`savings.ts`),
  * added to the subtotal and taken off again, so nothing is counted twice.
  * The total is the one big number of the panel (owner, 2026-10-19).
@@ -19,6 +20,7 @@ export function BillTotals({
   totals,
   savings = 0,
   discountCode = null,
+  coins = null,
   className,
 }: {
   totals: Totals;
@@ -26,6 +28,8 @@ export function BillTotals({
   savings?: number;
   /** Names the code's row; the row shows while `totals.discount` is above zero. */
   discountCode?: string | null;
+  /** Names the coins' row; the row shows while `totals.rewards` is above zero. */
+  coins?: number | null;
   className?: string;
 }) {
   const t = useTranslations("cart");
@@ -52,6 +56,16 @@ export function BillTotals({
             {t("discountCode", { code: discountCode ?? "" })}
           </dt>
           <dd className={saving}>−{formatMoney(totals.discount, locale)}</dd>
+        </div>
+      )}
+      {(totals.rewards ?? 0) > 0 && (
+        <div className={row}>
+          <dt className="text-ink-muted">
+            {t("coinsRedeemed", { coins: coins ?? 0 })}
+          </dt>
+          <dd className={saving}>
+            −{formatMoney(totals.rewards ?? 0, locale)}
+          </dd>
         </div>
       )}
       <div className={row}>
