@@ -97,10 +97,11 @@
     },
     "info": {
       "title": "Lieferung und Zahlung",
+      "deliveryFree": "Kostenlose Lieferung in ganz Deutschland",
       "fee": "Lieferung {fee} pro Bestellung",
       "feeFree": "Kostenlose Lieferung",
       "freeFrom": "Kostenlos ab {amount}",
-      "paymentText": "Karte oder PayPal auf der sicheren Seite von Stripe. Vor Ihrer Bestätigung wird nichts abgebucht.",
+      "paymentText": "Karte oder PayPal auf der sicheren Seite von Stripe",
       "paymentMethods": "Akzeptierte Zahlungsarten",
       "more": "Alles zu Lieferung und Zahlung"
     }
@@ -443,8 +444,7 @@
       "noAccount": "Neu hier?",
       "keyUsedText": "Ihr vorheriger Versuch ist durchgegangen. Bitte sehen Sie in die E-Mail zu Ihrer Bestellung, bevor Sie erneut bestellen."
     },
-    "consentTitle": "Bedingungen",
-    "consentText": "Ich habe die <terms>Allgemeinen Geschäftsbedingungen (Version {termsVersion})</terms> gelesen und akzeptiere sie. Die <privacy>Datenschutzerklärung (Version {privacyVersion})</privacy> habe ich gelesen.",
+    "consentText": "Ich habe die <terms>Allgemeinen Geschäftsbedingungen</terms> gelesen und akzeptiere sie, und ich habe die <privacy>Datenschutzerklärung</privacy> gelesen.",
     "consentMissing": "Bitte akzeptieren Sie die Bedingungen, um Ihre Bestellung abzuschicken.",
     "summaryTitle": "Ihre Bestellung",
     "quantityTimes": "{quantity} ×",
@@ -766,7 +766,8 @@
     "phoneHint": "Mit Ländervorwahl, zum Beispiel +49 151 12345678",
     "language": "Sprache unserer E-Mails",
     "save": "Speichern",
-    "saved": "Gespeichert.",
+    "saved": "Ihr Profil wurde erfolgreich gespeichert.",
+    "savedNews": "Ihre Einstellungen wurden gespeichert.",
     "newsTitle": "Neuigkeiten von Radhe Foods",
     "newsLabel": "Ja, senden Sie mir Neuigkeiten zu neuen Produkten und Angeboten per E-Mail.",
     "newsHint": "Sie können das jederzeit abschalten, hier oder über den Link in jeder dieser E-Mails. E-Mails zu Ihren eigenen Bestellungen erhalten Sie immer.",
@@ -890,7 +891,6 @@
     "photoAlt": "Foto {index}",
     "photoWrongType": "Bitte wählen Sie Bilder im Format JPEG, PNG oder WebP.",
     "photoTooMany": "Bis zu 5 Fotos pro Meldung.",
-    "uploadPhotos": "{count, plural, one {# Foto} other {# Fotos}} hochladen",
     "step4": "Wie sollen wir es wiedergutmachen?",
     "wish": {
       "refund": "Erstattung",
@@ -914,7 +914,7 @@
     "previous": "Ihre bisherigen Meldungen",
     "back": "Zurück zur Bestellung",
     "backToReports": "Alle Meldungen",
-    "photosFailed": "Die Meldung ist angekommen, aber einige Fotos konnten nicht hochgeladen werden. Sie können sie hier hinzufügen.",
+    "photosFailed": "Die Meldung ist angekommen, aber einige Fotos konnten nicht hochgeladen werden.",
     "status": {
       "open": "Eingegangen",
       "in_review": "In Prüfung",
@@ -938,12 +938,6 @@
       "none": "Notiert, danke"
     },
     "credited": "{amount} gutgeschrieben",
-    "historyTitle": "Was wann geschah",
-    "by": {
-      "customer": "Sie",
-      "admin": "Radhe Foods",
-      "system": "Radhe Foods"
-    },
     "takeBack": "Zurückziehen",
     "takeBackConfirm": "Diese Meldung zurückziehen?",
     "takeBackYes": "Ja, zurückziehen",

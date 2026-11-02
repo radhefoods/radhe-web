@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Package } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/alert";
@@ -16,7 +16,11 @@ import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import type { Id, ReturnReason } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
-import { productTitle } from "@/lib/format/product-name";
+import {
+  formatPackSize,
+  formatProductName,
+  productTitle,
+} from "@/lib/format/product-name";
 
 const REASONS: ReturnReason[] = [
   "damaged",
@@ -189,10 +193,34 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                       : "glass-strong border-transparent",
                   )}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-bold">{name}</p>
+                  {/* The picture of the product beside its name and size
+                      (owner, 2026-11-02), as on the order's page. */}
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                    {item.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        width={64}
+                        height={64}
+                        loading="lazy"
+                        className="ring-ink/6 size-16 shrink-0 rounded-xl bg-white object-contain p-1 ring-1"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="ring-ink/6 text-ink-subtle grid size-16 shrink-0 place-items-center rounded-xl bg-white ring-1"
+                      >
+                        <Package className="size-6" />
+                      </span>
+                    )}
+                    <div className="min-w-32 flex-1">
+                      <p className="font-bold">
+                        {formatProductName(item.name)}
+                      </p>
                       <p className="text-ink-muted text-sm">
+                        {formatPackSize(item.packSize)}
+                        {" · "}
                         {t("available", { count: available })}
                       </p>
                     </div>
@@ -202,7 +230,7 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                       max={available}
                       removeAtMin={false}
                       size="sm"
-                      className="w-32 bg-white"
+                      className="ml-auto w-32 shrink-0 bg-white"
                       onChange={(quantity) =>
                         change(item.variantId, { quantity })
                       }

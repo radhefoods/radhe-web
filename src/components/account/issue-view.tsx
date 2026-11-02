@@ -22,20 +22,20 @@ import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import { hasErrorCode } from "@/lib/api/errors";
 import type { Issue } from "@/lib/api/types";
-import { cn } from "@/lib/cn";
-import { formatDateTime, formatDate } from "@/lib/format/dates";
+import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
 import { productTitle } from "@/lib/format/product-name";
-import { PhotoPicker } from "./photo-picker";
 
 const sectionTitle = "font-display text-xl text-ink";
 const panel = "glass-strong rounded-2xl p-5 flex flex-col gap-3";
 
 /**
  * One problem report (doc 23): what was named, the problems, the text,
- * the photos (more can be added while Radhe Foods has not decided), what
- * was asked for, the outcome, and the history. "Take back" while nobody
- * looked at it yet.
+ * the photos of the submission (owner, 2026-11-02: none are added here
+ * afterwards; one can still be taken off while Radhe Foods has not
+ * decided), what was asked for, and the outcome. The status chip says
+ * where it stands; the history of doc 23 is not shown (same brief).
+ * "Take back" while nobody looked at it yet.
  */
 export function IssueView({ issueNumber }: { issueNumber: string }) {
   const t = useTranslations("issues");
@@ -50,7 +50,6 @@ export function IssueView({ issueNumber }: { issueNumber: string }) {
     retry: (failures, error) =>
       failures < 2 && !hasErrorCode(error, "ISSUE_NOT_FOUND"),
   });
-  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -135,9 +134,7 @@ export function IssueView({ issueNumber }: { issueNumber: string }) {
         </p>
       </header>
 
-      {photosFailed && issue.canAddImages && (
-        <Alert tone="warn">{t("photosFailed")}</Alert>
-      )}
+      {photosFailed && <Alert tone="warn">{t("photosFailed")}</Alert>}
       {issue.resolution && (
         <Alert tone="good" title={t("resolutionTitle")}>
           <p className="font-semibold">
@@ -216,76 +213,44 @@ export function IssueView({ issueNumber }: { issueNumber: string }) {
             <p className="whitespace-pre-line">{issue.description}</p>
           </section>
 
-          {(issue.images.length > 0 || issue.canAddImages) && (
+          {issue.images.length > 0 && (
             <section aria-labelledby="issue-photos" className={panel}>
               <h2 id="issue-photos" className={sectionTitle}>
                 {t("photosTitle")}
               </h2>
-              {issue.images.length > 0 && (
-                <ul className="flex flex-wrap gap-3">
-                  {issue.images.map((image, index) => (
-                    <li key={image.id} className="relative">
-                      <a
-                        href={image.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={image.sizes.small.url}
-                          alt={t("photoAlt", { index: index + 1 })}
-                          className="ring-ink/8 size-24 rounded-xl object-cover ring-1"
-                        />
-                      </a>
-                      {issue.canAddImages && (
-                        <button
-                          type="button"
-                          aria-label={t("photoRemove", { index: index + 1 })}
-                          disabled={busy}
-                          onClick={() =>
-                            void act(() =>
-                              api.deleteIssueImage(issue.issueNumber, image.id),
-                            )
-                          }
-                          className="bg-ink/70 hover:bg-ink absolute -top-2 -right-2 grid size-7 place-items-center rounded-full text-white transition-transform duration-150 active:scale-90"
-                        >
-                          <X aria-hidden="true" className="size-4" />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {issue.canAddImages && (
-                <div className="flex flex-col gap-3">
-                  <PhotoPicker
-                    id="issue-photos-add"
-                    files={files}
-                    onChange={setFiles}
-                    already={issue.images.length}
-                  />
-                  {files.length > 0 && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="self-start"
-                      loading={busy}
-                      onClick={() =>
-                        void act(async () => {
-                          const answer = await api.uploadIssueImages(
-                            issue.issueNumber,
-                            files,
-                          );
-                          setFiles([]);
-                          return answer;
-                        })
-                      }
+              <ul className="flex flex-wrap gap-3">
+                {issue.images.map((image, index) => (
+                  <li key={image.id} className="relative">
+                    <a
+                      href={image.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      {t("uploadPhotos", { count: files.length })}
-                    </Button>
-                  )}
-                </div>
-              )}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image.sizes.small.url}
+                        alt={t("photoAlt", { index: index + 1 })}
+                        className="ring-ink/8 size-24 rounded-xl object-cover ring-1"
+                      />
+                    </a>
+                    {issue.canAddImages && (
+                      <button
+                        type="button"
+                        aria-label={t("photoRemove", { index: index + 1 })}
+                        disabled={busy}
+                        onClick={() =>
+                          void act(() =>
+                            api.deleteIssueImage(issue.issueNumber, image.id),
+                          )
+                        }
+                        className="bg-ink/70 hover:bg-ink absolute -top-2 -right-2 grid size-7 place-items-center rounded-full text-white transition-transform duration-150 active:scale-90"
+                      >
+                        <X aria-hidden="true" className="size-4" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
         </div>
@@ -298,52 +263,6 @@ export function IssueView({ issueNumber }: { issueNumber: string }) {
             <p className="font-semibold">
               {t(`wish.${issue.preferredResolution}`)}
             </p>
-          </section>
-
-          <section aria-labelledby="issue-history" className={panel}>
-            <h2 id="issue-history" className={sectionTitle}>
-              {t("historyTitle")}
-            </h2>
-            <ol className="flex flex-col">
-              {issue.history.map((entry, index) => {
-                const last = index === issue.history.length - 1;
-                return (
-                  <li
-                    key={`${entry.status}-${entry.at}`}
-                    className="relative grid grid-cols-[1.25rem_1fr] gap-3 pb-4 last:pb-0"
-                  >
-                    {!last && (
-                      <span
-                        aria-hidden="true"
-                        className="bg-ink/10 absolute top-5 bottom-0 left-[0.5625rem] w-0.5"
-                      />
-                    )}
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        "z-10 mt-1 size-5 rounded-full border-2 border-white",
-                        last ? "leaf-gradient" : "bg-ink/20",
-                      )}
-                    />
-                    <div className="min-w-0">
-                      <p className="font-semibold">
-                        {t(`status.${entry.status}`)}
-                        <span className="text-ink-muted font-normal">
-                          {" · "}
-                          {t(`by.${entry.by}`)}
-                        </span>
-                      </p>
-                      <p className="text-ink-muted text-sm">
-                        {formatDateTime(entry.at, locale)}
-                      </p>
-                      {entry.note && (
-                        <p className="mt-1 text-sm">{entry.note}</p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
           </section>
 
           {error !== null && <ErrorAlert error={error} />}

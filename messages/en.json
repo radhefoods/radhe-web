@@ -97,10 +97,11 @@
     },
     "info": {
       "title": "Delivery and payment",
+      "deliveryFree": "Free delivery across Germany",
       "fee": "Delivery {fee} per order",
       "feeFree": "Free delivery",
       "freeFrom": "Free from {amount}",
-      "paymentText": "Card or PayPal on the secure page of Stripe. Nothing is charged before you confirm.",
+      "paymentText": "Card or PayPal on the secure page of Stripe",
       "paymentMethods": "Accepted payment methods",
       "more": "All about delivery and payment"
     }
@@ -443,8 +444,7 @@
       "noAccount": "New here?",
       "keyUsedText": "Your previous attempt went through. Please check the email about your order before ordering again."
     },
-    "consentTitle": "Terms",
-    "consentText": "I have read and accept the <terms>Terms and Conditions (version {termsVersion})</terms>, and I have read the <privacy>Privacy Policy (version {privacyVersion})</privacy>.",
+    "consentText": "I have read and accept the <terms>Terms and Conditions</terms>, and I have read the <privacy>Privacy Policy</privacy>.",
     "consentMissing": "Please accept the terms to place your order.",
     "summaryTitle": "Your order",
     "quantityTimes": "{quantity} ×",
@@ -766,7 +766,8 @@
     "phoneHint": "With country code, for example +49 151 12345678",
     "language": "Language of our emails",
     "save": "Save",
-    "saved": "Saved.",
+    "saved": "Your profile has been saved successfully.",
+    "savedNews": "Your preferences have been saved.",
     "newsTitle": "News from Radhe Foods",
     "newsLabel": "Yes, send me news about new products and offers by email.",
     "newsHint": "You can switch this off at any time, here or with the link in every such email. Emails about your own orders always come.",
@@ -890,7 +891,6 @@
     "photoAlt": "Photo {index}",
     "photoWrongType": "Please choose JPEG, PNG or WebP pictures.",
     "photoTooMany": "Up to 5 photos per report.",
-    "uploadPhotos": "Upload {count, plural, one {# photo} other {# photos}}",
     "step4": "How should we make it right?",
     "wish": {
       "refund": "Refund",
@@ -914,7 +914,7 @@
     "previous": "Your previous reports",
     "back": "Back to the order",
     "backToReports": "All reports",
-    "photosFailed": "The report was sent, but some photos could not be uploaded. You can add them here.",
+    "photosFailed": "The report was sent, but some photos could not be uploaded.",
     "status": {
       "open": "Received",
       "in_review": "Being looked at",
@@ -938,12 +938,6 @@
       "none": "Noted, thank you"
     },
     "credited": "{amount} credited",
-    "historyTitle": "What happened when",
-    "by": {
-      "customer": "you",
-      "admin": "Radhe Foods",
-      "system": "Radhe Foods"
-    },
     "takeBack": "Take back",
     "takeBackConfirm": "Take this report back?",
     "takeBackYes": "Yes, take it back",

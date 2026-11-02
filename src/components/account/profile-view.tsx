@@ -1,11 +1,12 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextField, controlStyles } from "@/components/ui/field";
+import { SuccessToast } from "@/components/shell/success-toast";
 import { isFeatureEnabled } from "@/config/env";
 import { normalizePhone } from "@/features/checkout/address-schema";
 import { useSession, useSessionActions } from "@/features/session/session";
@@ -21,11 +22,16 @@ const PHONE = /^\+[1-9]\d{6,14}$/;
 const sectionTitle = "font-display text-xl text-ink";
 const panel = "glass-strong flex flex-col gap-4 rounded-2xl p-5";
 
-/** Name, phone and the language of emails (`PATCH /v1/store/me`). */
+/**
+ * Name, phone and the language of emails (`PATCH /v1/store/me`). A save
+ * is told by a toast (owner, 2026-11-02), not by a word beside the button;
+ * `saved` counts the saves so that each one brings a fresh toast.
+ */
 function DetailsForm({ customer }: { customer: Customer }) {
   const t = useTranslations("profile");
   const tAddress = useTranslations("address");
   const tLanguage = useTranslations("language");
+  const tCommon = useTranslations("common");
   const { signedIn } = useSessionActions();
   const [firstName, setFirstName] = useState(customer.firstName ?? "");
   const [lastName, setLastName] = useState(customer.lastName ?? "");
@@ -33,12 +39,12 @@ function DetailsForm({ customer }: { customer: Customer }) {
   const [language, setLanguage] = useState<Locale>(customer.locale);
   const [problems, setProblems] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(0);
   const [error, setError] = useState<unknown>(null);
+  const dismiss = useCallback(() => setSaved(0), []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setSaved(false);
     setError(null);
     const found: Record<string, string> = {};
     for (const [key, value] of [
@@ -66,7 +72,7 @@ function DetailsForm({ customer }: { customer: Customer }) {
         locale: language,
       });
       signedIn(result.customer);
-      setSaved(true);
+      setSaved((count) => count + 1);
     } catch (caught) {
       const fromApi = fieldProblems(caught);
       if (Object.keys(fromApi).length > 0) {
@@ -144,14 +150,20 @@ function DetailsForm({ customer }: { customer: Customer }) {
         </select>
       </div>
       {error !== null && <ErrorAlert error={error} />}
-      <div className="flex flex-wrap items-center gap-4">
+      <div>
         <Button type="submit" loading={busy}>
           {t("save")}
         </Button>
-        <p role="status" className="text-leaf-700 font-semibold">
-          {saved ? t("saved") : ""}
-        </p>
       </div>
+      {saved > 0 && (
+        <SuccessToast
+          key={saved}
+          closeLabel={tCommon("close")}
+          onClose={dismiss}
+        >
+          {t("saved")}
+        </SuccessToast>
+      )}
     </form>
   );
 }
@@ -164,6 +176,7 @@ function DetailsForm({ customer }: { customer: Customer }) {
 function CommunicationForm({ customer }: { customer: Customer }) {
   const t = useTranslations("profile");
   const tAddress = useTranslations("address");
+  const tCommon = useTranslations("common");
   const { signedIn } = useSessionActions();
   const whatsappEnabled = isFeatureEnabled("whatsapp");
   const [communication, setCommunication] = useState(customer.communication);
@@ -172,14 +185,14 @@ function CommunicationForm({ customer }: { customer: Customer }) {
   );
   const [numberProblem, setNumberProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(0);
   const [error, setError] = useState<unknown>(null);
+  const dismiss = useCallback(() => setSaved(0), []);
 
   async function update(
     input: Parameters<typeof api.updateCommunication>[0],
   ): Promise<void> {
     setBusy(true);
-    setSaved(false);
     setError(null);
     // The switch moves at once; it moves back when the API refuses.
     const before = communication;
@@ -196,7 +209,7 @@ function CommunicationForm({ customer }: { customer: Customer }) {
       const result = await api.updateCommunication(input);
       setCommunication(result.communication);
       signedIn({ ...customer, communication: result.communication });
-      setSaved(true);
+      setSaved((count) => count + 1);
     } catch (caught) {
       setCommunication(before);
       setError(caught);
@@ -278,9 +291,15 @@ function CommunicationForm({ customer }: { customer: Customer }) {
       )}
 
       {error !== null && <ErrorAlert error={error} />}
-      <p role="status" className="text-leaf-700 font-semibold">
-        {saved ? t("saved") : ""}
-      </p>
+      {saved > 0 && (
+        <SuccessToast
+          key={saved}
+          closeLabel={tCommon("close")}
+          onClose={dismiss}
+        >
+          {t("savedNews")}
+        </SuccessToast>
+      )}
     </section>
   );
 }

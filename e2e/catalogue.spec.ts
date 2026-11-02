@@ -753,10 +753,16 @@ test.describe("the cart of a visitor", () => {
     await expect(page.getByText("At most 12 per order")).toBeVisible();
 
     // Delivery and payment, from the settings, with the accepted methods;
-    // no return policy here (owner, 2026-10-22), it stays on the full page.
+    // no return policy here (owner, 2026-10-22), it stays on the full page;
+    // no fee per order since 2026-11-02, the free delivery leads.
     const info = page.getByRole("region", { name: "Delivery and payment" });
-    await expect(info).toContainText("Delivery €4.99 per order");
+    await expect(info).toContainText("Free delivery across Germany");
     await expect(info).toContainText("Free from €50.00");
+    await expect(info).not.toContainText("per order");
+    await expect(info).toContainText("Secure payment at checkout");
+    await expect(info).toContainText(
+      "Card or PayPal on the secure page of Stripe",
+    );
     await expect(info).not.toContainText("days to return");
     const methods = info.getByRole("list", {
       name: "Accepted payment methods",

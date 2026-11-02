@@ -10,7 +10,6 @@ import type {
   ProductFacets,
   ProductList,
   ProductQuery,
-  ReviewPage,
   ShopSettings,
 } from "@/lib/api/types";
 
@@ -90,33 +89,6 @@ export const getProduct = cache(
     }
   },
 );
-
-/**
- * The first page of a product's reviews (doc 22), or `null` when the API
- * does not answer them: an API older than 2026-11-01, or any refusal. The
- * reviews are the one thing on the product page the page can do without,
- * so no answer of theirs may take the page down.
- */
-export async function getProductReviews(
-  productId: string,
-  locale: Locale,
-): Promise<ReviewPage | null> {
-  try {
-    return await serverApi.listProductReviews(
-      productId,
-      { limit: 5 },
-      { locale, next: catalogue },
-    );
-  } catch (error) {
-    if (!hasErrorCode(error, "NOT_FOUND")) {
-      console.warn(
-        `The reviews of product ${productId} could not be read.`,
-        error,
-      );
-    }
-    return null;
-  }
-}
 
 export function listProducts(
   query: ProductQuery,

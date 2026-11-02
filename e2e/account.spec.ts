@@ -415,7 +415,9 @@ test.describe("documents, addresses, profile", () => {
     await page.goto("/en/account/profile");
     await page.getByLabel("First name").fill("Anjali");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Saved.").first()).toBeVisible();
+    await expect(
+      page.getByText("Your profile has been saved successfully."),
+    ).toBeVisible();
 
     const news = page.getByRole("checkbox", { name: /send me news/ });
     await expect(news).not.toBeChecked();

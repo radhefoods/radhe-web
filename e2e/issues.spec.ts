@@ -92,6 +92,7 @@ test.describe("reporting a problem", () => {
     await expect(page.getByText("Received", { exact: true })).toBeVisible();
     await expect(page.getByText("1 × Toor Dal (1kg)")).toBeVisible();
     await expect(page.getByRole("img", { name: "Photo 1" })).toBeVisible();
+    await expect(page.getByText("Add photos")).toHaveCount(0);
     await expect(page.getByText("Replace in next delivery")).toBeVisible();
 
     // Taken back with a second tap.
@@ -114,7 +115,7 @@ test.describe("reporting a problem", () => {
     ).toBeVisible();
   });
 
-  test("a resolved report shows what was done and its history", async ({
+  test("a resolved report shows what was done, without a history or a way to add photos", async ({
     page,
   }) => {
     await signIn(page);
@@ -127,10 +128,12 @@ test.describe("reporting a problem", () => {
     await expect(done).toContainText("Refund");
     await expect(done).toContainText("credited");
     await expect(done).toContainText("Sorry about that!");
-    const history = page.getByRole("region", { name: "What happened when" });
-    await expect(history).toContainText("Received");
-    await expect(history).toContainText("Being looked at");
-    await expect(history).toContainText("Resolved");
+    // Its status is the chip; the history of doc 23 is not shown
+    // (owner, 2026-11-02), and photos are only added with the report.
+    await expect(
+      page.getByRole("region", { name: "What happened when" }),
+    ).toHaveCount(0);
+    await expect(page.getByText("Add photos")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Take back" })).toHaveCount(
       0,
     );

@@ -188,16 +188,22 @@ test.describe("from the cart to the paid order", () => {
     ).toBeVisible();
   });
 
-  test("the consent links lead to the exact versions of the texts", async ({
+  test("the consent stands above the button and links to the texts, without versions", async ({
     page,
   }) => {
     await seedCustomer(page);
     await page.goto("/en/checkout");
+    const summary = page.getByRole("complementary", { name: "Your order" });
+    await expect(summary.getByRole("checkbox")).toBeVisible();
+    await expect(summary).toContainText(
+      "I have read and accept the Terms and Conditions, and I have read the Privacy Policy.",
+    );
+    await expect(summary).not.toContainText("version");
     await expect(
-      page.getByRole("link", { name: "Terms and Conditions (version 3)" }),
+      page.getByRole("link", { name: "Terms and Conditions", exact: true }),
     ).toHaveAttribute("href", "/en/legal/terms");
     await expect(
-      page.getByRole("link", { name: "Privacy Policy (version 2)" }),
+      page.getByRole("link", { name: "Privacy Policy", exact: true }),
     ).toHaveAttribute("href", "/en/legal/privacy");
     await page.goto("/en/legal/terms");
     await expect(
@@ -245,9 +251,6 @@ test.describe("when something changed since the page was loaded", () => {
     await buyButton(page).click();
     await expect(page.getByText("Our terms were updated")).toBeVisible();
     await expect(consentBox(page)).not.toBeChecked();
-    await expect(
-      page.getByRole("link", { name: "Terms and Conditions (version 4)" }),
-    ).toBeVisible();
 
     await consentBox(page).check();
     await buyButton(page).click();

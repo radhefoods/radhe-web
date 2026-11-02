@@ -20,41 +20,26 @@ async function signIn(page: Page) {
 }
 
 test.describe("reviews on the product", () => {
-  test("the cards and the page show the stars; the section lists the reviews with the reply and filters by stars", async ({
+  test("the cards show the stars; the product page carries no reviews section (owner, 2026-11-02)", async ({
     page,
     request,
   }) => {
     // The demo account seeds the reviews when it is created.
     await createAccount(request, { email: DEMO });
-    await page.goto("/en/products/basmati-rice-5kg");
-    await expect(
-      page.getByRole("link", { name: /Rated 4[.,]5 out of 5 by 2 customers/ }),
-    ).toBeVisible();
-    const section = page.getByRole("region", { name: "Reviews" });
-    await expect(section).toContainText("2 reviews");
-    await expect(section).toContainText("Fluffy and fragrant");
-    await expect(section).toContainText("Priya S.");
-    await expect(section).toContainText("Verified purchase");
-    await expect(section).toContainText("Reply from Radhe Foods");
-    await expect(section).toContainText("Very good rice");
-    // The pending review of the toor dal is not shown anywhere public.
-    await expect(section).not.toContainText("pressure cooker");
-
-    await section
-      .getByRole("button", { name: "Show only reviews with 4 stars" })
-      .click();
-    await expect(section).toContainText("Very good rice");
-    await expect(section).not.toContainText("Fluffy and fragrant");
-    await section.getByRole("button", { name: "Show all reviews" }).click();
-    await expect(section).toContainText("Fluffy and fragrant");
-
-    // The card in a list carries the stars too.
     await page.goto("/en/products?q=basmati");
     await expect(
       page
         .getByRole("img", { name: /Rated 4[.,]5 out of 5 by 2 customers/ })
         .first(),
     ).toBeVisible();
+    await page.goto("/en/products/basmati-rice-5kg");
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Basmati Rice/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Reviews" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Rated 4[.,]5/ })).toHaveCount(
+      0,
+    );
   });
 });
 

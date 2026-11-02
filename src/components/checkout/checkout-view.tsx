@@ -39,7 +39,6 @@ import type {
   CartItemInput,
   DiscountReason,
   Id,
-  LegalSummary,
 } from "@/lib/api/types";
 import {
   checkoutKey,
@@ -408,8 +407,6 @@ export function CheckoutView({
     addresses[0] ??
     null;
   const showForm = editing !== null || addresses.length === 0;
-  const versionOf = (type: LegalSummary["type"]) =>
-    legal.find((document) => document.type === type)?.version ?? 0;
   const canPlace =
     bill.canOrder && !billQuery.isFetching && unavailable === null && !keyUsed;
   const nameOf = (variantId: Id) => {
@@ -701,54 +698,6 @@ export function CheckoutView({
             )}
           </div>
         </section>
-
-        <section aria-labelledby="checkout-consent" className="pt-10">
-          <h2 id="checkout-consent" className={sectionTitle}>
-            {t("consentTitle")}
-          </h2>
-          <div className="mt-4 space-y-4">
-            {legalChanged && (
-              <Alert tone="warn" title={t("legalChangedTitle")}>
-                {t("legalChangedText")}
-              </Alert>
-            )}
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(event) => setConsent(event.target.checked)}
-                aria-describedby={
-                  attempted && !consent ? "checkout-consent-error" : undefined
-                }
-                className="accent-leaf-600 mt-0.5 size-6 shrink-0"
-              />
-              <span>
-                {t.rich("consentText", {
-                  termsVersion: versionOf("terms"),
-                  privacyVersion: versionOf("privacy"),
-                  terms: (chunks) => (
-                    <Link
-                      href={LEGAL_HREF.terms}
-                      target="_blank"
-                      className={link}
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                  privacy: (chunks) => (
-                    <Link
-                      href={LEGAL_HREF.privacy}
-                      target="_blank"
-                      className={link}
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                })}
-              </span>
-            </label>
-          </div>
-        </section>
       </div>
 
       {/* The order: the lines, the delivery estimate, the discount code,
@@ -904,6 +853,55 @@ export function CheckoutView({
           )}
         </div>
 
+        {/* The consent right above the button it belongs to (owner,
+            2026-11-02), without the versions in the sentence: the versions
+            the customer accepts travel with the order in `consent.versions`
+            (doc 9.4), read from `GET /v1/store/legal`. */}
+        <div className="border-ink/8 mt-5 flex flex-col gap-4 border-t pt-5">
+          {legalChanged && (
+            <Alert tone="warn" title={t("legalChangedTitle")}>
+              {t("legalChangedText")}
+            </Alert>
+          )}
+          <label
+            htmlFor="checkout-consent"
+            className="flex cursor-pointer items-start gap-3"
+          >
+            <input
+              id="checkout-consent"
+              type="checkbox"
+              checked={consent}
+              onChange={(event) => setConsent(event.target.checked)}
+              aria-describedby={
+                attempted && !consent ? "checkout-consent-error" : undefined
+              }
+              className="accent-leaf-600 mt-0.5 size-5 shrink-0"
+            />
+            <span className="text-sm leading-relaxed">
+              {t.rich("consentText", {
+                terms: (chunks) => (
+                  <Link
+                    href={LEGAL_HREF.terms}
+                    target="_blank"
+                    className={link}
+                  >
+                    {chunks}
+                  </Link>
+                ),
+                privacy: (chunks) => (
+                  <Link
+                    href={LEGAL_HREF.privacy}
+                    target="_blank"
+                    className={link}
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })}
+            </span>
+          </label>
+        </div>
+
         {/* The legal wording is the button's label: the customer orders
             and pays now. */}
         <Button
@@ -912,7 +910,7 @@ export function CheckoutView({
           loading={placing}
           disabled={!canPlace}
           onClick={() => void place()}
-          className="mt-5"
+          className="mt-4"
         >
           {placing ? t("placing") : t("place")}
         </Button>
