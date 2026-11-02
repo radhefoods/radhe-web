@@ -905,6 +905,33 @@ route("POST", "/v1/store/me/delete", (ctx) => {
   return { status: 204, setCookies: clearCookies() };
 });
 
+/**
+ * The lookup of a code before the account exists (CUSTOMER_ACCOUNTS 7,
+ * 2026-11-02): the code of an active, registered account, in any case.
+ */
+route("GET", "/v1/store/referral-codes/:code", (ctx) => {
+  const code = ctx.params.code.trim().toUpperCase();
+  const inviter = REFERRAL_CODE.test(code)
+    ? [...db.customers.values()].find(
+        (candidate) =>
+          candidate.referralCode === code &&
+          candidate.kind === "registered" &&
+          candidate.deletedAt === null &&
+          !candidate.blocked,
+      )
+    : undefined;
+  if (!inviter) {
+    throw new HttpError(
+      404,
+      "REFERRAL_CODE_UNKNOWN",
+      "This referral code is not known.",
+    );
+  }
+  return {
+    body: { valid: true, inviter: { firstName: inviter.firstName ?? null } },
+  };
+});
+
 route("GET", "/v1/store/me/referral", (ctx) => {
   const customer = requireCustomer(ctx);
   const referral = referralOf(customer);

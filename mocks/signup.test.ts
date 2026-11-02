@@ -206,4 +206,19 @@ describe("the sign-up with a code", () => {
     expect(hasErrorCode(malformed, "VALIDATION_FAILED")).toBe(true);
     expect(referrer.customer.email).toBe("priya@example.com");
   });
+
+  it("tells the form before the account exists whether a code is known, and who invites", async () => {
+    await mock.signIn("priya@example.com");
+    const tokens = (await (
+      await fetch(`${mock.base()}/__mock/tokens?email=priya@example.com`)
+    ).json()) as { referralCode: string };
+    const guest = mock.guestApi();
+    expect(
+      await guest.checkReferralCode(tokens.referralCode.toLowerCase()),
+    ).toEqual({ valid: true, inviter: { firstName: "Anna" } });
+    for (const code of ["NOSUCH01", "x", "with-dash"]) {
+      const unknown = await guest.checkReferralCode(code).catch((e) => e);
+      expect(hasErrorCode(unknown, "REFERRAL_CODE_UNKNOWN")).toBe(true);
+    }
+  });
 });

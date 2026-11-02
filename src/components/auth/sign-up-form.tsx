@@ -1,7 +1,13 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -31,6 +37,7 @@ import {
 import {
   checkReferralCode,
   forgetReferralCode,
+  isReferralCode,
   normalizeReferralCode,
   REFERRAL_CODE_MAX,
   rememberReferralCode,
@@ -45,7 +52,8 @@ type Problem =
   | PasswordProblem
   | "passwordWeak"
   | "fieldInvalid"
-  | "referralInvalid";
+  | "referralInvalid"
+  | "referralUnknown";
 type Problems = Partial<Record<Field, Problem>>;
 
 /** Six digits, as the email carries them. */
@@ -215,6 +223,21 @@ function CodeStep({
   );
 }
 
+/**
+ * What the API said of a referral code before the account exists (doc 21):
+ * who invites with it, that nobody does, or that it could not be asked
+ * (busy, offline), in which case the sign-up sends the code all the same
+ * and the verify answer decides.
+ */
+type CodeCheck =
+  | { kind: "checking" }
+  | { kind: "known"; firstName: string | null }
+  | { kind: "unknown" }
+  | { kind: "unavailable" };
+
+/** How long typing may pause before a code of full length is looked up. */
+const LOOKUP_DELAY_MS = 500;
+
 /** What became of the referral code once the account was made (doc 21). */
 type ReferralOutcome = {
   code: string;
@@ -233,9 +256,13 @@ type ReferralOutcome = {
  * The referral code (doc 21): the code of the invitation link (`?ref=` on
  * this page, or kept from an earlier visit) fills an optional "Referral
  * code" field, which can be changed; without one the field waits behind
- * "Have a referral code?". The code travels with the sign-up, the API
- * applies it once the emailed code was right, and the answer says whether
- * it counted: a line says so, or why not, before going on.
+ * "Have a referral code?". A code of full
+ * length is looked up once typing pauses, or when the field is left (never
+ * on every keystroke: 10 lookups a minute per address): the person who
+ * invites is named under the field, an unknown code is refused at once.
+ * The code travels with the sign-up, the API applies it once the emailed
+ * code was right, and the answer says whether it counted for this person:
+ * a line says so, or why not, before going on.
  */
 export function SignUpForm({
   returnTo,
@@ -279,11 +306,66 @@ export function SignUpForm({
   // Whether the field still shows the code of the link, untouched.
   const fromLink = knownCode !== null && typedCode === null;
   const referralInput = useRef<HTMLInputElement>(null);
+  const normalizedCode = normalizeReferralCode(referralCode);
 
   useEffect(() => {
     // A link opened on this very page is kept like a link to any page.
     if (linkCode) rememberReferralCode(linkCode);
   }, [linkCode]);
+
+  // What the API said of each code typed so far, so that no code is asked
+  // about twice: `results` for the callbacks, `checks` its copy for the page.
+  const results = useRef(new Map<string, CodeCheck>());
+  const lookups = useRef(new Map<string, Promise<CodeCheck>>());
+  const [checks, setChecks] = useState<ReadonlyMap<string, CodeCheck>>(
+    () => new Map(),
+  );
+  const lookUp = useCallback((code: string): Promise<CodeCheck> => {
+    const running = lookups.current.get(code);
+    if (running) return running;
+    const before = results.current.get(code);
+    if (before && before.kind !== "unavailable") return Promise.resolve(before);
+    const remember = (result: CodeCheck) => {
+      results.current.set(code, result);
+      setChecks(new Map(results.current));
+    };
+    remember({ kind: "checking" });
+    const lookup = api
+      .checkReferralCode(code)
+      .then((answer): CodeCheck => ({
+        kind: "known",
+        firstName: answer.inviter.firstName,
+      }))
+      .catch((caught): CodeCheck =>
+        hasErrorCode(caught, "REFERRAL_CODE_UNKNOWN")
+          ? { kind: "unknown" }
+          : { kind: "unavailable" },
+      )
+      .then((result) => {
+        lookups.current.delete(code);
+        remember(result);
+        return result;
+      });
+    lookups.current.set(code, lookup);
+    return lookup;
+  }, []);
+  const check = isReferralCode(normalizedCode)
+    ? checks.get(normalizedCode)
+    : undefined;
+
+  useEffect(() => {
+    // A code of full length is looked up once typing pauses. An answer the
+    // API could not give is asked for again only on leaving the field or
+    // on submitting, not in a loop.
+    if (!isReferralCode(normalizedCode)) return;
+    const before = results.current.get(normalizedCode);
+    if (before && before.kind !== "unavailable") return;
+    const timer = window.setTimeout(
+      () => void lookUp(normalizedCode),
+      LOOKUP_DELAY_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [normalizedCode, lookUp]);
 
   useEffect(() => {
     if (session.status === "customer" && step.kind !== "done") {
@@ -313,11 +395,21 @@ export function SignUpForm({
       if (found.referralCode) referralInput.current?.focus();
       return;
     }
-    const code = normalizeReferralCode(referralCode) || null;
-    // Kept until the account exists: a page reloaded during the code step,
-    // or a sign-up started again, still knows the code.
-    if (code) rememberReferralCode(code);
+    const code = normalizedCode || null;
     setPending(true);
+    if (code) {
+      // An unknown code is refused here; one the API could not check goes
+      // with the sign-up, and the verify answer says what became of it.
+      if ((await lookUp(code)).kind === "unknown") {
+        setPending(false);
+        setProblems({ referralCode: "referralUnknown" });
+        referralInput.current?.focus();
+        return;
+      }
+      // Kept until the account exists: a page reloaded during the code
+      // step, or a sign-up started again, still knows the code.
+      rememberReferralCode(code);
+    }
     try {
       const result = await api.signUp({
         firstName: firstName.trim(),
@@ -521,8 +613,31 @@ export function SignUpForm({
             setTypedCode(event.target.value.toUpperCase().replace(/\s+/g, ""));
             clear("referralCode");
           }}
-          hint={fromLink ? t("referralFromLink") : t("referralHint")}
-          error={problems.referralCode && t(problems.referralCode)}
+          onBlur={() => {
+            if (isReferralCode(normalizedCode)) void lookUp(normalizedCode);
+          }}
+          hint={
+            check?.kind === "checking" ? (
+              t("referralChecking")
+            ) : check?.kind === "known" ? (
+              <span className="text-leaf-700 font-semibold">
+                {check.firstName
+                  ? t("referralInviter", { name: check.firstName })
+                  : t("referralValid")}
+              </span>
+            ) : fromLink ? (
+              t("referralFromLink")
+            ) : (
+              t("referralHint")
+            )
+          }
+          error={
+            problems.referralCode
+              ? t(problems.referralCode)
+              : check?.kind === "unknown"
+                ? t("referralUnknown")
+                : undefined
+          }
           className="sm:max-w-72"
           style={{
             letterSpacing: "0.08em",

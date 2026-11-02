@@ -370,6 +370,10 @@
     "referralHint": "Enter the code from the invitation link you received.",
     "referralFromLink": "Taken from your invitation link. You can change it.",
     "referralInvalid": "A referral code has 6 to 12 letters or digits.",
+    "referralChecking": "Checking the code …",
+    "referralInviter": "Invitation from {name}.",
+    "referralValid": "This referral code is good.",
+    "referralUnknown": "This referral code is not known. Please check it or leave the field empty.",
     "referralNotApplied": {
       "unknown_code": "The referral code {code} is not known, so it was not applied. Your account works all the same.",
       "own_code": "You cannot use your own referral code, so it was not applied.",
@@ -1152,6 +1156,7 @@
     "SIGNUP_NOT_FOUND": "This code has expired or was used up. Please start the sign-up again.",
     "CUSTOMER_HAS_OPEN_ORDERS": "Your account cannot be deleted while an order, a return or a report is still open.",
     "ORDER_TOKEN_INVALID": "This link does not open this order.",
+    "REFERRAL_CODE_UNKNOWN": "This referral code is not known.",
     "WISHLIST_NOT_FOUND": "This list does not exist any more.",
     "WISHLIST_NAME_TAKEN": "You already have a list with this name.",
     "WISHLIST_LIMIT_REACHED": "You can have up to 20 lists. Delete one to add another.",

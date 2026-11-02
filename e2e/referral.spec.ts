@@ -50,9 +50,8 @@ test.describe("a referral link", () => {
 
     const field = page.getByLabel("Referral code (optional)");
     await expect(field).toHaveValue(code);
-    await expect(
-      page.getByText("Taken from your invitation link. You can change it."),
-    ).toBeVisible();
+    // Looked up once the page is live: the person who invites is named.
+    await expect(page.getByText("Invitation from Priya.")).toBeVisible();
     await fillAccount(page, "anna@example.com");
     await page.getByRole("button", { name: "Create account" }).click();
     await expect(page.getByText(/We sent a 6-digit code/)).toBeVisible();
@@ -81,9 +80,11 @@ test.describe("a referral link", () => {
     ).toBe(1);
   });
 
-  test("can be typed by hand, is checked, and says when it did not count", async ({
+  test("can be typed by hand, is checked, refuses an unknown code at once, and says when one did not count", async ({
     page,
+    request,
   }) => {
+    const { code } = await inviter(request);
     await page.goto("/en/sign-up");
     await expect(page.getByLabel("Referral code (optional)")).toHaveCount(0);
     await page.getByRole("button", { name: "Have a referral code?" }).click();
@@ -96,10 +97,29 @@ test.describe("a referral link", () => {
       page.getByText("A referral code has 6 to 12 letters or digits."),
     ).toBeVisible();
     await expect(field).toBeFocused();
-    // Typed small, kept in capitals; an unknown code never fails the sign-up.
+
+    // Typed small, kept in capitals, looked up once typing pauses: an
+    // unknown code is refused before anything is sent.
+    const unknown =
+      "This referral code is not known. Please check it or leave the field empty.";
     await field.fill("nobody99");
     await expect(field).toHaveValue("NOBODY99");
+    await expect(page.getByText(unknown)).toBeVisible();
     await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page.getByText(unknown)).toBeVisible();
+    await expect(page.getByText(/We sent a 6-digit code/)).toHaveCount(0);
+    // A known code names the person who invites.
+    await field.fill(code.toLowerCase());
+    await expect(page.getByText("Invitation from Priya.")).toBeVisible();
+
+    // When the lookup cannot be asked, the code goes with the sign-up all
+    // the same, and the verify answer says what became of it.
+    await page.route("**/v1/store/referral-codes/**", (route) => route.abort());
+    await field.fill("nobody98");
+    await field.blur();
+    await expect(page.getByText(unknown)).toHaveCount(0);
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page.getByText(/We sent a 6-digit code/)).toBeVisible();
     await page
       .getByLabel("Code")
       .fill(await signupCode(page.request, "max@example.com"));
@@ -107,7 +127,7 @@ test.describe("a referral link", () => {
     await expect(page.getByText("Your account is ready.")).toBeVisible();
     await expect(
       page.getByText(
-        "The referral code NOBODY99 is not known, so it was not applied. Your account works all the same.",
+        "The referral code NOBODY98 is not known, so it was not applied. Your account works all the same.",
       ),
     ).toBeVisible();
     await page.getByRole("button", { name: "Continue" }).click();
@@ -123,6 +143,7 @@ test.describe("a referral link", () => {
     await expect(page.getByLabel("Empfehlungscode (optional)")).toHaveValue(
       code,
     );
+    await expect(page.getByText("Einladung von Priya.")).toBeVisible();
     await page.goto("/de");
     await expect(notice(page)).toContainText("Sie wurden eingeladen");
     await notice(page)

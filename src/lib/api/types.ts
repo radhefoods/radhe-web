@@ -1082,6 +1082,16 @@ export interface ReferralInvitee {
   qualifiedAt: IsoDateTime | null;
 }
 
+/**
+ * `GET /v1/store/referral-codes/{code}` (21, added 2026-11-02): the code
+ * belongs to an active account, and who invites with it. Anything else is
+ * `404 REFERRAL_CODE_UNKNOWN`.
+ */
+export interface ReferralCodeCheck {
+  valid: true;
+  inviter: { firstName: string | null };
+}
+
 /** `GET /v1/store/me/referral`: the code, the link and who used it. */
 export interface Referral {
   code: string;

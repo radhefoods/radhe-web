@@ -82,6 +82,8 @@ export const API_ERROR_CODES = [
   "WISHLIST_LIMIT_REACHED",
   // guest checkout (20)
   "ORDER_TOKEN_INVALID",
+  // referrals (21)
+  "REFERRAL_CODE_UNKNOWN",
   // order reviews (doc ORDER_REVIEWS)
   "REVIEW_NOT_POSSIBLE",
   "REVIEW_ALREADY_WRITTEN",

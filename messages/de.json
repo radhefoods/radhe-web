@@ -370,6 +370,10 @@
     "referralHint": "Geben Sie den Code aus dem Einladungslink ein, den Sie erhalten haben.",
     "referralFromLink": "Aus Ihrem Einladungslink übernommen. Sie können ihn ändern.",
     "referralInvalid": "Ein Empfehlungscode hat 6 bis 12 Buchstaben oder Ziffern.",
+    "referralChecking": "Code wird geprüft …",
+    "referralInviter": "Einladung von {name}.",
+    "referralValid": "Dieser Empfehlungscode ist gültig.",
+    "referralUnknown": "Dieser Empfehlungscode ist nicht bekannt. Bitte prüfen Sie ihn oder lassen Sie das Feld leer.",
     "referralNotApplied": {
       "unknown_code": "Der Empfehlungscode {code} ist nicht bekannt und wurde daher nicht übernommen. Ihr Konto funktioniert trotzdem.",
       "own_code": "Ihren eigenen Empfehlungscode können Sie nicht verwenden; er wurde nicht übernommen.",
@@ -1152,6 +1156,7 @@
     "SIGNUP_NOT_FOUND": "Dieser Code ist abgelaufen oder verbraucht. Bitte beginnen Sie die Registrierung von vorn.",
     "CUSTOMER_HAS_OPEN_ORDERS": "Ihr Konto kann nicht gelöscht werden, solange eine Bestellung, eine Rücksendung oder eine Meldung offen ist.",
     "ORDER_TOKEN_INVALID": "Dieser Link öffnet diese Bestellung nicht.",
+    "REFERRAL_CODE_UNKNOWN": "Dieser Empfehlungscode ist nicht bekannt.",
     "WISHLIST_NOT_FOUND": "Diese Liste gibt es nicht mehr.",
     "WISHLIST_NAME_TAKEN": "Eine Liste mit diesem Namen gibt es schon.",
     "WISHLIST_LIMIT_REACHED": "Sie können bis zu 20 Listen haben. Löschen Sie eine, um eine neue anzulegen.",

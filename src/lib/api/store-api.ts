@@ -51,6 +51,7 @@ import type {
   ProductList,
   ProductQuery,
   Referral,
+  ReferralCodeCheck,
   ReturnRequest,
   ReviewPage,
   ReviewQuery,
@@ -537,6 +538,16 @@ export function createStoreApi(request: Requester) {
     /** The code, the link and the people who used it. */
     getReferral: (o?: CallOptions) =>
       localized<{ referral: Referral }>("/v1/store/me/referral", o),
+    /**
+     * Whether a code belongs to an active account, and the first name of
+     * the person who invites with it; no session, 10 calls a minute per
+     * address. `404 REFERRAL_CODE_UNKNOWN` for any other code.
+     */
+    checkReferralCode: (code: string, o?: CallOptions) =>
+      localized<ReferralCodeCheck>(
+        `/v1/store/referral-codes/${seg(code.trim().toUpperCase())}`,
+        o,
+      ),
 
     // --- Order reviews (doc ORDER_REVIEWS) ------------------------------------
     /** The published reviews of delivered orders, newest first, with the summary. */
