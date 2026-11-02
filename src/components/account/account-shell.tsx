@@ -19,6 +19,7 @@ const SECTIONS = [
   { href: "/account/reports", key: "reports", count: "openIssues" },
   { href: "/account/addresses", key: "addresses", count: "addresses" },
   { href: "/account/referrals", key: "referrals", count: null },
+  { href: "/account/coins", key: "coins", count: null },
   { href: "/account/profile", key: "profile", count: null },
   { href: "/wishlist", key: "wishlist", count: "wishlistItems" },
 ] as const;
@@ -35,7 +36,16 @@ export function AccountShell({ children }: { children: ReactNode }) {
   const params = useParams();
   const session = useSession({ force: true });
   // The counts beside the entries, as in the owner's reference (2026-11-01).
-  const counts = useOverview().data?.counts;
+  const overview = useOverview().data;
+  const counts = overview?.counts;
+  // The coins page while the program is on or there is a balance to see
+  // (REWARDS 8); an API without coins never shows it.
+  const rewards = overview?.rewards;
+  const sections = SECTIONS.filter(
+    (section) =>
+      section.key !== "coins" ||
+      (rewards && (rewards.enabled || rewards.available > 0)),
+  );
 
   // The page to come back to: the address pattern, with the order number
   // filled in where the page has one.
@@ -58,7 +68,7 @@ export function AccountShell({ children }: { children: ReactNode }) {
     current section on a white thumb; a column of pills from `lg`
     (2026-10-31). */}
         <ul className="glass-soft no-scrollbar lg:glass -mx-4 flex gap-1 overflow-x-auto rounded-full p-1 sm:mx-0 lg:flex-col lg:gap-0.5 lg:rounded-2xl lg:p-2">
-          {SECTIONS.map(({ href, key, count }) => {
+          {sections.map(({ href, key, count }) => {
             const active =
               href === "/account"
                 ? pathname === "/account"

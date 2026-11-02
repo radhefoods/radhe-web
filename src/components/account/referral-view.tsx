@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMyRewards } from "@/features/account/rewards";
 import { api } from "@/lib/api/browser";
 import type { Locale } from "@/i18n/routing";
 import type { ReferralStatus } from "@/lib/api/types";
@@ -23,7 +24,8 @@ const STATUS_TONE: Record<ReferralStatus, ChipTone> = {
 /**
  * The referral page (doc 21): the code and the link to pass on, how many
  * signed up with it and how many ordered, and the people themselves with
- * what became of each invitation. No rewards yet: the page says so.
+ * what became of each invitation. The coins an invitation brings come
+ * from the program (REWARDS 8), while it is on.
  */
 export function ReferralView() {
   const t = useTranslations("referral");
@@ -35,6 +37,10 @@ export function ReferralView() {
     staleTime: 30_000,
   });
   const referral = query.data;
+  const program = useMyRewards().data?.program;
+  const inviterCoins = program?.enabled
+    ? program.earning.referral.inviter
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -79,7 +85,11 @@ export function ReferralView() {
               copied={t("copied")}
             />
             <p className="font-semibold">{t("counts", referral.counts)}</p>
-            <p className="text-ink-subtle text-xs">{t("note")}</p>
+            {inviterCoins && (
+              <p className="text-ink-subtle text-xs">
+                {t("note", { coins: inviterCoins })}
+              </p>
+            )}
           </section>
 
           <section

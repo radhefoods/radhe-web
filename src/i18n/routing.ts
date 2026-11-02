@@ -68,6 +68,7 @@ export const routing = defineRouting({
       de: "/konto/empfehlungen",
     },
     "/account/reviews": { en: "/account/reviews", de: "/konto/bewertungen" },
+    "/account/coins": { en: "/account/coins", de: "/konto/coins" },
     "/account/reports": { en: "/account/reports", de: "/konto/meldungen" },
     "/account/reports/[issueNumber]": {
       en: "/account/reports/[issueNumber]",

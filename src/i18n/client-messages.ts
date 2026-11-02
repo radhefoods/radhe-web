@@ -36,6 +36,7 @@ const AREAS = {
     "referral",
     "returns",
     "reviews",
+    "rewards",
   ],
   emailLinks: ["unsubscribe"],
   wishlist: ["wishlist"],

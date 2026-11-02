@@ -2,6 +2,7 @@
 
 import {
   ChevronRight,
+  Coins,
   FileText,
   Heart,
   MapPin,
@@ -41,7 +42,7 @@ function initialsOf(customer: Customer): string {
   return (letters || customer.email.charAt(0)).toUpperCase();
 }
 
-/** One of the four tiles: a count, what it counts, and a line under it, all a link. */
+/** One of the tiles: a count, what it counts, and a line under it, all a link. */
 function Tile({
   href,
   icon,
@@ -53,7 +54,8 @@ function Tile({
     | "/account/orders"
     | "/account/invoices"
     | "/wishlist"
-    | "/account/addresses";
+    | "/account/addresses"
+    | "/account/coins";
   icon: ReactNode;
   count: number;
   title: string;
@@ -90,11 +92,12 @@ function Tile({
  * The first page of the account, after the owner's reference screenshot
  * (2026-11-01): the greeting card with the name, "Member since" and the
  * way to the profile; four tiles (orders, invoices, wishlist, addresses)
- * from `GET /v1/store/me/overview` (doc 2); then the orders that wait for
- * their payment and the latest orders, with the standard address and the
- * referral code beside them. Points, subscriptions and rewards of the
- * reference have no API and are left out. An API without the overview
- * still shows the greeting and the orders.
+ * from `GET /v1/store/me/overview` (doc 2), a fifth with the coins while
+ * the program is on (REWARDS 8); then the orders that wait for their
+ * payment and the latest orders, with the standard address and the
+ * referral code beside them. Subscriptions of the reference have no API
+ * and are left out. An API without the overview still shows the greeting
+ * and the orders.
  */
 export function AccountOverview() {
   const t = useTranslations("account");
@@ -171,7 +174,15 @@ export function AccountOverview() {
         />
       )}
       {counts ? (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul
+          className={cn(
+            "grid gap-3 sm:grid-cols-2",
+            // Five tiles do not fit one row of four: three, then five wide.
+            overview?.rewards?.enabled
+              ? "lg:grid-cols-3 xl:grid-cols-5"
+              : "lg:grid-cols-4",
+          )}
+        >
           <Tile
             href="/account/orders"
             icon={<Package className={icon} />}
@@ -200,6 +211,15 @@ export function AccountOverview() {
             title={t("overview.addresses")}
             hint={t("overview.addressesHint")}
           />
+          {overview?.rewards?.enabled && (
+            <Tile
+              href="/account/coins"
+              icon={<Coins className={icon} />}
+              count={overview.rewards.available}
+              title={t("overview.coins")}
+              hint={t("overview.coinsHint")}
+            />
+          )}
         </ul>
       ) : (
         overviewQuery.isPending &&
@@ -345,9 +365,11 @@ export function AccountOverview() {
               <Link href="/account/referrals" className={link}>
                 {t("overview.referralAll")}
               </Link>
-              <p className="text-ink-subtle text-xs">
-                {t("overview.referralNote")}
-              </p>
+              {overview.rewards?.enabled && (
+                <p className="text-ink-subtle text-xs">
+                  {t("overview.referralNote")}
+                </p>
+              )}
             </section>
           </div>
         )}
