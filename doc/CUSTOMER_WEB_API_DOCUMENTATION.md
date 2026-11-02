@@ -30,10 +30,11 @@ A product comes in one or more **pack sizes** (`variants`): the product holds th
 19. Blog
 20. Guest checkout
 21. Referrals
-22. Product reviews and order feedback
+22. Order reviews
 23. Problem reports
+24. Points and rewards (loyalty coins)
 
-Added on 2026-11-01 (`doc/CUSTOMER_ACCOUNTS.md` has the long version): the sign-up needs an emailed code (section 1), guest checkout (20), closing an account and the account overview (2), address labels (3), orders given up unpaid are hidden and deleted (9), several wishlists (16), referrals (21), reviews and order feedback (22), problem reports (23).
+Added on 2026-11-01 (`doc/CUSTOMER_ACCOUNTS.md` has the long version): the sign-up needs an emailed code (section 1), guest checkout (20), closing an account and the account overview (2), address labels (3), orders given up unpaid are hidden and deleted (9), several wishlists (16), referrals (21), order reviews (22, changed on 2026-11-02), problem reports (23).
 
 ---
 
@@ -1254,7 +1255,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 - `deliveryAddress`: `company`, `additionalLine`, `phone` are **absent** when they were not set.
 - `canCancel`: whether `POST …/cancel` is allowed right now: always while `pending_payment`; for a paid order by the rule of the shop (section 9.5).
 - `returns.until`: end of the return window (delivery + `returns.windowDays`, ISO) or `null` when not delivered or returns are switched off; `returns.possible` is `true` while the window is open and something can still be sent back.
-- `isGuest`: placed without an account (section 20). `feedback`: what the customer said after the delivery (`{ rating, deliveryRating, comment, at }` or `null`); `canGiveFeedback` while it is delivered and none was given (section 22).
+- `isGuest`: placed without an account (section 20). The review of a delivered order is read and written through `GET`/`POST /v1/store/orders/{orderNumber}/review` (section 22); the order itself does not carry it.
 - An order may be paid for **72 hours**; when nothing was paid by then it is deleted. An unpaid order that was cancelled is not listed and its detail answers `404` (it is deleted after 72 hours too). Paid orders stay, cancelled or not.
 - `cancellation`: `null` or `{ "reason": "changed_mind", "text": "…", "by": "customer" | "admin" | "system", "at": "…" }`. `text` is only shown when `by` is `customer`. Reasons by `by`: see section 13.
 
@@ -1836,7 +1837,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 18. Guest checkout (section 20): "Continue as guest" on the checkout page, `POST /v1/store/guest/checkout`, the page `/guest/orders/<orderNumber>?token=…` for the way back from Stripe and the links in the emails.
 19. Several wishlists (section 16.2): the list chooser, new, rename, make default, delete, move and copy; the heart keeps using the default list.
 20. Referrals (section 21): the code, the link and the invitees in the account.
-21. Reviews and feedback (section 22): stars from `rating` on cards and product pages, the reviews section on the product page, "Write a review" for delivered products, the feedback form on delivered orders.
+21. Order reviews (section 22): the review form (stars and words, both required) on a delivered order, the "Reviews" page in the account, the "What our customers say" section from the public endpoint; no stars on products.
 22. Problem reports (section 23): the "Report a problem" page from a delivered order, the photos, the report page with its history, the reports list in the account.
 
 ---
@@ -1970,12 +1971,22 @@ Ordering without an account. The visitor sends the cart from the browser, the ad
 
 ## 21. Referrals
 
-`GET /v1/store/me/referral` → `{ referral: { code, link, counts: { registered, qualified }, invitees: [{ name, email (masked), status, registeredAt, qualifiedAt }] } }`. The shop reads `ref` from the URL and sends it as `referralCode` with the sign-up; the verify answer says whether it counted. A referral is `registered` at the sign-up and `qualified` when the invited person's first delivered order stands with nothing to refund; `void` when the goods of that order are all credited later. No rewards yet. Section 7 of `doc/CUSTOMER_ACCOUNTS.md`.
+`GET /v1/store/me/referral` → `{ referral: { code, link, counts: { registered, qualified }, invitees: [{ name, email (masked), status, registeredAt, qualifiedAt }] } }`. The shop reads `ref` from the URL and sends it as `referralCode` with the sign-up; the verify answer says whether it counted. Before that, the sign-up form may check the code: `GET /v1/store/referral-codes/{code}` (no session, 10 calls per minute per IP) → `200 { valid: true, inviter: { firstName } }` for the code of an active account, `404 REFERRAL_CODE_UNKNOWN` otherwise (case does not matter; added 2026-11-02). A referral is `registered` at the sign-up and `qualified` when the invited person's first delivered order stands with nothing to refund; `void` when the goods of that order are all credited later. No rewards yet. Section 7 of `doc/CUSTOMER_ACCOUNTS.md`.
 
-## 22. Product reviews and order feedback
+## 22. Order reviews
 
-Products carry `rating: { average, count } | null` on every catalogue answer. Public: `GET /v1/store/products/{productId}/reviews?page=&limit=&rating=` → the published reviews, newest first, with `summary { average, count, distribution }`. Signed in: `GET /v1/store/me/reviews` (own, with status and `rejectionNote`), `GET /v1/store/me/reviews/reviewable` (products of delivered orders with what was written), `PUT /v1/store/me/reviews/{productId}` `{ rating, title?, text, orderNumber?, locale? }` (waits for approval; `403 REVIEW_NOT_ALLOWED` without a delivered order), `DELETE /v1/store/me/reviews/{productId}`. Order feedback: `POST /v1/store/orders/{orderNumber}/feedback` `{ rating, deliveryRating?, comment? }` once per delivered order (`409 FEEDBACK_ALREADY_GIVEN`, `409 FEEDBACK_NOT_POSSIBLE`); the order carries `feedback` and `canGiveFeedback`. Section 8 of `doc/CUSTOMER_ACCOUNTS.md`.
+Changed on 2026-11-02. A customer reviews a **delivered order as a whole**, once: `GET /v1/store/orders/{orderNumber}/review` → `{ review | null, canReview }`; `POST /v1/store/orders/{orderNumber}/review` `{ rating: 1–5, text (10–2000), locale? }` → `201 { review }`, status `pending` until the admin publishes it (`409 REVIEW_NOT_POSSIBLE` before the delivery, `409 REVIEW_ALREADY_WRITTEN` the second time; no edit, no delete). `GET /v1/store/me/reviews` lists the own reviews with `status` and `rejectionNote`; `GET /v1/store/me/reviews/reviewable` the delivered orders without a review, as order summaries. Public: `GET /v1/store/reviews?page=&limit=&rating=` → the published reviews, newest first (`id`, `rating`, `text`, `locale`, `authorName`, `verifiedPurchase`, `writtenAt`, `publishedAt`, `reply`), with `summary { average, count, distribution }`, for a "What our customers say" section. Reviews are not about products: products carry no `rating`, and the order feedback of 2026-11-01 is gone. `doc/ORDER_REVIEWS.md` has the detail.
 
 ## 23. Problem reports
 
 After a delivery, within `returns.issueWindowDays` of `GET /v1/store/settings`: `GET /v1/store/orders/{orderNumber}/issues` (`items`, `window { possible, until }`, `reportable[]`), `POST /v1/store/orders/{orderNumber}/issues` `{ items?: [{ variantId, quantity }], problems: [damaged | missing | wrong_item | not_fresh | late | other], description, preferredResolution: refund | replacement | none }` → `201 { issue }` ("RF-1084-P1"), `POST /v1/store/issues/{issueNumber}/images` (multipart `files`, up to five), `DELETE …/images/{imageId}`, `GET /v1/store/issues`, `GET /v1/store/issues/{issueNumber}`, `POST …/cancel` while `open`. Statuses `open`, `in_review`, `resolved` (with `resolution { type, amount, note, at }`), `rejected`, `cancelled`; the customer is emailed when the report is received, resolved or rejected. Errors `ISSUE_NOT_POSSIBLE`, `ISSUE_WINDOW_CLOSED`, `ISSUE_QUANTITY_INVALID`, `ISSUE_TRANSITION_NOT_ALLOWED`, `IMAGE_LIMIT_REACHED`. Section 9 of `doc/CUSTOMER_ACCOUNTS.md`.
+
+## 24. Points and rewards (loyalty coins)
+
+Added on 2026-11-02 (`doc/REWARDS.md` has the long version, with the texts). Customers collect **coins**: for a delivered order (coins per euro of the goods paid, after the code and the coins, delivery excluded, rounded), for the verified sign-up (`rewards.welcomeCoins` in the answer of `POST /v1/store/auth/signup/verify`), when a referral qualifies, and when the admin publishes a review. They redeem coins on the checkout page: each coin takes a percentage of the goods off, spread over the lines like a discount code. Guests have no coins.
+
+- `GET /v1/store/rewards/program` (no session) → `{ program: { enabled, earning { order { coinsPerEuro } | null, welcome, referral { inviter, invitee }, review, campaign }, redemption { percentPerCoin, minCoins, minRedeemValue, minOrderValue, maxCoinsPerOrder, maxDiscount, combinableWithDiscountCodes } | null, expiry } }`: the rules, `null` where switched off.
+- `GET /v1/store/me/rewards` → `{ account: { available, balance, reserved, earnedTotal, redeemedTotal, lastActivityAt, expiresAt }, canRedeem, reason, program }`. `GET /v1/store/me/rewards/transactions?page=&limit=` → the history, newest first (`type`, signed `coins`, `state`, `orderNumber`, `reference`, `reason`, `at`). `GET /v1/store/me/overview` now also answers `rewards { enabled, available }`.
+- Every cart answer (section 8) carries `lines[].rewardAmount`, `totals.rewards` and `rewards { requested, coins, amount, applied, reason, maxCoins, maxAmount, earn }` (`null` for visitors): `maxCoins`/`maxAmount` the most this cart allows, `earn` the coins the order will bring at delivery, `reason` why coins cannot be redeemed (`disabled`, `no_coins`, `below_min_coins`, `below_min_order`, `below_min_value`, `code_applied`, `too_small`, `insufficient`; `null` when nothing was chosen yet).
+- `PUT /v1/store/checkout/rewards` `{ coins? }` (without `coins`: as many as allowed) → the bill with the coins applied, or `400 REWARDS_NOT_APPLICABLE` with `details.reason`; the choice stays with the cart until the order is paid. `DELETE /v1/store/checkout/rewards` → the bill without them. `POST /v1/store/checkout` prices the coins in and holds them; `409 REWARDS_NOT_APPLICABLE` when they stopped applying (the choice is dropped). The payment spends them; an order given up unpaid frees them.
+- The order (section 9) carries `rewards { coins, amount, percentPerCoin, state } | null`, `items[].rewardAmount`, `totals.rewards`, `finalTotals.rewards`; invoices and credit notes (section 11) a negative line "Coins redeemed (59)" per VAT rate and `totals.rewards`. Goods credited later give the coins of those goods back.

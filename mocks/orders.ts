@@ -49,9 +49,19 @@ import {
   returnsInfo,
   stripe,
 } from "./payments.ts";
+import {
+  notApplicable,
+  releaseCoins,
+  reserveCoins,
+  rewards as rewardRules,
+} from "./rewards.ts";
 import { billOf, findVariant, packSizeOf, productImageUrl } from "./views.ts";
 
 const ADDRESS_LIMIT = 10;
+
+/** Percent of the goods one coin takes off, for the order's record. */
+const rewardsPercentPerCoin = () =>
+  rewardRules.settings.redemption.percentPerCoin;
 
 // --- Fixtures that orders and tests change, and how to restore them ----------
 
@@ -120,6 +130,51 @@ export function applyDiscount(
 /** `DELETE /v1/store/checkout/discount`: the bill without the code. */
 export function removeDiscount(customer: CustomerRecord, locale: Locale) {
   customer.discountCode = null;
+  return billOf(customer.cart, locale, customer);
+}
+
+// --- 24 Coins on the checkout page (REWARDS 5) --------------------------------
+
+/**
+ * `PUT /v1/store/checkout/rewards`: the coins asked for (or as many as the
+ * rules allow, without `coins`) are priced into the bill; the choice is
+ * kept with the cart. `400 REWARDS_NOT_APPLICABLE` with the reason when
+ * they cannot be used on this cart; nothing is kept then.
+ */
+export function applyRewards(
+  customer: CustomerRecord,
+  raw: unknown,
+  locale: Locale,
+) {
+  const body = objectBody(raw ?? {}, ["coins"]);
+  const coins = body.coins;
+  if (
+    coins !== undefined &&
+    (typeof coins !== "number" ||
+      !Number.isInteger(coins) ||
+      coins < 1 ||
+      coins > 1_000_000)
+  ) {
+    throw validationFailed(
+      "coins",
+      "coins must be an integer from 1 to 1000000",
+    );
+  }
+  const choice = { requested: coins === undefined ? null : coins };
+  const bill = billOf(customer.cart, locale, {
+    ...customer,
+    rewardCoins: choice,
+  });
+  if (!bill.rewards?.applied) {
+    throw notApplicable(bill.rewards?.reason ?? "disabled");
+  }
+  customer.rewardCoins = choice;
+  return bill;
+}
+
+/** `DELETE /v1/store/checkout/rewards`: the bill without the coins. */
+export function removeRewards(customer: CustomerRecord, locale: Locale) {
+  customer.rewardCoins = null;
   return billOf(customer.cart, locale, customer);
 }
 
@@ -386,6 +441,7 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
         vatPercent: item.vatRate / 100,
         vatAmount: item.vatAmount,
         discountAmount: item.discountAmount,
+        rewardAmount: item.rewardAmount,
         deliveredQuantity: item.deliveredQuantity,
         returnedQuantity: item.returnedQuantity,
         finalLineTotal: Math.max(0, kept) * item.unitPrice,
@@ -394,6 +450,7 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
     totals: order.totals,
     finalTotals: finalTotalsOf(order),
     discount: order.discount,
+    rewards: order.rewards,
     adjustments: order.adjustments,
     deliveryAddress: order.deliveryAddress,
     note: order.note,
@@ -799,6 +856,12 @@ function placeOrder(
       { code: bill.discount.code, reason: bill.discount.reason },
     );
   }
+  // Coins that stopped applying (the balance shrank, the rules changed)
+  // are dropped from the cart the same way (REWARDS 5).
+  if (bill.rewards && bill.rewards.requested !== 0 && !bill.rewards.applied) {
+    customer.rewardCoins = null;
+    throw notApplicable(bill.rewards.reason ?? "disabled", 409);
+  }
   if (bill.totals.total !== expectedTotal) {
     throw new HttpError(
       409,
@@ -848,6 +911,7 @@ function placeOrder(
         vatRate: line.vatRate,
         vatAmount: line.vatAmount,
         discountAmount: line.discountAmount,
+        rewardAmount: line.rewardAmount ?? 0,
         deliveredQuantity: 0,
         returnedQuantity: 0,
       };
@@ -869,6 +933,15 @@ function placeOrder(
           type: bill.discount.type,
           value: bill.discount.value,
           amount: bill.discount.amount,
+          state: "reserved",
+        }
+      : null,
+    // The coins are held for this order; the payment spends them.
+    rewards: bill.rewards?.applied
+      ? {
+          coins: bill.rewards.coins,
+          amount: bill.rewards.amount,
+          percentPerCoin: rewardsPercentPerCoin(),
           state: "reserved",
         }
       : null,
@@ -906,6 +979,7 @@ function placeOrder(
   };
   db.orders.set(order.orderNumber, order);
   if (bill.discount) reserveDiscount(findDiscount(bill.discount.code)!);
+  reserveCoins(order);
   const page = paymentPage(order, mockBase);
   return {
     status: 201,
@@ -1002,6 +1076,7 @@ export function cancelOrderRecord(
   releaseStock(order);
   // Given up unpaid: the use goes back. A paid order keeps its use.
   releaseDiscount(order);
+  releaseCoins(order);
   order.status = "cancelled";
   order.cancellation = {
     reason: body.reason as CustomerCancellationReason,

@@ -39,6 +39,7 @@ import type {
   LegalType,
   LoginInput,
   MyReview,
+  MyRewards,
   OrderDetail,
   OrderReviewState,
   OrderIssues,
@@ -53,6 +54,8 @@ import type {
   Referral,
   ReferralCodeCheck,
   ReturnRequest,
+  RewardsProgram,
+  RewardTransaction,
   ReviewPage,
   ReviewQuery,
   SessionResult,
@@ -309,6 +312,37 @@ export function createStoreApi(request: Requester) {
         ...o,
         method: "DELETE",
       }),
+
+    // --- 24 Points and rewards (doc/REWARDS.md 5) ---------------------------
+    /** The rules of the coins, for everyone; `404` on an API without them. */
+    getRewardsProgram: (o?: CallOptions) =>
+      localized<{ program: RewardsProgram }>("/v1/store/rewards/program", o),
+    /** The customer's coins: balance, totals, the rules, whether redeeming is offered. */
+    getMyRewards: (o?: CallOptions) =>
+      localized<MyRewards>("/v1/store/me/rewards", o),
+    /** The history of the coins, newest first, by page. */
+    listRewardTransactions: (
+      query: { page?: number; limit?: number } = {},
+      o?: CallOptions,
+    ) =>
+      localized<Page<RewardTransaction>>("/v1/store/me/rewards/transactions", {
+        ...o,
+        query,
+      }),
+    /**
+     * Keeps a number of coins with the cart and answers the bill with them
+     * priced in; without `coins`, as many as the rules allow. `400
+     * REWARDS_NOT_APPLICABLE` names the reason. 30 calls a minute.
+     */
+    redeemCoins: (coins?: number, o?: CallOptions) =>
+      localized<Bill>("/v1/store/checkout/rewards", {
+        ...o,
+        method: "PUT",
+        body: coins === undefined ? {} : { coins },
+      }),
+    /** Takes the coins off the cart; answers the bill without them. */
+    removeCoins: (o?: CallOptions) =>
+      localized<Bill>("/v1/store/checkout/rewards", { ...o, method: "DELETE" }),
 
     // --- 9 Orders and checkout ----------------------------------------------
     /**

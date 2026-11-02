@@ -1157,6 +1157,7 @@
     "CUSTOMER_HAS_OPEN_ORDERS": "Your account cannot be deleted while an order, a return or a report is still open.",
     "ORDER_TOKEN_INVALID": "This link does not open this order.",
     "REFERRAL_CODE_UNKNOWN": "This referral code is not known.",
+    "REWARDS_NOT_APPLICABLE": "Your coins cannot be redeemed on this order.",
     "WISHLIST_NOT_FOUND": "This list does not exist any more.",
     "WISHLIST_NAME_TAKEN": "You already have a list with this name.",
     "WISHLIST_LIMIT_REACHED": "You can have up to 20 lists. Delete one to add another.",

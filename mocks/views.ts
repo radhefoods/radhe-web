@@ -41,6 +41,7 @@ import {
   type Translated,
   type VariantRecord,
 } from "./data/catalogue.ts";
+import { redeemOnBill } from "./rewards.ts";
 import {
   checkDiscount,
   discountView,
@@ -949,8 +950,12 @@ export function totalsOf(lines: BillLine[]): Totals {
     (sum, line) => sum + line.discountAmount,
     0,
   );
+  const rewards = orderable.reduce(
+    (sum, line) => sum + (line.rewardAmount ?? 0),
+    0,
+  );
   const paid = orderable.reduce((sum, line) => sum + line.lineTotal, 0);
-  const subtotal = paid + discount;
+  const subtotal = paid + discount + rewards;
   // Nothing to deliver, nothing to charge for delivery.
   const deliveryFee = orderable.length ? deliveryFeeFor(paid) : 0;
 
@@ -987,6 +992,7 @@ export function totalsOf(lines: BillLine[]): Totals {
     currency: "EUR",
     subtotal,
     discount,
+    rewards,
     deliveryFee,
     total: paid + deliveryFee,
     netTotal: vat.reduce((sum, group) => sum + group.net, 0),
@@ -1008,6 +1014,7 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
       vatRate: 0,
       vatAmount: 0,
       discountAmount: 0,
+      rewardAmount: 0,
       issue: "product_not_found",
       ordering: null,
       product: null,
@@ -1033,6 +1040,7 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
     vatRate: p.vatRate,
     vatAmount: vatOf(lineTotal, p.vatRate),
     discountAmount: 0,
+    rewardAmount: 0,
     issue,
     ordering,
     // Inside a line the product's own `ordering` fields are always null.
@@ -1045,12 +1053,15 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
  * is checked against the lines (doc 9.6): applied, each eligible line
  * carries its share and `lineTotal` is what is paid; no longer applicable,
  * the code stays on the bill with `applied: false` and nothing is taken off.
+ * A registered customer's coins come after the code (REWARDS 3): the bill
+ * says what they take off, or why not, and what the order will earn.
  */
 export function billOf(
   items: CartItemInput[],
   locale: Locale,
   /** The customer, or for a visitor's preview with a code just that (doc 20). */
-  customer?: Pick<CustomerRecord, "id" | "discountCode">,
+  customer?: Pick<CustomerRecord, "id" | "discountCode"> &
+    Partial<Pick<CustomerRecord, "kind" | "rewardCoins">>,
 ): Bill {
   const lines = items.map((item) => lineOf(item, locale));
   let discount: Bill["discount"] = null;
@@ -1084,6 +1095,20 @@ export function billOf(
       }
     }
   }
+  // Guests and visitors have no coins (REWARDS 1).
+  const rewards =
+    customer?.kind === "registered"
+      ? redeemOnBill(
+          { id: customer.id, rewardCoins: customer.rewardCoins ?? null },
+          lines,
+          discount?.applied ?? false,
+        )
+      : null;
+  if (rewards?.applied) {
+    for (const line of lines) {
+      line.vatAmount = vatOf(line.lineTotal, line.vatRate);
+    }
+  }
   const totals = totalsOf(lines);
   const freeFrom = freeDeliveryFrom();
   return {
@@ -1097,9 +1122,14 @@ export function billOf(
       missingForFree:
         freeFrom === null
           ? null
-          : Math.max(0, freeFrom - (totals.subtotal - totals.discount)),
+          : Math.max(
+              0,
+              freeFrom -
+                (totals.subtotal - totals.discount - (totals.rewards ?? 0)),
+            ),
     },
     discount,
+    rewards,
   };
 }
 

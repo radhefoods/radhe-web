@@ -1157,6 +1157,7 @@
     "CUSTOMER_HAS_OPEN_ORDERS": "Ihr Konto kann nicht gelöscht werden, solange eine Bestellung, eine Rücksendung oder eine Meldung offen ist.",
     "ORDER_TOKEN_INVALID": "Dieser Link öffnet diese Bestellung nicht.",
     "REFERRAL_CODE_UNKNOWN": "Dieser Empfehlungscode ist nicht bekannt.",
+    "REWARDS_NOT_APPLICABLE": "Ihre Coins können für diese Bestellung nicht eingelöst werden.",
     "WISHLIST_NOT_FOUND": "Diese Liste gibt es nicht mehr.",
     "WISHLIST_NAME_TAKEN": "Eine Liste mit diesem Namen gibt es schon.",
     "WISHLIST_LIMIT_REACHED": "Sie können bis zu 20 Listen haben. Löschen Sie eine, um eine neue anzulegen.",

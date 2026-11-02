@@ -1,5 +1,6 @@
 import type {
   CartLineIssue,
+  RewardsReason,
   Cents,
   ConsentVersions,
   DiscountReason,
@@ -84,6 +85,8 @@ export const API_ERROR_CODES = [
   "ORDER_TOKEN_INVALID",
   // referrals (21)
   "REFERRAL_CODE_UNKNOWN",
+  // points and rewards (24)
+  "REWARDS_NOT_APPLICABLE",
   // order reviews (doc ORDER_REVIEWS)
   "REVIEW_NOT_POSSIBLE",
   "REVIEW_ALREADY_WRITTEN",
@@ -157,6 +160,8 @@ export interface ErrorDetails {
   RETURN_QUANTITY_INVALID: { variantId: Id; sku: string; available: number };
   RETURN_TRANSITION_NOT_ALLOWED: { from: string; to: string };
   WISHLIST_FULL: { maximum: number };
+  /** `400` on redeeming, `409` at checkout when the coins stopped applying (24). */
+  REWARDS_NOT_APPLICABLE: { reason: RewardsReason };
 }
 
 export class ApiError extends Error {

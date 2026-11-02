@@ -464,6 +464,7 @@ describe("the bill", () => {
       currency: "EUR",
       subtotal: 2598,
       discount: 0,
+      rewards: 0,
       deliveryFee: 499,
       total: 3097,
       netTotal: 2894,

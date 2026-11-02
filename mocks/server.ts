@@ -36,6 +36,7 @@ import {
 import {
   addresses,
   applyDiscount,
+  applyRewards,
   cancelOrder,
   cancelOrderRecord,
   checkout,
@@ -48,6 +49,7 @@ import {
   ordersOf,
   summaryOf,
   removeDiscount,
+  removeRewards,
   resetFixtures,
 } from "./orders.ts";
 import {
@@ -93,6 +95,18 @@ import {
   stripe,
   type OrderAction,
 } from "./payments.ts";
+import {
+  adjust as adjustCoins,
+  changeRewardsSettings,
+  grantReview,
+  grantWelcome,
+  historyOf,
+  myRewards,
+  overviewRewards,
+  programView,
+  resetRewards,
+  revokeReview,
+} from "./rewards.ts";
 import {
   ACCESS_TTL_SECONDS,
   BLOCKED_EMAIL,
@@ -564,12 +578,18 @@ route("POST", "/v1/store/auth/signup/verify", (ctx) => {
   db.pendingSignups.delete(email);
   const customer = completeSignUp(pending, mockBaseOf(ctx));
   const referral = applyReferral(customer, pending.referralCode);
+  // The welcome coins, once per address (REWARDS 2).
+  const welcomeCoins = grantWelcome(customer);
   console.log(`[mock] welcome email (${customer.locale}) to ${email}`);
   const session = startSession(customer);
   return {
     ...session,
     status: 201,
-    body: { ...(session.body as object), referral },
+    body: {
+      ...(session.body as object),
+      referral,
+      rewards: { welcomeCoins },
+    },
   };
 });
 
@@ -834,6 +854,7 @@ route("GET", "/v1/store/me/overview", (ctx) => {
         link: referral.link,
         counts: referral.counts,
       },
+      rewards: overviewRewards(customer),
       locale: customer.locale,
     },
   };
@@ -1872,16 +1893,20 @@ route("POST", "/__mock/review", (ctx) => {
       review.status = "published";
       review.publishedAt = review.publishedAt ?? now;
       review.rejectionNote = null;
+      // Coins for the reviewer, once (REWARDS 2).
+      grantReview(review);
       break;
     case "reject":
       review.status = "rejected";
       review.rejectionNote = String(body.note ?? "Rejected.");
+      revokeReview(review);
       break;
     case "reply":
       review.reply = { text: String(body.text ?? ""), at: now };
       break;
     case "delete":
       db.reviews.delete(review.id);
+      revokeReview(review);
       return { status: 204 };
     default:
       throw validationFailed(
@@ -2101,6 +2126,62 @@ route("PUT", "/v1/store/checkout/discount", (ctx) => ({
 route("DELETE", "/v1/store/checkout/discount", (ctx) => ({
   body: removeDiscount(requireCustomer(ctx), ctx.locale),
 }));
+
+// --- 24 Points and rewards (doc/REWARDS.md 5) -------------------------------
+
+route("GET", "/v1/store/rewards/program", () => ({
+  body: { program: programView() },
+}));
+
+route("GET", "/v1/store/me/rewards", (ctx) => ({
+  body: myRewards(requireCustomer(ctx)),
+}));
+
+route("GET", "/v1/store/me/rewards/transactions", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const page = Math.max(1, Number(ctx.url.searchParams.get("page") ?? 1) || 1);
+  const limit = Math.min(
+    100,
+    Math.max(1, Number(ctx.url.searchParams.get("limit") ?? 20) || 20),
+  );
+  return { body: historyOf(customer, page, limit) };
+});
+
+route("PUT", "/v1/store/checkout/rewards", (ctx) => ({
+  body: applyRewards(requireCustomer(ctx), ctx.body, ctx.locale),
+}));
+
+route("DELETE", "/v1/store/checkout/rewards", (ctx) => ({
+  body: removeRewards(requireCustomer(ctx), ctx.locale),
+}));
+
+// Not part of the real API: the admin changes the rules of the coins
+// (parts of the settings document, REWARDS 4) or adjusts a balance.
+route("POST", "/__mock/rewards", (ctx) => {
+  const body = objectBody(ctx.body, ["settings", "adjust"]);
+  if (body.settings !== undefined) changeRewardsSettings(body.settings);
+  if (body.adjust !== undefined) {
+    const adjust = objectBody(body.adjust, [
+      "email",
+      "coins",
+      "reason",
+      "note",
+    ]);
+    const customer = customerByEmail(String(adjust.email).toLowerCase());
+    if (!customer) throw validationFailed("adjust.email", "unknown customer");
+    if (typeof adjust.coins !== "number" || adjust.coins === 0) {
+      throw validationFailed("adjust.coins", "coins must be a signed integer");
+    }
+    adjustCoins(
+      customer,
+      adjust.coins,
+      (adjust.reason as "goodwill" | "correction" | "misuse" | "other") ??
+        "goodwill",
+      typeof adjust.note === "string" ? adjust.note : null,
+    );
+  }
+  return { status: 204 };
+});
 
 // --- 9 Orders and checkout --------------------------------------------------
 
@@ -2566,6 +2647,7 @@ route("POST", "/__mock/stripe", (ctx) => {
 route("POST", "/__mock/reset", () => {
   resetState();
   resetFixtures();
+  resetRewards();
   stripe.enabled = process.env.MOCK_STRIPE !== "off";
   return { status: 204 };
 });

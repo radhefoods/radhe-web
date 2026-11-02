@@ -21,6 +21,12 @@ import type {
 } from "../src/lib/api/types.ts";
 import { countDiscount, releaseDiscount } from "./discounts.ts";
 import {
+  creditCoins,
+  earnOnDelivery,
+  releaseCoins,
+  spendCoins,
+} from "./rewards.ts";
+import {
   HttpError,
   OBJECT_ID,
   objectBody,
@@ -62,6 +68,15 @@ export function discountOnUnits(
   return Math.round((item.discountAmount * units) / item.quantity);
 }
 
+/** The part of an item's coin discount that belongs to `units` of it (REWARDS 3). */
+export function rewardOnUnits(
+  item: OrderRecord["items"][number],
+  units: number,
+): number {
+  if (item.rewardAmount === 0 || item.quantity === 0) return 0;
+  return Math.round((item.rewardAmount * units) / item.quantity);
+}
+
 /**
  * The bill after corrections and returns (doc 9.2): kept units at the agreed
  * prices less their part of the discount; the agreed delivery fee stays and
@@ -72,17 +87,19 @@ export function finalTotalsOf(order: OrderRecord): Totals {
   const goods = new Map<number, number>();
   let subtotal = 0;
   let discount = 0;
+  let rewards = 0;
   order.items.forEach((item, index) => {
     const kept = keptQuantity(order, index);
     const gross = kept * item.unitPrice;
-    const share = discountOnUnits(item, kept);
+    const share = discountOnUnits(item, kept) + rewardOnUnits(item, kept);
     subtotal += gross;
-    discount += share;
+    discount += discountOnUnits(item, kept);
+    rewards += rewardOnUnits(item, kept);
     if (gross - share > 0) {
       goods.set(item.vatRate, (goods.get(item.vatRate) ?? 0) + gross - share);
     }
   });
-  const paid = subtotal - discount;
+  const paid = subtotal - discount - rewards;
   const deliveryFee = paid === 0 ? 0 : order.totals.deliveryFee;
   const rates = [...goods.keys()].sort((a, b) => a - b);
   const nets = rates.map(
@@ -104,6 +121,7 @@ export function finalTotalsOf(order: OrderRecord): Totals {
     currency: "EUR",
     subtotal,
     discount,
+    rewards,
     deliveryFee,
     total: paid + deliveryFee,
     netTotal: vat.reduce((sum, group) => sum + group.net, 0),
@@ -258,12 +276,16 @@ export function settlePayment(order: OrderRecord, method: PaymentMethod): void {
     [
       ...linesOf(order, (index) => order.items[index].quantity),
       ...discountLinesOf(order, (item) => item.discountAmount),
+      ...rewardLinesOf(order, (item) => item.rewardAmount),
     ],
     { issuedAt: now, paidAt: now },
   );
-  // The payment counts the use of the code; the cart lets go of it.
+  // The payment counts the use of the code and spends the coins; the cart
+  // lets go of both.
   countDiscount(order);
+  spendCoins(order);
   customer.discountCode = null;
+  customer.rewardCoins = null;
   order.payment = {
     ...order.payment,
     paidAmount: order.payment.amount,
@@ -285,6 +307,7 @@ export function settlePayment(order: OrderRecord, method: PaymentMethod): void {
 export function cancelSoldOut(order: OrderRecord): void {
   releaseStock(order);
   releaseDiscount(order);
+  releaseCoins(order);
   order.paymentStatus = "failed";
   order.payment.lastFailure =
     "A product sold out before the payment was captured.";
@@ -458,6 +481,39 @@ function discountLinesOf(
     .map(([vatRate, amount]) => ({
       description: `${label} ${order.discount!.code}`,
       sku: order.discount!.code,
+      quantity: 1,
+      unitPrice: -amount,
+      vatRate,
+      vatPercent: vatRate / 100,
+      lineTotal: -amount,
+    }));
+}
+
+/**
+ * The coins of an order on a document (REWARDS 4): one negative line per
+ * VAT rate, "Coins redeemed (59)" / "Eingelöste Coins (59)".
+ */
+function rewardLinesOf(
+  order: OrderRecord,
+  amountOf: (item: OrderRecord["items"][number]) => number,
+): InvoiceDetail["lines"] {
+  if (!order.rewards) return [];
+  const byRate = new Map<number, number>();
+  for (const item of order.items) {
+    const amount = amountOf(item);
+    if (amount > 0) {
+      byRate.set(item.vatRate, (byRate.get(item.vatRate) ?? 0) + amount);
+    }
+  }
+  const label =
+    order.language === "de"
+      ? `Eingelöste Coins (${order.rewards.coins})`
+      : `Coins redeemed (${order.rewards.coins})`;
+  return [...byRate.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([vatRate, amount]) => ({
+      description: label,
+      sku: "COINS",
       quantity: 1,
       unitPrice: -amount,
       vatRate,
@@ -862,6 +918,9 @@ export function decideReturn(
   const discountBefore = order.items.map((item, index) =>
     discountOnUnits(item, keptQuantity(order, index)),
   );
+  const rewardsBefore = order.items.map((item, index) =>
+    rewardOnUnits(item, keptQuantity(order, index)),
+  );
   for (const item of request.items) {
     item.approvedQuantity ??= item.quantity;
     const orderItem = order.items.find((i) => i.variantId === item.variantId);
@@ -885,6 +944,17 @@ export function decideReturn(
     (a, b) => a + b,
     0,
   );
+  // What the returned units carried of the coin discount, by item.
+  const rewardsReturned = new Map(
+    order.items.map((item, index) => [
+      item.variantId,
+      rewardsBefore[index] - rewardOnUnits(item, keptQuantity(order, index)),
+    ]),
+  );
+  const returnedRewards = [...rewardsReturned.values()].reduce(
+    (a, b) => a + b,
+    0,
+  );
   request.status = "completed";
   request.decidedAt ??= now;
   request.completedAt = now;
@@ -901,7 +971,9 @@ export function decideReturn(
         total: credit,
         subtotal: returnedGoods,
         discount: returnedDiscount,
-        deliveryFee: credit - (returnedGoods - returnedDiscount),
+        rewards: returnedRewards,
+        deliveryFee:
+          credit - (returnedGoods - returnedDiscount - returnedRewards),
       },
       [
         ...request.items.map((item) => ({
@@ -921,6 +993,10 @@ export function decideReturn(
           order,
           (item) => discountReturned.get(item.variantId) ?? 0,
         ),
+        ...rewardLinesOf(
+          order,
+          (item) => rewardsReturned.get(item.variantId) ?? 0,
+        ),
       ],
       {
         invoiceNumber: order.payment.invoiceNumber,
@@ -928,6 +1004,9 @@ export function decideReturn(
         creditReference: request.returnNumber,
       },
     );
+    // The coins of the credited goods come back; the coins the order
+    // earned shrink to what is paid for now (REWARDS 3).
+    creditCoins(order, returnedRewards, request.returnNumber, after);
   }
 }
 
@@ -953,6 +1032,8 @@ export function advanceOrder(order: OrderRecord, action: OrderAction): void {
       order.delivery.dispatchedAt ??= now;
       order.delivery.deliveredAt = now;
       for (const item of order.items) item.deliveredQuantity = item.quantity;
+      // Nothing is earned before the delivery (REWARDS 1).
+      earnOnDelivery(order);
       break;
     case "refund":
       refundOrder(order);

@@ -9,6 +9,7 @@ import type {
   OrderAdjustment,
   OrderCancellation,
   OrderDiscount,
+  OrderRewards,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
@@ -226,6 +227,11 @@ export interface CustomerRecord {
   cart: { variantId: string; quantity: number }[];
   /** The discount code kept with the cart (doc 9.6), upper case, or `null`. */
   discountCode: string | null;
+  /**
+   * The coins chosen on the checkout page (REWARDS 5): a number, `null`
+   * inside for "as many as allowed"; `null` while nothing was chosen.
+   */
+  rewardCoins: { requested: number | null } | null;
   addresses: Address[];
   /** Up to 20 lists; the default one is made on first use. */
   wishlists: WishlistListRecord[];
@@ -291,12 +297,16 @@ export interface OrderRecord {
     vatAmount: number;
     /** The item's share of the discount code; `0` without one. */
     discountAmount: number;
+    /** The item's share of the redeemed coins; `0` without any (REWARDS 4). */
+    rewardAmount: number;
     deliveredQuantity: number;
     returnedQuantity: number;
   }[];
   totals: Totals;
   /** The discount code of the order, or `null` (doc 9.6). */
   discount: OrderDiscount | null;
+  /** The coins redeemed on the order, or `null` (REWARDS 4). */
+  rewards: OrderRewards | null;
   deliveryAddress: OrderAddress;
   note: string | null;
   consent: {
@@ -328,6 +338,44 @@ export interface PasswordResetRecord {
   expiresAt: number;
 }
 
+/** The coins of one customer (REWARDS 4): the sums of the ledger. */
+export interface RewardAccountRecord {
+  customerId: string;
+  /** Spendable; below zero after coins were taken back. */
+  available: number;
+  /** Held by orders that wait for their payment. */
+  reserved: number;
+  earned: number;
+  redeemed: number;
+  lastActivityAt: string | null;
+}
+
+/** One movement of the ledger, written once, with its key. */
+export interface RewardTransactionRecord {
+  id: string;
+  customerId: string;
+  type:
+    | "welcome"
+    | "order"
+    | "referral_inviter"
+    | "referral_invitee"
+    | "review"
+    | "redeem"
+    | "redeem_return"
+    | "reversal"
+    | "adjustment"
+    | "expiry";
+  coins: number;
+  state: "done" | "reserved" | "spent" | "released";
+  key: string;
+  orderNumber: string | null;
+  reference: string | null;
+  rate: number | null;
+  reason: string | null;
+  note: string | null;
+  at: string;
+}
+
 export const db = {
   customers: new Map<string, CustomerRecord>(),
   sessions: new Set<SessionRecord>(),
@@ -355,6 +403,9 @@ export const db = {
   returns: new Map<string, ReturnRequest>(),
   /** A test control: `false` answers no banners at all (doc 17). */
   bannersEnabled: true,
+  /** The coins (REWARDS 4): one account per customer, and the ledger. */
+  rewardAccounts: new Map<string, RewardAccountRecord>(),
+  rewardTransactions: [] as RewardTransactionRecord[],
 };
 
 /** Signing in with this address answers `CUSTOMER_BLOCKED`. */
@@ -448,6 +499,7 @@ export function newCustomer(input: {
     createdAt: now,
     cart: [],
     discountCode: null,
+    rewardCoins: null,
     addresses: [],
     wishlists: [],
   };
@@ -480,5 +532,7 @@ export function resetState(): void {
   db.creditSequence = 6;
   db.returns.clear();
   db.bannersEnabled = true;
+  db.rewardAccounts.clear();
+  db.rewardTransactions = [];
   customerSequence = 0;
 }

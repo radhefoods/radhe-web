@@ -13,6 +13,7 @@ import {
   releaseStock,
   settlePayment,
 } from "./payments.ts";
+import { adjust, grantReview, grantWelcome } from "./rewards.ts";
 import {
   db,
   hashPassword,
@@ -93,6 +94,13 @@ export function seedDemoAccount(
     phone: "+4915112345678",
   });
 
+  // The coins (REWARDS): 100 for the sign-up, then what the orders earn.
+  grantWelcome(customer);
+  const welcomeRow = db.rewardTransactions.find(
+    (row) => row.customerId === customer.id && row.type === "welcome",
+  );
+  if (welcomeRow) welcomeRow.at = daysAgo(45);
+
   try {
     // RF-1085: delivered and paid by card, with a return request waiting.
     const delivered = paidOrder(
@@ -108,6 +116,10 @@ export function seedDemoAccount(
     advanceOrder(delivered, "deliver");
     delivered.delivery.dispatchedAt = daysAgo(11);
     delivered.delivery.deliveredAt = daysAgo(10);
+    const earnedRow = db.rewardTransactions.find(
+      (row) => row.key === `order:${delivered.orderNumber}`,
+    );
+    if (earnedRow) earnedRow.at = daysAgo(10);
     createReturn(
       delivered,
       {
@@ -163,7 +175,9 @@ export function seedDemoAccount(
     };
     refundOrder(cancelled);
 
-    // RF-1089: paid and confirmed today; can still be cancelled.
+    // RF-1089: paid and confirmed today, with 59 coins redeemed; can
+    // still be cancelled.
+    customer.rewardCoins = { requested: 59 };
     paidOrder(
       customer,
       [
@@ -173,6 +187,7 @@ export function seedDemoAccount(
       0,
       mockBase,
     );
+    customer.rewardCoins = null;
 
     // RF-1090: a product sold out before the payment was captured.
     const gone = order(
@@ -209,6 +224,20 @@ export function seedDemoAccount(
     updatedAt: daysAgo(8),
     publishedAt: daysAgo(7),
   });
+  // The published review earned its coins; and Radhe Foods once added
+  // some by hand.
+  grantReview(db.reviews.get("66fb0000000000000000e001")!);
+  const reviewRow = db.rewardTransactions.find(
+    (row) => row.key === "review:66fb0000000000000000e001",
+  );
+  if (reviewRow) reviewRow.at = daysAgo(7);
+  const goodwill = adjust(
+    customer,
+    50,
+    "goodwill",
+    "Thank you for your patience with the dented cartons.",
+  );
+  if (goodwill) goodwill.at = daysAgo(4);
   const meera = newCustomer({
     email: "meera@example.com",
     locale: "en",

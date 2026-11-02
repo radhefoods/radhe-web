@@ -96,6 +96,8 @@ export type ReferralFailReason =
 /** The `201` of `signup/verify`: signed in, and whether the referral counted. */
 export interface SignUpVerified extends SessionResult {
   referral: { applied: boolean; reason: ReferralFailReason | null };
+  /** The coins the sign-up gave (24); absent from an older API. */
+  rewards?: { welcomeCoins: number };
 }
 
 /** `POST /v1/store/auth/login` (1). */
@@ -145,6 +147,8 @@ export interface AccountOverview {
     link: string;
     counts: { registered: number; qualified: number };
   };
+  /** The coins, for the tile (24); absent from an older API. */
+  rewards?: { enabled: boolean; available: number };
   locale: Locale;
 }
 
@@ -555,8 +559,13 @@ export interface Totals {
   subtotal: Cents;
   /** What the discount code takes off the goods; `0` without one (9.6). */
   discount: Cents;
+  /**
+   * What the redeemed coins take off the goods; `0` without any (24).
+   * Absent from an API older than 2026-11-02.
+   */
+  rewards?: Cents;
   deliveryFee: Cents;
-  /** `subtotal − discount + deliveryFee`. */
+  /** `subtotal − discount − rewards + deliveryFee`. */
   total: Cents;
   netTotal: Cents;
   vatTotal: Cents;
@@ -576,6 +585,8 @@ export interface BillLine {
   vatAmount: Cents;
   /** What the discount code takes off this line; `0` without one (9.6). */
   discountAmount: Cents;
+  /** What the redeemed coins take off this line; `0` without any (24). */
+  rewardAmount?: Cents;
   issue: CartLineIssue | null;
   /** Of this pack size; `null` when the line is `product_not_found`. */
   ordering: Ordering | null;
@@ -600,6 +611,11 @@ export interface Bill {
   };
   /** The discount code of the checkout page; `null` while none is entered. */
   discount: BillDiscount | null;
+  /**
+   * The coins of the customer on this bill (24); `null` for a visitor or a
+   * guest, absent from an API older than 2026-11-02.
+   */
+  rewards?: BillRewards | null;
 }
 
 // --- 9.6 Discount codes -----------------------------------------------------
@@ -730,6 +746,8 @@ export interface OrderItem {
   vatAmount: Cents;
   /** The item's share of the discount code; `0` without one. */
   discountAmount: Cents;
+  /** The item's share of the redeemed coins; `0` without any (24). */
+  rewardAmount?: Cents;
   deliveredQuantity: number;
   returnedQuantity: number;
   finalLineTotal: Cents;
@@ -797,6 +815,8 @@ export interface OrderDetail extends OrderSummary {
   finalTotals: Totals;
   /** The discount code of the order; `null` without one (9.6). */
   discount: OrderDiscount | null;
+  /** The coins redeemed on the order; `null` without any (24). */
+  rewards?: OrderRewards | null;
   adjustments: OrderAdjustment[];
   deliveryAddress: OrderAddress;
   note: string | null;
@@ -1373,4 +1393,128 @@ export interface BlogQuery {
   tag?: string;
   /** Words of the title, the summary or the tags, by their beginning. */
   q?: string;
+}
+
+// --- 24 Points and rewards (doc/REWARDS.md) ---------------------------------
+
+/** Why coins cannot be redeemed on a bill, or stopped applying (REWARDS 7). */
+export type RewardsReason =
+  | "disabled"
+  | "no_coins"
+  | "below_min_coins"
+  | "below_min_order"
+  | "below_min_value"
+  | "code_applied"
+  | "too_small"
+  | "insufficient";
+
+/**
+ * The coins on a customer's bill (REWARDS 5): what the chosen coins take
+ * off, or why not; `maxCoins` and `maxAmount` the most this cart allows
+ * right now; `earn` the coins the order will bring at delivery with the
+ * current rules. `applied: false` with `reason: null` means nothing was
+ * chosen yet.
+ */
+export interface BillRewards {
+  /** Coins asked for; `null` for "as many as allowed"; `0` for none yet. */
+  requested: number | null;
+  coins: number;
+  amount: Cents;
+  applied: boolean;
+  reason: RewardsReason | null;
+  maxCoins: number;
+  maxAmount: Cents;
+  earn: number;
+}
+
+/** The coins of an order: held until paid, then used. */
+export interface OrderRewards {
+  coins: number;
+  amount: Cents;
+  /** Percent of the goods one coin took off. */
+  percentPerCoin: number;
+  state: "reserved" | "used" | "released";
+}
+
+/**
+ * `GET /v1/store/rewards/program`: the rules as the admin set them; a rule
+ * that is switched off is `null`. `redemption.percentPerCoin` is the
+ * percent of the goods one coin takes off: 0.01 means 100 coins give 1 %.
+ * Caps and minimums are cents.
+ */
+export interface RewardsProgram {
+  enabled: boolean;
+  earning: {
+    order: { coinsPerEuro: number } | null;
+    welcome: number | null;
+    referral: { inviter: number | null; invitee: number | null };
+    review: number | null;
+    campaign: {
+      name: string | null;
+      multiplier: number;
+      startsAt: IsoDateTime | null;
+      endsAt: IsoDateTime | null;
+      /** Whether the multiplier applies right now. */
+      active: boolean;
+    } | null;
+  };
+  redemption: {
+    percentPerCoin: number;
+    minCoins: number | null;
+    minRedeemValue: Cents | null;
+    minOrderValue: Cents | null;
+    maxCoinsPerOrder: number | null;
+    maxDiscount: Cents | null;
+    combinableWithDiscountCodes: boolean;
+  } | null;
+  expiry: { inactivityMonths: number } | null;
+}
+
+/** The coins of the customer: `available` is never below 0, `balance` is exact. */
+export interface RewardsAccount {
+  available: number;
+  balance: number;
+  /** Held by orders that wait for their payment. */
+  reserved: number;
+  earnedTotal: number;
+  redeemedTotal: number;
+  lastActivityAt: IsoDateTime | null;
+  /** When the idle balance expires, while the expiry is on. */
+  expiresAt: IsoDateTime | null;
+}
+
+/** `GET /v1/store/me/rewards`. */
+export interface MyRewards {
+  account: RewardsAccount;
+  /** Whether redeeming is offered for this balance at all. */
+  canRedeem: boolean;
+  reason: "disabled" | "no_coins" | "below_min_coins" | null;
+  program: RewardsProgram;
+}
+
+export type RewardTransactionType =
+  | "welcome"
+  | "order"
+  | "referral_inviter"
+  | "referral_invitee"
+  | "review"
+  | "redeem"
+  | "redeem_return"
+  | "reversal"
+  | "adjustment"
+  | "expiry";
+
+/** One movement of the history (`GET /v1/store/me/rewards/transactions`). */
+export interface RewardTransaction {
+  id: Id;
+  type: RewardTransactionType;
+  /** Signed: negative when coins left the balance. */
+  coins: number;
+  /** `reserved` while the order waits for its payment, else `spent` or `done`. */
+  state: "done" | "reserved" | "spent" | "released";
+  orderNumber: string | null;
+  reference: string | null;
+  /** Of an adjustment by Radhe Foods. */
+  reason: string | null;
+  at: IsoDateTime;
 }
