@@ -154,6 +154,7 @@ export function RedeemCoins({
       : null;
   return (
     <form
+      method="post"
       onSubmit={submit}
       noValidate
       className={cn("flex flex-col gap-1.5", className)}

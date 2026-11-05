@@ -329,13 +329,30 @@ describe("session transport", () => {
 
   it("never answers an auth call with a refresh", async () => {
     const { fetch, calls } = scriptedFetch({
-      "/v1/store/auth/logout-all": [() => apiError(401, "AUTH_TOKEN_INVALID")],
+      "/v1/store/auth/login": [() => apiError(401, "AUTH_TOKEN_INVALID")],
     });
     const transport = createSessionTransport({ baseUrl: BASE, fetch });
     await transport
-      .request("/v1/store/auth/logout-all", { method: "POST" })
+      .request("/v1/store/auth/login", { method: "POST" })
       .catch(() => undefined);
     expect(calls).toHaveLength(1);
+  });
+
+  it("refreshes for the sign-out on all devices, which needs a session", async () => {
+    const { fetch, calls } = scriptedFetch({
+      "/v1/store/auth/logout-all": [
+        () => apiError(401, "AUTH_TOKEN_INVALID"),
+        () => new Response(null, { status: 204 }),
+      ],
+      "/v1/store/auth/refresh": [() => json(200, {})],
+    });
+    const transport = createSessionTransport({ baseUrl: BASE, fetch });
+    await transport.request("/v1/store/auth/logout-all", { method: "POST" });
+    expect(calls.map((c) => c.path)).toEqual([
+      "/v1/store/auth/logout-all",
+      "/v1/store/auth/refresh",
+      "/v1/store/auth/logout-all",
+    ]);
   });
 
   it("passes other errors through untouched", async () => {

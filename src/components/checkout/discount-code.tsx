@@ -140,6 +140,7 @@ export function DiscountCode({
   const errorId = "checkout-discount-error";
   return (
     <form
+      method="post"
       onSubmit={(event) => void apply(event)}
       noValidate
       className={cn("flex flex-col gap-1.5", className)}

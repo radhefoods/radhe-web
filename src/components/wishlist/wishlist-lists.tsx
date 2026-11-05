@@ -75,7 +75,12 @@ function NameSheet({
       title={title}
       closeLabel={tCommon("close")}
     >
-      <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+      <form
+        method="post"
+        onSubmit={submit}
+        noValidate
+        className="flex flex-col gap-5"
+      >
         <TextField
           id="wishlist-name"
           label={t("listName")}

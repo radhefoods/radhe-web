@@ -82,7 +82,12 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="flex flex-col gap-5"
+    >
       <TextField
         id="forgot-email"
         label={t("email")}

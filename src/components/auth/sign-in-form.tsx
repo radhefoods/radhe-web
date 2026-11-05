@@ -104,7 +104,12 @@ export function SignInForm({
       : { pathname: "/sign-up" as const, query: { returnTo } };
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="flex flex-col gap-5"
+    >
       <TextField
         id="sign-in-email"
         label={t("email")}

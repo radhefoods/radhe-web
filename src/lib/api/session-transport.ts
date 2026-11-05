@@ -9,6 +9,12 @@ import {
 
 const REFRESH_PATH = "/v1/store/auth/refresh";
 const AUTH_PREFIX = "/v1/store/auth/";
+/**
+ * The one auth route that needs a customer session (1.6): without a
+ * refresh, "sign out on all devices" fails on a page that was open for
+ * more than the fifteen minutes of the access cookie.
+ */
+const LOGOUT_ALL_PATH = "/v1/store/auth/logout-all";
 
 export interface SessionTransport {
   /** JSON calls with refresh-and-retry. */
@@ -72,7 +78,7 @@ export function createSessionTransport(
       const expired =
         isApiError(error) &&
         error.code === "AUTH_TOKEN_INVALID" &&
-        !path.startsWith(AUTH_PREFIX);
+        (!path.startsWith(AUTH_PREFIX) || path === LOGOUT_ALL_PATH);
       if (!expired) throw error;
       const alive = await refresh();
       if (!alive) throw error;

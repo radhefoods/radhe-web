@@ -4,7 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { CartProvider } from "@/features/cart/cart";
 import { WishlistProvider } from "@/features/wishlist/wishlist";
-import { SESSION_QUERY_KEY, setSessionHint } from "@/features/session/session";
+import {
+  forgetCachedData,
+  SESSION_QUERY_KEY,
+  setSessionHint,
+} from "@/features/session/session";
 import { session } from "@/lib/api/browser";
 import { isRetryable } from "@/lib/api/errors";
 
@@ -28,10 +32,12 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(
     () =>
-      // The refresh was refused: the session is over on this device.
+      // The refresh was refused: the session is over on this device, and
+      // nothing the customer loaded stays in memory for the next one (0.5).
       session.onSessionEnded(() => {
         setSessionHint(false);
         client.setQueryData(SESSION_QUERY_KEY, null);
+        forgetCachedData(client);
       }),
     [client],
   );

@@ -76,7 +76,12 @@ export function AddressForm({
   });
 
   return (
-    <form onSubmit={submit} noValidate className="grid gap-4 sm:grid-cols-2">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="grid gap-4 sm:grid-cols-2"
+    >
       <TextField
         {...field("label")}
         hint={t("labelHint")}

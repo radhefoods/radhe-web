@@ -178,7 +178,12 @@ function CodeStep({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="flex flex-col gap-5"
+    >
       <p className="text-ink-muted">
         {t("codeIntro", {
           email: started.email,
@@ -538,7 +543,12 @@ export function SignUpForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="flex flex-col gap-5"
+    >
       {step.expired && <Alert tone="warn">{t("codeExpired")}</Alert>}
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField

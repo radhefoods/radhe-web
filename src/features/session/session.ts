@@ -1,6 +1,10 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useSyncExternalStore } from "react";
 import { api } from "@/lib/api/browser";
 import { hasErrorCode } from "@/lib/api/errors";
@@ -62,6 +66,17 @@ async function fetchCustomer(): Promise<Customer | null> {
   }
 }
 
+/**
+ * Drops everything the cache holds besides the session itself. The query
+ * keys do not name the customer, so what one customer loaded (orders,
+ * addresses, the cart) must go when the session ends or changes hands.
+ */
+export function forgetCachedData(client: QueryClient): void {
+  client.removeQueries({
+    predicate: (query) => query.queryKey[0] !== SESSION_QUERY_KEY[0],
+  });
+}
+
 export type SessionStatus = "loading" | "guest" | "customer";
 
 export interface Session {
@@ -94,23 +109,22 @@ export function useSession({ force = false } = {}): Session {
   };
 }
 
-/** For the sign-in and sign-out flows. */
+/**
+ * For the sign-in flows. Signing out needs none: it loads the page anew
+ * (`sign-out.tsx`), which empties the memory.
+ */
 export function useSessionActions() {
   const client = useQueryClient();
   const signedIn = useCallback(
     (customer: Customer) => {
+      // Called after a sign-in and after the profile was saved: only another
+      // customer than the one in memory empties the cache.
+      const before = client.getQueryData<Customer | null>(SESSION_QUERY_KEY);
+      if (before?.id !== customer.id) forgetCachedData(client);
       setSessionHint(true);
       client.setQueryData(SESSION_QUERY_KEY, customer);
     },
     [client],
   );
-  const signedOut = useCallback(() => {
-    setSessionHint(false);
-    client.setQueryData(SESSION_QUERY_KEY, null);
-    // Nothing of the customer stays in memory.
-    client.removeQueries({
-      predicate: (query) => query.queryKey[0] !== SESSION_QUERY_KEY[0],
-    });
-  }, [client]);
-  return { signedIn, signedOut };
+  return { signedIn };
 }

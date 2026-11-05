@@ -63,6 +63,7 @@ export function DeleteAccount({ className }: { className?: string }) {
 
   return (
     <form
+      method="post"
       onSubmit={submit}
       noValidate
       aria-labelledby="profile-delete"

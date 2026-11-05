@@ -107,7 +107,12 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="flex flex-col gap-5"
+    >
       <PasswordField
         id="reset-password"
         label={t("newPassword")}

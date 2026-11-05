@@ -781,9 +781,18 @@ export function historyOf(
   page: number,
   limit: number,
 ): Page<RewardTransaction> {
+  // Newest first; two movements of the same millisecond (a return and its
+  // reversal) keep the order they were written in, the later one first.
   const rows = db.rewardTransactions
-    .filter((row) => row.customerId === customer.id && row.state !== "released")
-    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+    .map((row, index) => ({ row, index }))
+    .filter(
+      ({ row }) => row.customerId === customer.id && row.state !== "released",
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(b.row.at) - Date.parse(a.row.at) || b.index - a.index,
+    )
+    .map(({ row }) => row);
   const start = (page - 1) * limit;
   return {
     items: rows.slice(start, start + limit).map(transactionView),
