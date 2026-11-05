@@ -99,15 +99,18 @@ export function buildSitemap(
         changeFrequency: priority >= 0.9 ? "daily" : "monthly",
       }),
     ),
-    ...flatten(categories).flatMap((category) =>
-      localized(
-        (locale) => ({
-          pathname: "/category/[slug]",
-          params: { slug: category.slugs[locale] },
-        }),
-        { priority: 0.8, changeFrequency: "daily" },
+    // The shop shows no category without products (`shopCategories`).
+    ...flatten(categories)
+      .filter((category) => category.productCount > 0)
+      .flatMap((category) =>
+        localized(
+          (locale) => ({
+            pathname: "/category/[slug]",
+            params: { slug: category.slugs[locale] },
+          }),
+          { priority: 0.8, changeFrequency: "daily" },
+        ),
       ),
-    ),
     ...products.flatMap((product) =>
       localized(
         (locale) => ({

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { Suspense } from "react";
+import { preconnect } from "react-dom";
 import { getMessages, getTranslations } from "next-intl/server";
 import {
   COOKIE_NOTICE_SCRIPT,
@@ -14,16 +15,9 @@ import { Providers } from "@/features/providers";
 import { clientMessages } from "@/i18n/client-messages";
 import { localeOf } from "@/i18n/locale";
 import { routing } from "@/i18n/routing";
+import { SOCIAL_IMAGE, sharedOpenGraph } from "@/lib/seo/open-graph";
 import { inter } from "../fonts";
 import "../globals.css";
-
-/** The logo on white, for links shared in chats and social networks. */
-const SOCIAL_IMAGE = {
-  url: "/brand/radhe-social-1200x630.jpg",
-  width: 1200,
-  height: 630,
-  alt: "Radhe Foods",
-};
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -48,13 +42,8 @@ export async function generateMetadata({
     description: t("tagline"),
     applicationName: t("name"),
     formatDetection: { telephone: false, email: false, address: false },
-    openGraph: {
-      type: "website",
-      siteName: t("name"),
-      locale: locale === "de" ? "de_DE" : "en_GB",
-      // Pages with their own picture (products) replace this one.
-      images: [SOCIAL_IMAGE],
-    },
+    // Pages with their own picture (products, posts) replace the logo.
+    openGraph: { type: "website", ...(await sharedOpenGraph(locale)) },
     twitter: { card: "summary_large_image", images: [SOCIAL_IMAGE.url] },
   };
 }
@@ -64,6 +53,9 @@ export default async function LocaleLayout({
   params,
 }: LayoutProps<"/[locale]">) {
   const locale = await localeOf(params);
+  // The browser's first calls (who is here, the cart) find the connection
+  // to the API open: with the cookies, as those calls are made.
+  preconnect(env.apiUrl, { crossOrigin: "use-credentials" });
   const [messages, t] = await Promise.all([
     getMessages(),
     getTranslations("common"),

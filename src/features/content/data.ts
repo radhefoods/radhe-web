@@ -65,6 +65,26 @@ export const getBlogPost = cache(
   },
 );
 
+/**
+ * The categories of the blog as the content of a page (the page of one
+ * category finds itself in this list): a failure goes to the error page
+ * instead of looking like "no such category".
+ */
+export const loadBlogCategories = cache(
+  async (locale: Locale): Promise<BlogCategory[]> => {
+    try {
+      const { items } = await serverApi.listBlogCategories({
+        locale,
+        next: content,
+      });
+      return items;
+    } catch (error) {
+      await leaveToFirstVisitWhileBuilding();
+      throw error;
+    }
+  },
+);
+
 /** The categories of the blog in display order; `[]` when they do not arrive. */
 export const getBlogCategories = cache(
   async (locale: Locale): Promise<BlogCategory[]> => {

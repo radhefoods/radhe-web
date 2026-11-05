@@ -20,6 +20,12 @@ export const routing = defineRouting({
   locales,
   defaultLocale,
   localePrefix: "always",
+  // The pages and the sitemap name their other language themselves
+  // (`alternates()`), with the slug of that language. The `Link` header of
+  // next-intl would add a second set built from the address pattern: the
+  // slug of this language under the other language's path, and an
+  // `x-default` without a language, both of which only redirect.
+  alternateLinks: false,
   pathnames: {
     "/": "/",
     "/products": { en: "/products", de: "/produkte" },

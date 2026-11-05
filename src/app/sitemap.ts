@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import type { Locale } from "@/i18n/routing";
-import { REVALIDATE, TAGS, serverApi } from "@/lib/api/server";
+import { isApiError } from "@/lib/api/errors";
+import { TAGS, serverApi } from "@/lib/api/server";
 import type { Category } from "@/lib/api/types";
 import {
   buildSitemap,
@@ -13,8 +15,22 @@ import {
 // API and renewed every hour.
 export const revalidate = 3600;
 
-const cache = { revalidate: REVALIDATE.catalogue, tags: [TAGS.catalogue] };
-const content = { revalidate: REVALIDATE.content, tags: [TAGS.content] };
+// The reads are kept as long as the sitemap itself: a shorter time here
+// would shorten the sitemap's, and every renewal pages through the whole
+// catalogue and the whole blog, twice.
+const cache = { revalidate, tags: [TAGS.catalogue] };
+const content = { revalidate, tags: [TAGS.content] };
+
+/**
+ * What to do when the API did not answer. While building, the pages that
+ * do not need the API are listed and the first renewal brings the rest:
+ * the build must not depend on the API. On a running shop the failure is
+ * thrown: Next.js then keeps the last good sitemap and tries again at the
+ * next request, instead of keeping a sitemap without products for an hour.
+ */
+function unlessBuilding(error: unknown): void {
+  if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) throw error;
+}
 
 /**
  * Every pack size on sale with its slug in one language, page by page. A
@@ -63,7 +79,9 @@ async function blogPages(): Promise<SitemapBlog> {
         .filter((category) => category.postCount > 0)
         .map(({ id, alternates }) => ({ id, slugs: alternates })),
     };
-  } catch {
+  } catch (error) {
+    // An API without the blog (404) has no blog pages to list.
+    if (!(isApiError(error) && error.status === 404)) unlessBuilding(error);
     return { posts: [], categories: [] };
   }
 }
@@ -80,8 +98,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]);
     categories = tree.items;
     products = joinProductSlugs(english, german);
-  } catch {
-    // The API is away: the pages that do not need it are listed anyway.
+  } catch (error) {
+    unlessBuilding(error);
   }
   return buildSitemap(categories, products, await blogPages());
 }

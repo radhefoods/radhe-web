@@ -10,6 +10,7 @@ import {
   reviewsQuery,
 } from "@/features/reviews/reviews";
 import { localeOf } from "@/i18n/locale";
+import { notFound } from "next/navigation";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 
 type Props = PageProps<"/[locale]/reviews">;
@@ -56,6 +57,9 @@ export default async function ReviewsPage({ params, searchParams }: Props) {
       locale,
     ),
   ]);
+
+  // A page number beyond the last page is not a page of the shop.
+  if (state.page > 1 && page.items.length === 0) notFound();
 
   return (
     <div className="container-page space-y-6 py-6 sm:py-8">

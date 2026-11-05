@@ -10,6 +10,7 @@ import {
   type BlogScope,
   type BlogState,
 } from "@/features/content/blog-state";
+import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { BlogCategory, BlogTag } from "@/lib/api/types";
@@ -65,6 +66,11 @@ export async function BlogListing({
     getTranslations("catalogue"),
   ]);
   const page = await listBlogPosts(toBlogQuery(state, scope), locale);
+  // A page number beyond the last page is not a page of the blog, and
+  // neither is a tag no published post carries (any word is an address).
+  if (page.items.length === 0 && (state.page > 1 || (scope.tag && !state.q))) {
+    notFound();
+  }
   const hrefOf = (number: number): Href =>
     ({ ...base, query: toBlogSearchParams(state, { page: number }) }) as Href;
   const searchId = "blog-search";
@@ -76,6 +82,8 @@ export async function BlogListing({
       {search && (
         <form
           role="search"
+          // Named apart from the search of the shop in the header.
+          aria-label={t("search")}
           method="get"
           action={getPathname({ href: "/blog", locale })}
           className="relative max-w-xl"

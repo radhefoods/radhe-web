@@ -39,7 +39,9 @@ import type {
   ProductSummary,
 } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
+import { markdownToText } from "@/lib/format/markdown";
 import { alternates, pageUrl } from "@/lib/seo/alternates";
+import { sharedOpenGraph } from "@/lib/seo/open-graph";
 import { JsonLd, breadcrumbJsonLd, productJsonLd } from "@/lib/seo/json-ld";
 import {
   brandOf,
@@ -72,11 +74,19 @@ const hrefsOf = (slugs: LocalizedSlugs) => ({
 
 /** A card of a row: two and a sliver on phones, then three, four, five. */
 const cardSizes =
-  "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
+  "(min-width: 1344px) 228px, (min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
 
 /** A small glass chip above the headline: the category, the brand. */
 const chip =
   "glass-soft inline-flex min-h-8 items-center rounded-full px-3 text-[0.8125rem] font-semibold";
+
+/** The first words of a description, for the snippet of a search result. */
+function excerptOf(description: string): string | undefined {
+  const text = markdownToText(description).replace(/\s+/g, " ").trim();
+  if (text.length <= 160) return text || undefined;
+  const cut = text.slice(0, 160);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 80))}…`;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await localeOf(params);
@@ -87,20 +97,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title =
     product.seo.title ?? productTitle(product.name, product.packSize);
   const description =
-    product.seo.description ?? product.shortDescription ?? undefined;
+    product.seo.description ??
+    product.shortDescription ??
+    (product.description ? excerptOf(product.description) : undefined);
   const image = product.images[0]?.sizes.large;
   return {
     title,
     description,
     alternates: alternates(locale, hrefsOf(product.slugs)),
     openGraph: {
+      type: "website",
+      ...(await sharedOpenGraph(locale)),
       title,
       description,
       url: pageUrl(productHref(product.slug), locale),
-      images: image
-        ? [{ url: image.url, width: image.width, height: image.height }]
-        : undefined,
+      ...(image && {
+        images: [{ url: image.url, width: image.width, height: image.height }],
+      }),
     },
+    // Without pictures of its own, so that the card shows the one above
+    // (the layout's would be the logo on every product).
+    twitter: { card: "summary_large_image" },
   };
 }
 
@@ -228,7 +245,7 @@ export default async function ProductPage({ params }: Props) {
         data={[
           productJsonLd(product, locale),
           breadcrumbJsonLd(locale, tNav("home"), product.breadcrumbs, {
-            name: product.name,
+            name: formatProductName(product.name),
             url: pageUrl(productHref(product.slug), locale),
           }),
         ]}

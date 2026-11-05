@@ -45,6 +45,8 @@ export async function ReviewCard({
         </span>
       </div>
       <p
+        // The customer's own words, in the language they were written in.
+        lang={review.locale !== locale ? review.locale : undefined}
         className={cn(
           "text-[0.9375rem] leading-relaxed whitespace-pre-line",
           clamp && "line-clamp-5",

@@ -15,6 +15,7 @@ import {
   type ListingState,
 } from "@/features/catalogue/listing-state";
 import { AreaMessages } from "@/i18n/area-messages";
+import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 
@@ -78,6 +79,8 @@ export async function ProductListing({
         )
       : null,
   ]);
+  // A page number beyond the last page is not a page of the shop.
+  if (state.page > 1 && page.items.length === 0) notFound();
   const facets = scope ? mergeFacets(scope, current) : current;
   const visible = visibleFacets(scope ?? current, state);
   const baseHref = typeof base === "string" ? { pathname: base } : base;

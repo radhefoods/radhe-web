@@ -7,7 +7,11 @@ import {
   parseBlogState,
   toBlogQueryString,
 } from "@/features/content/blog-state";
-import { getBlogCategories, getBlogTags } from "@/features/content/data";
+import {
+  getBlogCategories,
+  getBlogTags,
+  loadBlogCategories,
+} from "@/features/content/data";
 import { permanentRedirect } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
@@ -31,7 +35,7 @@ async function findCategory(
   slug: string,
   locale: Locale,
 ): Promise<BlogCategory | null> {
-  const categories = await getBlogCategories(locale);
+  const categories = await loadBlogCategories(locale);
   return (
     categories.find(
       (category) =>

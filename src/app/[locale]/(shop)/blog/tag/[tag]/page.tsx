@@ -14,6 +14,21 @@ import { alternates, sameHref } from "@/lib/seo/alternates";
 
 type Props = PageProps<"/[locale]/blog/tag/[tag]">;
 
+/**
+ * The tag of the address. Next.js hands a dynamic segment over as it
+ * stands in the address, percent-encoded: "gewürze" arrives as
+ * `gew%C3%BCrze`, which is neither the tag nor, once lower-cased, the
+ * address it came from.
+ */
+function tagOf(segment: string): { raw: string; tag: string | null } {
+  try {
+    const raw = decodeURIComponent(segment);
+    return { raw, tag: cleanTag(raw) };
+  } catch {
+    return { raw: segment, tag: null };
+  }
+}
+
 const tagHref = (tag: string) => ({
   pathname: "/blog/tag/[tag]" as const,
   params: { tag },
@@ -24,7 +39,7 @@ export async function generateMetadata({
   searchParams,
 }: Props): Promise<Metadata> {
   const locale = await localeOf(params);
-  const tag = cleanTag((await params).tag);
+  const { tag } = tagOf((await params).tag);
   if (!tag) return {};
   const t = await getTranslations("blog");
   const state = parseBlogState(await searchParams);
@@ -43,8 +58,7 @@ export async function generateMetadata({
 /** The posts under one topic (a tag), the same word in both languages. */
 export default async function BlogTagPage({ params, searchParams }: Props) {
   const locale = await localeOf(params);
-  const raw = (await params).tag;
-  const tag = cleanTag(raw);
+  const { raw, tag } = tagOf((await params).tag);
   if (!tag) notFound();
   // Tags are lower-case words (doc 19); the page has one address per tag.
   if (tag !== raw) permanentRedirect({ href: tagHref(tag), locale });

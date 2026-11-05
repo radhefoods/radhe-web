@@ -37,7 +37,9 @@ export async function Breadcrumbs({
         </li>
         {links.map((category) => (
           <Fragment key={category.id}>
-            {separator}
+            <li aria-hidden="true" className="flex">
+              {separator}
+            </li>
             <li>
               <Link
                 href={{
@@ -51,7 +53,9 @@ export async function Breadcrumbs({
             </li>
           </Fragment>
         ))}
-        {separator}
+        <li aria-hidden="true" className="flex">
+          {separator}
+        </li>
         <li aria-current="page" className="text-ink font-semibold">
           {current ?? last?.name}
         </li>

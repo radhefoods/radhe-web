@@ -5,7 +5,7 @@ import {
   shopCategories,
   standInPictures,
 } from "@/features/catalogue/categories";
-import { getCategories, listProducts } from "@/features/catalogue/data";
+import { listProducts, loadCategories } from "@/features/catalogue/data";
 import { rowQuery } from "@/features/catalogue/home";
 import { Link } from "@/i18n/navigation";
 import { localeOf } from "@/i18n/locale";
@@ -55,7 +55,7 @@ export default async function CategoriesPage({ params }: Props) {
     getTranslations("catalogue"),
     getTranslations("nav"),
     getTranslations("product"),
-    getCategories(locale).then(shopCategories),
+    loadCategories(locale).then(shopCategories),
   ]);
   const standIns = standInPictures(
     await Promise.all(
@@ -66,7 +66,8 @@ export default async function CategoriesPage({ params }: Props) {
     ),
   );
   // A card of the grid: two on phones, then three, four.
-  const sizes = "(min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
+  const sizes =
+    "(min-width: 1344px) 300px, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
 
   return (
     <div className="container-page space-y-6 py-6 sm:py-8">

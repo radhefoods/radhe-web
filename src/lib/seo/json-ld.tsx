@@ -138,6 +138,7 @@ export function productJsonLd(
   locale: Locale,
 ): JsonLdObject {
   const url = productUrl(product.slug, locale);
+  const images = product.images.map((image) => image.sizes.large.url);
   const variants: ProductVariant[] = product.variants.length
     ? product.variants
     : [
@@ -169,9 +170,7 @@ export function productJsonLd(
       product.shortDescription ??
       product.description ??
       formatProductName(product.name),
-    ...(product.images.length > 0 && {
-      image: product.images.map((image) => image.sizes.large.url),
-    }),
+    ...(images.length > 0 && { image: images }),
     variesBy: "https://schema.org/size",
     hasVariant: variants.map((variant) => {
       const variantUrl = productUrl(variant.slug, locale);
@@ -180,6 +179,9 @@ export function productJsonLd(
         "@id": `${variantUrl}#size`,
         name: productTitle(product.name, variant.packSize),
         url: variantUrl,
+        // The sizes share the pictures of the product; a listing needs one
+        // on each `Product`.
+        ...(images.length > 0 && { image: images }),
         sku: variant.sku,
         ...(variant.id === product.variantId &&
           product.gtin && { gtin: product.gtin }),
@@ -231,7 +233,14 @@ export function articleJsonLd(post: BlogPost, locale: Locale): JsonLdObject {
     datePublished: post.publishedAt,
     dateModified: post.updatedAt,
     author: { "@type": "Person", name: post.author },
-    publisher: { "@id": ORGANIZATION_ID },
+    // Named in full: the organization's own block is on the home page only.
+    publisher: {
+      "@type": "Organization",
+      "@id": ORGANIZATION_ID,
+      name: "Radhe Foods",
+      url: env.siteUrl,
+      logo: absoluteUrl("/brand/radhe-logo-480.webp"),
+    },
     ...(post.featuredImage && {
       image: [post.featuredImage.sizes.large.url],
     }),

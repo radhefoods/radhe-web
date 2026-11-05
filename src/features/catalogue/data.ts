@@ -1,7 +1,12 @@
 import { cache } from "react";
 import type { Locale } from "@/i18n/routing";
 import { hasErrorCode } from "@/lib/api/errors";
-import { REVALIDATE, TAGS, serverApi } from "@/lib/api/server";
+import {
+  REVALIDATE,
+  TAGS,
+  leaveToFirstVisitWhileBuilding,
+  serverApi,
+} from "@/lib/api/server";
 import type {
   Banner,
   Category,
@@ -44,6 +49,26 @@ export const getCategories = cache(
       return items;
     } catch {
       return [];
+    }
+  },
+);
+
+/**
+ * The categories as the content of a page (the page of all categories): a
+ * failure goes to the error page instead of looking like a shop without
+ * categories, which the page would then keep for five minutes.
+ */
+export const loadCategories = cache(
+  async (locale: Locale): Promise<Category[]> => {
+    try {
+      const { items } = await serverApi.listCategories({
+        locale,
+        next: catalogue,
+      });
+      return items;
+    } catch (error) {
+      await leaveToFirstVisitWhileBuilding();
+      throw error;
     }
   },
 );
