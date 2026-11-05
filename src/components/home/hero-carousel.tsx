@@ -59,7 +59,16 @@ const SIZES = "100vw";
  * the API says: a path of the shop navigates in the shop, an address opens
  * in a new tab; without a link the picture just shows.
  */
-function Slide({ banner, first }: { banner: Banner; first: boolean }) {
+function Slide({
+  banner,
+  first,
+  label,
+}: {
+  banner: Banner;
+  first: boolean;
+  /** The name of the link when the picture has no words of its own. */
+  label: string;
+}) {
   const { image, linkUrl, isExternal } = banner;
   const { small, medium, large } = image.sizes;
   const picture = (
@@ -86,6 +95,8 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
   );
   // The outline of a focused link stays inside the rounded box.
   const link = "block focus-visible:outline-offset-[-4px]";
+  // A linked picture without a description would be a link without a name.
+  const name = image.alt ? undefined : label;
   if (!linkUrl) return picture;
   if (isExternal) {
     return (
@@ -94,6 +105,7 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
         target="_blank"
         rel="noopener noreferrer"
         draggable={false}
+        aria-label={name}
         className={link}
       >
         {picture}
@@ -102,12 +114,17 @@ function Slide({ banner, first }: { banner: Banner; first: boolean }) {
   }
   const href = shopHref(linkUrl);
   return href ? (
-    <Link href={href} draggable={false} className={link}>
+    <Link href={href} draggable={false} aria-label={name} className={link}>
       {picture}
     </Link>
   ) : (
     // A path the shop does not know by name: the proxy adds the language.
-    <NextLink href={linkUrl} draggable={false} className={link}>
+    <NextLink
+      href={linkUrl}
+      draggable={false}
+      aria-label={name}
+      className={link}
+    >
       {picture}
     </NextLink>
   );
@@ -157,6 +174,10 @@ export function HeroCarousel({
   const [dragging, setDragging] = useState(false);
   // Resting under a pointer or a focus: the autoplay waits.
   const [resting, setResting] = useState(false);
+  // The visitor took the slides into their own hands (a swipe, a dot):
+  // from then on they stay where they were put (WCAG 2.2.2, a way to stop
+  // content that moves by itself).
+  const [stopped, setStopped] = useState(false);
   const drag = useRef<{
     pointerId: number;
     startX: number;
@@ -201,7 +222,7 @@ export function HeroCarousel({
   }, [track.glide]);
 
   const playing =
-    count > 1 && !resting && !dragging && !reducedMotion && visible;
+    count > 1 && !stopped && !resting && !dragging && !reducedMotion && visible;
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(
@@ -282,6 +303,7 @@ export function HeroCarousel({
     setTrack((current) => ({ position: current.position + step, glide: true }));
     // A click that was really a drag must not open the banner's link.
     if (state.moved) {
+      setStopped(true);
       element.dataset.dragged = "";
       window.setTimeout(() => delete element.dataset.dragged, 0);
     }
@@ -315,8 +337,10 @@ export function HeroCarousel({
         : "none",
   };
 
+  // Not list items: a slide is a `group` with its own name, and a list
+  // may hold nothing but list items.
   const slide = (banner: Banner, position: number, copy: boolean) => (
-    <li
+    <div
       key={copy ? `copy-${banner.id}-${position}` : banner.id}
       role={copy ? undefined : "group"}
       aria-roledescription={copy ? undefined : "slide"}
@@ -326,8 +350,12 @@ export function HeroCarousel({
       inert={copy || position !== index}
       className="w-full shrink-0"
     >
-      <Slide banner={banner} first={!copy && position === 0} />
-    </li>
+      <Slide
+        banner={banner}
+        first={!copy && position === 0}
+        label={labels.slides[position]}
+      />
+    </div>
   );
 
   return (
@@ -354,7 +382,7 @@ export function HeroCarousel({
           looped && (dragging ? "cursor-grabbing" : "md:cursor-grab"),
         )}
       >
-        <ul
+        <div
           onTransitionEnd={settle}
           style={trackStyle}
           className="flex items-center will-change-transform"
@@ -362,7 +390,7 @@ export function HeroCarousel({
           {looped && slide(banners[count - 1], count - 1, true)}
           {banners.map((banner, position) => slide(banner, position, false))}
           {looped && slide(banners[0], 0, true)}
-        </ul>
+        </div>
       </div>
 
       {looped && (
@@ -377,7 +405,10 @@ export function HeroCarousel({
                   type="button"
                   aria-label={labels.goTo[position]}
                   aria-current={current ? "true" : undefined}
-                  onClick={() => glideTo(position)}
+                  onClick={() => {
+                    setStopped(true);
+                    glideTo(position);
+                  }}
                   className="grid h-6 min-w-6 place-items-center px-0.5"
                 >
                   <span

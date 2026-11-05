@@ -175,7 +175,12 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
       {rows.length === 0 ? (
         <Alert tone="info">{t("nothing")}</Alert>
       ) : (
-        <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+        <form
+          method="post"
+          onSubmit={submit}
+          noValidate
+          className="flex flex-col gap-5"
+        >
           <ul className="flex flex-col gap-3">
             {rows.map(({ item, available }) => {
               const choice = choices[item.variantId] ?? NOTHING;
@@ -254,6 +259,11 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                           aria-invalid={
                             attempted && !choice.reason ? true : undefined
                           }
+                          aria-describedby={
+                            attempted && !choice.reason
+                              ? `${reasonId}-error`
+                              : undefined
+                          }
                           onChange={(event) =>
                             change(item.variantId, {
                               reason: event.target.value as ReturnReason | "",
@@ -269,7 +279,11 @@ export function ReturnRequestView({ orderNumber }: { orderNumber: string }) {
                           ))}
                         </select>
                         {attempted && !choice.reason && (
-                          <p className="text-sm font-semibold text-red-600">
+                          <p
+                            id={`${reasonId}-error`}
+                            role="alert"
+                            className="text-sm font-semibold text-red-600"
+                          >
                             {t("reasonMissing")}
                           </p>
                         )}

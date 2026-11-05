@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { Dialog } from "radix-ui";
-import type { ReactNode, RefObject } from "react";
+import { useRef, type ReactNode, type RefObject } from "react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -37,6 +37,9 @@ export function Sheet({
   footer?: ReactNode;
   className?: string;
 }) {
+  // Opened by a control that is not its `trigger` (a button elsewhere on
+  // the page): what had the focus then gets it back when the sheet closes.
+  const opener = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
@@ -44,10 +47,18 @@ export function Sheet({
         <Dialog.Overlay className="bg-ink/35 animate-overlay-in fixed inset-0 z-50 backdrop-blur-sm" />
         <Dialog.Content
           aria-describedby={undefined}
+          onOpenAutoFocus={() => {
+            // Runs before the focus moves into the sheet.
+            const active = document.activeElement;
+            opener.current = active instanceof HTMLElement ? active : null;
+          }}
           onCloseAutoFocus={(event) => {
-            if (!returnFocusTo?.current) return;
+            // With a `trigger`, Radix goes back to it by itself.
+            const target =
+              returnFocusTo?.current ?? (trigger ? null : opener.current);
+            if (!target?.isConnected) return;
             event.preventDefault();
-            returnFocusTo.current.focus();
+            target.focus();
           }}
           className={cn(
             "glass-strong shadow-float animate-sheet-up fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col rounded-t-3xl",

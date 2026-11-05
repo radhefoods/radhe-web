@@ -62,7 +62,7 @@ export function PhotoPicker({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previews[index]}
-              alt=""
+              alt={file.name}
               className="ring-ink/8 size-24 rounded-xl object-cover ring-1"
             />
             <button

@@ -761,6 +761,8 @@ export function SearchForm({
     <form
       ref={wrapper}
       role="search"
+      // Named: a page can hold a second search (the blog's).
+      aria-label={t("search")}
       method="get"
       action={getPathname({ href: "/products", locale })}
       onSubmit={submit}
@@ -819,6 +821,15 @@ export function SearchForm({
 
       {/* The page behind, dimmed: under the header on wide screens, under
           the field alone on phones. A press on it closes the dropdown. */}
+      {/* The list's own words ("no products match") are not options of
+          the listbox, so a screen reader never reaches them. */}
+      <span role="status" className="sr-only">
+        {content?.kind === "nothing"
+          ? t("searchNothing", { q: content.q })
+          : content?.kind === "error"
+            ? t("searchError")
+            : ""}
+      </span>
       {present &&
         createPortal(
           <div

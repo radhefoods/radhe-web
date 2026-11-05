@@ -51,7 +51,13 @@ export function TextField({
         {...props}
       />
       {error ? (
-        <p id={`${id}-error`} className="text-sm font-semibold text-red-800">
+        // Spoken when it appears: a form that refuses a value on "submit"
+        // leaves the focus on the button.
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="text-sm font-semibold text-red-800"
+        >
           {error}
         </p>
       ) : (

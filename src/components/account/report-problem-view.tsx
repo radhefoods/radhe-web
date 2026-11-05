@@ -273,7 +273,12 @@ export function ReportProblemView({ orderNumber }: { orderNumber: string }) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="flex flex-col gap-5"
+    >
       {back}
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -451,11 +456,11 @@ export function ReportProblemView({ orderNumber }: { orderNumber: string }) {
                       : "text-ink-muted",
                   )}
                 >
-                  <span>
-                    {attempted && !textOk
-                      ? t("descriptionTooShort")
-                      : t("descriptionHint")}
-                  </span>
+                  {attempted && !textOk ? (
+                    <span role="alert">{t("descriptionTooShort")}</span>
+                  ) : (
+                    <span>{t("descriptionHint")}</span>
+                  )}
                   <span className="tabular-nums">
                     {description.length} / {ISSUE_TEXT_MAX}
                   </span>
