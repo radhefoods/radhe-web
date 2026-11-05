@@ -12,7 +12,7 @@ import { orderCalls, type OrderAccess } from "@/features/orders/order-access";
 import { orderQueryKey } from "@/features/orders/orders";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
-import { hasErrorCode } from "@/lib/api/errors";
+import { hasErrorCode, isRetryable } from "@/lib/api/errors";
 import {
   forgetGuestToken,
   rememberGuestToken,
@@ -75,10 +75,9 @@ export function GuestOrderView({
     queryFn: () => orderCalls(access!).getOrder(orderNumber),
     enabled: access !== null,
     staleTime: 0,
-    retry: (failures, error) =>
-      failures < 2 &&
-      !tokenRefused(error) &&
-      !hasErrorCode(error, "ORDER_NOT_FOUND"),
+    // Network, 429, 502 to 504: asking again can help. A refused token or
+    // an order that is gone stays what it is.
+    retry: (failures, error) => failures < 2 && isRetryable(error),
   });
   const order = orderQuery.data;
   const invalid = access === null || tokenRefused(orderQuery.error);

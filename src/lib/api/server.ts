@@ -9,8 +9,16 @@ import { createStoreApi } from "./store-api";
 // belongs to a customer is fetched in the browser, because the refresh cookie
 // never reaches this server (doc 0.5).
 
+/**
+ * How long a page waits for the API. An API that accepts the connection
+ * and then hangs would otherwise hold every page, the frame of the shop
+ * included, until the host gives up; after this the call fails like an
+ * API that is away, and the pages degrade the way they are built to.
+ */
+const API_TIMEOUT_MS = 10_000;
+
 export const serverApi = createStoreApi(
-  createRequester({ baseUrl: env.apiInternalUrl }),
+  createRequester({ baseUrl: env.apiInternalUrl, timeoutMs: API_TIMEOUT_MS }),
 );
 
 /** How long the server may reuse an answer of the API, in seconds. */

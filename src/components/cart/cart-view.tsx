@@ -241,6 +241,14 @@ export function CartView() {
   const cart = useCart();
   const { bill, loading, updating, error, refetch } = useBill();
 
+  // Before "empty": a stored cart that could not be read has no lines to
+  // show, which is not the same as a cart without products.
+  if (error && !bill) {
+    return (
+      <ErrorAlert error={error} title={t("loadError")} onRetry={refetch} />
+    );
+  }
+
   if (cart.ready && cart.items.length === 0) {
     return (
       <div className="glass flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
@@ -253,12 +261,6 @@ export function CartView() {
           {t("emptyCta")}
         </Link>
       </div>
-    );
-  }
-
-  if (error && !bill) {
-    return (
-      <ErrorAlert error={error} title={t("loadError")} onRetry={refetch} />
     );
   }
 

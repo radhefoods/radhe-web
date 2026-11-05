@@ -16,6 +16,7 @@ import { Button, buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextField } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OVERVIEW_QUERY_KEY } from "@/features/account/overview";
 import { checkEmail, normalizeEmail } from "@/features/auth/validation";
 import { cartQueryKey, useCart } from "@/features/cart/cart";
 import { saleSavingsOf } from "@/features/cart/savings";
@@ -28,7 +29,7 @@ import {
 } from "@/features/checkout/address-schema";
 import { ADDRESSES_QUERY_KEY, orderQueryKey } from "@/features/orders/orders";
 import { isSafePaymentUrl } from "@/features/orders/payment-url";
-import { useSession } from "@/features/session/session";
+import { SESSION_QUERY_KEY, useSession } from "@/features/session/session";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
@@ -113,6 +114,9 @@ function OrderLines({ bill }: { bill: Bill }) {
       <div className="relative">
         <ul
           ref={list}
+          // A box that scrolls must be reachable without a mouse.
+          tabIndex={0}
+          aria-labelledby="checkout-summary"
           onScroll={(event) => {
             if (event.currentTarget.scrollTop > 4) setScrolled(true);
           }}
@@ -312,6 +316,9 @@ export function CheckoutView({
   // Everything is asked for again when the page opens: the bill and the
   // legal versions must be the current ones.
   const ready = (isCustomer || asGuest) && cart.ready;
+  // A visitor without products has no bill to ask for: the preview takes
+  // 1 to 100 items (doc 8).
+  const guestCartEmpty = asGuest && cart.ready && guestItems.length === 0;
   const billQuery = useQuery({
     queryKey: isCustomer
       ? cartQueryKey(locale)
@@ -320,7 +327,7 @@ export function CheckoutView({
       isCustomer
         ? api.getCart()
         : api.previewCart(guestItems, { discountCode: guestCode ?? undefined }),
-    enabled: ready,
+    enabled: ready && !guestCartEmpty,
     staleTime: 0,
     // A guest's code changes the key: the old bill stays until the new one is there.
     placeholderData: keepPreviousData,
@@ -376,9 +383,23 @@ export function CheckoutView({
     legalQuery.error;
 
   if (session.status === "loading") return <CheckoutSkeleton />;
+  // The API could not say who is here: not the moment to offer the guest
+  // checkout to someone who may well be signed in.
+  if (session.error && !session.customer) {
+    return (
+      <ErrorAlert
+        error={session.error}
+        title={t("loadError")}
+        onRetry={() =>
+          void client.resetQueries({ queryKey: SESSION_QUERY_KEY })
+        }
+      />
+    );
+  }
   if (isGuest && !guestMode) {
     return <GuestChooser onGuest={() => setGuestMode(true)} />;
   }
+  if (guestCartEmpty) return <EmptyCheckout />;
   if (loadError && (!bill || !addresses || !legal)) {
     return (
       <ErrorAlert
@@ -394,17 +415,7 @@ export function CheckoutView({
   }
   if (!bill || !addresses || !legal) return <CheckoutSkeleton />;
 
-  if (bill.lines.length === 0) {
-    return (
-      <div className="glass flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
-        <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
-        <p className="text-ink-muted">{t("emptyText")}</p>
-        <Link href="/products" className={buttonStyles()}>
-          {t("continueShopping")}
-        </Link>
-      </div>
-    );
-  }
+  if (bill.lines.length === 0) return <EmptyCheckout />;
 
   // The chosen address, or the standard one until the customer chooses.
   const selected =
@@ -437,6 +448,8 @@ export function CheckoutView({
         ? await api.updateAddress(editing, input)
         : await api.createAddress(input);
     client.setQueryData(ADDRESSES_QUERY_KEY, result);
+    // The account's count of addresses and its standard address.
+    void client.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
     const created = result.items.find((address) => !known.has(address.id));
     setChosenAddress(created?.id ?? (editing !== "new" ? editing : null));
     setEditing(null);
@@ -462,31 +475,36 @@ export function CheckoutView({
         accepted: true as const,
         versions: consentVersions(legal),
       };
+      // What this order is made from: a retry of the same order uses the
+      // same key, a changed one a key of its own.
+      const lines = bill.lines.map((line) => [line.variantId, line.quantity]);
       // The total the customer sees right now, with the discount code
       // taken off. If the bill changed since, the API refuses and answers
       // with the new one.
-      const result = asGuest
-        ? await api.guestCheckout(
-            {
-              email: normalizeEmail(guestEmail),
-              items: guestItems,
-              address: toGuestAddressInput(guestAddress!),
-              ...(guestCode && { discountCode: guestCode }),
-              expectedTotal: bill.totals.total,
-              consent: consentInput,
-              language: locale,
-            },
-            checkoutKey(),
-          )
-        : await api.checkout(
-            {
-              addressId: selected.id,
-              expectedTotal: bill.totals.total,
-              consent: consentInput,
-              language: locale,
-            },
-            checkoutKey(),
-          );
+      let result;
+      if (asGuest) {
+        const request = {
+          email: normalizeEmail(guestEmail),
+          items: guestItems,
+          address: toGuestAddressInput(guestAddress!),
+          ...(guestCode && { discountCode: guestCode }),
+          expectedTotal: bill.totals.total,
+          consent: consentInput,
+          language: locale,
+        };
+        result = await api.guestCheckout(
+          request,
+          checkoutKey({ request, lines }),
+        );
+      } else {
+        const request = {
+          addressId: selected.id,
+          expectedTotal: bill.totals.total,
+          consent: consentInput,
+          language: locale,
+        };
+        result = await api.checkout(request, checkoutKey({ request, lines }));
+      }
       // An order answered: this attempt is over, the next gets a new key.
       clearCheckoutKey();
       const { orderNumber } = result.order;
@@ -957,6 +975,20 @@ export function CheckoutView({
           className="mt-4 justify-center"
         />
       </aside>
+    </div>
+  );
+}
+
+/** Nothing to order: the way back to the products. */
+function EmptyCheckout() {
+  const t = useTranslations("checkout");
+  return (
+    <div className="glass flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
+      <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
+      <p className="text-ink-muted">{t("emptyText")}</p>
+      <Link href="/products" className={buttonStyles()}>
+        {t("continueShopping")}
+      </Link>
     </div>
   );
 }

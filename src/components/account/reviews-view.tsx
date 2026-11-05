@@ -156,7 +156,7 @@ export function ReviewsView() {
         <p className="text-ink-muted max-w-2xl">{t("pageIntro")}</p>
       </header>
 
-      {loadError && !orders && !written ? (
+      {loadError && (!orders || !written) ? (
         <ErrorAlert
           error={loadError}
           title={tAccount("loadError")}

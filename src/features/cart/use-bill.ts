@@ -63,6 +63,9 @@ export function useBill({ enabled = true } = {}): BillState {
 
   const query = isGuest ? preview : stored;
   const empty = cart.items.length === 0;
+  // A customer's stored cart that could not be read is not an empty cart:
+  // the lines come from that answer, so without it there are none to count.
+  const unread = !isGuest && stored.isError && stored.data === undefined;
   const bill = empty ? null : (query.data ?? null);
   const inSync =
     bill !== null &&
@@ -75,7 +78,7 @@ export function useBill({ enabled = true } = {}): BillState {
     bill,
     loading: !cart.ready || (!empty && bill === null && !query.isError),
     updating: !empty && bill !== null && (!inSync || query.isFetching),
-    error: empty ? null : query.error,
+    error: unread ? stored.error : empty ? null : query.error,
     refetch: () => void query.refetch(),
   };
 }

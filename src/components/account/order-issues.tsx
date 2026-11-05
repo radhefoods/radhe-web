@@ -11,7 +11,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import { hasErrorCode } from "@/lib/api/errors";
+import { isRetryable } from "@/lib/api/errors";
 import type { OrderDetail } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format/dates";
@@ -33,8 +33,7 @@ export function OrderIssues({
   const query = useQuery({
     queryKey: orderIssuesQueryKey(order.orderNumber, locale),
     queryFn: () => api.getOrderIssues(order.orderNumber),
-    retry: (failures, error) =>
-      failures < 2 && !hasErrorCode(error, "NOT_FOUND"),
+    retry: (failures, error) => failures < 2 && isRetryable(error),
   });
   const issues = query.data;
   if (!issues || (!issues.window.possible && issues.items.length === 0)) {

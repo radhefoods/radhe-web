@@ -132,7 +132,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const stored = useQuery({
     queryKey: wishlistQueryKey(locale),
     queryFn: () => api.getWishlist(),
-    enabled: isCustomer,
+    // Asked together with "who is here", as the cart is.
+    enabled: session.status !== "guest",
     staleTime: 30_000,
   });
 
@@ -356,13 +357,17 @@ export function useWishlistProducts(): WishlistProducts {
 
   const query = isGuest ? preview : stored;
   const empty = entries.length === 0;
-  const wishlist: Wishlist | null = empty
-    ? { items: [], count: 0 }
-    : (query.data ?? null);
+  // A customer's stored list that could not be read is not an empty list.
+  const unread = !isGuest && stored.isError && stored.data === undefined;
+  const wishlist: Wishlist | null = unread
+    ? null
+    : empty
+      ? { items: [], count: 0 }
+      : (query.data ?? null);
   return {
     wishlist,
     loading: !ready || (!empty && wishlist === null && !query.isError),
-    error: empty ? null : query.error,
+    error: unread ? stored.error : empty ? null : query.error,
     refetch: () => void query.refetch(),
   };
 }

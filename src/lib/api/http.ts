@@ -45,6 +45,36 @@ export interface TransportConfig {
   /** The language when a call names none. */
   defaultLocale?: () => Locale | undefined;
   fetch?: typeof fetch;
+  /**
+   * How long to wait for the answer to begin before the call counts as
+   * failed (`NETWORK_ERROR`). Without it a call waits as long as the
+   * platform lets it.
+   */
+  timeoutMs?: number;
+}
+
+/**
+ * The promise, or a `TimeoutError` when it takes longer. The request is
+ * not aborted (a signal would switch off the request de-duplication of
+ * React and Next.js): an answer that comes late still fills the cache.
+ */
+function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new DOMException("The API took too long.", "TimeoutError")),
+      ms,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 export function buildUrl(
@@ -143,7 +173,10 @@ export async function send(
 
   let response: Response;
   try {
-    response = await (config.fetch ?? fetch)(url, init);
+    const pending = (config.fetch ?? fetch)(url, init);
+    response = await (config.timeoutMs
+      ? within(pending, config.timeoutMs)
+      : pending);
   } catch (cause) {
     // An aborted request is not an error of the API: let the caller see it.
     if (cause instanceof DOMException && cause.name === "AbortError") {

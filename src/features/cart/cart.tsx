@@ -127,7 +127,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const serverCart = useQuery({
     queryKey: cartQueryKey(locale),
     queryFn: () => api.getCart(),
-    enabled: isCustomer,
+    // Asked together with "who is here" (`loading`: this browser signed in
+    // before), not one round trip after it; calls that find the access
+    // cookie lapsed share one refresh.
+    enabled: session.status !== "guest",
     staleTime: 30_000,
   });
 
@@ -167,24 +170,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<ReadonlyMap<Id, number>>(new Map());
   const timers = useRef(new Map<Id, number>());
 
+  // Every answer is the whole bill. Two changes on their way at once
+  // (plus on one product, then on another) could answer in the wrong
+  // order, and the older bill would take the newer change off the screen:
+  // the changes go out one after the other, in the order of the taps.
+  const writes = useRef<Promise<unknown>>(Promise.resolve());
   const sendToServer = useCallback(
     (variantId: Id, quantity: number) => {
-      api
-        .setCartItem(variantId, quantity)
-        .then((bill: Bill) => client.setQueryData(cartQueryKey(locale), bill))
-        .catch((error: unknown) => {
-          if (isApiError(error)) setProblem(error);
-          return client.invalidateQueries({ queryKey: cartQueryKey(locale) });
-        })
-        .finally(() => {
-          // Keep a newer choice the customer made while this one travelled.
-          setPending((current) => {
-            if (current.get(variantId) !== quantity) return current;
-            const next = new Map(current);
-            next.delete(variantId);
-            return next;
-          });
-        });
+      writes.current = writes.current.then(() =>
+        api
+          .setCartItem(variantId, quantity)
+          .then(async (bill: Bill) => {
+            // A read of the cart that is still on its way is older than
+            // this answer and must not arrive after it.
+            await client.cancelQueries({ queryKey: cartQueryKey(locale) });
+            client.setQueryData(cartQueryKey(locale), bill);
+          })
+          .catch((error: unknown) => {
+            if (isApiError(error)) setProblem(error);
+            return client.invalidateQueries({ queryKey: cartQueryKey(locale) });
+          })
+          .finally(() => {
+            // Keep a newer choice the customer made while this one travelled.
+            setPending((current) => {
+              if (current.get(variantId) !== quantity) return current;
+              const next = new Map(current);
+              next.delete(variantId);
+              return next;
+            });
+          }),
+      );
     },
     [client, locale],
   );

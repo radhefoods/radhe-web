@@ -185,6 +185,7 @@ function CustomerWishlist() {
   const named = useNamedWishlist(chosen);
   const store = useStoreWishlist();
   const refresh = useWishlistsRefresh();
+  const [clearError, setClearError] = useState<unknown>(null);
 
   const lists = listsQuery.data ?? [];
   const current =
@@ -209,6 +210,7 @@ function CustomerWishlist() {
         <ErrorAlert error={listsQuery.error} title={t("loadError")} />
       )}
 
+      {clearError !== null && <ErrorAlert error={clearError} />}
       {error && !wishlist ? (
         <ErrorAlert
           error={error}
@@ -232,13 +234,17 @@ function CustomerWishlist() {
                     refresh();
                     return;
                   }
+                  setClearError(null);
                   void api
                     .clearWishlistById(current.id)
                     .then((emptied) => {
                       store(emptied);
                       refresh();
                     })
-                    .catch(() => void named.refetch());
+                    .catch((caught: unknown) => {
+                      setClearError(caught);
+                      void named.refetch();
+                    });
                 }}
               />
             </div>

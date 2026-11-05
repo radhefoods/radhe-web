@@ -8,6 +8,7 @@ import { AddressForm } from "@/components/checkout/address-form";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { OVERVIEW_QUERY_KEY } from "@/features/account/overview";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   addressToFormValues,
@@ -37,8 +38,11 @@ export function AddressBook() {
   const addresses = query.data?.items;
 
   // Every address endpoint answers with the full list.
-  const store = (list: AddressList) =>
+  const store = (list: AddressList) => {
     client.setQueryData(ADDRESSES_QUERY_KEY, list);
+    // The account's count of addresses and its standard address.
+    void client.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
+  };
 
   async function save(values: AddressFormValues) {
     const input = toAddressInput(values);
@@ -143,6 +147,10 @@ export function AddressBook() {
                         variant="quiet"
                         size="sm"
                         loading={busy === address.id}
+                        // One change at a time: every answer is the whole
+                        // list, and two on their way could arrive in the
+                        // wrong order.
+                        disabled={busy !== null}
                         aria-label={t("makeDefaultNamed", {
                           name: nameOf(address),
                         })}
@@ -159,7 +167,7 @@ export function AddressBook() {
                       variant="quiet"
                       size="sm"
                       className="text-red-600 hover:bg-red-50"
-                      disabled={busy === address.id}
+                      disabled={busy !== null}
                       aria-label={t("deleteNamed", { name: nameOf(address) })}
                       onClick={() =>
                         void act(address.id, () =>

@@ -243,6 +243,9 @@ export function RewardsView() {
                     <HistoryRow key={row.id} row={row} />
                   ))}
                 </ul>
+                {history.isFetchNextPageError && (
+                  <ErrorAlert error={history.error} />
+                )}
                 {history.hasNextPage && (
                   <Button
                     variant="secondary"

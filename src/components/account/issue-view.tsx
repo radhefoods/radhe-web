@@ -20,7 +20,7 @@ import { OVERVIEW_QUERY_KEY } from "@/features/account/overview";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import { hasErrorCode } from "@/lib/api/errors";
+import { isRetryable } from "@/lib/api/errors";
 import type { Issue } from "@/lib/api/types";
 import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
@@ -47,8 +47,7 @@ export function IssueView({ issueNumber }: { issueNumber: string }) {
     queryKey: issueQueryKey(issueNumber, locale),
     queryFn: async () => (await api.getIssue(issueNumber)).issue,
     staleTime: 0,
-    retry: (failures, error) =>
-      failures < 2 && !hasErrorCode(error, "ISSUE_NOT_FOUND"),
+    retry: (failures, error) => failures < 2 && isRetryable(error),
   });
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);

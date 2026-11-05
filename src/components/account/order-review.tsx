@@ -19,7 +19,7 @@ import {
 } from "@/features/reviews/reviews";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import { fieldProblems, hasErrorCode } from "@/lib/api/errors";
+import { fieldProblems, hasErrorCode, isRetryable } from "@/lib/api/errors";
 import type { MyReview, OrderDetail, OrderReviewState } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format/dates";
@@ -48,8 +48,7 @@ export function OrderReview({
     queryKey: key,
     queryFn: () => api.getOrderReview(order.orderNumber),
     staleTime: 0,
-    retry: (failures, error) =>
-      failures < 2 && !hasErrorCode(error, "NOT_FOUND"),
+    retry: (failures, error) => failures < 2 && isRetryable(error),
   });
   const [thanked, setThanked] = useState(false);
   const state = query.data;
@@ -188,7 +187,12 @@ function ReviewForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="flex flex-col gap-4"
+    >
       <p className="text-ink-muted text-[0.9375rem]">{t("formIntro")}</p>
       <StarPicker
         name="review-rating"
@@ -225,7 +229,11 @@ function ReviewForm({
             problems.text ? "font-semibold text-red-800" : "text-ink-muted",
           )}
         >
-          <span>{problems.text ?? t("textHint")}</span>
+          {problems.text ? (
+            <span role="alert">{problems.text}</span>
+          ) : (
+            <span>{t("textHint")}</span>
+          )}
           <span className="shrink-0 tabular-nums">
             {text.length} / {REVIEW_TEXT_MAX}
           </span>

@@ -73,6 +73,7 @@ export function OrderList() {
               </li>
             ))}
           </ul>
+          {query.isFetchNextPageError && <ErrorAlert error={query.error} />}
           {query.hasNextPage && (
             <Button
               variant="secondary"

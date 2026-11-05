@@ -28,7 +28,8 @@ import { useSession } from "@/features/session/session";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import { hasErrorCode } from "@/lib/api/errors";
+import { OVERVIEW_QUERY_KEY } from "@/features/account/overview";
+import { hasErrorCode, isRetryable } from "@/lib/api/errors";
 import type {
   CustomerCancellationReason,
   OrderDetail,
@@ -221,7 +222,7 @@ function CancelOrder({
       closeLabel={tCommon("close")}
       trigger={<Button variant="danger">{t("button")}</Button>}
     >
-      <form onSubmit={submit} className="flex flex-col gap-5">
+      <form method="post" onSubmit={submit} className="flex flex-col gap-5">
         <p className="text-ink-muted">
           {paid ? t("introPaid") : t("introUnpaid")}
         </p>
@@ -388,9 +389,9 @@ export function OrderDetailView({
     queryKey: orderQueryKey(orderNumber, locale),
     queryFn: async () => (await api.getOrder(orderNumber)).order,
     staleTime: 0,
-    // An order that is gone stays gone: no point asking again.
-    retry: (failures, error) =>
-      failures < 2 && !hasErrorCode(error, "ORDER_NOT_FOUND"),
+    // Network, 429, 502 to 504: asking again can help. An order that is
+    // gone stays gone, and a refusal stays a refusal.
+    retry: (failures, error) => failures < 2 && isRetryable(error),
   });
   const order = orderQuery.data;
 
@@ -766,6 +767,10 @@ export function OrderBody({
               if (!guest) {
                 void client.invalidateQueries({
                   queryKey: ordersQueryKey(locale),
+                });
+                // The account's count of orders.
+                void client.invalidateQueries({
+                  queryKey: OVERVIEW_QUERY_KEY,
                 });
               }
               // An order given up unpaid is removed by the API (doc 9):

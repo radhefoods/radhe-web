@@ -1,11 +1,13 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOverview } from "@/features/account/overview";
-import { useSession } from "@/features/session/session";
+import { SESSION_QUERY_KEY, useSession } from "@/features/session/session";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { parseReturnTo } from "@/lib/navigation/return-to";
@@ -31,6 +33,7 @@ const SECTIONS = [
  */
 export function AccountShell({ children }: { children: ReactNode }) {
   const t = useTranslations("account");
+  const client = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
@@ -55,11 +58,15 @@ export function AccountShell({ children }: { children: ReactNode }) {
     orderNumber ? `/account/orders/${orderNumber}` : pathname,
   );
 
+  // "Not signed in" is an answer of the API. When it could not be asked
+  // (network, server), the customer may well be signed in: the page says
+  // so and offers to try again instead of sending them to the sign-in.
+  const unknown = session.status === "guest" && Boolean(session.error);
   useEffect(() => {
-    if (session.status === "guest") {
+    if (session.status === "guest" && !unknown) {
       router.replace({ pathname: "/sign-in", query: { returnTo: here } });
     }
-  }, [session.status, router, here]);
+  }, [session.status, unknown, router, here]);
 
   return (
     <div className="container-page grid gap-6 py-6 sm:py-8 lg:grid-cols-[13rem_1fr] lg:gap-12">
@@ -101,6 +108,14 @@ export function AccountShell({ children }: { children: ReactNode }) {
       <div className="min-w-0">
         {session.status === "customer" ? (
           children
+        ) : unknown ? (
+          <ErrorAlert
+            error={session.error}
+            title={t("loadError")}
+            onRetry={() =>
+              void client.resetQueries({ queryKey: SESSION_QUERY_KEY })
+            }
+          />
         ) : (
           <div className="space-y-4" aria-hidden="true">
             <Skeleton className="h-10 w-64" />
