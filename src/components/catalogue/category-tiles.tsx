@@ -46,7 +46,7 @@ export async function CategoryTiles({
   const t = await getTranslations("product");
   // A card of a row: two and a sliver on phones, then three, four, five.
   const sizes =
-    "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
+    "(min-width: 1344px) 228px, (min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
 
   return (
     <ProductRow

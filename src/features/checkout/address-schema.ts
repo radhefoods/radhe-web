@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Address, AddressInput, GuestAddressInput } from "@/lib/api/types";
+import { normalizePhone } from "@/lib/format/phone";
 
 // The delivery address form. The rules mirror the API (doc 3), so the form
 // catches what the API would refuse; the messages are keys of
@@ -9,10 +10,8 @@ const required = (max: number) =>
   z.string().trim().min(1, "required").max(max, "tooLong");
 const optional = (max: number) => z.string().trim().max(max, "tooLong");
 
-/** Spaces, hyphens and brackets are fine to type; the API wants none. */
-export function normalizePhone(value: string): string {
-  return value.replace(/[\s\-()/.]/g, "");
-}
+// From a module of its own: the profile page needs the helper, not zod.
+export { normalizePhone };
 
 const PHONE = /^\+[1-9]\d{6,14}$/;
 

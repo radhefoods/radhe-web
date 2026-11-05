@@ -2,11 +2,21 @@
 
 import { ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useSyncExternalStore } from "react";
 import { useCart } from "@/features/cart/cart";
 import { useBill } from "@/features/cart/use-bill";
 import { Link, usePathname } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { formatMoney } from "@/lib/format/money";
+
+/** Below `md`, where the bar shows (`md:hidden`). */
+const PHONE = "(max-width: 47.99rem)";
+
+function subscribePhone(onChange: () => void): () => void {
+  const query = window.matchMedia(PHONE);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
 
 /** Pages that have their own bar or their own summary. */
 function hasOwnSummary(pathname: string): boolean {
@@ -29,7 +39,15 @@ export function CartSummaryBar() {
   const locale = useLocale() as Locale;
   const pathname = usePathname();
   const cart = useCart();
-  const visible = cart.ready && cart.units > 0 && !hasOwnSummary(pathname);
+  // On wider screens the bar is hidden: no bill is asked for there (the
+  // preview is rate-limited, and the header does not show a total).
+  const phone = useSyncExternalStore(
+    subscribePhone,
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  );
+  const visible =
+    phone && cart.ready && cart.units > 0 && !hasOwnSummary(pathname);
   const { bill, updating } = useBill({ enabled: visible });
 
   if (!visible) return null;

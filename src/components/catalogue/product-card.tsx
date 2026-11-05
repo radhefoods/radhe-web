@@ -1,6 +1,6 @@
 import { useLocale, useTranslations } from "next-intl";
 import { fewLeft, orderingReason } from "@/features/catalogue/availability";
-import { Link } from "@/i18n/navigation";
+import { IntentLink } from "./intent-link";
 import type { Locale } from "@/i18n/routing";
 import type { ProductSummary } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
@@ -48,14 +48,19 @@ const badge =
 export function ProductCard({
   product,
   headingLevel = "h3",
-  imageSizes = "(min-width: 1024px) 22vw, (min-width: 768px) 30vw, 46vw",
+  // The page is at most 84 rem wide: beyond it a card stays as it is.
+  imageSizes = "(min-width: 1344px) 268px, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 46vw",
   priority = false,
 }: {
   product: ProductSummary;
   headingLevel?: "h2" | "h3";
   imageSizes?: string;
-  /** Load the picture at once: the first cards of a page. */
-  priority?: boolean;
+  /**
+   * Load the picture at once: the first cards of a page. `"eager"` where
+   * another picture heads the page (the home page's hero): at once, but
+   * not ahead of that one.
+   */
+  priority?: boolean | "eager";
 }) {
   const t = useTranslations("product");
   const locale = useLocale() as Locale;
@@ -76,7 +81,7 @@ export function ProductCard({
       className="group surface hover:shadow-lift ease-glass @container relative flex h-full flex-col rounded-xl p-2 transition-[box-shadow,transform] duration-300 hover:-translate-y-1"
     >
       <div className="relative">
-        <Link
+        <IntentLink
           href={href}
           tabIndex={-1}
           aria-hidden="true"
@@ -108,7 +113,7 @@ export function ProductCard({
               )}
             </span>
           )}
-        </Link>
+        </IntentLink>
         <WishlistButton
           productId={product.id}
           name={title}
@@ -138,7 +143,7 @@ export function ProductCard({
           </p>
         )}
         <Heading className="line-clamp-2 min-h-10 text-[0.9375rem] leading-5 font-semibold">
-          <Link
+          <IntentLink
             href={href}
             className="hover:text-leaf-700 rounded-xs underline-offset-2 hover:underline"
           >
@@ -146,8 +151,13 @@ export function ProductCard({
             <span className="text-ink-muted font-medium whitespace-nowrap">
               ({formatPackSize(product.packSize)})
             </span>
-          </Link>
+          </IntentLink>
         </Heading>
+        {/* The badge on the picture, for those who do not see the picture:
+            the picture's link is hidden from screen readers. */}
+        {left !== null && (
+          <span className="sr-only">{t("badge.fewLeft", { count: left })}</span>
+        )}
         {/* The last row: the price, and in the corner a slot of one size
             for the basket and for the stepper that unfolds in its place:
             as wide as the stepper, as high as the basket. The price has

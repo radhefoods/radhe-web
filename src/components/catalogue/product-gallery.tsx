@@ -44,7 +44,9 @@ export function ProductGallery({
         <ProductImage
           key={shown?.id ?? "none"}
           image={shown}
-          sizes="(min-width: 768px) 46vw, 92vw"
+          // The page is at most 84 rem wide: beyond it the picture stays
+          // 566 px, and "46vw" would ask for the 1600 px file.
+          sizes="(min-width: 1344px) 566px, (min-width: 1024px) 42vw, (min-width: 768px) 46vw, 92vw"
           priority={shown === images[0]}
           fallbackLabel={fallbackLabel}
         />

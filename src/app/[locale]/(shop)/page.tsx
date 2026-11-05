@@ -123,7 +123,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   };
   // A card of a row: two and a sliver on phones, then three, four, five.
   const cardSizes =
-    "(min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
+    "(min-width: 1344px) 228px, (min-width: 1280px) 18vw, (min-width: 1024px) 22vw, (min-width: 640px) 30vw, 44vw";
 
   return (
     <>
@@ -229,7 +229,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 <ProductCard
                   product={product}
                   imageSizes={cardSizes}
-                  priority={index < 4}
+                  // The hero is the picture that comes first here.
+                  priority={index < 4 ? "eager" : false}
                 />
               </ProductRowItem>
             ))}

@@ -2,7 +2,7 @@
 
 import { Ban, PackageX, ShoppingBasket } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { memo, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { orderingReason } from "@/features/catalogue/availability";
@@ -31,14 +31,22 @@ const ANNOUNCED_FOR_MS = 1500;
  * high (36 from `sm`), filling the slot the card keeps for the two of
  * them, so the price beside it stays where it was (owner, 2026-10-29).
  */
-export function AddToCart({
-  variantId,
-  name,
-  ordering,
-  size = "md",
-  look = "button",
-  className,
-}: {
+export function AddToCart(props: AddToCartProps) {
+  // The cart tells every control on the page about every change; this
+  // part reads the one number that is its own, and the control below
+  // (`memo`) renders again only when that number changed. A page of
+  // products has seventy and more of them.
+  const cart = useCart();
+  return (
+    <AddToCartControl
+      {...props}
+      quantity={cart.quantityOf(props.variantId)}
+      setQuantity={cart.setQuantity}
+    />
+  );
+}
+
+interface AddToCartProps {
   /** The pack size: the cart is kept by it (doc 8). */
   variantId: Id;
   /** The name with the size, for the spoken labels. */
@@ -48,9 +56,22 @@ export function AddToCart({
   /** `card`: the round basket in the price row of a product card. */
   look?: "button" | "card";
   className?: string;
+}
+
+const AddToCartControl = memo(function AddToCartControl({
+  variantId,
+  name,
+  ordering,
+  size = "md",
+  look = "button",
+  className,
+  quantity,
+  setQuantity,
+}: AddToCartProps & {
+  quantity: number;
+  setQuantity: (variantId: Id, quantity: number) => void;
 }) {
   const t = useTranslations("product");
-  const cart = useCart();
   const reason = orderingReason(ordering);
   const height = size === "sm" ? "min-h-11" : "min-h-12";
   // The stepper unfolds when it follows a tap here, not when a page opens
@@ -84,11 +105,10 @@ export function AddToCart({
     );
   }
 
-  const quantity = cart.quantityOf(variantId);
   const min = ordering?.minQuantity ?? 1;
   const max = ordering?.canOrder ? ordering.maxQuantity : null;
   const add = (event: MouseEvent<HTMLButtonElement>) => {
-    cart.setQuantity(variantId, clampToOrdering(min, ordering));
+    setQuantity(variantId, clampToOrdering(min, ordering));
     setUnfolds(true);
     flyToCart(event.currentTarget);
     setAnnounced(t("added"));
@@ -156,7 +176,7 @@ export function AddToCart({
           unfolds && "animate-stepper-in",
           className,
         )}
-        onChange={(next) => cart.setQuantity(variantId, next)}
+        onChange={(next) => setQuantity(variantId, next)}
         labels={{
           quantity: t("quantityNamed", { name }),
           increase: t("increase"),
@@ -167,4 +187,4 @@ export function AddToCart({
       {status}
     </>
   );
-}
+});

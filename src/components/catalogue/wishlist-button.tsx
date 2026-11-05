@@ -2,7 +2,7 @@
 
 import { Heart } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useWishlist } from "@/features/wishlist/wishlist";
 import type { Id } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
@@ -18,13 +18,22 @@ const ANNOUNCED_FOR_MS = 1500;
  * the store talks to the API (or to local storage) and turns it back when
  * the call fails. The change is spoken once.
  */
-export function WishlistButton({
-  productId,
-  variantId,
-  name,
-  look = "tile",
-  className,
-}: {
+export function WishlistButton(props: WishlistButtonProps) {
+  // The list tells every heart on the page about every change; this part
+  // reads the one answer that is its own, and the heart below (`memo`)
+  // renders again only when that answer changed.
+  const { has, save, remove } = useWishlist();
+  return (
+    <WishlistHeart
+      {...props}
+      saved={has(props.productId)}
+      save={save}
+      remove={remove}
+    />
+  );
+}
+
+interface WishlistButtonProps {
   productId: Id;
   /** The pack size the customer has open: remembered with the product. */
   variantId?: Id;
@@ -32,10 +41,23 @@ export function WishlistButton({
   name: string;
   look?: "tile" | "box";
   className?: string;
+}
+
+const WishlistHeart = memo(function WishlistHeart({
+  productId,
+  variantId,
+  name,
+  look = "tile",
+  className,
+  saved,
+  save,
+  remove,
+}: WishlistButtonProps & {
+  saved: boolean;
+  save: (productId: Id, variantId?: Id) => void;
+  remove: (productId: Id) => void;
 }) {
   const t = useTranslations("product");
-  const { has, save, remove } = useWishlist();
-  const saved = has(productId);
   // "Saved" or "Removed", spoken once per tap.
   const [announced, setAnnounced] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -89,4 +111,4 @@ export function WishlistButton({
       </span>
     </>
   );
-}
+});

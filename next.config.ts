@@ -104,6 +104,19 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // The logo, the icons and the picture for shared links: files that
+        // keep their names. Without this the browser asks for each of them
+        // again on every page; a day in the browser, renewed in the
+        // background for a week after that.
+        source: "/brand/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           {

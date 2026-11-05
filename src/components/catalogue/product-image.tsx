@@ -24,7 +24,7 @@ export function ProductImage({
   image: ApiImage | null;
   alt?: string;
   sizes: string;
-  priority?: boolean;
+  priority?: boolean | "eager";
   /** The caption under the mark when the product has no picture; "" for none (small tiles). */
   fallbackLabel: string;
   className?: string;
@@ -70,7 +70,7 @@ export function ProductImage({
       height={medium.height}
       alt={alt ?? image.alt}
       loading={priority ? "eager" : "lazy"}
-      fetchPriority={priority ? "high" : undefined}
+      fetchPriority={priority === true ? "high" : undefined}
       decoding="async"
       className={cn("size-full object-contain", className)}
     />

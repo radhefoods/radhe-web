@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextField, controlStyles } from "@/components/ui/field";
 import { SuccessToast } from "@/components/shell/success-toast";
 import { isFeatureEnabled } from "@/config/env";
-import { normalizePhone } from "@/features/checkout/address-schema";
+import { normalizePhone } from "@/lib/format/phone";
 import { useSession, useSessionActions } from "@/features/session/session";
 import { Link } from "@/i18n/navigation";
 import { locales, type Locale } from "@/i18n/routing";
@@ -93,7 +93,7 @@ function DetailsForm({ customer }: { customer: Customer }) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className={panel}>
+    <form method="post" onSubmit={submit} noValidate className={panel}>
       <h2 className={sectionTitle}>{t("detailsTitle")}</h2>
       <TextField
         id="profile-email"
@@ -246,6 +246,7 @@ function CommunicationForm({ customer }: { customer: Customer }) {
         <div className="border-ink/8 flex flex-col gap-4 border-t pt-4">
           <h3 className="text-lg font-bold">{t("whatsappTitle")}</h3>
           <form
+            method="post"
             className="flex flex-wrap items-end gap-3"
             noValidate
             onSubmit={(event) => {

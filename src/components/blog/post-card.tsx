@@ -11,7 +11,8 @@ export const postHref = (slug: string) => ({
 });
 
 /** A card of a grid: one on phones, two, then three. */
-const CARD_SIZES = "(min-width: 1024px) 30vw, (min-width: 640px) 46vw, 100vw";
+const CARD_SIZES =
+  "(min-width: 1344px) 416px, (min-width: 1024px) 30vw, (min-width: 640px) 46vw, 100vw";
 
 /**
  * A post in a list (doc 19): its picture in the card's ratio, the name of

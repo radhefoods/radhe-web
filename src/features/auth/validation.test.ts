@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   checkEmail,
   checkName,
@@ -15,6 +16,40 @@ describe("the rules of the auth forms", () => {
     expect(checkEmail("not-an-email")).toBe("emailInvalid");
     expect(checkEmail("")).toBe("emailInvalid");
     expect(checkEmail(`${"a".repeat(250)}@example.com`)).toBe("emailInvalid");
+  });
+
+  it("judges an address as zod's `z.email()` does, whose pattern it copies", () => {
+    // The auth pages do not load zod (90 KB for one pattern); should the
+    // library change its rule, this says so.
+    const schema = z.email().max(254);
+    for (const value of [
+      "anna@example.com",
+      "anna.schmidt+shop@mail.example.de",
+      "o'neil@example.ie",
+      "a@b.co",
+      "anna@example",
+      "anna@@example.com",
+      "anna@.example.com",
+      ".anna@example.com",
+      "anna.@example.com",
+      "anna..schmidt@example.com",
+      "anna@example..com",
+      "anna@-example.com",
+      "anna schmidt@example.com",
+      "anna@example.c",
+      "@example.com",
+      "anna@",
+      "ünïcode@example.com",
+      "anna@exämple.de",
+      "",
+      `${"a".repeat(243)}@example.com`,
+      `${"a".repeat(242)}@example.com`,
+    ]) {
+      expect([value, checkEmail(value) === null]).toEqual([
+        value,
+        schema.safeParse(value).success,
+      ]);
+    }
   });
 
   it("asks for 8 to 128 characters of any kind, nothing more", () => {

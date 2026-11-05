@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { Link } from "@/i18n/navigation";
+import { IntentLink } from "./intent-link";
 import type { ApiImage, Category } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 
@@ -32,7 +32,7 @@ export function CategoryCard({
 }) {
   const image = category.image;
   return (
-    <Link
+    <IntentLink
       href={{
         pathname: "/category/[slug]",
         params: { slug: category.slug },
@@ -114,6 +114,6 @@ export function CategoryCard({
           {countLabel}
         </span>
       </span>
-    </Link>
+    </IntentLink>
   );
 }

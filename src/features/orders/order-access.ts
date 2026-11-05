@@ -39,15 +39,34 @@ export interface OrderCalls {
  * payment and its documents together with the order, so the three reads
  * are one endpoint seen three ways.
  */
+/**
+ * A guest order's three reads are one endpoint, and the page starts them
+ * together: while one is on its way the others wait for the same answer
+ * (the API asks the payment provider each time it is called).
+ */
+const guestReads = new Map<string, ReturnType<typeof api.getGuestOrder>>();
+
+function readGuestOrder(orderNumber: string, token: string) {
+  const key = `${orderNumber} ${token}`;
+  let read = guestReads.get(key);
+  if (!read) {
+    read = api.getGuestOrder(orderNumber, token).finally(() => {
+      guestReads.delete(key);
+    });
+    guestReads.set(key, read);
+  }
+  return read;
+}
+
 export function orderCalls(access: OrderAccess): OrderCalls {
   if (access.kind === "guest") {
     const { token } = access;
     return {
       scope: "guest",
       getOrder: async (orderNumber) =>
-        (await api.getGuestOrder(orderNumber, token)).order,
+        (await readGuestOrder(orderNumber, token)).order,
       getPayment: async (orderNumber) => {
-        const answer = await api.getGuestOrder(orderNumber, token);
+        const answer = await readGuestOrder(orderNumber, token);
         return {
           orderNumber: answer.order.orderNumber,
           status: answer.order.status,
@@ -56,7 +75,7 @@ export function orderCalls(access: OrderAccess): OrderCalls {
         };
       },
       listDocuments: async (orderNumber) =>
-        (await api.getGuestOrder(orderNumber, token)).documents,
+        (await readGuestOrder(orderNumber, token)).documents,
       pay: (orderNumber) => api.payGuestOrder(orderNumber, token),
       cancel: (orderNumber, input) =>
         api.cancelGuestOrder(orderNumber, token, input),

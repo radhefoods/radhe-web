@@ -4,14 +4,21 @@
 // form refused would be one the API accepts. Each check answers the key of
 // the message to show (namespace `auth`), or `null` when the value is fine.
 
-import { z } from "zod";
-
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;
 const NAME_MAX = 80;
 const EMAIL_MAX = 254;
 
-const emailSchema = z.email().max(EMAIL_MAX);
+/**
+ * What an email address looks like, the pattern of zod's `z.email()` (the
+ * library the address form validates with, and the same family of rules
+ * as the API's). Written out here because these four functions are all
+ * the sign-in, sign-up and password pages validate: importing the library
+ * for one pattern put 90 KB (gzip) of it on each of those pages.
+ * `validation.test.ts` holds the two side by side.
+ */
+const EMAIL =
+  /^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/;
 
 export type EmailProblem = "emailInvalid";
 export type PasswordProblem =
@@ -24,9 +31,8 @@ export function normalizeEmail(value: string): string {
 }
 
 export function checkEmail(value: string): EmailProblem | null {
-  return emailSchema.safeParse(normalizeEmail(value)).success
-    ? null
-    : "emailInvalid";
+  const email = normalizeEmail(value);
+  return email.length <= EMAIL_MAX && EMAIL.test(email) ? null : "emailInvalid";
 }
 
 /**
