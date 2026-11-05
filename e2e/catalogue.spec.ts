@@ -172,11 +172,11 @@ test.describe("the shop at a glance", () => {
     const first = slides.first();
     await expect(first.locator("[style*='aspect-ratio']")).toHaveAttribute(
       "style",
-      /aspect-ratio: 2400 \/ 1000/,
+      /aspect-ratio:\s*2400 \/ 1000/,
     );
     await expect(
       slides.nth(3).locator("[style*='aspect-ratio']"),
-    ).toHaveAttribute("style", /aspect-ratio: 1800 \/ 750/);
+    ).toHaveAttribute("style", /aspect-ratio:\s*1800 \/ 750/);
     await expect(first.getByRole("img")).toHaveAttribute(
       "srcset",
       /768w.*1536w.*2400w/,
@@ -672,8 +672,9 @@ test.describe("the cart of a visitor", () => {
     );
     // The brand over the name (owner, 2026-10-19), then the price, then
     // the price per kilogram under it.
+    // The brand is set in capitals by the style sheet since 2026-10-31.
     expect(await rice.innerText()).toMatch(
-      /India Gate\s+Basmati Rice \(1kg\)\s+€5\.99\s+€5\.99 \/ kg/,
+      /India Gate\s+Basmati Rice \(1kg\)\s+€5\.99\s+€5\.99 \/ kg/i,
     );
     // Nothing else: the sizes are chosen on the product page, and the card
     // does not say "in stock".
@@ -903,6 +904,8 @@ test.describe("the wishlist", () => {
       .getByLabel("Code")
       .fill(await signupCode(page.request, "wish@example.com"));
     await page.getByRole("button", { name: "Confirm" }).click();
+    // The new account's welcome coins are announced first (REWARDS 8).
+    await page.getByRole("button", { name: "Continue" }).click();
     await expect(page).toHaveURL(/\/en\/wishlist$/);
     await expect(card(page, "Chakki Atta")).toBeVisible();
     await expect(

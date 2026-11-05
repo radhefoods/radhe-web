@@ -158,7 +158,8 @@ test.describe("all categories", () => {
       "Alle Kategorien",
     );
     await expect(
-      page.getByRole("main").getByRole("link", { name: /^Reis/ }),
+      // The card of the category; a sub-category's chip starts alike.
+      page.getByRole("main").getByRole("link", { name: /^Reis/ }).first(),
     ).toHaveAttribute("href", "/de/kategorie/reis");
   });
 });
@@ -302,8 +303,10 @@ test.describe("the blog", () => {
     page,
   }) => {
     await page.goto("/en/blog/the-perfect-dal");
+    // The title for search engines, then the shop's name (the layout's
+    // template).
     await expect(page).toHaveTitle(
-      "The perfect dal – a recipe from Radhe Foods",
+      "The perfect dal – a recipe from Radhe Foods | Radhe Foods",
     );
     const article = page.getByRole("main").getByRole("article").first();
     await expect(article.getByRole("heading", { level: 1 })).toHaveText(
