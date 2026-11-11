@@ -929,6 +929,118 @@ test.describe("the cart of a visitor", () => {
     await expect(kiloLine.locator('img[src*="radhe-logo"]')).toBeVisible();
   });
 
+  test("a picture whose file is gone shows the Radhe mark, not a broken picture", async ({
+    page,
+  }) => {
+    // The admin replaced the picture of the 400 g bag. The API deleted the
+    // old files at once (the CDN then answers 403), and the list of the
+    // last five minutes still names them.
+    const { product } = await (
+      await page.request.get(`${MOCK}/v1/store/products/turmeric-powder-400g`)
+    ).json();
+    const gone = product.images[0].sizes.medium.url.replace(/[^/]+$/, "");
+    await page.route(`${gone}*`, (route) =>
+      route.fulfill({
+        status: 403,
+        contentType: "application/xml",
+        body: "<Error><Code>AccessDenied</Code></Error>",
+      }),
+    );
+
+    await page.goto("/en/products?q=turmeric");
+    const bag = card(page, "Turmeric Powder (400g)");
+    const box = card(page, "Turmeric Powder (100g)");
+    const photoOf = (scope: Locator) =>
+      scope.locator('img[src*="/media/products/"]');
+    await expect(bag.locator('img[src*="radhe-logo"]')).toBeVisible();
+    await expect(bag).toContainText("coming soon");
+    await expect(photoOf(bag)).toHaveCount(0);
+    // A picture that loads stays what it is.
+    await expect(photoOf(box)).toHaveCount(1);
+    await expect(box.locator('img[src*="radhe-logo"]')).toHaveCount(0);
+    expect(
+      await photoOf(box).evaluate(
+        (picture: HTMLImageElement) => picture.naturalWidth,
+      ),
+    ).toBeGreaterThan(0);
+
+    // Also when the file failed before the scripts of the page ran: the
+    // browser tells an error once, and nobody was listening yet.
+    await page.route("**/_next/static/**/*.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+    await page.reload();
+    await expect(bag.locator('img[src*="radhe-logo"]')).toBeVisible();
+    await expect(photoOf(bag)).toHaveCount(0);
+    await expect(photoOf(box)).toHaveCount(1);
+  });
+
+  test("the product page shows the pictures the API has now, not those of the page of before", async ({
+    page,
+  }) => {
+    // The page is up to five minutes old. Since it was rendered the admin
+    // replaced the picture of the 100 g box (its old files are gone) and
+    // gave the 1 kg bag its first picture. The page asks the API again
+    // when it opens, as for the stock, and shows the pictures of that
+    // answer. Two pictures of the 400 g bag stand in for the new ones.
+    const { product } = await (
+      await page.request.get(`${MOCK}/v1/store/products/turmeric-powder-100g`)
+    ).json();
+    type Size = { slug: string; image: unknown; images: { alt: string }[] };
+    const [, back, third] = product.variants.find(
+      (size: Size) => size.slug === "turmeric-powder-400g",
+    ).images;
+    const gone = product.images[0].sizes.medium.url.replace(/[^/]+$/, "");
+    await page.route(`${gone}*`, (route) => route.fulfill({ status: 403 }));
+    await page.route(
+      (url) => url.pathname === "/v1/store/products/turmeric-powder-100g",
+      async (route) => {
+        const response = await route.fetch();
+        const answer = await response.json();
+        const give = (slug: string, picture: unknown) => {
+          const size = answer.product.variants.find(
+            (entry: Size) => entry.slug === slug,
+          );
+          size.image = picture;
+          size.images = [picture];
+        };
+        give("turmeric-powder-100g", back);
+        give("turmeric-powder-1kg", third);
+        answer.product.image = back;
+        answer.product.images = [back];
+        await route.fulfill({ response, json: answer });
+      },
+    );
+
+    await page.goto("/en/products/turmeric-powder-100g");
+    const main = page.getByRole("main");
+    const tile = main.locator("[data-fly-source]").first();
+    const photo = tile.locator('img[src*="/media/products/"]');
+    const mark = tile.locator('img[src*="radhe-logo"]');
+
+    // The replaced picture, not the file that is gone and not the mark.
+    await expect(photo).toHaveAttribute("alt", back.alt);
+    await expect(photo).toHaveAttribute("src", back.sizes.medium.url);
+    await expect(mark).toHaveCount(0);
+    expect(
+      await photo.evaluate((picture: HTMLImageElement) => picture.naturalWidth),
+    ).toBeGreaterThan(0);
+
+    // The size the page knew without a picture has one now.
+    await main.getByRole("link", { name: /^1kg/ }).click();
+    await expect(page).toHaveURL(/\/en\/products\/turmeric-powder-1kg$/);
+    await expect(photo).toHaveAttribute("src", third.sizes.medium.url);
+    await expect(mark).toHaveCount(0);
+
+    // A size nothing changed for keeps its gallery.
+    await main.getByRole("link", { name: /^400g/ }).click();
+    await expect(photo).toHaveAttribute("alt", "Turmeric Powder (400 g)");
+    await expect(
+      main.getByRole("list", { name: "Pictures" }).getByRole("button"),
+    ).toHaveCount(3);
+  });
+
   test("a product with a minimum quantity starts at the minimum", async ({
     page,
   }) => {

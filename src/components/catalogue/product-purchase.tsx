@@ -22,9 +22,14 @@ import {
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
-import type { Ordering, ProductDetail, ProductVariant } from "@/lib/api/types";
+import type {
+  ApiImage,
+  Ordering,
+  ProductDetail,
+  ProductVariant,
+} from "@/lib/api/types";
 import {
-  galleryOf,
+  currentGalleryOf,
   mainPicturesOfOtherSizes,
   packSizesOf,
 } from "@/lib/catalogue/pictures";
@@ -56,6 +61,8 @@ interface Selection {
   ordering: Ordering | null;
   /** The same for any of the sizes, for the picker. */
   orderingOf: (variant: ProductVariant) => Ordering | null;
+  /** The pictures of the size the page shows, as the API has them now. */
+  pictures: ApiImage[];
   /** Shows a size; with an address, the browser's address follows. */
   select: (variant: ProductVariant, href?: string) => void;
 }
@@ -82,10 +89,14 @@ function slugOfPath(pathname: string): string {
 
 /**
  * Holds the chosen pack size for the parts of the product page below it.
- * The page itself is cached, so the one thing that must be current, whether
- * and how much of each size can be ordered, is asked for again, once for all
- * sizes. Nothing is reserved before a payment, so the stock can change at
- * any moment.
+ * The page itself is cached, so what must be current is asked for again,
+ * once for all sizes: whether and how much of each size can be ordered
+ * (nothing is reserved before a payment, so the stock can change at any
+ * moment), and the pictures (owner, 2026-11-11). The address of a picture
+ * ends with the picture: when the admin replaces or removes one, the API
+ * deletes its file, and the page of the last five minutes names a file
+ * that is gone, or none where there is one now. The name, the texts and
+ * the prices stay those of the page.
  */
 export function PackSizes({
   product,
@@ -111,6 +122,11 @@ export function PackSizes({
     [freshVariants],
   );
   const ordering = orderingOf(variant);
+  const freshProduct = fresh.data;
+  const pictures = useMemo(
+    () => currentGalleryOf(product, variant, freshProduct),
+    [product, variant, freshProduct],
+  );
 
   // The tab's title names the size; the rest of it (the shop) stays.
   const titledAs = useRef(
@@ -139,8 +155,16 @@ export function PackSizes({
   }, [variants, select]);
 
   const value = useMemo<Selection>(
-    () => ({ product, variants, variant, ordering, orderingOf, select }),
-    [product, variants, variant, ordering, orderingOf, select],
+    () => ({
+      product,
+      variants,
+      variant,
+      ordering,
+      orderingOf,
+      pictures,
+      select,
+    }),
+    [product, variants, variant, ordering, orderingOf, pictures, select],
   );
 
   // The language switch keeps the size. The API answers to the slug of
@@ -163,6 +187,9 @@ export function PackSizes({
  * which starts at its main picture whenever the size changes, by a click
  * in the picker as by the browser's back and forward; the mark of the
  * shop for a size without a picture, never the picture of another size.
+ * They are the pictures the API has now (`pictures`): those of the page
+ * until the fresh answer is there, which changes nothing on the screen
+ * unless the admin changed a picture since the page was rendered.
  * The main pictures of the other sizes are fetched once the page is idle,
  * so that a change of size shows its picture at once.
  */
@@ -177,13 +204,13 @@ export function PackSizeGallery({
   corner?: ReactNode;
   className?: string;
 }) {
-  const { product, variant } = useSelection();
+  const { product, variant, pictures } = useSelection();
   const ahead = useMemo(() => mainPicturesOfOtherSizes(product), [product]);
   usePicturesAhead(ahead);
   return (
     <ProductGallery
       sizeId={variant.id}
-      images={galleryOf(product, variant)}
+      images={pictures}
       fallbackLabel={fallbackLabel}
       corner={corner}
       className={className}

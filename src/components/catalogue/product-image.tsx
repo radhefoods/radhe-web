@@ -1,5 +1,8 @@
+"use client";
+
+import { useCallback, useState } from "react";
 import type { ApiImage } from "@/lib/api/types";
-import { srcSetOf } from "@/lib/catalogue/pictures";
+import { isBroken, srcSetOf } from "@/lib/catalogue/pictures";
 import { cn } from "@/lib/cn";
 
 /**
@@ -11,6 +14,12 @@ import { cn } from "@/lib/cn";
  * with the picture of another size (doc VARIANT_IMAGES): the Radhe mark
  * stands in, ghosted on the tile like a watermark, with a small caption
  * where there is room for one (owner, 2026-10-16: a proper fallback).
+ *
+ * A picture whose file cannot be loaded is shown the same way, instead of
+ * the browser's sign for a broken picture (owner, 2026-11-11). The API
+ * deletes a file when the admin replaces or removes the picture, and a
+ * page of the last five minutes, a cart or a search of before may still
+ * name it.
  *
  * @param sizes how wide the picture is shown, as for `<img sizes>`
  * @param priority load at once and first: the main picture of a page
@@ -31,7 +40,16 @@ export function ProductImage({
   fallbackLabel: string;
   className?: string;
 }) {
-  if (!image) {
+  // The file that could not be loaded: kept by its address, so that
+  // another picture in the same place is tried for itself.
+  const [failed, setFailed] = useState<string | null>(null);
+  // A picture of the server's page can fail before this component listens
+  // (the error is not told twice): looked at once, when it is on the page.
+  const look = useCallback((picture: HTMLImageElement | null) => {
+    if (picture && isBroken(picture)) setFailed(picture.getAttribute("src"));
+  }, []);
+
+  if (!image || failed === image.sizes.medium.url) {
     return (
       <div
         className={cn(
@@ -65,6 +83,7 @@ export function ProductImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={look}
       src={medium.url}
       srcSet={srcSetOf(image)}
       sizes={sizes}
@@ -74,6 +93,7 @@ export function ProductImage({
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority === true ? "high" : undefined}
       decoding="async"
+      onError={() => setFailed(medium.url)}
       className={cn("size-full object-contain", className)}
     />
   );

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { ApiImage, ProductDetail, ProductVariant } from "@/lib/api/types";
 import { productJsonLd } from "@/lib/seo/json-ld";
 import {
+  currentGalleryOf,
   galleryOf,
+  isBroken,
   mainPicturesOfOtherSizes,
   packSizesOf,
   srcSetOf,
@@ -144,6 +146,80 @@ describe("galleryOf", () => {
   it("shows the main picture of a size that came without its gallery", () => {
     const product = rice([size("1kg", undefined, small[0]), size("5kg", big)]);
     expect(galleryOf(product, product.variants[0])).toEqual(small);
+  });
+});
+
+describe("currentGalleryOf", () => {
+  it("is the gallery of the page until the API has answered again", () => {
+    const page = rice(sizes());
+    expect(currentGalleryOf(page, page.variants[1], undefined)).toBe(big);
+    expect(currentGalleryOf(page, page.variants[2], undefined)).toEqual([]);
+  });
+
+  it("takes the pictures of the fresh answer: a replaced one, a new one, none any more", () => {
+    // The page is of five minutes ago. Since then the admin replaced the
+    // picture of the 5 kg bag (the API deleted the old files), gave the
+    // 10 kg bag its first picture and took the one of the 1 kg bag away.
+    const page = rice(sizes());
+    const replaced = [picture("5kg-new")];
+    const added = [picture("10kg-front")];
+    const fresh = rice([
+      size("1kg", []),
+      size("5kg", replaced),
+      size("10kg", added),
+    ]);
+    const [one, five, ten] = page.variants;
+    expect(currentGalleryOf(page, five, fresh)).toEqual(replaced);
+    expect(currentGalleryOf(page, ten, fresh)).toEqual(added);
+    expect(currentGalleryOf(page, one, fresh)).toEqual([]);
+  });
+
+  it("keeps the pictures of the page for a size the fresh answer does not list", () => {
+    const page = rice(sizes());
+    const fresh = rice([size("5kg", big)]);
+    expect(currentGalleryOf(page, page.variants[0], fresh)).toEqual(small);
+  });
+
+  it("reads a fresh answer whose sizes carry no galleries by the same rule", () => {
+    const page = rice(sizes());
+    const replaced = [picture("5kg-new")];
+    const bare = [size("1kg", undefined, null), size("5kg", undefined, null)];
+    const fresh = { ...rice(bare), images: replaced, image: replaced[0] };
+    expect(currentGalleryOf(page, page.variants[1], fresh)).toEqual(replaced);
+    expect(currentGalleryOf(page, page.variants[0], fresh)).toEqual([]);
+  });
+
+  it("does not take the pictures of another product", () => {
+    const page = rice(sizes());
+    const other = { ...rice([size("5kg", [picture("dal")])]), id: "dal" };
+    expect(currentGalleryOf(page, page.variants[1], other)).toEqual(big);
+  });
+});
+
+describe("isBroken", () => {
+  const file = "https://cdn.example/5kg-front/medium.webp";
+
+  it("is a picture the browser asked for and could not show", () => {
+    expect(
+      isBroken({ complete: true, naturalWidth: 0, currentSrc: file }),
+    ).toBe(true);
+  });
+
+  it("is not a picture that is shown, on its way, or not asked for yet", () => {
+    expect(
+      isBroken({ complete: true, naturalWidth: 800, currentSrc: file }),
+    ).toBe(false);
+    expect(
+      isBroken({ complete: false, naturalWidth: 0, currentSrc: file }),
+    ).toBe(false);
+    // `loading="lazy"`, below the screen: no file chosen yet, whatever
+    // the browser says about `complete`.
+    expect(isBroken({ complete: false, naturalWidth: 0, currentSrc: "" })).toBe(
+      false,
+    );
+    expect(isBroken({ complete: true, naturalWidth: 0, currentSrc: "" })).toBe(
+      false,
+    );
   });
 });
 

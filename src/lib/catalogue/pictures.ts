@@ -47,6 +47,40 @@ export function galleryOf(
 }
 
 /**
+ * The gallery of one size on a product page that has asked the API again
+ * since it was rendered (`fresh`): the pictures of that answer, by the
+ * same rule. The page is up to five minutes old, and the address of a
+ * picture ends with the picture: the API deletes the file when the admin
+ * replaces or removes it. The page of before then names a file that is
+ * gone, or shows the mark where there is a picture now. Until the answer
+ * is there, and for a size it does not list, the pictures of the page.
+ */
+export function currentGalleryOf(
+  product: ProductDetail,
+  size: ProductVariant,
+  fresh: ProductDetail | undefined,
+): ApiImage[] {
+  const again =
+    fresh?.id === product.id
+      ? packSizesOf(fresh).find((other) => other.id === size.id)
+      : undefined;
+  return fresh && again ? galleryOf(fresh, again) : galleryOf(product, size);
+}
+
+/**
+ * Whether the browser has given up on a picture: it asked for a file and
+ * got nothing it can show. A picture it has not asked for yet
+ * (`loading="lazy"`, no file chosen) and one on its way are not broken.
+ */
+export function isBroken(
+  picture: Pick<HTMLImageElement, "complete" | "naturalWidth" | "currentSrc">,
+): boolean {
+  return (
+    picture.complete && picture.naturalWidth === 0 && picture.currentSrc !== ""
+  );
+}
+
+/**
  * The main pictures of the sizes a product page was not loaded for, to be
  * fetched ahead so that a change of size shows its picture at once. Each
  * file once: two sizes can show the same file under ids of their own, and
