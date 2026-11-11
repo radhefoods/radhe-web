@@ -39,16 +39,50 @@ export const settings = {
   checkoutMinutes: 60,
 };
 
-// --- Legal texts (doc 6) ----------------------------------------------------
+// --- Legal pages (doc 6, `doc/LEGAL_PAGES.md`) --------------------------------
 
-export type LegalType = "terms" | "privacy";
+/** The six legal pages, in the order the API answers them. */
+export const LEGAL_TYPES = [
+  "imprint",
+  "shipping",
+  "refund",
+  "terms",
+  "privacy",
+  "withdrawal",
+] as const;
+export type LegalType = (typeof LEGAL_TYPES)[number];
+
+/** The texts accepted at checkout; the other four inform. */
+export const CONSENT_TYPES = ["terms", "privacy"] as const;
+
+/** The address of each page in both languages, as the API has it by default. */
+export const LEGAL_SLUGS: Record<LegalType, Translated> = {
+  imprint: { en: "imprint", de: "impressum" },
+  shipping: { en: "shipping", de: "versand" },
+  refund: { en: "refund-policy", de: "rueckerstattung" },
+  terms: { en: "terms", de: "agb" },
+  privacy: { en: "privacy", de: "datenschutz" },
+  withdrawal: { en: "withdrawal", de: "widerruf" },
+};
+
+/** A text in one or both languages, as the admin may leave one out. */
+type MaybeTranslated = Partial<Translated>;
 
 export interface LegalRecord {
   type: LegalType;
   version: number;
-  title: Translated;
-  content: Translated;
+  /** The German title is optional; the English one stands in. */
+  title: { en: string; de?: string };
+  /** A text may exist in one language only. */
+  content: MaybeTranslated;
   publishedAt: string;
+  /**
+   * Whether the admin has published a version. A page without one does not
+   * exist for customers: not in the list, `404` by its type or address.
+   */
+  published: boolean;
+  /** What the admin wrote for search engines; it belongs to the page. */
+  seo?: { title?: MaybeTranslated; description?: MaybeTranslated };
 }
 
 const SAMPLE_NOTE = {
@@ -56,7 +90,50 @@ const SAMPLE_NOTE = {
   de: "_Beispieltext der Mock-API. Der echte Text wird im Admin-Bereich gepflegt._",
 };
 
+// As a shop in the middle of moving its legal pages to the panel: the terms,
+// the privacy policy and the right of withdrawal are published in both
+// languages, the shipping information in German only and with texts for
+// search engines; the imprint and the refund policy are still drafts.
 export const legalDocuments: LegalRecord[] = [
+  {
+    type: "imprint",
+    version: 1,
+    title: { en: "Imprint", de: "Impressum" },
+    content: {
+      en: `${SAMPLE_NOTE.en}\n\n## Provider\n\nRadhe Foods, Musterstraße 1, 60311 Frankfurt am Main.`,
+      de: `${SAMPLE_NOTE.de}\n\n## Anbieter\n\nRadhe Foods, Musterstraße 1, 60311 Frankfurt am Main.`,
+    },
+    publishedAt: "2026-11-11T08:00:00.000Z",
+    published: false,
+  },
+  {
+    type: "shipping",
+    version: 2,
+    title: { en: "Shipping information", de: "Versandinformationen" },
+    content: {
+      de: `${SAMPLE_NOTE.de}\n\n## Liefergebiet\n\nWir liefern innerhalb Deutschlands.\n\n## Lieferzeit\n\nIhre Bestellung ist in der Regel in 2 bis 4 Werktagen bei Ihnen.\n\n<script>window.pasted = true</script>`,
+    },
+    publishedAt: "2026-11-11T09:00:00.000Z",
+    published: true,
+    seo: {
+      title: {
+        en: "Shipping | Radhe Foods",
+        de: "Versand | Radhe Foods",
+      },
+      description: { de: "So liefert Radhe Foods Ihre Bestellung." },
+    },
+  },
+  {
+    type: "refund",
+    version: 1,
+    title: { en: "Refund policy", de: "Rückerstattungsrichtlinie" },
+    content: {
+      en: `${SAMPLE_NOTE.en}\n\n## Refunds\n\nWe refund to the payment method you paid with.`,
+      de: `${SAMPLE_NOTE.de}\n\n## Erstattungen\n\nWir erstatten auf das Zahlungsmittel, mit dem Sie bezahlt haben.`,
+    },
+    publishedAt: "2026-11-11T08:00:00.000Z",
+    published: false,
+  },
   {
     type: "terms",
     version: 3,
@@ -69,6 +146,7 @@ export const legalDocuments: LegalRecord[] = [
       de: `${SAMPLE_NOTE.de}\n\n## 1. Geltungsbereich\n\nDiese Bedingungen gelten für alle Bestellungen im Onlineshop von Radhe Foods.\n\n## 2. Vertragsschluss\n\nMit dem Klick auf „Zahlungspflichtig bestellen“ geben Sie eine verbindliche Bestellung der Waren in Ihrem Warenkorb ab. Der Vertrag kommt mit der Bestätigung Ihrer Zahlung zustande.\n\n## 3. Preise und Zahlung\n\nAlle Preise enthalten die Mehrwertsteuer. Lieferkosten werden vor der Bestellung angezeigt. Sie zahlen an der Kasse per Karte oder PayPal.`,
     },
     publishedAt: "2026-09-01T08:00:00.000Z",
+    published: true,
   },
   {
     type: "privacy",
@@ -79,6 +157,18 @@ export const legalDocuments: LegalRecord[] = [
       de: `${SAMPLE_NOTE.de}\n\n## Was wir speichern\n\nIhre E-Mail-Adresse, Ihre Lieferadressen und Ihre Bestellungen.\n\n## Ihre Rechte\n\nSie können jederzeit Auskunft, Berichtigung und Löschung Ihrer Daten verlangen.`,
     },
     publishedAt: "2026-09-01T08:00:00.000Z",
+    published: true,
+  },
+  {
+    type: "withdrawal",
+    version: 1,
+    title: { en: "Right of withdrawal", de: "Widerrufsbelehrung" },
+    content: {
+      en: `${SAMPLE_NOTE.en}\n\n## Right of withdrawal\n\nYou have the right to withdraw from this contract within fourteen days without giving any reason.`,
+      de: `${SAMPLE_NOTE.de}\n\n## Widerrufsrecht\n\nSie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.`,
+    },
+    publishedAt: "2026-11-11T08:30:00.000Z",
+    published: true,
   },
 ];
 

@@ -49,6 +49,7 @@ import {
 } from "@/lib/checkout/order-attempt";
 import { cn } from "@/lib/cn";
 import { formatDiscount, formatMoney } from "@/lib/format/money";
+import { LEGAL_HREF } from "@/lib/legal/pages";
 import { rememberGuestToken } from "@/lib/orders/guest-token";
 import { AddressForm } from "./address-form";
 import { DiscountCode } from "./discount-code";
@@ -72,11 +73,6 @@ function AddressLines({ address }: { address: Address }) {
     </>
   );
 }
-
-const LEGAL_HREF = {
-  terms: "/legal/terms",
-  privacy: "/legal/privacy",
-} as const;
 
 /**
  * The lines of the order, the way the Shopify checkouts set them (owner,

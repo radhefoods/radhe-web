@@ -541,7 +541,7 @@ The cancellation rule (until when a customer may cancel) is not part of this ans
 
 ### `GET /v1/store/legal`
 
-**Purpose:** The versions of the legal texts that apply now. Checkout shows links to them and sends their versions back in `consent.versions`.
+**Purpose:** Every legal page that is published, in the version that applies now, without the texts: for the footer, the sitemap and the checkout. Checkout shows the ones with `requiresConsent` and sends their versions back in `consent.versions`.
 
 **Authentication:** none.
 
@@ -549,24 +549,25 @@ The cancellation rule (until when a customer may cancel) is not part of this ans
 
 | Field | Location | Type | Required | Description |
 | ----- | -------- | ---- | -------- | ----------- |
-| `locale` | query | `en` \| `de` | no | Language of `title`. Defaults to `Accept-Language`, then `en`. |
+| `locale` | query | `en` \| `de` | no | Language of `title` and `slug`. Defaults to `Accept-Language`, then `en`. |
 
 **Success Response (200):**
 
 ```json
 {
   "items": [
-    { "type": "terms", "version": 3, "title": "Terms and Conditions", "publishedAt": "2026-09-01T08:00:00.000Z" },
-    { "type": "privacy", "version": 2, "title": "Privacy Policy", "publishedAt": "2026-09-01T08:00:00.000Z" }
+    { "type": "imprint", "version": 2, "title": "Imprint", "publishedAt": "2026-11-11T08:00:00.000Z", "slug": "imprint", "slugs": { "en": "imprint", "de": "impressum" }, "requiresConsent": false },
+    { "type": "terms", "version": 3, "title": "Terms and Conditions", "publishedAt": "2026-09-01T08:00:00.000Z", "slug": "terms", "slugs": { "en": "terms", "de": "agb" }, "requiresConsent": true },
+    { "type": "privacy", "version": 2, "title": "Privacy Policy", "publishedAt": "2026-09-01T08:00:00.000Z", "slug": "privacy", "slugs": { "en": "privacy", "de": "datenschutz" }, "requiresConsent": true }
   ]
 }
 ```
 
-Only published types appear. There are two types, `terms` and `privacy`; both must be published before any order can be placed, and the versions of both are sent back at checkout.
+There are six types (since 2026-11-11; before, `terms` and `privacy`): `imprint`, `shipping`, `refund`, `terms`, `privacy`, `withdrawal`, answered in this order. **Only published types appear.** `slug` is the part of the URL of the page in the language of the answer, `slugs` in both; the admin can change them. Only `terms` and `privacy` have `requiresConsent: true`: both must be published before any order can be placed, and only their versions are sent back at checkout. The other pages are never part of the consent.
 
-### `GET /v1/store/legal/{type}`
+### `GET /v1/store/legal/{key}`
 
-**Purpose:** One legal text with its content (plain text or Markdown, as the admin entered it).
+**Purpose:** One legal text with its content (plain text or Markdown, exactly as the admin entered it), in the version that applies now.
 
 **Authentication:** none.
 
@@ -574,7 +575,7 @@ Only published types appear. There are two types, `terms` and `privacy`; both mu
 
 | Field | Location | Type | Required | Description |
 | ----- | -------- | ---- | -------- | ----------- |
-| `type` | path | `terms` \| `privacy` | yes | |
+| `key` | path | string | yes | The type (`terms`), or the address of the page in either language (`agb`). |
 | `locale` | query | `en` \| `de` | no | |
 
 **Success Response (200):**
@@ -584,17 +585,26 @@ Only published types appear. There are two types, `terms` and `privacy`; both mu
   "document": {
     "type": "terms",
     "version": 3,
-    "title": "Terms and Conditions",
+    "title": "AGB",
     "publishedAt": "2026-09-01T08:00:00.000Z",
-    "content": "…markdown or plain text…"
+    "slug": "agb",
+    "slugs": { "en": "terms", "de": "agb" },
+    "requiresConsent": true,
+    "content": "…markdown or plain text…",
+    "contentLanguage": "de",
+    "seo": { "title": "AGB | Radhe Foods", "description": "…" }
   }
 }
 ```
 
+- `content` is in the language asked for when the admin wrote it in that language, else in the other one. `contentLanguage` (`en` or `de`) says which it is: use it for the `lang` attribute of the text.
+- `seo.title` is the admin's title for search engines, else the title of the text. `seo.description` is `null` when the admin wrote none.
+- `slug` and `slugs` are the canonical address. When the page was opened under another one (the type, or the address of the other language), link or redirect to the canonical one.
+- Render the text as Markdown and **never render HTML it contains**: the API passes on what was typed.
+
 **Possible Errors:**
 
-- `404 LEGAL_DOCUMENT_NOT_FOUND` – no published version of this type ("This legal text is not published yet.").
-- `400 BAD_REQUEST` – unknown `type` (message `Validation failed (enum string is expected)`).
+- `404 LEGAL_DOCUMENT_NOT_FOUND` – no published version of this page, or `key` names no legal page ("This legal text is not published yet."). Until 2026-11-11 an unknown type answered `400`.
 
 ---
 
@@ -1297,7 +1307,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 | `addressId` | ObjectId string | yes | One of the customer's delivery addresses. |
 | `expectedTotal` | int cents | yes | 1–1 000 000 000. `totals.total` of the bill the customer saw. If the bill changed since (prices, fee, cart), the checkout is refused with the new bill. |
 | `consent.accepted` | boolean | yes | Must be `true`. |
-| `consent.versions` | object | yes | `{ terms?: int ≥1, privacy?: int ≥1 }` – the versions from `GET /v1/store/legal`. Both must be the versions that apply now. |
+| `consent.versions` | object | yes | `{ terms?: int ≥1, privacy?: int ≥1 }` – the versions of the two texts with `requiresConsent` from `GET /v1/store/legal`. Both must be the versions that apply now. No other legal page is part of the consent: another key answers `400 VALIDATION_FAILED`. |
 | `note` | string | no | ≤500 characters, for Radhe Foods. |
 | `language` | `en` \| `de` | no | Language of the order and its emails. Defaults to the account language. |
 
@@ -1324,7 +1334,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 - `403 CUSTOMER_BLOCKED` – the account is blocked.
 - `404 ADDRESS_NOT_FOUND`.
 - `409 LEGAL_DOCUMENTS_MISSING` – the shop has no published `terms`/`privacy` yet (`details: { missing: [...] }`).
-- `409 LEGAL_VERSION_CHANGED` – a text was republished since the page loaded, or a version is missing. `details.current` holds the current versions (`{ terms, privacy }`); reload the texts and ask again.
+- `409 LEGAL_VERSION_CHANGED` – `terms` or `privacy` was republished since the page loaded, or a version is missing. A new version of another legal page never causes this. `details.current` holds the current versions (`{ terms, privacy }`); reload the texts and ask again.
 - `409 CART_EMPTY`.
 - `409 ORDER_ITEMS_NOT_ORDERABLE` – `details.lines[]`: `{ productId, variantId, sku, quantity, issue, minQuantity, maxQuantity, remaining }`, one per cart line with an issue (`productId`, `sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`). Show the lines and send the customer back to the cart.
 - `409 ORDER_TOTAL_CHANGED` – `details: { expectedTotal, total, totals }` (`totals` is the new bill's totals). Show the new total and let the customer confirm again.

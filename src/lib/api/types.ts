@@ -228,19 +228,44 @@ export interface ShopSettings {
   };
 }
 
-/** Both must be published before any order can be placed. */
-export type LegalType = "terms" | "privacy";
+/**
+ * The legal pages the admin writes and publishes, in the order the API
+ * answers them. Until 2026-11-11 the API knew `terms` and `privacy` only.
+ * These two are accepted at checkout (`requiresConsent`) and must be
+ * published before any order can be placed; the other four inform.
+ */
+export type LegalType =
+  "imprint" | "shipping" | "refund" | "terms" | "privacy" | "withdrawal";
 
+/** One published legal page, in the version that applies now. */
 export interface LegalSummary {
   type: LegalType;
+  /** Sent back at checkout for the texts with `requiresConsent`. */
   version: number;
   title: string;
   publishedAt: IsoDateTime;
+  /** The address of the page in the language of the answer. Absent from an API older than 2026-11-11. */
+  slug?: string;
+  /** The address in both languages; the admin can change it. Absent from an older API. */
+  slugs?: LocalizedSlugs;
+  /** True for the texts accepted at checkout. Absent from an older API. */
+  requiresConsent?: boolean;
 }
 
 export interface LegalDocument extends LegalSummary {
-  /** Plain text or Markdown, as the admin entered it. */
+  /** Plain text or Markdown, exactly as the admin entered it: never rendered as HTML. */
   content: string;
+  /**
+   * The language the text is really in: a text may exist in one language
+   * only and is then answered for both. Absent from an older API.
+   */
+  contentLanguage?: Locale;
+  /**
+   * For search engines: the admin's title, else the title of the text;
+   * the description is `null` when the admin wrote none. Absent from an
+   * older API.
+   */
+  seo?: { title: string; description: string | null };
 }
 
 // --- 7 Catalogue ------------------------------------------------------------

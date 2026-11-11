@@ -1025,15 +1025,11 @@ route("GET", "/v1/store/settings", () => ({ body: settingsView() }));
 
 route("GET", "/v1/store/legal", (ctx) => ({ body: legalList(ctx.locale) }));
 
-route("GET", "/v1/store/legal/:type", (ctx) => {
-  if (!["terms", "privacy"].includes(ctx.params.type)) {
-    throw new HttpError(
-      400,
-      "BAD_REQUEST",
-      "Validation failed (enum string is expected)",
-    );
-  }
-  const document = legalDocument(ctx.params.type, ctx.locale);
+// By the type or by the address of the page in either language. A key that
+// names no page answers 404 like a page without a published version (until
+// 2026-11-11 an unknown type answered 400).
+route("GET", "/v1/store/legal/:key", (ctx) => {
+  const document = legalDocument(ctx.params.key, ctx.locale);
   if (!document) {
     throw new HttpError(
       404,
@@ -2545,6 +2541,17 @@ route("POST", "/__mock/legal/republish", (ctx) => {
   if (!document) throw validationFailed("type", "unknown legal type");
   document.version += 1;
   return { body: { type: document.type, version: document.version } };
+});
+
+// Not part of the real API: the admin publishes a legal page that was a
+// draft, or the page is taken back to a draft (which the real panel cannot
+// do: there, a published version stays).
+route("POST", "/__mock/legal/publish", (ctx) => {
+  const body = objectBody(ctx.body, ["type", "published"]);
+  const document = legalDocuments.find((d) => d.type === body.type);
+  if (!document) throw validationFailed("type", "unknown legal type");
+  document.published = body.published !== false;
+  return { body: { type: document.type, published: document.published } };
 });
 
 // Not part of the real API: the admin changes the price of a pack size.

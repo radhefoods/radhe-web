@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hasErrorCode } from "../src/lib/api/errors.ts";
 import type { AddressInput, CheckoutInput } from "../src/lib/api/types.ts";
+import { consentVersions } from "../src/lib/checkout/order-attempt.ts";
 import { SKU } from "./data/catalogue.ts";
 import { startMockApi } from "./testing.ts";
 
@@ -29,7 +30,7 @@ async function readyToOrder(email = "priya@example.com") {
     expectedTotal: bill.totals.total,
     consent: {
       accepted: true,
-      versions: Object.fromEntries(legal.items.map((d) => [d.type, d.version])),
+      versions: consentVersions(legal.items),
     },
   };
   return { ...client, input, bill };
@@ -398,9 +399,7 @@ describe("guest checkout", () => {
         expectedTotal: bill.totals.total,
         consent: {
           accepted: true as const,
-          versions: Object.fromEntries(
-            legal.items.map((d) => [d.type, d.version]),
-          ),
+          versions: consentVersions(legal.items),
         },
       },
     };

@@ -8,6 +8,7 @@ import {
   buildSitemap,
   joinProductSlugs,
   type SitemapBlog,
+  type SitemapLegal,
   type SitemapProduct,
 } from "@/lib/seo/sitemap";
 
@@ -20,6 +21,7 @@ export const revalidate = 3600;
 // catalogue and the whole blog, twice.
 const cache = { revalidate, tags: [TAGS.catalogue] };
 const content = { revalidate, tags: [TAGS.content] };
+const legal = { revalidate, tags: [TAGS.legal] };
 
 /**
  * What to do when the API did not answer. While building, the pages that
@@ -86,6 +88,20 @@ async function blogPages(): Promise<SitemapBlog> {
   }
 }
 
+/**
+ * The legal pages the admin has published (doc 6), with the day of their
+ * current version. One language is enough: the addresses are fixed.
+ */
+async function legalPages(): Promise<SitemapLegal[]> {
+  try {
+    const { items } = await serverApi.listLegal({ locale: "en", next: legal });
+    return items.map(({ type, publishedAt }) => ({ type, publishedAt }));
+  } catch (error) {
+    unlessBuilding(error);
+    return [];
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let categories: Category[] = [];
   let products: SitemapProduct[] = [];
@@ -101,5 +117,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch (error) {
     unlessBuilding(error);
   }
-  return buildSitemap(categories, products, await blogPages());
+  const [blog, legalList] = await Promise.all([blogPages(), legalPages()]);
+  return buildSitemap(categories, products, blog, legalList);
 }

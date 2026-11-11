@@ -79,6 +79,8 @@ test.describe("public pages have no barriers axe can find", () => {
     "/en/blog/tag/spices",
     "/en/delivery-and-payment",
     "/en/legal/terms",
+    // A German text on the English page: its language is named.
+    "/en/legal/shipping",
     "/de/rechtliches/impressum",
     "/en/legal/cookies",
     "/en/this-page-does-not-exist",

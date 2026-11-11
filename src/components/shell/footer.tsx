@@ -1,10 +1,13 @@
 import { getTranslations } from "next-intl/server";
 import type { ComponentProps, ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
-import type { Category } from "@/lib/api/types";
+import type { Category, LegalType } from "@/lib/api/types";
+import { LEGAL_HREF, footerLegalPages } from "@/lib/legal/pages";
 import { Logo } from "./logo";
 
 type Href = ComponentProps<typeof Link>["href"];
+
+const LEGAL_PAGE_HREF = { ...LEGAL_HREF, cookies: "/legal/cookies" } as const;
 
 function Column({
   title,
@@ -39,8 +42,19 @@ function Column({
  * law wants within reach of every page. One frosted panel that rises from
  * the canvas (2026-10-31), the logo and the columns on it, the small print
  * under a hairline.
+ *
+ * @param publishedLegal the legal pages the admin has published
+ *                       (`GET /v1/store/legal`), `null` when the API did
+ *                       not answer: a page that would answer 404 gets no
+ *                       link (`footerLegalPages`)
  */
-export async function Footer({ categories }: { categories: Category[] }) {
+export async function Footer({
+  categories,
+  publishedLegal,
+}: {
+  categories: Category[];
+  publishedLegal: readonly LegalType[] | null;
+}) {
   const t = await getTranslations("footer");
   const tNav = await getTranslations("nav");
 
@@ -93,17 +107,11 @@ export async function Footer({ categories }: { categories: Category[] }) {
             />
             <Column
               title={t("legal")}
-              links={[
-                { key: "terms", href: "/legal/terms", label: t("terms") },
-                {
-                  key: "withdrawal",
-                  href: "/legal/withdrawal",
-                  label: t("withdrawal"),
-                },
-                { key: "privacy", href: "/legal/privacy", label: t("privacy") },
-                { key: "cookies", href: "/legal/cookies", label: t("cookies") },
-                { key: "imprint", href: "/legal/imprint", label: t("imprint") },
-              ]}
+              links={footerLegalPages(publishedLegal).map((page) => ({
+                key: page,
+                href: LEGAL_PAGE_HREF[page],
+                label: t(page),
+              }))}
             />
           </div>
           <div className="border-ink/8 text-ink-subtle mt-10 flex flex-wrap justify-between gap-x-6 gap-y-1 border-t pt-6 text-sm">

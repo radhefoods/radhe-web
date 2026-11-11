@@ -1,11 +1,21 @@
 import type { MetadataRoute } from "next";
 import { defaultLocale, locales, type Locale } from "@/i18n/routing";
-import type { Category, LocalizedSlugs } from "@/lib/api/types";
+import type {
+  Category,
+  IsoDateTime,
+  LegalType,
+  LocalizedSlugs,
+} from "@/lib/api/types";
+import { LEGAL_HREF } from "@/lib/legal/pages";
 import { pageUrl } from "./alternates";
 
 type Href = Parameters<typeof pageUrl>[0];
 
-/** Pages that exist without the API, the same in every language. */
+/**
+ * Pages that exist without the API, the same in every language. Of the
+ * legal pages only the cookie page is one: the other six are listed when
+ * the admin has published them (`SitemapLegal`).
+ */
 export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/", priority: 1 },
   { href: "/products", priority: 0.9 },
@@ -15,12 +25,20 @@ export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/faq", priority: 0.5 },
   { href: "/reviews", priority: 0.5 },
   { href: "/blog", priority: 0.6 },
-  { href: "/legal/terms", priority: 0.2 },
-  { href: "/legal/privacy", priority: 0.2 },
-  { href: "/legal/imprint", priority: 0.2 },
-  { href: "/legal/withdrawal", priority: 0.2 },
   { href: "/legal/cookies", priority: 0.1 },
 ];
+
+/**
+ * A published legal page as the sitemap needs it (`GET /v1/store/legal`).
+ * A page without a published text is left out: it answers 404, or, for
+ * the legal notice and the right of withdrawal, shows a template of the
+ * shop that is not for search engines.
+ */
+export interface SitemapLegal {
+  type: LegalType;
+  /** When the version that applies was published: the last change of the page. */
+  publishedAt: IsoDateTime;
+}
 
 /** A pack size as the sitemap needs it: its slug in each language. */
 export interface SitemapProduct {
@@ -43,7 +61,10 @@ const NO_BLOG: SitemapBlog = { posts: [], categories: [] };
  */
 function localized(
   hrefOf: (locale: Locale) => Href,
-  options: Pick<MetadataRoute.Sitemap[number], "priority" | "changeFrequency">,
+  options: Pick<
+    MetadataRoute.Sitemap[number],
+    "priority" | "changeFrequency" | "lastModified"
+  >,
 ): MetadataRoute.Sitemap {
   const languages: Record<string, string> = {};
   for (const locale of locales) {
@@ -83,14 +104,15 @@ export function joinProductSlugs(
 }
 
 /**
- * Every indexable address of the shop: static pages, categories, products,
- * the posts and categories of the blog (doc 19; the tag pages are views
- * of the list and stay out).
+ * Every indexable address of the shop: static pages, the published legal
+ * pages (doc 6), categories, products, the posts and categories of the
+ * blog (doc 19; the tag pages are views of the list and stay out).
  */
 export function buildSitemap(
   categories: Category[],
   products: SitemapProduct[],
   blog: SitemapBlog = NO_BLOG,
+  legal: SitemapLegal[] = [],
 ): MetadataRoute.Sitemap {
   return [
     ...STATIC_PAGES.flatMap(({ href, priority }) =>
@@ -99,6 +121,16 @@ export function buildSitemap(
         changeFrequency: priority >= 0.9 ? "daily" : "monthly",
       }),
     ),
+    ...legal
+      // A type this shop has no page for is not an address of it.
+      .filter(({ type }) => type in LEGAL_HREF)
+      .flatMap(({ type, publishedAt }) =>
+        localized(() => LEGAL_HREF[type], {
+          priority: 0.2,
+          changeFrequency: "monthly",
+          lastModified: publishedAt,
+        }),
+      ),
     // The shop shows no category without products (`shopCategories`).
     ...flatten(categories)
       .filter((category) => category.productCount > 0)

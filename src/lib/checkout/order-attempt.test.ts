@@ -7,6 +7,7 @@ import {
   clearCheckoutKey,
   consentVersions,
   missingLegalTypes,
+  requiresConsent,
   newIdempotencyKey,
   orderFingerprint,
 } from "./order-attempt";
@@ -115,6 +116,39 @@ describe("consent", () => {
       terms: 3,
       privacy: 2,
     });
+  });
+
+  it("sends the terms and the privacy policy when six pages are published", () => {
+    // As the API answers since 2026-11-11: it says which texts are accepted.
+    const published: LegalSummary[] = [
+      { ...legal("imprint", 4), requiresConsent: false },
+      { ...legal("shipping", 2), requiresConsent: false },
+      { ...legal("refund", 1), requiresConsent: false },
+      { ...legal("terms", 3), requiresConsent: true },
+      { ...legal("privacy", 2), requiresConsent: true },
+      { ...legal("withdrawal", 5), requiresConsent: false },
+    ];
+    expect(consentVersions(published)).toEqual({ terms: 3, privacy: 2 });
+    expect(missingLegalTypes(published)).toEqual([]);
+  });
+
+  it("follows the API in what is accepted, and knows the two texts of an older API", () => {
+    expect(
+      requiresConsent({ ...legal("terms", 1), requiresConsent: true }),
+    ).toBe(true);
+    expect(
+      requiresConsent({ ...legal("withdrawal", 1), requiresConsent: false }),
+    ).toBe(false);
+    // Without the field: the two texts the API has always asked for.
+    expect(requiresConsent(legal("privacy", 1))).toBe(true);
+    expect(requiresConsent(legal("imprint", 1))).toBe(false);
+    expect(
+      consentVersions([
+        legal("imprint", 1),
+        legal("terms", 3),
+        legal("privacy", 2),
+      ]),
+    ).toEqual({ terms: 3, privacy: 2 });
   });
 
   it("names the texts that must be published before ordering", () => {

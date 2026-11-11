@@ -6,6 +6,7 @@ import { Header } from "@/components/shell/header";
 import { InvitationNotice } from "@/components/shell/invitation-notice";
 import { TabBar } from "@/components/shell/tab-bar";
 import { getCategories, getSettings } from "@/features/catalogue/data";
+import { getPublishedLegal } from "@/features/legal/data";
 import { localeOf } from "@/i18n/locale";
 
 /** The frame of every shop page: header, footer, tab bar. */
@@ -14,9 +15,10 @@ export default async function ShopLayout({
   params,
 }: LayoutProps<"/[locale]">) {
   const locale = await localeOf(params);
-  const [categories, settings] = await Promise.all([
+  const [categories, settings, legal] = await Promise.all([
     getCategories(locale),
     getSettings(),
+    getPublishedLegal(),
   ]);
 
   return (
@@ -30,7 +32,10 @@ export default async function ShopLayout({
       <main id="main" className="flex-1">
         {children}
       </main>
-      <Footer categories={categories} />
+      <Footer
+        categories={categories}
+        publishedLegal={legal && legal.map((page) => page.type)}
+      />
       <CartProblem />
       <WishlistProblem />
       <CartSummaryBar />

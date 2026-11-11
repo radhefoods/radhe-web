@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hasErrorCode } from "../src/lib/api/errors.ts";
 import type { AddressInput, CheckoutInput } from "../src/lib/api/types.ts";
+import { consentVersions } from "../src/lib/checkout/order-attempt.ts";
 import { SKU } from "./data/catalogue.ts";
 import { startMockApi } from "./testing.ts";
 
@@ -30,7 +31,7 @@ async function withAtta(email = "priya@example.com", bags = 2) {
     expectedTotal,
     consent: {
       accepted: true,
-      versions: Object.fromEntries(legal.items.map((d) => [d.type, d.version])),
+      versions: consentVersions(legal.items),
     },
   });
   return { ...client, input };

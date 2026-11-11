@@ -92,6 +92,13 @@ export const routing = defineRouting({
       en: "/legal/withdrawal",
       de: "/rechtliches/widerruf",
     },
+    // The addresses of the six legal pages are the default ones of the
+    // API (`doc/LEGAL_PAGES.md`); the cookie page is a page of the shop.
+    "/legal/shipping": { en: "/legal/shipping", de: "/rechtliches/versand" },
+    "/legal/refund-policy": {
+      en: "/legal/refund-policy",
+      de: "/rechtliches/rueckerstattung",
+    },
     "/legal/cookies": { en: "/legal/cookies", de: "/rechtliches/cookies" },
   },
 });

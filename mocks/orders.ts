@@ -33,6 +33,7 @@ import {
   validationFailed,
 } from "./errors.ts";
 import {
+  CONSENT_TYPES,
   customerByEmail,
   db,
   legalDocuments,
@@ -73,8 +74,11 @@ const initialPrices = new Map(
     p.variants.map((v) => [v.id, [v.regularPrice, v.salePrice] as const]),
   ),
 );
-const initialLegalVersions = new Map(
-  legalDocuments.map((document) => [document.type, document.version]),
+const initialLegal = new Map(
+  legalDocuments.map((document) => [
+    document.type,
+    { version: document.version, published: document.published },
+  ]),
 );
 
 /** Back to the fixtures as they were at start (`POST /__mock/reset`). */
@@ -88,7 +92,7 @@ export function resetFixtures(): void {
     }
   }
   for (const document of legalDocuments) {
-    document.version = initialLegalVersions.get(document.type)!;
+    Object.assign(document, initialLegal.get(document.type));
   }
   resetDiscounts();
 }
@@ -519,7 +523,6 @@ export function findGuestOrder(
 }
 
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,64}$/;
-const LEGAL_TYPES = ["terms", "privacy"] as const;
 
 /** What the account checkout and the guest checkout both send (doc 9, 20). */
 interface CheckoutFields {
@@ -544,8 +547,10 @@ function checkoutFields(body: Record<string, unknown>): CheckoutFields {
   if (consent.accepted !== true) {
     throw validationFailed("consent.accepted", "accepted must be true");
   }
-  const versions = objectBody(consent.versions, [...LEGAL_TYPES]);
-  for (const type of LEGAL_TYPES) {
+  // Only the two texts with `requiresConsent`: the key of another legal
+  // page is refused like any unknown field.
+  const versions = objectBody(consent.versions, [...CONSENT_TYPES]);
+  for (const type of CONSENT_TYPES) {
     const version = versions[type];
     if (
       version !== undefined &&
@@ -791,8 +796,17 @@ function placeOrder(
     };
   }
 
-  const published = new Map(legalDocuments.map((d) => [d.type, d.version]));
-  const missing = LEGAL_TYPES.filter((type) => !published.has(type));
+  // The other four legal pages inform: a missing one never blocks an order,
+  // and a new version of one never interrupts a checkout.
+  const published = new Map(
+    legalDocuments
+      .filter(
+        (d) =>
+          d.published && (CONSENT_TYPES as readonly string[]).includes(d.type),
+      )
+      .map((d) => [d.type, d.version]),
+  );
+  const missing = CONSENT_TYPES.filter((type) => !published.has(type));
   if (missing.length > 0) {
     throw new HttpError(
       409,

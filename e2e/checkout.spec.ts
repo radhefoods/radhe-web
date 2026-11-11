@@ -214,6 +214,41 @@ test.describe("from the cart to the paid order", () => {
     ).toBeVisible();
     await expect(page.getByText(/Version 3, published on/)).toBeVisible();
   });
+
+  test("with six legal pages published, the order carries the terms and the privacy policy only", async ({
+    page,
+    request,
+  }) => {
+    await seedCustomer(page);
+    for (const type of ["imprint", "refund"]) {
+      await request.post(`${MOCK}/__mock/legal/publish`, { data: { type } });
+    }
+    const list = await (await request.get(`${MOCK}/v1/store/legal`)).json();
+    expect(list.items).toHaveLength(6);
+
+    await page.goto("/en/checkout");
+    // Nothing more to accept than before.
+    await expect(
+      page.getByRole("complementary", { name: "Your order" }),
+    ).toContainText(
+      "I have read and accept the Terms and Conditions, and I have read the Privacy Policy.",
+    );
+    await consentBox(page).check();
+    const [order] = await Promise.all([
+      page.waitForRequest(
+        (sent) =>
+          sent.method() === "POST" &&
+          new URL(sent.url()).pathname === "/v1/store/checkout",
+      ),
+      buyButton(page).click(),
+    ]);
+    // The API refuses any other key in `consent.versions`.
+    expect(order.postDataJSON().consent).toEqual({
+      accepted: true,
+      versions: { terms: 3, privacy: 2 },
+    });
+    await expect(page).toHaveURL(/__mock\/stripe\/RF-1085$/);
+  });
 });
 
 test.describe("when something changed since the page was loaded", () => {

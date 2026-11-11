@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hasErrorCode } from "../src/lib/api/errors.ts";
 import { invoicePdfPath } from "../src/lib/api/store-api.ts";
+import { consentVersions } from "../src/lib/checkout/order-attempt.ts";
 import { SKU } from "./data/catalogue.ts";
 import { startMockApi } from "./testing.ts";
 
@@ -31,9 +32,7 @@ async function pendingOrder(email = "priya@example.com") {
       expectedTotal: bill.totals.total,
       consent: {
         accepted: true,
-        versions: Object.fromEntries(
-          legal.items.map((d) => [d.type, d.version]),
-        ),
+        versions: consentVersions(legal.items),
       },
     },
     "attempt-0001",

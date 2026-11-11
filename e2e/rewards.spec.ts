@@ -161,11 +161,14 @@ test.describe("the coins in the account", () => {
           expectedTotal: bill.totals.total,
           consent: {
             accepted: true,
+            // Only the texts that are accepted at checkout (doc 6).
             versions: Object.fromEntries(
-              legal.items.map((d: { type: string; version: number }) => [
-                d.type,
-                d.version,
-              ]),
+              legal.items
+                .filter((d: { requiresConsent: boolean }) => d.requiresConsent)
+                .map((d: { type: string; version: number }) => [
+                  d.type,
+                  d.version,
+                ]),
             ),
           },
         },

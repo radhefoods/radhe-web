@@ -241,6 +241,44 @@ export function articleJsonLd(post: BlogPost, locale: Locale): JsonLdObject {
   };
 }
 
+/**
+ * A page of text of the shop (a legal page): what it is, the language its
+ * text is in and when it was last changed. The shop and the organization
+ * are named in full: their own blocks are on the home page only.
+ */
+export function webPageJsonLd(page: {
+  url: string;
+  name: string;
+  description?: string;
+  /** The language of the text, which may differ from the page's. */
+  language: Locale;
+  /** When the version that is shown was published. */
+  modified?: string;
+}): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${page.url}#webpage`,
+    url: page.url,
+    name: page.name,
+    ...(page.description && { description: page.description }),
+    inLanguage: page.language,
+    ...(page.modified && { dateModified: page.modified }),
+    isPartOf: {
+      "@type": "WebSite",
+      "@id": `${env.siteUrl}/#website`,
+      name: "Radhe Foods",
+      url: env.siteUrl,
+    },
+    publisher: {
+      "@type": "Organization",
+      "@id": ORGANIZATION_ID,
+      name: "Radhe Foods",
+      url: env.siteUrl,
+    },
+  };
+}
+
 export function itemListJsonLd(
   name: string,
   products: ProductSummary[],

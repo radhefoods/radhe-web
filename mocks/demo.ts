@@ -15,6 +15,7 @@ import {
 } from "./payments.ts";
 import { adjust, grantReview, grantWelcome } from "./rewards.ts";
 import {
+  CONSENT_TYPES,
   db,
   hashPassword,
   legalDocuments,
@@ -50,7 +51,11 @@ function order(
       consent: {
         accepted: true,
         versions: Object.fromEntries(
-          legalDocuments.map((document) => [document.type, document.version]),
+          legalDocuments
+            .filter((document) =>
+              (CONSENT_TYPES as readonly string[]).includes(document.type),
+            )
+            .map((document) => [document.type, document.version]),
         ),
       },
     },

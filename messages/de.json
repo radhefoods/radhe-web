@@ -249,6 +249,8 @@
     "privacy": "Datenschutz",
     "imprint": "Impressum",
     "withdrawal": "Widerrufsbelehrung",
+    "shipping": "Versandinformationen",
+    "refund": "Rückerstattung",
     "cookies": "Cookies",
     "faq": "FAQ",
     "blog": "Blog"
@@ -550,7 +552,15 @@
   "legal": {
     "version": "Version {version}, veröffentlicht am {date}",
     "notPublished": "Dieser Text ist noch nicht veröffentlicht.",
-    "table": "Tabelle"
+    "table": "Tabelle",
+    "descriptions": {
+      "imprint": "Impressum von Radhe Foods: Wer den Onlineshop für indische Lebensmittel betreibt und wie Sie uns erreichen.",
+      "shipping": "Versandinformationen des Onlineshops von Radhe Foods: So kommt Ihre Bestellung indischer Lebensmittel in Deutschland bei Ihnen an.",
+      "refund": "Rückerstattungsrichtlinie des Onlineshops von Radhe Foods: Wann und wie Sie Ihr Geld zurückerhalten.",
+      "terms": "Allgemeine Geschäftsbedingungen (AGB) des Onlineshops von Radhe Foods für indische Lebensmittel in Deutschland.",
+      "privacy": "Datenschutzerklärung des Onlineshops von Radhe Foods: Welche personenbezogenen Daten wir verarbeiten, wozu, und welche Rechte Sie haben.",
+      "withdrawal": "Widerrufsbelehrung für Bestellungen im Onlineshop von Radhe Foods: So widerrufen Sie einen Kauf und das gilt dabei."
+    }
   },
   "account": {
     "metaTitle": "Ihr Konto",

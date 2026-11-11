@@ -58,6 +58,22 @@ test.describe("help and legal pages", () => {
       const response = await page.request.get(href);
       expect(response.status(), href).toBe(200);
     }
+    // The legal pages the admin has published, and those with a file of
+    // the shop. The refund policy is a draft: it would answer 404 and has
+    // no link.
+    await expect(
+      page
+        .getByRole("contentinfo")
+        .getByRole("navigation", { name: "Legal" })
+        .getByRole("link"),
+    ).toHaveText([
+      "Terms and Conditions",
+      "Right of withdrawal",
+      "Shipping information",
+      "Privacy",
+      "Cookies",
+      "Legal notice",
+    ]);
   });
 
   test("the old address of the pre-order terms leads to the terms", async ({
@@ -111,6 +127,130 @@ test.describe("help and legal pages", () => {
       page.getByText("Diese Seite ist noch nicht vollständig"),
     ).toBeVisible();
     await expect(page.locator("mark").first()).toContainText("[[");
+    // The admin has published no legal notice yet: the page shows the
+    // file of the shop, which search engines leave out while it has gaps.
+    await expect(page.locator('head meta[name="robots"]')).toHaveAttribute(
+      "content",
+      /noindex/,
+    );
+  });
+
+  test("a legal page shows the text the admin published, with what search engines need", async ({
+    page,
+  }) => {
+    await page.goto("/de/rechtliches/versand");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Versandinformationen" }),
+    ).toBeVisible();
+    await expect(page.getByText(/^Version 2, veröffentlicht am/)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Liefergebiet" }),
+    ).toBeVisible();
+    // HTML in the text is not rendered and cannot run.
+    expect(await page.evaluate(() => "pasted" in (window as object))).toBe(
+      false,
+    );
+    await expect(page.locator("main script:not([type])")).toHaveCount(0);
+
+    // The title the admin wrote for search engines names the shop already.
+    await expect(page).toHaveTitle("Versand | Radhe Foods");
+    const head = page.locator("head");
+    await expect(head.locator('meta[name="description"]')).toHaveAttribute(
+      "content",
+      "So liefert Radhe Foods Ihre Bestellung.",
+    );
+    await expect(head.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      "http://localhost:3001/de/rechtliches/versand",
+    );
+    await expect(
+      head.locator('link[rel="alternate"][hreflang="en"]'),
+    ).toHaveAttribute("href", "http://localhost:3001/en/legal/shipping");
+    await expect(head.locator('meta[property="og:title"]')).toHaveAttribute(
+      "content",
+      "Versand | Radhe Foods",
+    );
+    await expect(head.locator('meta[property="og:url"]')).toHaveAttribute(
+      "content",
+      "http://localhost:3001/de/rechtliches/versand",
+    );
+    await expect(head.locator('meta[name="robots"]')).toHaveCount(0);
+    const data = JSON.parse(
+      (await page
+        .locator('main script[type="application/ld+json"]')
+        .textContent()) ?? "{}",
+    );
+    expect(data).toMatchObject({
+      "@type": "WebPage",
+      url: "http://localhost:3001/de/rechtliches/versand",
+      inLanguage: "de",
+      dateModified: "2026-11-11T09:00:00.000Z",
+    });
+    // The text is in the language of the page: nothing to mark.
+    await expect(page.locator("main [lang]")).toHaveCount(0);
+  });
+
+  test("a text written in one language is shown in the other too, marked as what it is", async ({
+    page,
+  }) => {
+    await page.goto("/en/legal/shipping");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Shipping information" }),
+    ).toBeVisible();
+    await expect(page.getByText(/^Version 2, published on/)).toBeVisible();
+    await expect(page.locator('main [lang="de"]')).toContainText(
+      "Wir liefern innerhalb Deutschlands.",
+    );
+    await expect(page).toHaveTitle("Shipping | Radhe Foods");
+  });
+
+  test("a legal page without texts for search engines gets the shop's", async ({
+    page,
+  }) => {
+    await page.goto("/en/legal/terms");
+    await expect(page).toHaveTitle("Terms and Conditions | Radhe Foods");
+    await expect(page.locator('head meta[name="description"]')).toHaveAttribute(
+      "content",
+      "Terms and Conditions of the Radhe Foods online shop for Indian groceries in Germany.",
+    );
+    await expect(
+      page.locator('head link[rel="alternate"][hreflang="de"]'),
+    ).toHaveAttribute("href", "http://localhost:3001/de/rechtliches/agb");
+  });
+
+  test("the right of withdrawal is the text of the panel once it is published", async ({
+    page,
+  }) => {
+    await page.goto("/de/rechtliches/widerruf");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Widerrufsbelehrung" }),
+    ).toBeVisible();
+    await expect(page.getByText(/^Version 1, veröffentlicht am/)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Widerrufsrecht" }),
+    ).toBeVisible();
+    // Not the template of the shop any more.
+    await expect(
+      page.getByText("Diese Seite ist noch nicht vollständig"),
+    ).toHaveCount(0);
+    await expect(page.locator("mark")).toHaveCount(0);
+  });
+
+  test("a legal page without a published text does not exist", async ({
+    page,
+  }) => {
+    for (const path of [
+      "/en/legal/refund-policy",
+      "/de/rechtliches/rueckerstattung",
+    ]) {
+      const response = await page.goto(path);
+      expect(response?.status(), path).toBe(404);
+    }
+    await expect(
+      page
+        .getByRole("contentinfo")
+        .getByRole("link", { name: /Rückerstattung/ }),
+    ).toHaveCount(0);
   });
 
   test("the cookie page lists what the shop really stores", async ({
@@ -429,7 +569,10 @@ test.describe("for search engines", () => {
       "http://localhost:3001/de/kategorie/reis",
       "http://localhost:3001/en/products/basmati-rice-5kg",
       "http://localhost:3001/de/produkte/basmati-reis-5kg",
-      "http://localhost:3001/de/rechtliches/impressum",
+      "http://localhost:3001/de/rechtliches/agb",
+      "http://localhost:3001/en/legal/shipping",
+      "http://localhost:3001/de/rechtliches/widerruf",
+      "http://localhost:3001/de/rechtliches/cookies",
       "http://localhost:3001/en/faq",
       "http://localhost:3001/de/blog",
       "http://localhost:3001/en/blog/the-perfect-dal",
@@ -442,6 +585,11 @@ test.describe("for search engines", () => {
     expect(xml).not.toContain("/warenkorb");
     expect(xml).not.toContain("/account");
     expect(xml).not.toContain("preorder-terms");
+    // A legal page carries the day its version was published; one without
+    // a published text is not listed (the refund policy, the legal notice).
+    expect(xml).toContain("<lastmod>2026-11-11T09:00:00.000Z</lastmod>");
+    expect(xml).not.toContain("refund-policy");
+    expect(xml).not.toContain("/rechtliches/impressum");
   });
 
   test("a product page carries canonical, languages, a picture and an offer per size", async ({

@@ -222,8 +222,14 @@ export function createStoreApi(request: Requester) {
     // --- 6 Settings and legal texts -----------------------------------------
     getSettings: (o?: CallOptions) =>
       request<ShopSettings>("/v1/store/settings", o),
+    /** Every legal page that is published; an unpublished one is not listed. */
     listLegal: (o?: CallOptions) =>
       request<{ items: LegalSummary[] }>("/v1/store/legal", o),
+    /**
+     * One legal page by its type. The API also finds it by the address of
+     * the page; the type is the key that an address changed in the admin
+     * panel does not break.
+     */
     getLegal: (type: LegalType, o?: CallOptions) =>
       request<{ document: LegalDocument }>(`/v1/store/legal/${seg(type)}`, o),
 

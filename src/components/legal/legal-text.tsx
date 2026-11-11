@@ -11,20 +11,27 @@ export const PLACEHOLDER = /\[\[[^\]]+\]\]/;
  * customer's browser. Inline code that holds a `[[placeholder]]` is shown
  * as a marked gap. A page that has its own title can ask for the headings
  * to step down one level (`demoteHeadings`): a `#` in the text then
- * renders as the page's second level, never as a second `h1`.
+ * renders as the page's second level, never as a second `h1`. A text in
+ * another language than its page names it (`lang`).
  */
 export function LegalText({
   children,
   tableLabel,
   demoteHeadings = false,
+  lang,
 }: {
   children: string;
   /** The spoken name of a table's scrolling box. */
   tableLabel: string;
   demoteHeadings?: boolean;
+  /** The language of the text, when it is not the page's. */
+  lang?: string;
 }) {
   return (
-    <div className="[&_h2]:font-display [&_td]:border-line [&_th]:border-line-strong [&_a]:text-leaf-700 [&_h2]:text-ink [&_blockquote]:border-line-strong [&_blockquote]:text-ink-muted max-w-none [&_a]:font-semibold [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:mt-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_h2]:mt-8 [&_h2]:text-3xl [&_h3]:mt-6 [&_h3]:text-lg [&_h3]:font-bold [&_h4]:mt-4 [&_h4]:font-bold [&_img]:mt-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg [&_li]:mt-1 [&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mt-3 [&_table]:mt-4 [&_table]:w-full [&_table]:min-w-[36rem] [&_table]:text-left [&_table]:text-[0.9375rem] [&_td]:border-b [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top [&_th]:border-b [&_th]:py-2 [&_th]:pr-4 [&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-6">
+    <div
+      lang={lang}
+      className="[&_h2]:font-display [&_td]:border-line [&_th]:border-line-strong [&_a]:text-leaf-700 [&_h2]:text-ink [&_blockquote]:border-line-strong [&_blockquote]:text-ink-muted max-w-none [&_a]:font-semibold [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:mt-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_h2]:mt-8 [&_h2]:text-3xl [&_h3]:mt-6 [&_h3]:text-lg [&_h3]:font-bold [&_h4]:mt-4 [&_h4]:font-bold [&_img]:mt-4 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg [&_li]:mt-1 [&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_p]:mt-3 [&_table]:mt-4 [&_table]:w-full [&_table]:min-w-[36rem] [&_table]:text-left [&_table]:text-[0.9375rem] [&_td]:border-b [&_td]:py-2.5 [&_td]:pr-4 [&_td]:align-top [&_th]:border-b [&_th]:py-2 [&_th]:pr-4 [&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-6"
+    >
       <Markdown
         skipHtml
         remarkPlugins={[remarkGfm]}

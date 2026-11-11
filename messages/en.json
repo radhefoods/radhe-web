@@ -249,6 +249,8 @@
     "privacy": "Privacy",
     "imprint": "Legal notice",
     "withdrawal": "Right of withdrawal",
+    "shipping": "Shipping information",
+    "refund": "Refund policy",
     "cookies": "Cookies",
     "faq": "FAQ",
     "blog": "Blog"
@@ -550,7 +552,15 @@
   "legal": {
     "version": "Version {version}, published on {date}",
     "notPublished": "This text is not published yet.",
-    "table": "Table"
+    "table": "Table",
+    "descriptions": {
+      "imprint": "Legal notice of Radhe Foods: who runs the online shop for Indian groceries and how to reach us.",
+      "shipping": "Shipping information of the Radhe Foods online shop: how your order of Indian groceries reaches you in Germany.",
+      "refund": "Refund policy of the Radhe Foods online shop: when and how you get your money back.",
+      "terms": "Terms and Conditions of the Radhe Foods online shop for Indian groceries in Germany.",
+      "privacy": "Privacy policy of the Radhe Foods online shop: which personal data we process, what for, and your rights.",
+      "withdrawal": "Right of withdrawal for orders in the Radhe Foods online shop: how to withdraw from a purchase and what applies."
+    }
   },
   "account": {
     "metaTitle": "Your account",

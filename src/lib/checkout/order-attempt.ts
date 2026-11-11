@@ -107,20 +107,32 @@ export function clearCheckoutKey(
   }
 }
 
+/**
+ * The texts accepted at checkout, for an API that does not say so itself
+ * (older than 2026-11-11, without `requiresConsent`).
+ */
 const CONSENT_TYPES: readonly LegalType[] = ["terms", "privacy"];
 
 /**
+ * Whether the customer accepts this text with the order. The API says
+ * which ones (`requiresConsent`): of the six legal pages only the terms
+ * and the privacy policy. The others inform; they are never part of the
+ * consent, and the API refuses their keys in `consent.versions`.
+ */
+export function requiresConsent(document: LegalSummary): boolean {
+  return document.requiresConsent ?? CONSENT_TYPES.includes(document.type);
+}
+
+/**
  * `consent.versions` for the checkout: the versions of the published legal
- * texts the customer was shown (`GET /v1/store/legal`). Both must be the
- * versions that apply now; the API refuses others with
- * `LEGAL_VERSION_CHANGED`.
+ * texts the customer accepts (`GET /v1/store/legal`, those with
+ * `requiresConsent`). They must be the versions that apply now; the API
+ * refuses others with `LEGAL_VERSION_CHANGED`.
  */
 export function consentVersions(documents: LegalSummary[]): ConsentVersions {
   const versions: ConsentVersions = {};
   for (const document of documents) {
-    if (CONSENT_TYPES.includes(document.type)) {
-      versions[document.type] = document.version;
-    }
+    if (requiresConsent(document)) versions[document.type] = document.version;
   }
   return versions;
 }

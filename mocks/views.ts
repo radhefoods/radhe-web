@@ -50,6 +50,8 @@ import {
   shareOut,
 } from "./discounts.ts";
 import {
+  CONSENT_TYPES,
+  LEGAL_SLUGS,
   TIMEZONE,
   db,
   legalDocuments,
@@ -110,31 +112,66 @@ export function settingsView(): ShopSettings {
   };
 }
 
+/** As the API localizes: this language, else English, else German. */
+const localized = (
+  text: { en?: string; de?: string } | undefined,
+  locale: Locale,
+): string | null => text?.[locale] || text?.en || text?.de || null;
+
 export function legalSummary(
   record: LegalRecord,
   locale: Locale,
 ): LegalSummary {
+  const slugs = LEGAL_SLUGS[record.type];
   return {
     type: record.type,
     version: record.version,
-    title: pick(record.title, locale),
+    title: localized(record.title, locale) ?? record.title.en,
     publishedAt: record.publishedAt,
+    slug: slugs[locale],
+    slugs: { ...slugs },
+    requiresConsent: (CONSENT_TYPES as readonly string[]).includes(record.type),
   };
 }
 
+/** Every page with a published version, in the order of the types. */
 export function legalList(locale: Locale): { items: LegalSummary[] } {
-  return { items: legalDocuments.map((d) => legalSummary(d, locale)) };
+  return {
+    items: legalDocuments
+      .filter((record) => record.published)
+      .map((record) => legalSummary(record, locale)),
+  };
 }
 
+/**
+ * One page by its type (`terms`) or by its address in either language
+ * (`agb`); `null` when the key names no page or the page is not published.
+ */
 export function legalDocument(
-  type: string,
+  key: string,
   locale: Locale,
 ): LegalDocument | null {
-  const record = legalDocuments.find((d) => d.type === type);
-  if (!record) return null;
+  const record = legalDocuments.find(
+    (d) =>
+      d.type === key ||
+      LEGAL_SLUGS[d.type].en === key ||
+      LEGAL_SLUGS[d.type].de === key,
+  );
+  if (!record?.published) return null;
+  const summary = legalSummary(record, locale);
   return {
-    ...legalSummary(record, locale),
-    content: pick(record.content, locale),
+    ...summary,
+    // The text in the language asked for, else in the other one.
+    content: localized(record.content, locale) ?? "",
+    contentLanguage: record.content[locale]
+      ? locale
+      : record.content.en
+        ? "en"
+        : "de",
+    seo: {
+      title: localized(record.seo?.title, locale) ?? summary.title,
+      description: localized(record.seo?.description, locale),
+    },
   };
 }
 

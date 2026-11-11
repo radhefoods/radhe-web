@@ -2,15 +2,17 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { cache } from "react";
 import { Alert } from "@/components/ui/alert";
 import type { Locale } from "@/i18n/routing";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 import { LegalText, PLACEHOLDER } from "./legal-text";
 
-// Legal texts that are not in the API: the legal notice (Impressum), the
-// right of withdrawal and the cookie page. They live as Markdown files in
-// `content/legal/<name>.<language>.md`, for Radhe Foods to edit. Parts still
-// to be filled in are written as `[[placeholder]]` and shown marked.
+// Legal texts of the shop's own files: the cookie page, and the legal
+// notice (Impressum) and the right of withdrawal for as long as the admin
+// has published no text for them in the panel (`LegalDocumentPage`). They
+// live as Markdown files in `content/legal/<name>.<language>.md`. Parts
+// still to be filled in are written as `[[placeholder]]` and shown marked.
 
 export type StaticLegalName = "imprint" | "withdrawal" | "cookies";
 
@@ -20,7 +22,7 @@ const PATHS = {
   cookies: "/legal/cookies",
 } as const;
 
-async function loadText(name: StaticLegalName, locale: Locale) {
+const loadText = cache(async (name: StaticLegalName, locale: Locale) => {
   const file = path.join(
     process.cwd(),
     "content",
@@ -29,16 +31,23 @@ async function loadText(name: StaticLegalName, locale: Locale) {
   );
   // The comment at the top of a file is a note for the editor, not content.
   return (await readFile(file, "utf8")).replace(/<!--[\s\S]*?-->/g, "").trim();
-}
+});
 
 export async function staticLegalMetadata(
   name: StaticLegalName,
   locale: Locale,
 ): Promise<Metadata> {
-  const t = await getTranslations({ locale, namespace: "staticLegal" });
+  const [t, text] = await Promise.all([
+    getTranslations({ locale, namespace: "staticLegal" }),
+    loadText(name, locale),
+  ]);
   return {
     title: t(name),
     alternates: alternates(locale, sameHref(PATHS[name])),
+    // A template with open gaps says of itself that it is not complete:
+    // search engines leave it out until it is filled in or, for the legal
+    // notice and the right of withdrawal, published in the admin panel.
+    ...(PLACEHOLDER.test(text) && { robots: { index: false, follow: true } }),
   };
 }
 
