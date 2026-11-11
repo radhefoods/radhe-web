@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { signupCode } from "./helpers";
 
 const MOCK = "http://localhost:3000";
@@ -230,20 +230,28 @@ test.describe("the shop at a glance", () => {
   }) => {
     test.skip(isMobile, "The arrows exist from medium screens on.");
     // Three cards per page at this width; "Spices" has four products with
-    // six pack sizes, so six cards.
+    // seven pack sizes, so seven cards: more than two pages.
     await page.setViewportSize({ width: 800, height: 900 });
     await page.goto("/en");
     const spices = page.getByRole("region", { name: "Spices", exact: true });
-    await expect(spices.getByRole("article")).toHaveCount(6);
+    await expect(spices.getByRole("article")).toHaveCount(7);
     const back = spices.getByRole("button", { name: "Scroll back" });
     const forward = spices.getByRole("button", { name: "Scroll forward" });
     await expect(back).toBeDisabled();
     await expect(forward).toBeEnabled();
     await forward.click();
     await expect(back).toBeEnabled();
-    await expect(forward).toBeDisabled();
-    await back.click();
-    await expect(back).toBeDisabled();
+    // Page by page to the end of the row, where nothing is left ahead.
+    await expect(async () => {
+      if (await forward.isEnabled()) await forward.click();
+      await expect(forward).toBeDisabled({ timeout: 1500 });
+    }).toPass();
+    await expect(back).toBeEnabled();
+    // And back to its start.
+    await expect(async () => {
+      if (await back.isEnabled()) await back.click();
+      await expect(back).toBeDisabled({ timeout: 1500 });
+    }).toPass();
     await expect(forward).toBeEnabled();
   });
 
@@ -320,9 +328,10 @@ test.describe("languages and addresses", () => {
       "Basmati Rice (5kg)",
     );
 
-    // A size chosen on the page is kept too.
+    // A size chosen on the page is kept too. The segment of the picker
+    // begins with the size; the cards of the rows below end with one.
     await page.goto("/de/produkte/basmati-reis-5kg");
-    await page.getByRole("link", { name: "1kg" }).click();
+    await page.getByRole("link", { name: /^1kg/ }).click();
     await expect(page).toHaveURL(/\/de\/produkte\/basmati-reis-1kg$/);
     await toEnglish.click();
     await expect(page).toHaveURL(/\/en\/products\/basmati-rice-1kg$/);
@@ -339,23 +348,27 @@ test.describe("languages and addresses", () => {
     const main = page.getByRole("main");
     await expect(heading).toHaveText("Basmati Rice (1kg)");
     await expect(main.getByText("€5.99 / kg").first()).toBeVisible();
-    await expect(main.getByText("RF-00041")).toBeVisible();
+    // The item number stands in the details, which are folded at first
+    // (owner, 2026-10-22).
+    await expect(main.getByText("RF-00041")).toBeAttached();
     // A mark that only a page that was not reloaded still carries.
     await page.evaluate(() => {
       (window as unknown as { stayed: boolean }).stayed = true;
     });
 
-    await page.getByRole("link", { name: "5kg" }).click();
+    // The segment of the picker begins with the size; the cards of the
+    // rows below end with one.
+    const bigger = page.getByRole("link", { name: /^5kg/ });
+    await bigger.click();
     await expect(heading).toHaveText("Basmati Rice (5kg)");
     await expect(page).toHaveURL(/\/en\/products\/basmati-rice-5kg$/);
-    await expect(page).toHaveTitle(/^Basmati Rice \(5 kg\)/);
+    // The tab names the size as the shop writes it (owner, 2026-10-18).
+    await expect(page).toHaveTitle(/^Basmati Rice \(5kg\)/);
     await expect(main.getByText("€19.99").first()).toBeVisible();
     await expect(main.getByText("€4.00 / kg").first()).toBeVisible();
-    await expect(main.getByText("RF-00042")).toBeVisible();
-    await expect(page.getByRole("link", { name: "5kg" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    await expect(main.getByText("RF-00042")).toBeAttached();
+    await expect(main.getByText("RF-00041")).toHaveCount(0);
+    await expect(bigger).toHaveAttribute("aria-current", "page");
     await expect(
       main
         .getByRole("button", { name: "Add to cart: Basmati Rice (5kg)" })
@@ -567,7 +580,8 @@ test.describe("finding products", () => {
     await expect(list.getByText("Lagerung", { exact: true })).toHaveCount(0);
     await expect(list.getByText("Angebote", { exact: true })).toHaveCount(0);
     await list.getByText("Packungsgr\u00f6\u00dfe", { exact: true }).click();
-    await page.getByLabel("400g").check();
+    // The box of the filter, not a button of a card that names "(400g)".
+    await page.getByRole("checkbox", { name: "400g" }).check();
     await expect(page).toHaveURL(/packSize=400g/);
     await expect(page.getByText("2 Produkte")).toBeVisible();
     // The matching size stands for its product.
@@ -609,7 +623,7 @@ test.describe("finding products", () => {
     // The count names products; the cards are the pack sizes (one per
     // size in rounds, the way the category is set in the admin).
     await expect(page.getByText("4 products")).toBeVisible();
-    await expect(page.getByRole("article")).toHaveCount(6);
+    await expect(page.getByRole("article")).toHaveCount(7);
     await expect(card(page, "Garam Masala")).toBeVisible();
     await expect(card(page, "Cumin Seeds (100g)")).toBeVisible();
     await expect(card(page, "Cumin Seeds (400g)")).toBeVisible();
@@ -717,6 +731,138 @@ test.describe("the cart of a visitor", () => {
       "Moong Dal / Mungbohnen (1kg)",
     );
     await expect(page.getByRole("main")).toContainText("Bild folgt in Kürze");
+  });
+
+  test("the product page shows the pictures of the chosen pack size", async ({
+    page,
+  }) => {
+    // Turmeric: the 100 g box has one picture, the 400 g bag three, the
+    // 1 kg bag none (doc VARIANT_IMAGES).
+    await page.goto("/en/products/turmeric-powder-100g");
+    const main = page.getByRole("main");
+    const tile = main.locator("[data-fly-source]").first();
+    const photo = tile.locator('img[src*="/media/products/"]');
+    const mark = tile.locator('img[src*="radhe-logo"]');
+    const thumbnails = main.getByRole("list", { name: "Pictures" });
+
+    // The picture of the size the address names is the page's main
+    // picture: loaded first, and the one of a shared link.
+    await expect(photo).toHaveAttribute("alt", "Turmeric Powder (100 g)");
+    await expect(photo).toHaveAttribute("fetchpriority", "high");
+    const boxPicture = await photo.getAttribute("src");
+    await expect(thumbnails).toHaveCount(0);
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      "content",
+      boxPicture!.replace("medium", "large"),
+    );
+
+    // The 400 g bag: its own three pictures, in place.
+    await page.evaluate(() => {
+      (window as unknown as { stayed: boolean }).stayed = true;
+    });
+    await main.getByRole("link", { name: /^400g/ }).click();
+    await expect(page).toHaveURL(/\/en\/products\/turmeric-powder-400g$/);
+    await expect(photo).toHaveAttribute("alt", "Turmeric Powder (400 g)");
+    expect(await photo.getAttribute("src")).not.toBe(boxPicture);
+    await expect(photo).toHaveAttribute("loading", "eager");
+    await expect(thumbnails.getByRole("button")).toHaveCount(3);
+    await expect(
+      thumbnails.getByRole("button", { name: "Picture 1 of 3" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await thumbnails.getByRole("button", { name: "Picture 2 of 3" }).click();
+    await expect(photo).toHaveAttribute("alt", "Back of the 400 g bag");
+
+    // The 1 kg bag has no picture: the mark of the shop, no thumbnails,
+    // and never the picture of another size.
+    await main.getByRole("link", { name: /^1kg/ }).click();
+    await expect(page).toHaveURL(/\/en\/products\/turmeric-powder-1kg$/);
+    await expect(mark).toBeVisible();
+    await expect(tile).toContainText("coming soon");
+    await expect(photo).toHaveCount(0);
+    await expect(thumbnails).toHaveCount(0);
+
+    // Back: the 400 g bag again, at its first picture, whatever was
+    // chosen there before; back once more: the box.
+    await page.goBack();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Turmeric Powder (400g)",
+    );
+    await expect(photo).toHaveAttribute("alt", "Turmeric Powder (400 g)");
+    await expect(
+      thumbnails.getByRole("button", { name: "Picture 1 of 3" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.goBack();
+    await expect(photo).toHaveAttribute("src", boxPicture!);
+    await expect(thumbnails).toHaveCount(0);
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { stayed?: boolean }).stayed,
+      ),
+    ).toBe(true);
+
+    // The heart and the flight into the cart keep their tile.
+    await expect(
+      tile.getByRole("button", { name: /Turmeric Powder \(100g\)/ }),
+    ).toBeVisible();
+
+    // In German, opened on the size without a picture, then to one with.
+    await page.goto("/de/produkte/kurkuma-gemahlen-1kg");
+    await expect(mark).toBeVisible();
+    await expect(tile).toContainText("Bild folgt in K\u00fcrze");
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      "content",
+      /radhe-social/,
+    );
+    await main.getByRole("link", { name: /^400g/ }).click();
+    await expect(photo).toHaveAttribute("alt", "Kurkuma, gemahlen (400 g)");
+    await expect(main.getByRole("list", { name: "Bilder" })).toBeVisible();
+  });
+
+  test("cards, the cart and the checkout show the picture of their own pack size", async ({
+    page,
+  }) => {
+    // One card per size: the bag without a picture stands beside its
+    // sisters with the mark of the shop, not with their picture.
+    await page.goto("/en/products?q=turmeric");
+    const bag = card(page, "Turmeric Powder (400g)");
+    const kilo = card(page, "Turmeric Powder (1kg)");
+    const box = card(page, "Turmeric Powder (100g)");
+    const photoOf = (scope: Locator) =>
+      scope.locator('img[src*="/media/products/"]');
+    await expect(photoOf(bag)).toHaveCount(1);
+    await expect(photoOf(box)).toHaveCount(1);
+    expect(await photoOf(bag).getAttribute("src")).not.toBe(
+      await photoOf(box).getAttribute("src"),
+    );
+    await expect(photoOf(kilo)).toHaveCount(0);
+    await expect(kilo.locator('img[src*="radhe-logo"]')).toBeVisible();
+    await expect(kilo).toContainText("coming soon");
+
+    const bagPicture = (await photoOf(bag).getAttribute("src"))!.replace(
+      /[^/]+$/,
+      "",
+    );
+    await bag
+      .getByRole("button", { name: "Add to cart: Turmeric Powder (400g)" })
+      .click();
+    await kilo
+      .getByRole("button", { name: "Add to cart: Turmeric Powder (1kg)" })
+      .click();
+    await expect(
+      kilo.getByRole("group", { name: "Quantity of Turmeric Powder (1kg)" }),
+    ).toBeVisible();
+
+    // The cart: each line with the picture of its own size.
+    await page.goto("/en/cart");
+    const lines = page.getByRole("main").getByRole("listitem");
+    const bagLine = lines.filter({ hasText: "Turmeric Powder (400g)" });
+    const kiloLine = lines.filter({ hasText: "Turmeric Powder (1kg)" });
+    await expect(photoOf(bagLine)).toHaveAttribute(
+      "src",
+      new RegExp(`^${bagPicture}`),
+    );
+    await expect(photoOf(kiloLine)).toHaveCount(0);
+    await expect(kiloLine.locator('img[src*="radhe-logo"]')).toBeVisible();
   });
 
   test("a product with a minimum quantity starts at the minimum", async ({

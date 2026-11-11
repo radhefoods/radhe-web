@@ -360,9 +360,10 @@ export interface QuantityLimits {
 
 /**
  * One pack size of a product (7.1): its own id (the `variantId` of the cart
- * and the orders), article number, URL, price, stock and ordering state.
- * `variants` holds only enabled sizes, smallest first; exactly one is
- * selected (the one a list entry or a product page shows).
+ * and the orders), article number, URL, price, stock, ordering state and
+ * pictures (doc VARIANT_IMAGES). `variants` holds only enabled sizes,
+ * smallest first; exactly one is selected (the one a list entry or a
+ * product page shows).
  */
 export interface ProductVariant {
   id: Id;
@@ -378,13 +379,23 @@ export interface ProductVariant {
   /** The size that stands for the product in lists. */
   isDefault: boolean;
   isSelected: boolean;
+  /**
+   * The main picture of this size; `null`: it has none, and the shop
+   * shows its placeholder, never the picture of another size.
+   */
+  image: ApiImage | null;
+  /**
+   * The gallery of this size, main picture first, `[]` without pictures.
+   * On the product detail only; a list entry carries `image` alone.
+   */
+  images?: ApiImage[];
 }
 
 /**
  * One product, shown as one of its pack sizes: `variantId`, `sku`, `slug`,
- * `displayName`, `packSize`, `pricing` and `ordering` belong to the shown
- * size (the one with `isSelected` in `variants`); `name`, the texts, the
- * image, `quantity` and `storageType` are the product's and apply to every
+ * `displayName`, `packSize`, `pricing`, `ordering` and `image` belong to
+ * the shown size (the one with `isSelected` in `variants`); `name`, the
+ * texts, `quantity` and `storageType` are the product's and apply to every
  * size.
  */
 export interface ProductSummary {
@@ -411,6 +422,7 @@ export interface ProductSummary {
   ordering: Ordering | null;
   storageType: StorageType;
   tags: string[];
+  /** The main picture of the shown size; `null`: show the placeholder. */
   image: ApiImage | null;
   /** Every enabled size, smallest first, the shown one included. */
   variants: ProductVariant[];
@@ -426,6 +438,7 @@ export interface ProductDetail extends ProductSummary {
   description: string | null;
   highlights: string[];
   uses: string[];
+  /** The gallery of the selected size, main picture first; `[]` for none. */
   images: ApiImage[];
   breadcrumbs: Breadcrumb[];
   food: {

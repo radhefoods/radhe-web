@@ -4,7 +4,7 @@ For the customer-facing Next.js shop. Generated from the implemented NestJS back
 
 **What the shop is:** an online shop for Indian groceries in Germany, sold from stock. Customers browse without an account, sign in to order, and **pay at checkout** (card or PayPal through Stripe Checkout). The payment confirms the order; Radhe Foods then prepares, dispatches and delivers it. The invoice is issued the moment the payment is captured and comes with the confirmation email.
 
-A product comes in one or more **pack sizes** (`variants`): the product holds the name, texts, images, category and VAT rate; each pack size has its own id (`variantId`), article number, URL, price, stock and ordering state. The cart, the orders and the returns name the pack size.
+A product comes in one or more **pack sizes** (`variants`): the product holds the name, texts, category and VAT rate; each pack size has its own id (`variantId`), article number, URL, price, stock, ordering state and **pictures**. The cart, the orders and the returns name the pack size.
 
 ## Contents
 
@@ -680,7 +680,9 @@ The **order** of every list is the admin's: within a category the positions set 
 }
 ```
 
-All image URLs are absolute, WebP, immutable (cache them for a year). `url` is the largest variant. `small` is 320 px on the longest side, `medium` 800 px, `large` 1600 px (never enlarged: a 600 px source gives `medium`/`large` of 600 px). `alt` is localized and falls back to the product name.
+All image URLs are absolute, WebP, immutable (cache them for a year). `url` is the largest variant. `small` is 320 px on the longest side, `medium` 800 px, `large` 1600 px (never enlarged: a 600 px source gives `medium`/`large` of 600 px). `alt` is localized and falls back to the name with the pack size, "Basmati Rice (5 kg)".
+
+**Pictures belong to the pack size.** Every `image` and `images` of a product entry is that of the pack size the entry shows; each entry of `variants` carries its own. A pack size without pictures answers `image: null` and `images: []`: show the placeholder, never the picture of another pack size. The details for the website are in `doc/VARIANT_IMAGES.md`.
 
 **Ordering block** (`ordering` on a product entry, for the size it shows, and on each entry of `variants`; the same object is `line.ordering` in the cart):
 
@@ -828,7 +830,8 @@ Products carry no other stock field: `remaining` is the number to use for "only 
           "displayName": "Basmati Rice (1 kg)",
           "pricing": { "…PriceView…": "" },
           "ordering": { "canOrder": true, "reason": null, "minQuantity": 1, "maxQuantity": 10, "remaining": 37 },
-          "isDefault": true, "isSelected": true
+          "isDefault": true, "isSelected": true,
+          "image": { "…Image…": "" }
         },
         {
           "id": "66f5…", "sku": "RF-00042", "slug": "basmati-rice-5kg",
@@ -836,7 +839,8 @@ Products carry no other stock field: `remaining` is the number to use for "only 
           "displayName": "Basmati Rice (5 kg)",
           "pricing": { "…PriceView…": "" },
           "ordering": { "canOrder": false, "reason": "sold_out", "minQuantity": 1, "maxQuantity": 0, "remaining": 0 },
-          "isDefault": false, "isSelected": false
+          "isDefault": false, "isSelected": false,
+          "image": null
         }
       ],
       "variantCount": 2
@@ -852,11 +856,11 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 
 - `view` is the view that was applied. In the pack-size views `total`, `totalPages` and `limit` count entries, that is pack sizes, not products; for a "N products" label use `total` of `GET /v1/store/products/facets`, which always counts products.
 - In the pack-size views the filters `packSize`, `onSale`, `orderable`, `minPrice` and `maxPrice` hold for the size of each entry: a product whose 200 g is sold out and whose 500 g is in stock appears once with `orderable=true`, as the 500 g. The rounds of `variants_by_size` are formed from the sizes that remain after the filters. Entries whose size cannot be ordered are still listed without `orderable=true`, with `ordering.canOrder: false`.
-- `id` is the product; `variantId`, `sku`, `slug`, `displayName`, `packSize`, `pricing` and `ordering` belong to the pack size the entry shows (the one with `isSelected: true` in `variants`). `name` is the product name without the size; `displayName` is the title of the card. In the pack-size views two entries can share `id` (one product) and always differ in `variantId`: key the cards by `variantId`.
+- `id` is the product; `variantId`, `sku`, `slug`, `displayName`, `packSize`, `pricing`, `ordering` and `image` belong to the pack size the entry shows (the one with `isSelected: true` in `variants`). `name` is the product name without the size; `displayName` is the title of the card. In the pack-size views two entries can share `id` (one product) and always differ in `variantId`: key the cards by `variantId`.
 - `isAvailable` is the admin's switch for the whole product; `ordering` combines it with the size's own switch and stock. Use `ordering` for the button, not `isAvailable`.
 - `quantity` is the product's own limit per order, the same for every size (`max` may be `null`); `ordering.maxQuantity` is that limit capped by the size's stock.
-- `variants` holds every enabled size, smallest first, the shown one included, each with its own `ordering` (section 7.1). Use it for the size chooser: each entry has its own `slug` for the product page and its own `id` for the cart. `variantCount` is its length. Images, texts, `quantity` and `storageType` are the product's and apply to every size.
-- `storageType` ∈ `ambient`, `chilled`, `frozen`. `category` and `image` can be `null`.
+- `variants` holds every enabled size, smallest first, the shown one included, each with its own `ordering` (section 7.1). Use it for the size chooser: each entry has its own `slug` for the product page and its own `id` for the cart. `variantCount` is its length. Each entry has `image`, the main picture of that pack size, or `null`. Texts, `quantity` and `storageType` are the product's and apply to every size.
+- `storageType` ∈ `ambient`, `chilled`, `frozen`. `category` can be `null`. `image` is `null` when the pack size the entry shows has no picture: show the placeholder.
 - Drafts, archived products and products in hidden categories are never returned.
 
 **Possible Errors:**
@@ -948,8 +952,8 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 ```
 
 - `slugs` is the URL of the selected size in both languages, for the language switch and `hreflang`. `gtin` is the selected size's and may be `null`.
-- Switching sizes on the page needs no request: every enabled size is in `variants` with its `slug`, `pricing` and `ordering`. Render the chosen size from the same answer and set the URL to its `slug` with the history API.
-- `seo.title` defaults to `displayName`, `seo.description` to `shortDescription`. `food.*` texts are free text as the admin typed them (may be `null`). `images` come main image first. `description`, `highlights`, `uses`, `images`, `food` and `breadcrumbs` are the product's and apply to every size.
+- Switching sizes on the page needs no request: every enabled size is in `variants` with its `slug`, `pricing`, `ordering`, `image` and, in this answer, `images` (its gallery, main picture first). Render the chosen size from the same answer, pictures included, and set the URL to its `slug` with the history API.
+- `seo.title` defaults to `displayName`, `seo.description` to `shortDescription`. `food.*` texts are free text as the admin typed them (may be `null`). `images` is the gallery of the selected size, main image first, and `[]` when it has none. `description`, `highlights`, `uses`, `food` and `breadcrumbs` are the product's and apply to every size.
 
 **Possible Errors:**
 
@@ -1035,7 +1039,7 @@ A line whose pack size left the shop, and the bill of goods at two VAT rates:
 | `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `product_unavailable`, `sold_out` | Why this line cannot be ordered as it is. Show it on the line. `product_not_found`: the pack size or its product is gone, or the product is no longer active. `product_unavailable`: the product or this size was switched off. `quantity_above_maximum` also means "more than in stock" (`ordering.maxQuantity` is capped by the stock). |
 | `lines[].ordering` | Ordering block or `null` | Of this pack size. `null` when the line is `product_not_found`. Inside `lines[].product` the `ordering` fields (on the entry and in its `variants`) are always `null`; use the line-level one. |
 | `lines[].discountAmount` | int cents | What the discount code of the checkout page takes off this line; `0` without one (section 9.6). |
-| `lines[].product` | product entry or `null` | The product list entry (section 7) with this pack size selected: its `displayName`, `packSize`, `pricing` and `image` are the line's. `null` when the line is `product_not_found` (then `unitPrice`, `lineTotal`, `vatRate`, `vatAmount` are `0`). |
+| `lines[].product` | product entry or `null` | The product list entry (section 7) with this pack size selected: its `displayName`, `packSize`, `pricing` and `image` are the line's (`image` is the picture of this pack size, or `null`). `null` when the line is `product_not_found` (then `unitPrice`, `lineTotal`, `vatRate`, `vatAmount` are `0`). |
 | `totals` | object | Computed over issue-free lines only. `vat[]` is grouped by rate; the delivery fee is shared across the rates in proportion to the net value of the goods. An empty bill has `deliveryFee: 0` and `vat: []`. |
 | `delivery.freeFrom` | int cents or `null` | Goods value from which delivery is free. `missingForFree` = what is still missing (`0` when reached; `null` when there is no free tier). Counts what is paid for the goods after the discount. |
 | `totals.discount` | int cents | What the discount code takes off the goods; `0` without one. `subtotal` is the goods before it; `total = subtotal − discount + deliveryFee`. |
@@ -1388,6 +1392,7 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 
 - `404 ORDER_NOT_FOUND`.
 - `409 ORDER_CANNOT_BE_CANCELLED` – `details: { status }`; the message asks the customer to contact Radhe Foods.
+- `409 ORDER_CHANGED_MEANWHILE` with `details: { settling: true }` – the payment was approved and is being completed at this very moment. Load the order again after a few seconds: it is then confirmed, and `canCancel` says whether it can still be cancelled. The same answer on the guest route.
 - `400 VALIDATION_FAILED`.
 
 ### 9.5 Cancellation rule
@@ -1967,7 +1972,7 @@ A list entry:
 
 ## 20. Guest checkout
 
-Ordering without an account. The visitor sends the cart from the browser, the address and the email to `POST /v1/store/guest/checkout` (header `Idempotency-Key`; body `{ email, items: [{ variantId, quantity }], address: { …as a saved address, without label and isDefault… }, discountCode?, expectedTotal, consent, note?, language? }`), gets `201 { created, token, order, checkout: { url, expiresAt } }` and is sent to Stripe. The order belongs to a guest record of that email; the **token** opens it afterwards (`?token=` or header `X-Order-Token`): `GET /v1/store/guest/orders/{orderNumber}` (`{ order, payment, documents }`), `POST …/pay`, `POST …/cancel`, `GET …/invoices/{number}/pdf`. The way back from Stripe and every email about the order lead to `/guest/orders/<orderNumber>?token=<token>`. `POST /v1/store/cart/preview` takes `discountCode` so a guest can price a code first. `409 CUSTOMER_EMAIL_TAKEN` with `details.action: "sign_in"` when the address has an account; `403 ORDER_TOKEN_INVALID` for a wrong token. A guest who signs up with the same email gets the orders, invoices and the address in the account. Section 2 of `doc/CUSTOMER_ACCOUNTS.md` has the detail.
+Ordering without an account. The visitor sends the cart from the browser, the address and the email to `POST /v1/store/guest/checkout` (header `Idempotency-Key`; body `{ email, items: [{ variantId, quantity }], address: { …as a saved address, without label and isDefault… }, discountCode?, expectedTotal, consent, note?, language? }`), gets `201 { created, token, order, checkout: { url, expiresAt } }` and is sent to Stripe. The order belongs to a guest record of that email; the **token** opens it afterwards (`?token=` or header `X-Order-Token`): `GET /v1/store/guest/orders/{orderNumber}` (`{ order, payment, documents }`), `POST …/pay`, `POST …/cancel`, `GET …/invoices/{number}/pdf`. The way back from Stripe and every email about the order lead to `/guest/orders/<orderNumber>?token=<token>`. `POST /v1/store/cart/preview` takes `discountCode` so a guest can price a code first. `409 CUSTOMER_EMAIL_TAKEN` with `details.action: "sign_in"` when the address has an account; `403 ORDER_TOKEN_INVALID` for a wrong token. A guest who signs up with the same email gets the orders, invoices and the address of the paid orders in the account. Section 2 of `doc/CUSTOMER_ACCOUNTS.md` has the detail.
 
 ## 21. Referrals
 

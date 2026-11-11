@@ -8,6 +8,7 @@ import type {
   ProductSummary,
   ProductVariant,
 } from "@/lib/api/types";
+import { galleryOf, packSizesOf } from "@/lib/catalogue/pictures";
 import { centsToDecimalString } from "@/lib/format/money";
 import { absoluteUrl, pageUrl } from "./alternates";
 import {
@@ -129,31 +130,22 @@ function packOf(variant: ProductVariant): JsonLdObject {
 
 /**
  * A product with its pack sizes (doc 7) as a `ProductGroup` with one
- * `Product` per size, each with its own address, item number and offer.
- * The group carries what the sizes share. Only the size the page shows
- * comes with its GTIN; the API gives no other.
+ * `Product` per size, each with its own address, item number, offer and
+ * pictures (doc VARIANT_IMAGES): a size without a picture has no `image`,
+ * never that of another size. The group carries what the sizes share and
+ * the pictures of the size the page shows. Only that size comes with its
+ * GTIN; the API gives no other.
  */
 export function productJsonLd(
   product: ProductDetail,
   locale: Locale,
 ): JsonLdObject {
   const url = productUrl(product.slug, locale);
+  const picturesOf = (variant: ProductVariant) =>
+    galleryOf(product, variant).map((image) => image.sizes.large.url);
+  // `product.images` is the gallery of the size the page shows.
   const images = product.images.map((image) => image.sizes.large.url);
-  const variants: ProductVariant[] = product.variants.length
-    ? product.variants
-    : [
-        {
-          id: product.variantId,
-          sku: product.sku,
-          slug: product.slug,
-          packSize: product.packSize,
-          displayName: product.displayName,
-          pricing: product.pricing,
-          ordering: product.ordering,
-          isDefault: true,
-          isSelected: true,
-        },
-      ];
+  const variants = packSizesOf(product);
   return {
     "@context": "https://schema.org",
     "@type": "ProductGroup",
@@ -174,14 +166,13 @@ export function productJsonLd(
     variesBy: "https://schema.org/size",
     hasVariant: variants.map((variant) => {
       const variantUrl = productUrl(variant.slug, locale);
+      const pictures = picturesOf(variant);
       return {
         "@type": "Product",
         "@id": `${variantUrl}#size`,
         name: productTitle(product.name, variant.packSize),
         url: variantUrl,
-        // The sizes share the pictures of the product; a listing needs one
-        // on each `Product`.
-        ...(images.length > 0 && { image: images }),
+        ...(pictures.length > 0 && { image: pictures }),
         sku: variant.sku,
         ...(variant.id === product.variantId &&
           product.gtin && { gtin: product.gtin }),

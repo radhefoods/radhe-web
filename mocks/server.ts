@@ -2472,14 +2472,14 @@ route("POST", "/v1/store/returns/:returnNumber/cancel", (ctx) => ({
 
 // --- Placeholder pictures and test controls ---------------------------------
 
-route("GET", "/media/products/:productId/:file", (ctx) => {
+route("GET", "/media/products/:pictureId/:file", (ctx) => {
   const sizes: Record<string, number> = {
     "small.svg": 320,
     "medium.svg": 800,
     "large.svg": 1600,
   };
   const size = sizes[ctx.params.file];
-  const svg = size ? placeholderSvg(ctx.params.productId, size) : null;
+  const svg = size ? placeholderSvg(ctx.params.pictureId, size) : null;
   if (!svg) throw new HttpError(404, "NOT_FOUND", "Not found.");
   return {
     raw: {

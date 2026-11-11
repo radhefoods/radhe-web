@@ -1,4 +1,5 @@
 import type { ApiImage } from "@/lib/api/types";
+import { srcSetOf } from "@/lib/catalogue/pictures";
 import { cn } from "@/lib/cn";
 
 /**
@@ -6,7 +7,8 @@ import { cn } from "@/lib/cn";
  * sizes (320, 800, 1600 px) with their dimensions; the browser picks one
  * through `srcset`. The addresses are used exactly as given.
  *
- * A product without a picture is never an empty tile: the Radhe mark
+ * A pack size without a picture is never an empty tile, and never shown
+ * with the picture of another size (doc VARIANT_IMAGES): the Radhe mark
  * stands in, ghosted on the tile like a watermark, with a small caption
  * where there is room for one (owner, 2026-10-16: a proper fallback).
  *
@@ -25,7 +27,7 @@ export function ProductImage({
   alt?: string;
   sizes: string;
   priority?: boolean | "eager";
-  /** The caption under the mark when the product has no picture; "" for none (small tiles). */
+  /** The caption under the mark when there is no picture; "" for none (small tiles). */
   fallbackLabel: string;
   className?: string;
 }) {
@@ -59,12 +61,12 @@ export function ProductImage({
       </div>
     );
   }
-  const { small, medium, large } = image.sizes;
+  const { medium } = image.sizes;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={medium.url}
-      srcSet={`${small.url} ${small.width}w, ${medium.url} ${medium.width}w, ${large.url} ${large.width}w`}
+      srcSet={srcSetOf(image)}
       sizes={sizes}
       width={medium.width}
       height={medium.height}

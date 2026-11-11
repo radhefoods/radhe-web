@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/catalogue/breadcrumbs";
 import { CategoryTiles } from "@/components/catalogue/category-tiles";
 import { ProductCard } from "@/components/catalogue/product-card";
-import { ProductGallery } from "@/components/catalogue/product-gallery";
 import {
   PackSizeDiscount,
+  PackSizeGallery,
   PackSizeHeadline,
   PackSizePicker,
   PackSizePrice,
@@ -100,7 +100,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     product.seo.description ??
     product.shortDescription ??
     (product.description ? excerptOf(product.description) : undefined);
-  const image = product.images[0]?.sizes.large;
+  // The main picture of the size the address stands for; a size without
+  // one keeps the picture of the shop, never that of another size.
+  const picture = product.images[0] ?? product.image;
+  const image = picture?.sizes.large;
   return {
     title,
     description,
@@ -112,7 +115,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: pageUrl(productHref(product.slug), locale),
       ...(image && {
-        images: [{ url: image.url, width: image.width, height: image.height }],
+        images: [
+          {
+            url: image.url,
+            width: image.width,
+            height: image.height,
+            alt: picture?.alt,
+          },
+        ],
       }),
     },
     // Without pictures of its own, so that the card shows the one above
@@ -182,9 +192,10 @@ async function popular(
 /**
  * The product page (redesigned 2026-10-19, set after the look of the
  * leading grocers on 2026-10-21 and 22, and laid out after the owner's
- * reference picture on 2026-10-31): the pictures on the left as a large
- * white tile with the heart of the wishlist in its corner and the
- * thumbnails under it, kept in view while the right column scrolls; on
+ * reference picture on 2026-10-31): the pictures of the chosen size (doc
+ * VARIANT_IMAGES) on the left as a large white tile with the heart of the
+ * wishlist in its corner and the thumbnails under it, kept in view while
+ * the right column scrolls; on
  * the right, read top to bottom, a row of chips (the category, the brand,
  * the discount of the chosen size), the name with the chosen size, large,
  * the subtitle; the price with the regular price, the price per unit and
@@ -260,8 +271,7 @@ export default async function ProductPage({ params }: Props) {
           data-fly-scope=""
           className="mt-5 grid gap-8 md:grid-cols-2 md:gap-8 lg:grid-cols-[minmax(0,11fr)_minmax(0,10fr)] lg:gap-12"
         >
-          <ProductGallery
-            images={product.images}
+          <PackSizeGallery
             fallbackLabel={t("noPicture")}
             corner={<PackSizeWishlist className="size-11 sm:size-12" />}
             className="md:sticky md:top-40 md:self-start"

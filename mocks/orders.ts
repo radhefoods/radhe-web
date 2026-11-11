@@ -55,7 +55,7 @@ import {
   reserveCoins,
   rewards as rewardRules,
 } from "./rewards.ts";
-import { billOf, findVariant, packSizeOf, productImageUrl } from "./views.ts";
+import { billOf, findVariant, packSizeOf, variantImageUrl } from "./views.ts";
 
 const ADDRESS_LIMIT = 10;
 
@@ -390,7 +390,7 @@ export function summaryOf(order: OrderRecord, locale: Locale): OrderSummary {
     itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
     preview: order.items.slice(0, 3).map((item) => ({
       name: item.name[locale] || item.name.en,
-      imageUrl: productImageUrl(item.productId, "small"),
+      imageUrl: variantImageUrl(item.variantId),
     })),
     delivery: {
       method: order.delivery.method,
@@ -432,7 +432,7 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
         name,
         displayName: `${name} (${size.label})`,
         packSize: size,
-        imageUrl: productImageUrl(item.productId, "small"),
+        imageUrl: variantImageUrl(item.variantId),
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         regularUnitPrice: item.regularUnitPrice,

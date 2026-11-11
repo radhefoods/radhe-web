@@ -23,6 +23,11 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { api } from "@/lib/api/browser";
 import type { Ordering, ProductDetail, ProductVariant } from "@/lib/api/types";
+import {
+  galleryOf,
+  mainPicturesOfOtherSizes,
+  packSizesOf,
+} from "@/lib/catalogue/pictures";
 import { cn } from "@/lib/cn";
 import {
   formatBasePrice,
@@ -31,14 +36,15 @@ import {
 } from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
 import { Price } from "./price";
+import { ProductGallery, usePicturesAhead } from "./product-gallery";
 import { WishlistButton } from "./wishlist-button";
 import { formatPackSize, productTitle } from "@/lib/format/product-name";
 
 // The product page is one page for every pack size of a product (doc 7). The
 // server renders it for the size its address names; choosing another size
-// changes the headline, the price, the stock, the item number and the
-// address in place, without a request: every size came with the page. The
-// parts below are the ones that follow the chosen size.
+// changes the headline, the pictures, the price, the stock, the item number
+// and the address in place, without a request: every size came with the
+// page. The parts below are the ones that follow the chosen size.
 
 interface Selection {
   product: ProductDetail;
@@ -62,21 +68,6 @@ function useSelection(): Selection {
     throw new Error("This part of the product page needs <PackSizes> above.");
   }
   return value;
-}
-
-/** The product as the size it is shown as, should `variants` not list it. */
-function ownVariant(product: ProductDetail): ProductVariant {
-  return {
-    id: product.variantId,
-    sku: product.sku,
-    slug: product.slug,
-    packSize: product.packSize,
-    displayName: product.displayName,
-    pricing: product.pricing,
-    ordering: product.ordering,
-    isDefault: true,
-    isSelected: true,
-  };
 }
 
 const productHref = (slug: string) => ({
@@ -104,10 +95,7 @@ export function PackSizes({
   children: ReactNode;
 }) {
   const locale = useLocale() as Locale;
-  const variants = useMemo(
-    () => (product.variants.length ? product.variants : [ownVariant(product)]),
-    [product],
-  );
+  const variants = useMemo(() => packSizesOf(product), [product]);
   const [variantId, setVariantId] = useState(product.variantId);
   const variant = variants.find((v) => v.id === variantId) ?? variants[0];
 
@@ -167,6 +155,39 @@ export function PackSizes({
       <LocaleAlternates hrefs={alternates} />
       {children}
     </SelectionContext.Provider>
+  );
+}
+
+/**
+ * The pictures of the chosen size (doc VARIANT_IMAGES): its own gallery,
+ * which starts at its main picture whenever the size changes, by a click
+ * in the picker as by the browser's back and forward; the mark of the
+ * shop for a size without a picture, never the picture of another size.
+ * The main pictures of the other sizes are fetched once the page is idle,
+ * so that a change of size shows its picture at once.
+ */
+export function PackSizeGallery({
+  fallbackLabel,
+  corner,
+  className,
+}: {
+  /** The caption under the mark when the chosen size has no picture. */
+  fallbackLabel: string;
+  /** What stands in the top right corner of the picture: the heart. */
+  corner?: ReactNode;
+  className?: string;
+}) {
+  const { product, variant } = useSelection();
+  const ahead = useMemo(() => mainPicturesOfOtherSizes(product), [product]);
+  usePicturesAhead(ahead);
+  return (
+    <ProductGallery
+      sizeId={variant.id}
+      images={galleryOf(product, variant)}
+      fallbackLabel={fallbackLabel}
+      corner={corner}
+      className={className}
+    />
   );
 }
 

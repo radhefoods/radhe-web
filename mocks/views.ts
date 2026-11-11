@@ -37,6 +37,7 @@ import {
   categories,
   products,
   type CategoryRecord,
+  type PictureRecord,
   type ProductRecord,
   type Translated,
   type VariantRecord,
@@ -295,29 +296,73 @@ export function setMediaBase(url: string): void {
   mediaBase = url;
 }
 
-/** The address of a placeholder picture of the mock. */
-export function productImageUrl(
-  productId: string,
-  size: "small" | "medium" | "large",
-): string {
-  return `${mediaBase}/media/products/${productId}/${size}.svg`;
+// A picture belongs to one pack size (doc VARIANT_IMAGES): `image` and
+// `images` of an entry are those of the size it shows, every entry of
+// `variants` carries its own, and a size without pictures answers `null`
+// and `[]`, never the picture of another size.
+
+/** The address of a picture of the mock in one of its three widths. */
+function pictureUrl(pictureId: string, size: string): string {
+  return `${mediaBase}/media/products/${pictureId}/${size}.svg`;
 }
 
-function imageView(p: ProductRecord, locale: Locale): ApiImage | null {
-  if (p.tint === null) return null;
-  const url = (size: string) =>
-    `${mediaBase}/media/products/${p.id}/${size}.svg`;
+/**
+ * The picture of an order line (doc 9.2): the small main picture of the
+ * pack size that was ordered, `null` when it has none.
+ */
+export function variantImageUrl(variantId: string): string | null {
+  const main = findVariant(variantId)?.variant.pictures[0];
+  return main ? pictureUrl(main.id, "small") : null;
+}
+
+/**
+ * A picture as the shop is told about it. Without a description of its
+ * own it is described by what it shows: "Basmati Rice (5 kg)".
+ */
+function imageView(
+  p: ProductRecord,
+  v: VariantRecord,
+  picture: PictureRecord,
+  locale: Locale,
+): ApiImage {
   return {
-    id: p.id,
-    alt: pick(p.name, locale),
-    isPrimary: true,
-    url: url("large"),
+    id: picture.id,
+    alt: picture.alt ? pick(picture.alt, locale) : displayNameOf(p, v, locale),
+    isPrimary: picture === v.pictures[0],
+    url: pictureUrl(picture.id, "large"),
     sizes: {
-      small: { url: url("small"), width: 320, height: 320 },
-      medium: { url: url("medium"), width: 800, height: 800 },
-      large: { url: url("large"), width: 1600, height: 1600 },
+      small: { url: pictureUrl(picture.id, "small"), width: 320, height: 320 },
+      medium: {
+        url: pictureUrl(picture.id, "medium"),
+        width: 800,
+        height: 800,
+      },
+      large: {
+        url: pictureUrl(picture.id, "large"),
+        width: 1600,
+        height: 1600,
+      },
     },
   };
+}
+
+/** The main picture of a pack size, or `null`: the shop's placeholder. */
+function mainImage(
+  p: ProductRecord,
+  v: VariantRecord,
+  locale: Locale,
+): ApiImage | null {
+  const main = v.pictures[0];
+  return main ? imageView(p, v, main, locale) : null;
+}
+
+/** The gallery of a pack size, the main picture first. */
+function galleryOf(
+  p: ProductRecord,
+  v: VariantRecord,
+  locale: Locale,
+): ApiImage[] {
+  return v.pictures.map((picture) => imageView(p, v, picture, locale));
 }
 
 function variantView(
@@ -337,6 +382,7 @@ function variantView(
     ordering: withOrdering ? orderingOf(p, v) : null,
     isDefault: v.id === defaultVariant(p).id,
     isSelected: v.id === selected.id,
+    image: mainImage(p, v, locale),
   };
 }
 
@@ -380,7 +426,7 @@ export function productSummary(
     ordering: withOrdering ? orderingOf(p, selected) : null,
     storageType: p.storageType,
     tags: p.tags,
-    image: imageView(p, locale),
+    image: mainImage(p, selected, locale),
     variants,
     variantCount: variants.length,
   };
@@ -419,9 +465,13 @@ export function productDetail(
     description: pickOrNull(p.description, locale),
     highlights: p.highlights.map((h) => pick(h, locale)),
     uses: p.uses.map((u) => pick(u, locale)),
-    images: [imageView(p, locale)].filter(
-      (image): image is ApiImage => image !== null,
-    ),
+    images: galleryOf(p, v, locale),
+    // Every size with its own gallery, so that the page changes the
+    // pictures with the size without asking again.
+    variants: enabledVariants(p).map((size) => ({
+      ...variantView(p, size, locale, v, true),
+      images: galleryOf(p, size, locale),
+    })),
     breadcrumbs: breadcrumbsOf(categoryById.get(p.categoryId), locale),
     food: {
       ingredients: pickOrNull(p.food.ingredients, locale),
@@ -1150,17 +1200,32 @@ export function customerView(record: CustomerRecord): Customer {
   };
 }
 
-/** A placeholder picture: the tint of the product and its initials. */
-export function placeholderSvg(productId: string, size: number): string | null {
-  const p = findProduct(productId);
-  if (!p || p.tint === null) return null;
-  const initials = p.name.en
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 400 400"><rect width="400" height="400" fill="${p.tint}"/><circle cx="200" cy="190" r="96" fill="#ffffff" fill-opacity="0.55"/><text x="200" y="212" font-family="Georgia, serif" font-size="64" text-anchor="middle" fill="#020E43" fill-opacity="0.7">${initials}</text><text x="200" y="352" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#020E43" fill-opacity="0.5">mock picture</text></svg>`;
+/**
+ * A picture of the mock, drawn when it is asked for: its tint, the
+ * initials of the product and the pack it shows, so that the sizes of one
+ * product can be told apart; a further picture of a gallery says which
+ * one it is.
+ */
+export function placeholderSvg(pictureId: string, size: number): string | null {
+  for (const p of products) {
+    for (const v of p.variants) {
+      const index = v.pictures.findIndex(({ id }) => id === pictureId);
+      if (index < 0) continue;
+      const initials = p.name.en
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((word) => word[0])
+        .join("")
+        .toUpperCase();
+      const pack = packSize(v, "en").label;
+      const caption =
+        index === 0
+          ? "mock picture"
+          : `mock picture ${index + 1} of ${v.pictures.length}`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 400 400"><rect width="400" height="400" fill="${v.pictures[index].tint}"/><circle cx="200" cy="180" r="96" fill="#ffffff" fill-opacity="0.55"/><text x="200" y="202" font-family="Georgia, serif" font-size="64" text-anchor="middle" fill="#020E43" fill-opacity="0.7">${initials}</text><text x="200" y="318" font-family="Arial, sans-serif" font-size="30" font-weight="bold" text-anchor="middle" fill="#020E43" fill-opacity="0.7">${pack}</text><text x="200" y="360" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#020E43" fill-opacity="0.5">${caption}</text></svg>`;
+    }
+  }
+  return null;
 }
 
 // --- Wishlist (doc 16) ------------------------------------------------------

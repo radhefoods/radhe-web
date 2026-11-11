@@ -22,7 +22,21 @@ export interface CategoryRecord {
   tint: string | null;
 }
 
-/** One pack size of a product: its own article number, price, stock and URL. */
+/**
+ * One picture of a pack size (doc VARIANT_IMAGES). The mock has no files:
+ * the picture is drawn from its tint when it is asked for.
+ */
+export interface PictureRecord {
+  id: string;
+  tint: string;
+  /** The admin's description; `null`: the name with the pack size. */
+  alt: Translated | null;
+}
+
+/**
+ * One pack size of a product: its own article number, price, stock, URL
+ * and pictures.
+ */
 export interface VariantRecord {
   id: string;
   sku: string;
@@ -35,6 +49,8 @@ export interface VariantRecord {
   isEnabled: boolean;
   /** Packs in stock; 0 is sold out. Nothing is reserved before a payment. */
   stock: number;
+  /** The gallery of this size, the main picture first; empty: none yet. */
+  pictures: PictureRecord[];
 }
 
 /** A product with its pack sizes; the texts and the limits are the product's. */
@@ -71,8 +87,6 @@ export interface ProductRecord {
   publishedAt: string;
   updatedAt: string;
   sortOrder: number;
-  /** Tint of the generated placeholder picture; `null`: no picture yet. */
-  tint: string | null;
   /** The pack sizes, smallest first. */
   variants: VariantRecord[];
 }
@@ -265,8 +279,28 @@ interface ProductSeed {
   ingredients?: Translated;
   allergens?: Translated;
   origin?: Translated;
-  /** `null`: the product has no picture yet. */
+  /** The tint of this size's main picture; `null`: the size has none yet. */
   tint: string | null;
+  /** Further pictures of this size, after the main one, in their order. */
+  morePictures?: { tint: string; alt?: Translated }[];
+}
+
+/**
+ * The pictures of a size. Their ids are made from the size's own id, so
+ * that a picture more or less leaves every other id of the fixtures as it
+ * was.
+ */
+function picturesOf(variantId: string, seed: ProductSeed): PictureRecord[] {
+  if (seed.tint === null) return [];
+  const seeds: { tint: string; alt?: Translated }[] = [
+    { tint: seed.tint },
+    ...(seed.morePictures ?? []),
+  ];
+  return seeds.map((picture, index) => ({
+    id: `66f9${index.toString(16).padStart(2, "0")}${variantId.slice(6)}`,
+    tint: picture.tint,
+    alt: picture.alt ?? null,
+  }));
 }
 
 const INDIA = t("India", "Indien");
@@ -323,7 +357,6 @@ function buildProducts(seeds: ProductSeed[]): ProductRecord[] {
         publishedAt: `2026-09-${day}T08:00:00.000Z`,
         updatedAt: "2026-09-28T09:30:00.000Z",
         sortOrder: productOrder,
-        tint: seed.tint,
         variants: [],
       };
       byGroup.set(seed.group, record);
@@ -337,8 +370,9 @@ function buildProducts(seeds: ProductSeed[]): ProductRecord[] {
         if (!record.tags.includes(tag)) record.tags.push(tag);
       }
     }
+    const variantId = oid("66f4");
     record.variants.push({
-      id: oid("66f4"),
+      id: variantId,
       sku: seed.sku,
       gtin: seed.gtin ?? null,
       packValue: seed.pack[0],
@@ -347,6 +381,7 @@ function buildProducts(seeds: ProductSeed[]): ProductRecord[] {
       salePrice: seed.salePrice ?? null,
       isEnabled: seed.isEnabled ?? true,
       stock: seed.stock ?? 120,
+      pictures: picturesOf(variantId, seed),
     });
   }
   for (const record of byGroup.values()) {
@@ -634,7 +669,34 @@ const SEEDS: ProductSeed[] = [
     price: 549,
     keywords: ["haldi", "gelbwurz"],
     ingredients: t("Turmeric", "Kurkuma"),
-    tint: "#F2C14E",
+    // The product of the fixtures that shows pictures per pack size (doc
+    // VARIANT_IMAGES): the 100 g box has one picture, this bag has three
+    // of another colour, and the 1 kg bag below has none.
+    tint: "#E8A33D",
+    morePictures: [
+      {
+        tint: "#F6DFA4",
+        alt: t("Back of the 400 g bag", "Rückseite des 400-g-Beutels"),
+      },
+      { tint: "#D98E2B" },
+    ],
+  }),
+  size({
+    sku: "RF-00313",
+    group: "turmeric-powder",
+    slug: t("turmeric-powder-1-kg", "kurkuma-gemahlen-1-kg"),
+    name: t("Turmeric Powder", "Kurkuma, gemahlen"),
+    shortDescription: t(
+      "Bright and earthy haldi",
+      "Leuchtendes, erdiges Haldi",
+    ),
+    brand: "MDH",
+    categoryId: groundSpices.id,
+    pack: [1, "kg"],
+    price: 1199,
+    keywords: ["haldi", "gelbwurz"],
+    ingredients: t("Turmeric", "Kurkuma"),
+    tint: null,
   }),
   size({
     sku: "RF-00321",
@@ -907,6 +969,9 @@ export const SKU = {
   basmati5kg: idOf("RF-00042"),
   chakkiAtta5kg: idOf("RF-00101"),
   toorDal1kg: idOf("RF-00201"),
+  turmeric100g: idOf("RF-00311"),
+  turmeric400g: idOf("RF-00312"),
+  turmeric1kg: idOf("RF-00313"),
   bhujia: idOf("RF-00410"),
   khakhra: idOf("RF-00420"),
   kesarMango: idOf("RF-00501"),

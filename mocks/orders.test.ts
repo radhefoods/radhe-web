@@ -40,6 +40,30 @@ function payOnPage(url: string, type: "card" | "paypal" = "card") {
   return fetch(`${url}/pay?type=${type}`, { redirect: "manual" });
 }
 
+describe("the picture of an order line", () => {
+  it("is the one of the pack size that was ordered, or none", async () => {
+    const { api, input } = await readyToOrder("pictures@example.com");
+    await api.clearCart();
+    await api.setCartItem(SKU.turmeric400g, 1);
+    const bill = await api.setCartItem(SKU.turmeric1kg, 1);
+    const { product: bag } = await api.getProduct("turmeric-powder-400g");
+    const { order } = await api.checkout(
+      { ...input, expectedTotal: bill.totals.total },
+      "attempt-pictures",
+    );
+    // The small main picture of the 400 g bag; the 1 kg bag has none, and
+    // is not shown with the picture of another size (doc VARIANT_IMAGES).
+    expect(order.items.map((item) => item.imageUrl)).toEqual([
+      bag.image!.sizes.small.url,
+      null,
+    ]);
+    expect(order.preview.map((item) => item.imageUrl)).toEqual([
+      bag.image!.sizes.small.url,
+      null,
+    ]);
+  });
+});
+
 describe("addresses", () => {
   it("makes the first address the default and keeps one default", async () => {
     const { api } = await mock.signIn("anna@example.com");

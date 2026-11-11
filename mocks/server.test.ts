@@ -142,6 +142,91 @@ describe("catalogue", () => {
     });
   });
 
+  it("gives every pack size its own pictures, and none to a size without", async () => {
+    const api = guestApi();
+    // The product page: the gallery of the selected size, and every size
+    // of `variants` with its own (doc VARIANT_IMAGES).
+    const { product: bag } = await api.getProduct("turmeric-powder-400g");
+    expect(bag.variants.map((v) => v.images?.length)).toEqual([1, 3, 0]);
+    expect(bag.images).toEqual(bag.variants[1].images);
+    expect(bag.image).toEqual(bag.images[0]);
+    expect(bag.images.map((image) => image.isPrimary)).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    // Without a description of its own a picture is named by what it
+    // shows: the product with the pack size.
+    expect(bag.images.map((image) => image.alt)).toEqual([
+      "Turmeric Powder (400 g)",
+      "Back of the 400 g bag",
+      "Turmeric Powder (400 g)",
+    ]);
+    const [box, , kilo] = bag.variants;
+    expect(box.image?.alt).toBe("Turmeric Powder (100 g)");
+    expect(box.image).toEqual(box.images?.[0]);
+    expect(box.image?.url).not.toBe(bag.image?.url);
+    // No picture: `null` and `[]`, never the picture of another size.
+    expect(kilo.image).toBeNull();
+    expect(kilo.images).toEqual([]);
+    const { product: plain } = await api.getProduct("turmeric-powder-1kg");
+    expect(plain.image).toBeNull();
+    expect(plain.images).toEqual([]);
+    expect(plain.variants.map((v) => v.image?.id ?? null)).toEqual(
+      bag.variants.map((v) => v.image?.id ?? null),
+    );
+    const german = await api.getProduct("kurkuma-gemahlen-400g", {
+      locale: "de",
+    });
+    expect(german.product.images.map((image) => image.alt)).toEqual([
+      "Kurkuma, gemahlen (400 g)",
+      "R\u00fcckseite des 400-g-Beutels",
+      "Kurkuma, gemahlen (400 g)",
+    ]);
+
+    // A list entry: `image` of the size it shows, and `image` (not the
+    // galleries) on each entry of `variants`.
+    const cards = await api.listProducts({
+      q: "turmeric",
+      view: "variants_by_product",
+    });
+    expect(cards.items.map((p) => p.image?.id ?? null)).toEqual([
+      box.image!.id,
+      bag.image!.id,
+      null,
+    ]);
+    expect(cards.items[2].variants.map((v) => v.image?.id ?? null)).toEqual([
+      box.image!.id,
+      bag.image!.id,
+      null,
+    ]);
+    expect(cards.items[0].variants[1]).not.toHaveProperty("images");
+
+    // The cart: the picture of the pack size of the line.
+    const bill = await api.previewCart([
+      { variantId: SKU.turmeric400g, quantity: 1 },
+      { variantId: SKU.turmeric1kg, quantity: 1 },
+    ]);
+    expect(bill.lines.map((line) => line.product?.image?.id ?? null)).toEqual([
+      bag.image!.id,
+      null,
+    ]);
+
+    // The pictures live on the mock itself, one file per picture.
+    const files = await Promise.all(
+      [box.image!, ...bag.images].map((image) =>
+        fetch(`${base}${new URL(image.sizes.medium.url).pathname}`),
+      ),
+    );
+    expect(files.map((file) => file.headers.get("content-type"))).toEqual(
+      files.map(() => "image/svg+xml"),
+    );
+    expect(await files[0].text()).toContain(">100 g<");
+    expect(await files[2].text()).toContain("mock picture 2 of 3");
+    const missing = await fetch(`${base}/media/products/${bag.id}/medium.svg`);
+    expect(missing.status).toBe(404);
+  });
+
   it("opens a product on the URL of a size or on its base slug", async () => {
     const api = guestApi();
     const big = await api.getProduct("basmati-rice-5kg");
@@ -261,7 +346,7 @@ describe("catalogue", () => {
       view: "variants_by_product",
       limit: 100,
     });
-    expect(all.total).toBe(29);
+    expect(all.total).toBe(30);
     const response = await fetch(
       `${base}/v1/store/products/facets?view=variants_by_product`,
     );
@@ -342,7 +427,7 @@ describe("filters and facets", () => {
 
   it("shows the matching pack size of a product with several", async () => {
     const page = await guestApi().listProducts({ packSize: ["1kg"] });
-    expect(page.total).toBe(6);
+    expect(page.total).toBe(7);
     const rice = page.items.find((p) => p.name === "Basmati Rice");
     expect(rice?.packSize.label).toBe("1 kg");
     expect(rice?.slug).toBe("basmati-rice-1kg");
@@ -390,6 +475,7 @@ describe("filters and facets", () => {
     ).toEqual([
       ["100g", "100 g", 3],
       ["400g", "400 g", 1],
+      ["1kg", "1 kg", 1],
     ]);
     // The price range runs over the default sizes, not the 400 g pack.
     expect(mdh.price).toEqual({ min: 179, max: 249 });
