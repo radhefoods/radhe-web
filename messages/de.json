@@ -39,6 +39,18 @@
     "home": "Start",
     "shop": "Sortiment",
     "allProducts": "Alle Produkte",
+    "allCategories": "Alle Kategorien",
+    "more": "Mehr",
+    "groups": {
+      "staples": "Reis, Mehl & Linsen",
+      "cooking": "Gewürze & Vorrat",
+      "snacks": "Snacks & Getränke",
+      "fresh": "Frisch & Tiefkühl",
+      "world": "Weltküche",
+      "home": "Haushalt & Pflege",
+      "other": "Weitere Kategorien"
+    },
+    "groupSummary": "{categories, plural, one {# Kategorie} other {# Kategorien}}, {products, plural, one {# Produkt} other {# Produkte}}",
     "account": "Konto",
     "cart": "Warenkorb",
     "wishlist": "Merkliste",

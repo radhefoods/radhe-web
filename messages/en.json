@@ -39,6 +39,18 @@
     "home": "Home",
     "shop": "Shop",
     "allProducts": "All products",
+    "allCategories": "All categories",
+    "more": "More",
+    "groups": {
+      "staples": "Rice, Flour & Dal",
+      "cooking": "Spices & Pantry",
+      "snacks": "Snacks & Drinks",
+      "fresh": "Fresh & Frozen",
+      "world": "World Foods",
+      "home": "Home & Care",
+      "other": "More categories"
+    },
+    "groupSummary": "{categories, plural, one {# category} other {# categories}}, {products, plural, one {# product} other {# products}}",
     "account": "Account",
     "cart": "Cart",
     "wishlist": "Wishlist",

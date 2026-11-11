@@ -19,50 +19,114 @@ async function variantIdOf(page: Page, slug: string): Promise<string> {
 }
 
 test.describe("the category navigation", () => {
-  test("the bar lists the categories; a parent opens its sub-categories on hover and by keyboard", async ({
+  test("the bar is one row of groups; a group opens its categories on hover, by a press and by keyboard", async ({
     page,
     isMobile,
   }) => {
     test.skip(isMobile, "The bar exists on wide screens only.");
     await page.goto("/en");
-    const nav = page.getByRole("navigation", { name: "Categories" });
+    const nav = page.getByRole("navigation", {
+      name: "Categories",
+      exact: true,
+    });
+    // "All products", then the groups of the catalogue; a category that
+    // is the only one of its group stands in the bar as itself.
     await expect(
-      nav.getByRole("link", { name: "Rice", exact: true }),
-    ).toHaveAttribute("href", "/en/category/rice");
-    // Nothing but the categories of the API.
+      nav.getByRole("link", { name: "All products" }),
+    ).toHaveAttribute("href", "/en/products");
+    const staples = nav.getByRole("button", { name: "Rice, Flour & Dal" });
+    const snacks = nav.getByRole("button", { name: "Snacks & Drinks" });
+    await expect(staples).toHaveAttribute("aria-expanded", "false");
+    await expect(snacks).toBeVisible();
     await expect(
-      nav.getByRole("link", { name: /offers|how it works|all categories/i }),
+      nav.getByRole("button", { name: "Fresh & Frozen" }),
+    ).toBeVisible();
+    const spices = nav.getByRole("link", { name: "Spices", exact: true });
+    await expect(spices).toHaveAttribute("href", "/en/category/spices");
+    // One row, whatever the catalogue holds.
+    const rows = await nav.locator("[data-top]").evaluateAll(
+      (tops) =>
+        new Set(
+          tops
+            .filter((top) => (top as HTMLElement).offsetParent !== null)
+            .map((top) => {
+              const box = top.getBoundingClientRect();
+              return Math.round(box.top + box.height / 2);
+            }),
+        ).size,
+    );
+    expect(rows).toBe(1);
+    // Nothing but the catalogue.
+    await expect(
+      nav.getByRole("link", { name: /offers|how it works/i }),
     ).toHaveCount(0);
+
+    // Every category is a link of the page from the start, in a panel
+    // that is closed.
+    const rice = nav.getByRole("link", { name: "Rice", exact: true });
+    const basmati = nav.getByRole("link", { name: "Basmati Rice" });
+    await expect(rice).toBeHidden();
+    await expect(
+      nav.locator('a[href="/en/category/basmati-rice"]'),
+    ).toHaveCount(1);
+
+    // Resting on a group opens its panel: its categories side by side,
+    // each over its sub-categories; moving down into it keeps it.
+    await staples.hover();
+    await expect(rice).toBeVisible();
+    await expect(staples).toHaveAttribute("aria-expanded", "true");
+    await expect(rice).toHaveAttribute("href", "/en/category/rice");
+    await basmati.hover();
+    await expect(basmati).toBeVisible();
+    await expect(
+      nav.getByRole("link", { name: "Pulses & Lentils" }),
+    ).toBeVisible();
+    await expect(
+      nav.getByRole("link", { name: "All categories" }),
+    ).toHaveAttribute("href", "/en/categories");
+    await basmati.click();
+    await expect(page).toHaveURL(/\/en\/category\/basmati-rice$/);
+    // On the page of one of its categories the group is marked; the panel
+    // is closed again.
+    await expect(staples).toHaveAttribute("aria-current", "true");
+    await expect(basmati).toBeHidden();
+
+    // A press opens and closes: a touch screen has no hover.
+    await page.mouse.move(0, 0);
+    await snacks.click();
+    await expect(snacks).toHaveAttribute("aria-expanded", "true");
+    await expect(nav.getByRole("link", { name: "Tea & Drinks" })).toBeVisible();
+    await snacks.click();
+    await expect(snacks).toHaveAttribute("aria-expanded", "false");
+
+    // By keyboard: Enter opens, the arrow down leads into the panel,
+    // Escape closes and gives the focus back; the arrows walk the bar.
+    await page.mouse.move(0, 0);
+    await staples.focus();
+    await page.keyboard.press("Enter");
+    await expect(staples).toHaveAttribute("aria-expanded", "true");
+    await page.keyboard.press("ArrowDown");
+    await expect(rice).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(staples).toHaveAttribute("aria-expanded", "false");
+    await expect(staples).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(spices).toBeFocused();
+
+    // The category that stands alone: its name leads to its page, its
+    // chevron opens its sub-categories; a press elsewhere closes them.
     const chevron = nav.getByRole("button", {
       name: "Subcategories of Spices",
     });
-    await expect(chevron).toHaveAttribute("aria-expanded", "false");
-    const wholeSpices = nav.getByRole("link", { name: "Whole Spices" });
-    await expect(wholeSpices).toBeHidden();
-
-    // Resting on the item opens the panel; moving down into it keeps it.
-    await nav.getByRole("link", { name: "Spices", exact: true }).hover();
-    await expect(wholeSpices).toBeVisible();
-    await wholeSpices.hover();
-    await expect(wholeSpices).toBeVisible();
-    await wholeSpices.click();
-    await expect(page).toHaveURL(/\/en\/category\/whole-spices$/);
-    await expect(
-      nav.getByRole("link", { name: "Spices", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
-    await expect(nav.getByRole("link", { name: "Whole Spices" })).toBeHidden();
-
-    // By keyboard: the chevron opens, Escape closes and keeps the focus.
-    await page.mouse.move(0, 0);
-    await chevron.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(chevron).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(chevron).toHaveAttribute("aria-expanded", "true");
     await expect(
       nav.getByRole("link", { name: "Masala Blends" }),
     ).toBeVisible();
-    await page.keyboard.press("Escape");
+    await page.mouse.click(4, 500);
     await expect(chevron).toHaveAttribute("aria-expanded", "false");
-    await expect(chevron).toBeFocused();
   });
 });
 

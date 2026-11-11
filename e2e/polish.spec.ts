@@ -104,8 +104,15 @@ test.describe("on a phone", () => {
     await expect(button).toHaveAttribute("aria-expanded", "false");
     await button.click();
     const menu = page.getByRole("dialog", { name: "Categories" });
+    // The groups of the bar of wide screens, each naming its categories;
+    // a category that is the only one of its group is a row of its own.
+    const staples = menu.getByRole("button", { name: /^Rice, Flour & Dal/ });
+    await expect(staples).toHaveAttribute("aria-expanded", "false");
+    await expect(staples).toContainText(
+      "Rice \u00b7 Flour \u00b7 Pulses & Lentils \u00b7 Ghee & Dairy",
+    );
     await expect(
-      menu.getByRole("link", { name: "Rice", exact: true }),
+      menu.getByRole("link", { name: "Spices", exact: true }),
     ).toBeVisible();
     // While the panel is open, the page behind it is hidden from assistive
     // technology, the button included: look at the element itself.
@@ -122,6 +129,21 @@ test.describe("on a phone", () => {
     await expect(
       menu.getByRole("link", { name: /all products|offers|how it works/i }),
     ).toHaveCount(0);
+    // A group folds out its categories, each with its sub-categories.
+    const rice = menu.getByRole("link", { name: "Rice", exact: true });
+    await expect(rice).toBeHidden();
+    await staples.click();
+    await expect(staples).toHaveAttribute("aria-expanded", "true");
+    await expect(rice).toHaveAttribute("href", "/en/category/rice");
+    await expect(rice).toBeVisible();
+    await expect(
+      menu
+        .getByRole("list", { name: "Subcategories of Rice" })
+        .getByRole("link", { name: "Basmati Rice" }),
+    ).toBeVisible();
+    await expect(
+      menu.getByRole("link", { name: "Pulses & Lentils" }),
+    ).toBeVisible();
     // A parent folds out its sub-categories; its own name leads to its page.
     const fold = menu.getByRole("button", { name: "Subcategories of Spices" });
     await expect(fold).toHaveAttribute("aria-expanded", "false");
@@ -138,6 +160,14 @@ test.describe("on a phone", () => {
     await menu.getByRole("link", { name: "Spices", exact: true }).click();
     await expect(page).toHaveURL(/\/en\/category\/spices$/);
     await expect(menu).toHaveCount(0);
+
+    // On the page of a category, its group is the open one.
+    await page.goto("/en/category/basmati-rice");
+    await page.getByRole("button", { name: "Menu" }).click();
+    await expect(staples).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      menu.getByRole("link", { name: "Basmati Rice" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   test("the tab bar shows that a customer is signed in", async ({

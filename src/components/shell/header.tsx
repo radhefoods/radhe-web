@@ -20,10 +20,11 @@ import { WishlistLink } from "./wishlist-link";
  * bar with the logo, the pill search that fills the bar up to the language
  * switch (owner, 2026-10-19), and at its right end the language switch,
  * the wishlist heart with its count, the account and the cart (owner,
- * 2026-10-19: in this order); and the centred category bar with its
- * dropdowns. On phones the search moves under the logo, the categories
- * sit behind the menu button, and the tab bar at the bottom does the
- * everyday navigation; the header then scrolls away with the page.
+ * 2026-10-19: in this order); and the centred category bar, one row of
+ * groups that each open a mega menu (owner, 2026-11-11). On phones the
+ * search moves under the logo, the same groups sit behind the menu
+ * button, and the tab bar at the bottom does the everyday navigation;
+ * the header then scrolls away with the page.
  */
 export async function Header({
   locale,
