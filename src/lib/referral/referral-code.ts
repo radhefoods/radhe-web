@@ -1,4 +1,4 @@
-// The code of a referral link (doc 21): `https://shop.radhefoods.de/?ref=<code>`.
+// The code of a referral link (doc 21): `https://www.radhefoods.de/?ref=<code>`.
 // The shop reads `ref` from the address of any page, keeps it for 30 days
 // in local storage, shows it on the sign-up form (where it can be changed
 // or typed by hand), and sends it as `referralCode` with the sign-up. A

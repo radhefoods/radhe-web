@@ -10,7 +10,22 @@ function flag(value: string | undefined): boolean {
   return value === "true";
 }
 
-const siteUrl = withoutTrailingSlash(
+/**
+ * The shop answers at `https://www.radhefoods.de`; the bare domain redirects
+ * there (the owner, 2026-11-16). A setting that names the bare domain, or
+ * `http`, would put an address that redirects into every canonical link,
+ * every `hreflang` link, `robots.txt` and the sitemap, and a search engine
+ * does not index from those. So such a value is read as the address it
+ * redirects to. Any other address (a preview, localhost) stays as it is.
+ */
+export function primarySiteUrl(value: string): string {
+  return withoutTrailingSlash(value.trim()).replace(
+    /^https?:\/\/(?:www\.)?radhefoods\.de(?=$|[/?#])/i,
+    "https://www.radhefoods.de",
+  );
+}
+
+const siteUrl = primarySiteUrl(
   process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001",
 );
 
