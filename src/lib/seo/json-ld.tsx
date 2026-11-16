@@ -35,13 +35,25 @@ export function JsonLd({ data }: { data: JsonLdObject | JsonLdObject[] }) {
 
 const ORGANIZATION_ID = `${env.siteUrl}/#organization`;
 
+/**
+ * The name a search engine shows above the address of a result ("site
+ * name"), and the spelling it may fall back to. Google reads them from the
+ * `WebSite` block of the home page before anything else.
+ */
+export const SITE_NAME = "Radhe Foods";
+const SITE_ALTERNATE_NAME = "RadheFoods";
+
+/** The home of the site as a whole: the domain's root, not a language. */
+const SITE_HOME = `${env.siteUrl}/`;
+
 export function organizationJsonLd(description: string): JsonLdObject {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": ORGANIZATION_ID,
-    name: "Radhe Foods",
-    url: env.siteUrl,
+    name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAME,
+    url: SITE_HOME,
     logo: absoluteUrl("/brand/radhe-logo-480.webp"),
     description,
     areaServed: { "@type": "Country", name: "DE" },
@@ -49,13 +61,19 @@ export function organizationJsonLd(description: string): JsonLdObject {
   };
 }
 
+/**
+ * The site itself, the same in both languages but for the language and the
+ * search: `url` is the domain's root (which leads to a language), because a
+ * site has one name and one home, and Google asks for exactly that.
+ */
 export function websiteJsonLd(locale: Locale): JsonLdObject {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": `${env.siteUrl}/#website`,
-    name: "Radhe Foods",
-    url: pageUrl("/", locale),
+    name: SITE_NAME,
+    alternateName: SITE_ALTERNATE_NAME,
+    url: SITE_HOME,
     inLanguage: locale,
     publisher: { "@id": ORGANIZATION_ID },
     potentialAction: {

@@ -1,7 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { webPageJsonLd } from "./json-ld";
+import { organizationJsonLd, webPageJsonLd, websiteJsonLd } from "./json-ld";
 
 const SITE = "http://localhost:3001";
+
+describe("the structured data of the home page", () => {
+  it("names the site once, at the root of the domain, in both languages", () => {
+    // Google takes the name it shows above a result from this block, and
+    // asks for the home of the site, not the page of one language.
+    for (const locale of ["en", "de"] as const) {
+      expect(websiteJsonLd(locale)).toMatchObject({
+        "@type": "WebSite",
+        "@id": `${SITE}/#website`,
+        name: "Radhe Foods",
+        alternateName: "RadheFoods",
+        url: `${SITE}/`,
+        inLanguage: locale,
+        publisher: { "@id": `${SITE}/#organization` },
+      });
+    }
+  });
+
+  it("searches in the language of the page", () => {
+    const target = (locale: "en" | "de") =>
+      (
+        websiteJsonLd(locale).potentialAction as {
+          target: { urlTemplate: string };
+        }
+      ).target.urlTemplate;
+    expect(target("en")).toBe(`${SITE}/en/products?q={search_term_string}`);
+    expect(target("de")).toBe(`${SITE}/de/produkte?q={search_term_string}`);
+  });
+
+  it("names the organisation with its logo", () => {
+    expect(organizationJsonLd("Indian groceries")).toMatchObject({
+      "@type": "Organization",
+      "@id": `${SITE}/#organization`,
+      name: "Radhe Foods",
+      url: `${SITE}/`,
+      logo: `${SITE}/brand/radhe-logo-480.webp`,
+      description: "Indian groceries",
+    });
+  });
+});
 
 describe("the structured data of a legal page", () => {
   it("names the page, the language of its text and its last change", () => {

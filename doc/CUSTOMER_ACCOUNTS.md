@@ -1,6 +1,6 @@
 # Customer accounts, guest checkout, wishlists, referrals, reviews and problem reports
 
-For the Customer Web agent and the Admin Panel agent. What the Radhe Foods API does for the retail shop (`shop.radhefoods.de`) as of 2026-11-01 for: guest checkout, sign-up with an emailed code, closing an account, address labels, the account overview, unpaid orders, several wishlists per customer, the referral code, product reviews with order feedback, and problem reports after a delivery. The short forms are in `doc/CUSTOMER_WEB_API_DOCUMENTATION.md` (sections 1, 2, 3, 9, 16, 20 to 23) and `doc/ADMIN_API_DOCUMENTATION.md` (sections 4, 9, 15, 27 to 29).
+For the Customer Web agent and the Admin Panel agent. What the Radhe Foods API does for the retail shop (`www.radhefoods.de`) as of 2026-11-01 for: guest checkout, sign-up with an emailed code, closing an account, address labels, the account overview, unpaid orders, several wishlists per customer, the referral code, product reviews with order feedback, and problem reports after a delivery. The short forms are in `doc/CUSTOMER_WEB_API_DOCUMENTATION.md` (sections 1, 2, 3, 9, 16, 20 to 23) and `doc/ADMIN_API_DOCUMENTATION.md` (sections 4, 9, 15, 27 to 29).
 
 **Strict rule for both frontends:** do not change the theme, colours, fonts or typography. Everything below goes into the existing layouts and components.
 
@@ -104,7 +104,7 @@ When the guest signs up (section 1) with the same email, the guest record become
   "memberSince": "2025-03-01T10:00:00.000Z",
   "counts": { "orders": 12, "openOrders": 1, "invoices": 24, "wishlists": 3, "wishlistItems": 4, "addresses": 3, "openIssues": 0 },
   "defaultAddress": { "…address…" } ,
-  "referral": { "code": "K7Q3XM9P", "link": "https://shop.radhefoods.de/?ref=K7Q3XM9P", "counts": { "registered": 2, "qualified": 1 } },
+  "referral": { "code": "K7Q3XM9P", "link": "https://www.radhefoods.de/?ref=K7Q3XM9P", "counts": { "registered": 2, "qualified": 1 } },
   "locale": "en"
 }
 ```
@@ -145,7 +145,7 @@ The old routes keep working and address the **default list**: `GET /v1/store/wis
 
 ## 7. Referrals
 
-Every registered account has a code (8 letters and digits, made on first request) and a link `https://shop.radhefoods.de/?ref=<code>`.
+Every registered account has a code (8 letters and digits, made on first request) and a link `https://www.radhefoods.de/?ref=<code>`.
 
 - `GET /v1/store/me/referral` → `{ referral: { code, link, counts: { registered, qualified }, invitees: [ { name, email (masked, "ra***@example.com"), status, registeredAt, qualifiedAt } ] } }`. `name` and `email` are `null` once the invited person closed the account.
 - `GET /v1/store/referral-codes/{code}` (added 2026-11-02; no session; 10 calls per minute per IP) → `200 { valid: true, inviter: { firstName } }` for the code of an active account, `404 REFERRAL_CODE_UNKNOWN` for any other code, a malformed one included; case does not matter. For the sign-up form: refuse an unknown code at once and show "Invitation from Priya" under the field. The code still goes with the sign-up as `referralCode`; only the verify answer says whether it counted for this person (`own_code`, `already_customer`, `already_referred`).

@@ -1,6 +1,6 @@
 # Points and rewards (loyalty coins)
 
-The loyalty program of the retail shop (`shop.radhefoods.de`), as of 2026-11-02. Customers collect **coins** for delivered orders, the sign-up, referrals and published reviews, and redeem them on the checkout page for a percentage off the goods. The admin sets every rule in the panel; nothing is hard-coded. For the Admin Panel agent, the Retail Web agent, and whoever maintains the API.
+The loyalty program of the retail shop (`www.radhefoods.de`), as of 2026-11-02. Customers collect **coins** for delivered orders, the sign-up, referrals and published reviews, and redeem them on the checkout page for a percentage off the goods. The admin sets every rule in the panel; nothing is hard-coded. For the Admin Panel agent, the Retail Web agent, and whoever maintains the API.
 
 **Strict rule for both frontends:** do not change the theme, colours, fonts or typography. Everything goes into the existing layouts and components.
 

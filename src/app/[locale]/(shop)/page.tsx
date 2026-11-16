@@ -37,6 +37,7 @@ import type { Locale } from "@/i18n/routing";
 import type { ProductList } from "@/lib/api/types";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 import { JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/json-ld";
+import { sharedOpenGraph } from "@/lib/seo/open-graph";
 
 // Rendered at every visit, like the category pages, from the same cached
 // answers of the API (five minutes, `REVALIDATE.catalogue`). A page cached
@@ -50,10 +51,22 @@ export async function generateMetadata({
 }: PageProps<"/[locale]">): Promise<Metadata> {
   const locale = await localeOf(params);
   const t = await getTranslations("home");
+  const title = `Radhe Foods | ${t("metaTitle")}`;
+  const description = t("metaDescription");
+  const links = alternates(locale, sameHref("/"));
   return {
-    title: { absolute: `Radhe Foods | ${t("metaTitle")}` },
-    description: t("metaDescription"),
-    alternates: alternates(locale, sameHref("/")),
+    title: { absolute: title },
+    description,
+    alternates: links,
+    // The layout's block with the address of this page (`og:url`), which a
+    // shared link is filed under.
+    openGraph: {
+      type: "website",
+      ...(await sharedOpenGraph(locale)),
+      title,
+      description,
+      url: links.canonical as string,
+    },
   };
 }
 

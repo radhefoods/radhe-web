@@ -1,6 +1,6 @@
 # Prompt for the retail web agent: order reviews
 
-Copy everything below the line into the agent that works on the shop (`radhe-web`, shop.radhefoods.de).
+Copy everything below the line into the agent that works on the shop (`radhe-web`, www.radhefoods.de).
 
 ---
 
