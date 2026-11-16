@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { defaultLocale, locales, type Locale } from "@/i18n/routing";
 import type {
+  ApiImage,
   Category,
   IsoDateTime,
   LegalType,
@@ -40,8 +41,20 @@ export interface SitemapLegal {
   publishedAt: IsoDateTime;
 }
 
+/**
+ * What the API knows about a page beyond its address. Both are left out
+ * when the API does not say: a date the shop made up would teach a search
+ * engine not to trust any of them.
+ */
+export interface SitemapExtras {
+  /** The address of the page's main picture, for the picture search. */
+  image?: string | null;
+  /** When the page last changed. */
+  lastModified?: IsoDateTime | null;
+}
+
 /** A pack size as the sitemap needs it: its slug in each language. */
-export interface SitemapProduct {
+export interface SitemapProduct extends SitemapExtras {
   /** The id of the size (`variantId`). */
   id: string;
   slugs: LocalizedSlugs;
@@ -49,11 +62,47 @@ export interface SitemapProduct {
 
 /** The blog as the sitemap needs it: the slugs of the posts and categories. */
 export interface SitemapBlog {
-  posts: { id: string; slugs: LocalizedSlugs }[];
+  posts: ({ id: string; slugs: LocalizedSlugs } & SitemapExtras)[];
   categories: { id: string; slugs: LocalizedSlugs }[];
 }
 
 const NO_BLOG: SitemapBlog = { posts: [], categories: [] };
+
+/**
+ * The address of a picture as the sitemap names it: its largest file, the
+ * one the structured data of the page names too.
+ */
+export function sitemapImage(
+  image: ApiImage | null | undefined,
+): string | null {
+  return image ? image.sizes.large.url : null;
+}
+
+/**
+ * Next.js writes the addresses into the XML as they are. A page's address
+ * is built from slugs; a picture's comes from the API and may carry a
+ * query, whose `&` would break the file.
+ */
+function xmlText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** The entry's picture and date, each only when there is one. */
+function extras({
+  image,
+  lastModified,
+}: SitemapExtras): Pick<
+  MetadataRoute.Sitemap[number],
+  "images" | "lastModified"
+> {
+  return {
+    ...(image && { images: [xmlText(image)] }),
+    ...(lastModified && { lastModified }),
+  };
+}
 
 /**
  * One page of the shop in every language: an entry per language, each
@@ -63,7 +112,7 @@ function localized(
   hrefOf: (locale: Locale) => Href,
   options: Pick<
     MetadataRoute.Sitemap[number],
-    "priority" | "changeFrequency" | "lastModified"
+    "priority" | "changeFrequency" | "lastModified" | "images"
   >,
 ): MetadataRoute.Sitemap {
   const languages: Record<string, string> = {};
@@ -88,25 +137,36 @@ function flatten(categories: Category[]): Category[] {
 /**
  * Joins the pack sizes of the two languages by id. The list of the API
  * carries the slug of one language only, so the catalogue is read once per
- * language; a size missing in one list is left out.
+ * language; a size missing in one list is left out. The picture and the
+ * date are the same in both languages and are taken from the English list.
  */
 export function joinProductSlugs(
-  english: { id: string; slug: string }[],
+  english: ({ id: string; slug: string } & SitemapExtras)[],
   german: { id: string; slug: string }[],
 ): SitemapProduct[] {
   const germanSlug = new Map(
     german.map((product) => [product.id, product.slug]),
   );
-  return english.flatMap((product) => {
-    const de = germanSlug.get(product.id);
-    return de ? [{ id: product.id, slugs: { en: product.slug, de } }] : [];
+  return english.flatMap(({ id, slug, image, lastModified }) => {
+    const de = germanSlug.get(id);
+    if (!de) return [];
+    return [
+      {
+        id,
+        slugs: { en: slug, de },
+        ...(image && { image }),
+        ...(lastModified && { lastModified }),
+      },
+    ];
   });
 }
 
 /**
  * Every indexable address of the shop: static pages, the published legal
  * pages (doc 6), categories, products, the posts and categories of the
- * blog (doc 19; the tag pages are views of the list and stay out).
+ * blog (doc 19; the tag pages are views of the list and stay out). A
+ * category, a pack size and a post name their picture; a page carries a
+ * date when the API gives one.
  */
 export function buildSitemap(
   categories: Category[],
@@ -140,7 +200,11 @@ export function buildSitemap(
             pathname: "/category/[slug]",
             params: { slug: category.slugs[locale] },
           }),
-          { priority: 0.8, changeFrequency: "daily" },
+          {
+            priority: 0.8,
+            changeFrequency: "daily",
+            ...extras({ image: sitemapImage(category.image) }),
+          },
         ),
       ),
     ...products.flatMap((product) =>
@@ -149,7 +213,7 @@ export function buildSitemap(
           pathname: "/products/[slug]",
           params: { slug: product.slugs[locale] },
         }),
-        { priority: 0.7, changeFrequency: "daily" },
+        { priority: 0.7, changeFrequency: "daily", ...extras(product) },
       ),
     ),
     ...blog.categories.flatMap((category) =>
@@ -167,7 +231,7 @@ export function buildSitemap(
           pathname: "/blog/[slug]",
           params: { slug: post.slugs[locale] },
         }),
-        { priority: 0.6, changeFrequency: "monthly" },
+        { priority: 0.6, changeFrequency: "monthly", ...extras(post) },
       ),
     ),
   ];

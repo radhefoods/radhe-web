@@ -1,8 +1,33 @@
 import { describe, expect, it } from "vitest";
-import type { Category } from "@/lib/api/types";
-import { STATIC_PAGES, buildSitemap, joinProductSlugs } from "./sitemap";
+import type { ApiImage, Category } from "@/lib/api/types";
+import {
+  STATIC_PAGES,
+  buildSitemap,
+  joinProductSlugs,
+  sitemapImage,
+} from "./sitemap";
 
 const SITE = "http://localhost:3001";
+const CDN = "https://cdn.example/catalog";
+
+function picture(name: string): ApiImage {
+  const file = (size: string, width: number) => ({
+    url: `${CDN}/${name}/${size}.webp`,
+    width,
+    height: width,
+  });
+  return {
+    id: name,
+    alt: name,
+    isPrimary: true,
+    url: `${CDN}/${name}/medium.webp`,
+    sizes: {
+      small: file("small", 320),
+      medium: file("medium", 600),
+      large: file("large", 1200),
+    },
+  };
+}
 
 function category(en: string, de: string, children: Category[] = []): Category {
   return {
@@ -44,6 +69,38 @@ describe("joinProductSlugs", () => {
         [{ id: "2", slug: "dal" }],
       ),
     ).toEqual([{ id: "2", slugs: { en: "dal", de: "dal" } }]);
+  });
+
+  it("keeps the picture and the date of the English list, and nothing in their place", () => {
+    const [pictured, bare] = joinProductSlugs(
+      [
+        {
+          id: "1",
+          slug: "rice",
+          image: `${CDN}/rice/large.webp`,
+          lastModified: "2026-11-10T08:00:00.000Z",
+        },
+        { id: "2", slug: "dal", image: null, lastModified: undefined },
+      ],
+      [
+        { id: "1", slug: "reis" },
+        { id: "2", slug: "dal" },
+      ],
+    );
+    expect(pictured).toEqual({
+      id: "1",
+      slugs: { en: "rice", de: "reis" },
+      image: `${CDN}/rice/large.webp`,
+      lastModified: "2026-11-10T08:00:00.000Z",
+    });
+    expect(Object.keys(bare)).toEqual(["id", "slugs"]);
+  });
+});
+
+describe("sitemapImage", () => {
+  it("names the largest file of a picture, and nothing without one", () => {
+    expect(sitemapImage(picture("rice"))).toBe(`${CDN}/rice/large.webp`);
+    expect(sitemapImage(null)).toBeNull();
   });
 });
 
@@ -131,6 +188,78 @@ describe("buildSitemap", () => {
       de: `${SITE}/de/produkte/basmati-reis-5kg`,
       "x-default": `${SITE}/en/products/basmati-rice-5kg`,
     });
+  });
+
+  it("carries no date and no picture the API did not give", () => {
+    // A made-up date (the day of the build, say) is worse than none.
+    for (const entry of sitemap) {
+      const legal = /\/(legal|rechtliches)\/(?!cookies)/.test(entry.url);
+      expect(entry.lastModified !== undefined).toBe(legal);
+      expect(entry.images).toBeUndefined();
+    }
+  });
+
+  it("gives a pack size, a category and a post their picture and date in both languages", () => {
+    const rich = buildSitemap(
+      [{ ...category("rice", "reis"), image: picture("rice") }],
+      [
+        {
+          id: "1",
+          slugs: { en: "basmati-rice-5kg", de: "basmati-reis-5kg" },
+          image: `${CDN}/basmati/large.webp`,
+          lastModified: "2026-11-10T08:00:00.000Z",
+        },
+        { id: "2", slugs: { en: "toor-dal-1kg", de: "toor-dal-1kg" } },
+      ],
+      {
+        posts: [
+          {
+            id: "p1",
+            slugs: { en: "the-perfect-dal", de: "das-perfekte-dal" },
+            image: `${CDN}/dal/large.webp`,
+            lastModified: "2026-10-24T18:00:00.000Z",
+          },
+        ],
+        categories: [],
+      },
+    );
+    const entry = (path: string) =>
+      rich.find(({ url }) => url === `${SITE}${path}`);
+    for (const path of [
+      "/en/products/basmati-rice-5kg",
+      "/de/produkte/basmati-reis-5kg",
+    ]) {
+      expect(entry(path)).toMatchObject({
+        images: [`${CDN}/basmati/large.webp`],
+        lastModified: "2026-11-10T08:00:00.000Z",
+      });
+    }
+    expect(entry("/de/kategorie/reis")?.images).toEqual([
+      `${CDN}/rice/large.webp`,
+    ]);
+    expect(entry("/de/blog/das-perfekte-dal")).toMatchObject({
+      images: [`${CDN}/dal/large.webp`],
+      lastModified: "2026-10-24T18:00:00.000Z",
+    });
+    const bare = entry("/en/products/toor-dal-1kg");
+    expect(bare).toBeDefined();
+    expect(bare).not.toHaveProperty("images");
+    expect(bare).not.toHaveProperty("lastModified");
+  });
+
+  it("writes a picture's address so that it cannot break the XML", () => {
+    // Next.js writes the value into the file as it is.
+    const [entry] = buildSitemap(
+      [],
+      [
+        {
+          id: "1",
+          slugs: { en: "rice", de: "reis" },
+          image: `${CDN}/rice.webp?w=1200&q=80`,
+        },
+      ],
+    ).filter(({ url }) => url.endsWith("/products/rice"));
+    expect(entry.images).toEqual([`${CDN}/rice.webp?w=1200&amp;q=80`]);
   });
 
   it("leaves out what belongs to one visitor", () => {

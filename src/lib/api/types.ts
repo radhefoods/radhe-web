@@ -452,6 +452,12 @@ export interface ProductSummary {
   /** Every enabled size, smallest first, the shown one included. */
   variants: ProductVariant[];
   variantCount: number;
+  /**
+   * When the product last changed. The detail always carries it; a list
+   * entry did not on 2026-11-16 (asked of the backend for the sitemap's
+   * `lastmod`), so a reader of lists has to do without.
+   */
+  updatedAt?: IsoDateTime;
 }
 
 /** The product page, opened on one size: the list entry plus the texts. */
@@ -1390,6 +1396,11 @@ export interface BlogPostSummary {
   readingMinutes: number;
   category: BlogCategoryRef | null;
   tags: string[];
+  /**
+   * The last edit. The post itself always carries it; a list entry did not
+   * on 2026-11-16 (asked of the backend, as for the products).
+   */
+  updatedAt?: IsoDateTime;
 }
 
 export interface BlogPost extends BlogPostSummary {
