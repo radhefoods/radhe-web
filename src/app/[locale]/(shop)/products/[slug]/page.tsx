@@ -43,6 +43,7 @@ import { markdownToText } from "@/lib/format/markdown";
 import { alternates, pageUrl } from "@/lib/seo/alternates";
 import { sharedOpenGraph } from "@/lib/seo/open-graph";
 import { JsonLd, breadcrumbJsonLd, productJsonLd } from "@/lib/seo/json-ld";
+import { productPageTitle, titleOnce } from "@/lib/seo/title";
 import {
   brandOf,
   formatProductName,
@@ -93,19 +94,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProduct(slug, locale);
   if (!product) return {};
-  // The title names the pack size the address stands for.
-  const title =
-    product.seo.title ?? productTitle(product.name, product.packSize);
+  const t = await getTranslations("catalogue");
+  // The title names the pack size the address stands for: the admin's title
+  // belongs to the product, and two sizes with one title are one page to a
+  // search engine.
+  const title = productPageTitle(product, product.packSize);
+  // A product the admin has not described yet still says what the page is.
   const description =
-    product.seo.description ??
-    product.shortDescription ??
-    (product.description ? excerptOf(product.description) : undefined);
+    product.seo.description ||
+    product.shortDescription ||
+    (product.description ? excerptOf(product.description) : undefined) ||
+    t("productDescription", {
+      name: productTitle(product.name, product.packSize),
+    });
   // The main picture of the size the address stands for; a size without
   // one keeps the picture of the shop, never that of another size.
   const picture = product.images[0] ?? product.image;
   const image = picture?.sizes.large;
   return {
-    title,
+    title: titleOnce(title),
     description,
     alternates: alternates(locale, hrefsOf(product.slugs)),
     openGraph: {

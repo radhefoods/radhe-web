@@ -44,6 +44,7 @@ import { Price } from "./price";
 import { ProductGallery, usePicturesAhead } from "./product-gallery";
 import { WishlistButton } from "./wishlist-button";
 import { formatPackSize, productTitle } from "@/lib/format/product-name";
+import { productPageTitle } from "@/lib/seo/title";
 
 // The product page is one page for every pack size of a product (doc 7). The
 // server renders it for the size its address names; choosing another size
@@ -129,18 +130,16 @@ export function PackSizes({
   );
 
   // The tab's title names the size; the rest of it (the shop) stays.
-  const titledAs = useRef(
-    product.seo.title ?? productTitle(product.name, product.packSize),
-  );
+  const titledAs = useRef(productPageTitle(product, product.packSize));
   const select = useCallback(
     (next: ProductVariant, href?: string) => {
       setVariantId(next.id);
       if (href) window.history.pushState(null, "", href);
-      const title = productTitle(product.name, next.packSize);
+      const title = productPageTitle(product, next.packSize);
       document.title = document.title.replace(titledAs.current, title);
       titledAs.current = title;
     },
-    [product.name],
+    [product],
   );
 
   // Back and forward move between the addresses of the sizes.

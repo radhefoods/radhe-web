@@ -1,9 +1,7 @@
 import type { MetadataRoute } from "next";
-import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import type { Locale } from "@/i18n/routing";
 import { isApiError } from "@/lib/api/errors";
 import { TAGS, serverApi } from "@/lib/api/server";
-import type { Category } from "@/lib/api/types";
 import {
   buildSitemap,
   joinProductSlugs,
@@ -11,31 +9,33 @@ import {
   type SitemapBlog,
   type SitemapExtras,
   type SitemapLegal,
-  type SitemapProduct,
+  type SitemapPage,
 } from "@/lib/seo/sitemap";
 
 // `/sitemap.xml`: every indexable address, in both languages, read from the
-// API and renewed every hour: a product, a category or a post that is new
-// or gone is in or out of the file within the hour, without a deployment.
-export const revalidate = 3600;
+// API: a product, a category or a post that is new or gone is in or out of
+// the file within about an hour, without a deployment.
+//
+// The file is written at each request, from answers of the API that are
+// kept for an hour (below). It was a file renewed on a timer
+// (`revalidate = 3600`) until 2026-11-17: on the host that timer never ran
+// for this file, and the sitemap stayed as the last deployment had built it
+// (measured: 25 hours old, while pages on the same timer were renewed).
+// Nothing is built ahead, so the build does not ask the API for it either.
+export const dynamic = "force-dynamic";
 
-// The reads are kept as long as the sitemap itself: a shorter time here
-// would shorten the sitemap's, and every renewal pages through the whole
-// catalogue and the whole blog, twice.
-const cache = { revalidate, tags: [TAGS.catalogue] };
-const content = { revalidate, tags: [TAGS.content] };
-const legal = { revalidate, tags: [TAGS.legal] };
+// An hour, whoever asks and however often: one renewal pages through the
+// whole catalogue twice (about forty calls), and the API counts the calls
+// of the shop's server. A crawler that asks every minute costs no call.
+const HOUR = 3600;
+const cache = { revalidate: HOUR, tags: [TAGS.catalogue] };
+const content = { revalidate: HOUR, tags: [TAGS.content] };
+const legal = { revalidate: HOUR, tags: [TAGS.legal] };
+const reviews = { revalidate: HOUR, tags: [TAGS.reviews] };
 
-/**
- * What to do when the API did not answer. While building, the pages that
- * do not need the API are listed and the first renewal brings the rest:
- * the build must not depend on the API. On a running shop the failure is
- * thrown: Next.js then keeps the last good sitemap and tries again at the
- * next request, instead of keeping a sitemap without products for an hour.
- */
-function unlessBuilding(error: unknown): void {
-  if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) throw error;
-}
+// When the API does not answer and nothing is kept, the call throws and the
+// request fails (500): a search engine keeps the sitemap it read before and
+// asks again, where a sitemap without products would tell it they are gone.
 
 /** A page of a list as the sitemap reads it: its slug in one language. */
 type Listed = { id: string; slug: string } & SitemapExtras;
@@ -89,7 +89,7 @@ async function allPosts(locale: Locale) {
   return posts;
 }
 
-/** The posts and the categories of the blog; none when the API is away. */
+/** The posts and the categories of the blog. */
 async function blogPages(): Promise<SitemapBlog> {
   try {
     const [english, german, categories] = await Promise.all([
@@ -105,8 +105,10 @@ async function blogPages(): Promise<SitemapBlog> {
     };
   } catch (error) {
     // An API without the blog (404) has no blog pages to list.
-    if (!(isApiError(error) && error.status === 404)) unlessBuilding(error);
-    return { posts: [], categories: [] };
+    if (isApiError(error) && error.status === 404) {
+      return { posts: [], categories: [] };
+    }
+    throw error;
   }
 }
 
@@ -115,30 +117,49 @@ async function blogPages(): Promise<SitemapBlog> {
  * current version. One language is enough: the addresses are fixed.
  */
 async function legalPages(): Promise<SitemapLegal[]> {
-  try {
-    const { items } = await serverApi.listLegal({ locale: "en", next: legal });
-    return items.map(({ type, publishedAt }) => ({ type, publishedAt }));
-  } catch (error) {
-    unlessBuilding(error);
-    return [];
+  const { items } = await serverApi.listLegal({ locale: "en", next: legal });
+  return items.map(({ type, publishedAt }) => ({ type, publishedAt }));
+}
+
+/**
+ * The pages that have nothing to show yet: the FAQ without a published
+ * question (doc 18), the reviews without a published review. They say
+ * `noindex` themselves until then. A page whose state the API does not
+ * tell stays listed: this decides about one line, not about the file.
+ */
+async function emptyPages(): Promise<SitemapPage[]> {
+  const [faqs, published] = await Promise.allSettled([
+    serverApi.listFaqs({ locale: "en", next: content }),
+    serverApi.listReviews({ limit: 1 }, { locale: "en", next: reviews }),
+  ]);
+  const empty: SitemapPage[] = [];
+  if (
+    faqs.status === "fulfilled" &&
+    !faqs.value.groups.some((group) => group.items.length > 0)
+  ) {
+    empty.push("/faq");
   }
+  if (published.status === "fulfilled" && published.value.summary.count === 0) {
+    empty.push("/reviews");
+  }
+  return empty;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let categories: Category[] = [];
-  let products: SitemapProduct[] = [];
-  try {
-    const [tree, english, german] = await Promise.all([
-      // The tree of one language carries the slugs of both.
-      serverApi.listCategories({ locale: "en", next: cache }),
-      allProducts("en"),
-      allProducts("de"),
-    ]);
-    categories = tree.items;
-    products = joinProductSlugs(english, german);
-  } catch (error) {
-    unlessBuilding(error);
-  }
-  const [blog, legalList] = await Promise.all([blogPages(), legalPages()]);
-  return buildSitemap(categories, products, blog, legalList);
+  const [tree, english, german, blog, legalList, empty] = await Promise.all([
+    // The tree of one language carries the slugs of both.
+    serverApi.listCategories({ locale: "en", next: cache }),
+    allProducts("en"),
+    allProducts("de"),
+    blogPages(),
+    legalPages(),
+    emptyPages(),
+  ]);
+  return buildSitemap(
+    tree.items,
+    joinProductSlugs(english, german),
+    blog,
+    legalList,
+    empty,
+  );
 }

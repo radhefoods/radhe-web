@@ -11,6 +11,7 @@ import type {
 import { galleryOf, packSizesOf } from "@/lib/catalogue/pictures";
 import { centsToDecimalString } from "@/lib/format/money";
 import { absoluteUrl, pageUrl } from "./alternates";
+import { SITE_NAME } from "./title";
 import {
   brandOf,
   formatProductName,
@@ -40,7 +41,7 @@ const ORGANIZATION_ID = `${env.siteUrl}/#organization`;
  * name"), and the spelling it may fall back to. Google reads them from the
  * `WebSite` block of the home page before anything else.
  */
-export const SITE_NAME = "Radhe Foods";
+export { SITE_NAME };
 const SITE_ALTERNATE_NAME = "RadheFoods";
 
 /** The home of the site as a whole: the domain's root, not a language. */

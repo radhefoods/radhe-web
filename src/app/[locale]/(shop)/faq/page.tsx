@@ -14,10 +14,17 @@ export const revalidate = 300;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = await localeOf(params);
-  const t = await getTranslations("faq");
+  const [t, groups] = await Promise.all([
+    getTranslations("faq"),
+    getFaqs(locale),
+  ]);
   return {
     title: t("title"),
     description: t("metaDescription"),
+    // Without a published question the page is a headline and nothing else.
+    robots: groups.some((group) => group.items.length > 0)
+      ? undefined
+      : { index: false, follow: true },
     alternates: alternates(locale, sameHref("/faq")),
   };
 }

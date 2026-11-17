@@ -15,6 +15,13 @@ import { alternates, sameHref } from "@/lib/seo/alternates";
 
 type Props = PageProps<"/[locale]/reviews">;
 
+/** What the page asks the API for: one page of the reviews, narrowed or not. */
+const reviewsPageQuery = (state: ReturnType<typeof parseReviewsState>) => ({
+  page: state.page,
+  limit: REVIEWS_PAGE_SIZE,
+  ...(state.rating !== null && { rating: state.rating }),
+});
+
 export async function generateMetadata({
   params,
   searchParams,
@@ -24,12 +31,18 @@ export async function generateMetadata({
   const state = parseReviewsState(await searchParams);
   const links = alternates(locale, sameHref({ pathname: "/reviews" }));
   const query = new URLSearchParams(reviewsQuery(state)).toString();
+  // The list the page shows (the same call, answered once).
+  const { summary } = await getReviews(reviewsPageQuery(state), locale);
   return {
     title: t("publicTitle"),
     description: t("metaDescription"),
     // A filter is a view of the same list: only the list itself (and its
-    // further pages) belongs in a search engine.
-    robots: state.rating !== null ? { index: false, follow: true } : undefined,
+    // further pages) belongs in a search engine, and not before the first
+    // review is published.
+    robots:
+      state.rating !== null || summary.count === 0
+        ? { index: false, follow: true }
+        : undefined,
     alternates:
       state.rating === null && state.page > 1
         ? { canonical: `${links.canonical}?${query}` }
@@ -48,14 +61,7 @@ export default async function ReviewsPage({ params, searchParams }: Props) {
   const [t, tCatalogue, page] = await Promise.all([
     getTranslations("reviews"),
     getTranslations("catalogue"),
-    getReviews(
-      {
-        page: state.page,
-        limit: REVIEWS_PAGE_SIZE,
-        ...(state.rating !== null && { rating: state.rating }),
-      },
-      locale,
-    ),
+    getReviews(reviewsPageQuery(state), locale),
   ]);
 
   // A page number beyond the last page is not a page of the shop.

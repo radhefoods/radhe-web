@@ -443,10 +443,10 @@ test.describe("the blog", () => {
     page,
   }) => {
     await page.goto("/en/blog/the-perfect-dal");
-    // The title for search engines, then the shop's name (the layout's
-    // template).
+    // The title for search engines names the shop already: it stands as
+    // it was written, and the layout does not append the name again.
     await expect(page).toHaveTitle(
-      "The perfect dal – a recipe from Radhe Foods | Radhe Foods",
+      "The perfect dal – a recipe from Radhe Foods",
     );
     const article = page.getByRole("main").getByRole("article").first();
     await expect(article.getByRole("heading", { level: 1 })).toHaveText(

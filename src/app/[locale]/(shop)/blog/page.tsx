@@ -3,9 +3,14 @@ import { getTranslations } from "next-intl/server";
 import { BlogListing } from "@/components/blog/blog-listing";
 import {
   parseBlogState,
+  toBlogQuery,
   toBlogQueryString,
 } from "@/features/content/blog-state";
-import { getBlogCategories, getBlogTags } from "@/features/content/data";
+import {
+  getBlogCategories,
+  getBlogTags,
+  listBlogPosts,
+} from "@/features/content/data";
 import { localeOf } from "@/i18n/locale";
 import { alternates, sameHref } from "@/lib/seo/alternates";
 
@@ -19,12 +24,16 @@ export async function generateMetadata({
   const t = await getTranslations("blog");
   const state = parseBlogState(await searchParams);
   const links = alternates(locale, sameHref("/blog"));
+  // The list the page shows (the same call, answered once).
+  const posts = await listBlogPosts(toBlogQuery(state), locale);
   return {
     title: state.q ? t("searchTitle", { query: state.q }) : t("title"),
     description: t("metaDescription"),
     // A search is a view of the same list: only the list itself (and its
-    // further pages) belongs in a search engine.
-    robots: state.q ? { index: false, follow: true } : undefined,
+    // further pages) belongs in a search engine, and not before the first
+    // post is published: a blog without posts is an empty page.
+    robots:
+      state.q || posts.total === 0 ? { index: false, follow: true } : undefined,
     alternates:
       !state.q && state.page > 1
         ? { canonical: `${links.canonical}?${toBlogQueryString(state)}` }

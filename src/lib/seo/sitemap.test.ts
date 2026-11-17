@@ -179,6 +179,37 @@ describe("buildSitemap", () => {
     ).toEqual([`${SITE}/en/legal/cookies`, `${SITE}/de/rechtliches/cookies`]);
   });
 
+  it("leaves out a page that has nothing on it yet", () => {
+    // Such a page says `noindex` itself; listing it would contradict that.
+    const paths = (...args: Parameters<typeof buildSitemap>) =>
+      buildSitemap(...args).map((entry) => entry.url.replace(SITE, ""));
+    const post = { id: "p1", slugs: { en: "dal", de: "dal" } };
+
+    // A blog without a post is not listed; with the first post it is.
+    expect(paths([], [])).not.toContain("/en/blog");
+    expect(paths([], [], { posts: [post], categories: [] })).toContain(
+      "/de/blog",
+    );
+
+    // The FAQ without a question, the reviews without a review.
+    const full = paths([], []);
+    expect(full).toContain("/en/faq");
+    expect(full).toContain("/de/bewertungen");
+    const bare = paths([], [], undefined, [], ["/faq", "/reviews"]);
+    for (const gone of [
+      "/en/faq",
+      "/de/faq",
+      "/en/reviews",
+      "/de/bewertungen",
+    ]) {
+      expect(bare).not.toContain(gone);
+    }
+    // Nothing else goes with them.
+    expect(bare).toHaveLength(full.length - 4);
+    expect(bare).toContain("/en");
+    expect(bare).toContain("/de/produkte");
+  });
+
   it("names the other language and the default on every entry", () => {
     const german = sitemap.find(
       (entry) => entry.url === `${SITE}/de/produkte/basmati-reis-5kg`,

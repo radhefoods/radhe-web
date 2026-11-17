@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { LegalType } from "@/lib/api/types";
+import { titleOnce } from "@/lib/seo/title";
 
 // The legal pages of the shop. Six are written and published by the admin
 // in the panel and come from the API (doc 6, `doc/LEGAL_PAGES.md`): the
@@ -82,7 +83,5 @@ export function legalTitle(
   title: string,
   shopName: string,
 ): NonNullable<Metadata["title"]> {
-  return title.toLowerCase().includes(shopName.toLowerCase())
-    ? { absolute: title }
-    : title;
+  return titleOnce(title, shopName);
 }

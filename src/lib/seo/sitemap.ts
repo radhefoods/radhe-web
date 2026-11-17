@@ -29,6 +29,9 @@ export const STATIC_PAGES: { href: Href; priority: number }[] = [
   { href: "/legal/cookies", priority: 0.1 },
 ];
 
+/** A page whose content comes from the API and may not be there yet. */
+export type SitemapPage = "/faq" | "/reviews";
+
 /**
  * A published legal page as the sitemap needs it (`GET /v1/store/legal`).
  * A page without a published text is left out: it answers 404, or, for
@@ -167,19 +170,27 @@ export function joinProductSlugs(
  * blog (doc 19; the tag pages are views of the list and stay out). A
  * category, a pack size and a post name their picture; a page carries a
  * date when the API gives one.
+ *
+ * A page with nothing on it yet is left out, as it says `noindex` itself:
+ * the blog without a post, and the pages named in `empty` (the FAQ without
+ * a question, the reviews without a review).
  */
 export function buildSitemap(
   categories: Category[],
   products: SitemapProduct[],
   blog: SitemapBlog = NO_BLOG,
   legal: SitemapLegal[] = [],
+  empty: readonly SitemapPage[] = [],
 ): MetadataRoute.Sitemap {
+  const without = new Set<Href>(empty);
+  if (blog.posts.length === 0) without.add("/blog");
   return [
-    ...STATIC_PAGES.flatMap(({ href, priority }) =>
-      localized(() => href, {
-        priority,
-        changeFrequency: priority >= 0.9 ? "daily" : "monthly",
-      }),
+    ...STATIC_PAGES.filter(({ href }) => !without.has(href)).flatMap(
+      ({ href, priority }) =>
+        localized(() => href, {
+          priority,
+          changeFrequency: priority >= 0.9 ? "daily" : "monthly",
+        }),
     ),
     ...legal
       // A type this shop has no page for is not an address of it.

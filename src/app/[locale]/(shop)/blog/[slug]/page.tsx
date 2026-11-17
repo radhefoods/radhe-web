@@ -14,6 +14,7 @@ import type { LocalizedSlugs } from "@/lib/api/types";
 import { formatDate } from "@/lib/format/dates";
 import { alternates, pageUrl } from "@/lib/seo/alternates";
 import { sharedOpenGraph } from "@/lib/seo/open-graph";
+import { titleOnce } from "@/lib/seo/title";
 import { JsonLd, articleJsonLd } from "@/lib/seo/json-ld";
 
 type Props = PageProps<"/[locale]/blog/[slug]">;
@@ -53,7 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const image = post.featuredImage?.sizes.medium;
   const description = post.seo.description ?? undefined;
   return {
-    title: post.seo.title,
+    title: titleOnce(post.seo.title),
     description,
     alternates: alternates(locale, hrefsOf(post.alternates)),
     openGraph: {

@@ -17,6 +17,7 @@ import { localeOf } from "@/i18n/locale";
 import type { Locale } from "@/i18n/routing";
 import type { BlogCategory, LocalizedSlugs } from "@/lib/api/types";
 import { alternates } from "@/lib/seo/alternates";
+import { titleOnce } from "@/lib/seo/title";
 
 type Props = PageProps<"/[locale]/blog/category/[slug]">;
 
@@ -58,7 +59,7 @@ export async function generateMetadata({
   const state = parseBlogState(await searchParams);
   const links = alternates(locale, hrefsOf(category.alternates));
   return {
-    title: category.seo.title ?? category.name,
+    title: titleOnce(category.seo.title ?? category.name),
     description:
       category.seo.description ??
       category.description ??

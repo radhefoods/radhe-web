@@ -16,6 +16,7 @@ import type { Locale } from "@/i18n/routing";
 import type { LocalizedSlugs } from "@/lib/api/types";
 import { alternates } from "@/lib/seo/alternates";
 import { JsonLd, breadcrumbJsonLd } from "@/lib/seo/json-ld";
+import { titleOnce } from "@/lib/seo/title";
 
 type Props = PageProps<"/[locale]/category/[slug]">;
 
@@ -53,12 +54,18 @@ export async function generateMetadata({
   const filtered = isFiltered(state);
   const links = alternates(locale, hrefsOf(category.slugs));
   return {
-    title: category.seo.title ?? category.name,
+    title: titleOnce(category.seo.title ?? category.name),
     description:
       category.seo.description ??
       category.description ??
       t("categoryDescription", { name: category.name }),
-    robots: filtered ? { index: false, follow: true } : undefined,
+    // A filtered list is a view of the same list. A category without
+    // products is a page with nothing on it: a search engine files it as
+    // "not found" until the first product is in it.
+    robots:
+      filtered || category.productCount === 0
+        ? { index: false, follow: true }
+        : undefined,
     alternates:
       !filtered && state.page > 1
         ? {

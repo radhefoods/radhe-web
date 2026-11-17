@@ -138,7 +138,8 @@
     "previous": "Previous",
     "next": "Next",
     "pageOf": "Page {page} of {total}",
-    "categoryDescription": "{name} from Radhe Foods. Order online, pay at checkout, delivered across Germany."
+    "categoryDescription": "{name} from Radhe Foods. Order online, pay at checkout, delivered across Germany.",
+    "productDescription": "Order {name} online at Radhe Foods. Indian groceries from stock, paid at checkout, delivered across Germany."
   },
   "filters": {
     "title": "Filters",
