@@ -47,7 +47,8 @@ export function BoxCapacity({
   shipping: BillShipping;
   className?: string;
 }) {
-  const t = useTranslations("cart");
+  const t = useTranslations("shipping");
+  const tCart = useTranslations("cart");
   const locale = useLocale() as Locale;
   const titleId = useId();
   const { boxes, currentBox, requiredBoxes } = shipping;
@@ -72,11 +73,11 @@ export function BoxCapacity({
     >
       <div className="flex items-baseline justify-between gap-3">
         <h3 id={titleId} className="text-sm font-bold">
-          {t("shipping.boxesTitle", { count: requiredBoxes })}
+          {t("boxesTitle", { count: requiredBoxes })}
         </h3>
         <p className="text-ink-muted text-xs font-semibold tabular-nums">
           {single
-            ? t("shipping.load", {
+            ? t("load", {
                 weight: weight(shipping.weight.total),
                 max: weight(shipping.box.maxWeight),
               })
@@ -107,12 +108,12 @@ export function BoxCapacity({
             >
               {box.separate ? (
                 <span className="col-span-2 font-semibold">
-                  {t("shipping.separate")}
+                  {t("separate")}
                 </span>
               ) : (
                 <>
                   <span className="font-semibold whitespace-nowrap">
-                    {t("shipping.box", { number: box.number })}
+                    {t("box", { number: box.number })}
                   </span>
                   <Bar percent={box.utilization} className="h-2" />
                 </>
@@ -126,7 +127,9 @@ export function BoxCapacity({
                   box.free ? "text-leaf-700 font-bold" : "font-semibold",
                 )}
               >
-                {box.free ? t("deliveryFree") : formatMoney(box.fee, locale)}
+                {box.free
+                  ? tCart("deliveryFree")
+                  : formatMoney(box.fee, locale)}
               </span>
             </li>
           ))}
@@ -135,25 +138,23 @@ export function BoxCapacity({
 
       {more > 0 && (
         <p className="text-ink-muted mt-2 text-sm">
-          {t("shipping.more", { count: more })}
+          {t("more", { count: more })}
         </p>
       )}
       {currentBox && (
         <p className="text-ink-muted mt-2.5 text-sm leading-snug">
           {isBoxFull(currentBox)
-            ? t("shipping.full", { count: requiredBoxes })
+            ? t("full", { count: requiredBoxes })
             : single
-              ? t("shipping.roomOne", { room: room(currentBox.remaining) })
-              : t("shipping.roomSeveral", {
+              ? t("roomOne", { room: room(currentBox.remaining) })
+              : t("roomSeveral", {
                   number: currentBox.number,
                   room: room(currentBox.remaining),
                 })}
         </p>
       )}
       {shipping.weight.estimated && (
-        <p className="text-ink-subtle mt-1 text-xs">
-          {t("shipping.approximate")}
-        </p>
+        <p className="text-ink-subtle mt-1 text-xs">{t("approximate")}</p>
       )}
     </section>
   );

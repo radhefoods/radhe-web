@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { CartView } from "@/components/cart/cart-view";
 import { getSettings } from "@/features/catalogue/data";
+import { AreaMessages } from "@/i18n/area-messages";
 import { localeOf } from "@/i18n/locale";
 
 export async function generateMetadata({
@@ -28,7 +29,11 @@ export default async function CartPage({
       <h1 className="font-display text-ink text-3xl sm:text-4xl">
         {t("title")}
       </h1>
-      <CartView boxBased={settings?.shipping?.boxBased ?? false} />
+      {/* The texts of the boxes of a bill travel with this page, the
+          checkout and the orders only, not with every page of the shop. */}
+      <AreaMessages area="cart">
+        <CartView boxBased={settings?.shipping?.boxBased ?? false} />
+      </AreaMessages>
     </div>
   );
 }

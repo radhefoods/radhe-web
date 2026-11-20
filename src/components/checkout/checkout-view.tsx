@@ -293,6 +293,7 @@ export function CheckoutView({
   const tAddress = useTranslations("address");
   const tProduct = useTranslations("product");
   const tCart = useTranslations("cart");
+  const tShipping = useTranslations("shipping");
   const locale = useLocale() as Locale;
   const router = useRouter();
   const client = useQueryClient();
@@ -846,7 +847,7 @@ export function CheckoutView({
               <ShippingProgress shipping={shipping} code={freeDeliveryCode} />
               {lostByCode > 0 && missingForBox !== null && (
                 <Alert tone="info">
-                  {tCart("shipping.lostByCode", {
+                  {tShipping("lostByCode", {
                     count: lostByCode,
                     amount: formatMoney(missingForBox, locale),
                   })}
@@ -854,7 +855,7 @@ export function CheckoutView({
               )}
               {lostByCoins > 0 && missingForBox !== null && (
                 <Alert tone="info">
-                  {tCart("shipping.lostByCoins", {
+                  {tShipping("lostByCoins", {
                     count: lostByCoins,
                     amount: formatMoney(missingForBox, locale),
                   })}

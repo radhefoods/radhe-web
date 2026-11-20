@@ -52,6 +52,7 @@ export function BillTotals({
   className?: string;
 }) {
   const t = useTranslations("cart");
+  const tShipping = useTranslations("shipping");
   const locale = useLocale() as Locale;
   const row = "flex items-baseline justify-between gap-4";
   const saving = "text-leaf-700 font-semibold";
@@ -60,18 +61,18 @@ export function BillTotals({
   const count = boxes?.requiredBoxes ?? 0;
   const deliveryNote = byCode
     ? count > 1
-      ? t("shipping.summaryWithCode", { count, code: freeDeliveryCode })
-      : t("shipping.withCode", { code: freeDeliveryCode })
+      ? tShipping("summaryWithCode", { count, code: freeDeliveryCode })
+      : tShipping("withCode", { code: freeDeliveryCode })
     : boxes === null || count < 2
       ? null
       : boxes.paidBoxes === 0
-        ? t("shipping.summaryAllFree", { count })
+        ? tShipping("summaryAllFree", { count })
         : boxes.freeBoxes === 0
-          ? t("shipping.summaryNoneFree", {
+          ? tShipping("summaryNoneFree", {
               count,
               perBox: formatMoney(boxes.feePerPaidBox, locale),
             })
-          : t("shipping.summary", {
+          : tShipping("summary", {
               count,
               free: boxes.freeBoxes,
               paid: boxes.paidBoxes,
@@ -118,7 +119,7 @@ export function BillTotals({
         >
           {byCode && regularDeliveryFee > 0 && (
             <>
-              <span className="sr-only">{t("shipping.regularFee")}: </span>
+              <span className="sr-only">{tShipping("regularFee")}: </span>
               <s className="text-ink-subtle font-normal">
                 {formatMoney(regularDeliveryFee, locale)}
               </s>{" "}

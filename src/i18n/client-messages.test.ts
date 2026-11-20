@@ -24,6 +24,13 @@ const AREA_OF_FOLDER: Record<string, ClientArea> = {
   "components/wishlist": "wishlist",
 };
 
+/** A client component that is rendered in another area than its folder says. */
+const AREA_OF_FILE: Record<string, ClientArea> = {
+  // The cart page. The bar and the toast of the same folder are on every
+  // page of the shop and get the basic namespaces only.
+  "components/cart/cart-view.tsx": "cart",
+};
+
 function sourceFiles(dir: string, found: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
@@ -90,7 +97,9 @@ describe("translations sent to the browser", () => {
     for (const [file, info] of files) {
       if (!info.client) continue;
       const path = file.slice(SRC.length + 1).replaceAll("\\", "/");
-      const area = AREA_OF_FOLDER[path.split("/").slice(0, 2).join("/")];
+      const area =
+        AREA_OF_FILE[path] ??
+        AREA_OF_FOLDER[path.split("/").slice(0, 2).join("/")];
       const sent = Object.keys(clientMessages(en, area));
       for (const namespace of namespacesOf(file)) {
         if (!sent.includes(namespace)) {
@@ -107,5 +116,10 @@ describe("translations sent to the browser", () => {
     expect(base).not.toContain("orders");
     expect(base).not.toContain("checkout");
     expect(Object.keys(clientMessages(en, "account"))).toContain("orders");
+    // The boxes of a bill travel with the pages that show a bill.
+    expect(base).not.toContain("shipping");
+    for (const area of ["cart", "checkout", "account"] as const) {
+      expect(Object.keys(clientMessages(en, area))).toContain("shipping");
+    }
   });
 });

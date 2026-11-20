@@ -31,7 +31,7 @@ export function ShippingProgress({
   code: string | null;
   className?: string;
 }) {
-  const t = useTranslations("cart.shipping");
+  const t = useTranslations("shipping");
   const locale = useLocale() as Locale;
   const message = shippingMessageOf(shipping, code);
   if (message.kind === "none") return null;

@@ -23,7 +23,10 @@ const BASE = [
 const AREAS = {
   catalogue: ["filters"],
   signIn: ["auth"],
-  checkout: ["address", "checkout"],
+  // `shipping`: the boxes of a bill (delivery by the box), where a bill is
+  // shown: the cart page, the checkout, an order.
+  cart: ["shipping"],
+  checkout: ["address", "checkout", "shipping"],
   account: [
     "account",
     "address",
@@ -37,6 +40,7 @@ const AREAS = {
     "returns",
     "reviews",
     "rewards",
+    "shipping",
   ],
   emailLinks: ["unsubscribe"],
   wishlist: ["wishlist"],
