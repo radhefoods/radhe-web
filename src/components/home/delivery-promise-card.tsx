@@ -1,9 +1,11 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { deliveryPromiseOf } from "@/features/catalogue/delivery-promise";
 import type { Locale } from "@/i18n/routing";
 import type { ShopSettings } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
+import { formatWeight } from "@/lib/format/weight";
 
 function Tile({ value, label }: { value: string; label: string }) {
   return (
@@ -44,6 +46,8 @@ const COLUMNS = ["", "grid-cols-1", "grid-cols-2", "grid-cols-3"];
  * delivery fee, from where it is free and the days to return as three tiles,
  * how and where, and the "secure checkout" seal on its corner. Every number
  * comes from `GET /v1/store/settings`; a missing one leaves its tile out.
+ * Where the shop prices delivery by the box (2026-11-20), a line under the
+ * tiles says that the two delivery figures are per box, and what one holds.
  */
 export async function DeliveryPromiseCard({
   settings,
@@ -55,7 +59,7 @@ export async function DeliveryPromiseCard({
   const t = await getTranslations("home.card");
   const estimate = settings?.delivery.estimate[locale] ?? null;
   const fee = settings?.deliveryFee.tiers[0]?.fee ?? null;
-  const freeFrom = settings?.deliveryFee.freeFrom ?? null;
+  const { freeFrom, boxCapacity } = deliveryPromiseOf(settings);
   const returnDays = settings?.returns.windowDays ?? 0;
 
   const tiles: { value: string; label: string }[] = [];
@@ -93,6 +97,11 @@ export async function DeliveryPromiseCard({
               <Tile key={tile.label} value={tile.value} label={tile.label} />
             ))}
           </div>
+        )}
+        {boxCapacity !== null && (fee !== null || freeFrom !== null) && (
+          <p className="text-ink-muted mt-2 text-center text-sm font-semibold">
+            {t("perBox", { weight: formatWeight(boxCapacity, locale) })}
+          </p>
         )}
         <dl className="border-ink/15 mt-5 grid grid-cols-2 gap-4 border-t-[1.5px] border-dashed pt-4 text-[0.9375rem]">
           <Fact label={t("payment")} value={t("paymentValue")} />

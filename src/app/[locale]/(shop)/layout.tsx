@@ -6,6 +6,7 @@ import { Header } from "@/components/shell/header";
 import { InvitationNotice } from "@/components/shell/invitation-notice";
 import { TabBar } from "@/components/shell/tab-bar";
 import { getCategories, getSettings } from "@/features/catalogue/data";
+import { deliveryPromiseOf } from "@/features/catalogue/delivery-promise";
 import { getPublishedLegal } from "@/features/legal/data";
 import { localeOf } from "@/i18n/locale";
 
@@ -20,13 +21,15 @@ export default async function ShopLayout({
     getSettings(),
     getPublishedLegal(),
   ]);
+  const promise = deliveryPromiseOf(settings);
 
   return (
     <>
       <Header
         locale={locale}
         categories={categories}
-        freeFrom={settings?.deliveryFee.freeFrom ?? null}
+        freeFrom={promise.freeFrom}
+        boxCapacity={promise.boxCapacity}
       />
       <InvitationNotice />
       <main id="main" className="flex-1">

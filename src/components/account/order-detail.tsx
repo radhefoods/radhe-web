@@ -38,6 +38,7 @@ import type {
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format/dates";
 import { formatMoney } from "@/lib/format/money";
+import { formatWeight } from "@/lib/format/weight";
 import { AddressBlock, DocumentRow, OrderStatusChips } from "./order-bits";
 import { OrderIssues } from "./order-issues";
 import { OrderReview } from "./order-review";
@@ -494,6 +495,30 @@ export function OrderBody({
   const changed =
     order.finalTotals.total !== order.totals.total ||
     order.adjustments.length > 0;
+  // The code that made the delivery of this order free, to name it.
+  const freeDeliveryCode =
+    order.discount?.type === "free_delivery" ? order.discount.code : null;
+  // The boxes the order was placed with, in one line
+  // (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md, 10); nothing for an order
+  // that paid the flat fee. Every figure is the order's own.
+  const shipping = order.shipping ?? null;
+  const boxes = shipping && {
+    count: shipping.requiredBoxes,
+    weight: formatWeight(shipping.weight.total, locale),
+    free: shipping.freeBoxes,
+    paid: shipping.paidBoxes,
+    perBox: formatMoney(shipping.feePerPaidBox, locale),
+  };
+  const boxesLine =
+    !shipping || !boxes || shipping.requiredBoxes === 0
+      ? null
+      : shipping.freeByCode && freeDeliveryCode
+        ? t("boxes.byCode", { ...boxes, code: freeDeliveryCode })
+        : shipping.paidBoxes === 0
+          ? t("boxes.allFree", boxes)
+          : shipping.freeBoxes === 0
+            ? t("boxes.allPaid", boxes)
+            : t("boxes.mixed", boxes);
   const documents = documentsQuery.data ?? [];
   const returns = returnsQuery.data?.items ?? [];
   const backLink =
@@ -660,7 +685,14 @@ export function OrderBody({
             savings={orderSavingsOf(order.items, changed)}
             discountCode={order.discount?.code ?? null}
             coins={order.rewards?.coins ?? null}
+            freeDeliveryCode={freeDeliveryCode}
+            regularDeliveryFee={shipping?.regularFee}
           />
+          {boxesLine && (
+            <p className="text-ink-muted mt-3 text-sm tabular-nums">
+              {boxesLine}
+            </p>
+          )}
           {changed && (
             <p className="text-ink-muted border-ink/8 mt-3 flex justify-between gap-4 border-t pt-3 text-sm tabular-nums">
               <span>{t("billAgreed")}</span>

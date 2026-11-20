@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { Category } from "@/lib/api/types";
 import { formatMoney } from "@/lib/format/money";
+import { formatWeight } from "@/lib/format/weight";
 import { AccountLink } from "./account-link";
 import { CartLink } from "./cart-link";
 import { CategoryNav } from "./category-nav";
@@ -25,16 +26,22 @@ import { WishlistLink } from "./wishlist-link";
  * search moves under the logo, the same groups sit behind the menu
  * button, and the tab bar at the bottom does the everyday navigation;
  * the header then scrolls away with the page.
+ *
+ * Where the shop prices delivery by the box (2026-11-20), the promise of
+ * free delivery says so: "from … per box (up to … kg)".
  */
 export async function Header({
   locale,
   categories,
   freeFrom,
+  boxCapacity = null,
 }: {
   locale: Locale;
   categories: Category[];
   /** The order value from which delivery is free, or null when unknown. */
   freeFrom: number | null;
+  /** Under the box rules: the grams of goods one box holds; else null. */
+  boxCapacity?: number | null;
 }) {
   const [t, tHome, tSite] = await Promise.all([
     getTranslations("nav"),
@@ -63,7 +70,12 @@ export async function Header({
           {freeFrom !== null && (
             <li className={promise}>
               <PackageCheck aria-hidden="true" className={promiseIcon} />
-              {tHome("trustFree", { amount: formatMoney(freeFrom, locale) })}
+              {boxCapacity !== null
+                ? tHome("trustFreeBox", {
+                    amount: formatMoney(freeFrom, locale),
+                    weight: formatWeight(boxCapacity, locale),
+                  })
+                : tHome("trustFree", { amount: formatMoney(freeFrom, locale) })}
             </li>
           )}
         </ul>

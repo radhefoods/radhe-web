@@ -1,11 +1,13 @@
 import { ArrowRight, ShieldCheck, Truck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
+import { deliveryPromiseOf } from "@/features/catalogue/delivery-promise";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import type { ShopSettings } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
+import { formatWeight } from "@/lib/format/weight";
 import { PaymentMarks } from "./payment-marks";
 
 function Row({
@@ -49,7 +51,9 @@ function Row({
  * the owner's ask of 2026-10-22.) Every number comes from
  * `GET /v1/store/settings`: without a free-delivery threshold the row
  * falls back to "Delivery across Germany" with the fee per order, so
- * nothing is promised that the API does not say.
+ * nothing is promised that the API does not say. Where the shop prices
+ * delivery by the box (2026-11-20), both lines say "per box (up to … kg)":
+ * the threshold then frees one box, and the fee is one box's.
  */
 export async function PurchaseInfo({
   settings,
@@ -70,14 +74,24 @@ export async function PurchaseInfo({
     tiers.find((tier) => tier.minOrderValue === 0)?.fee ??
     tiers[0]?.fee ??
     null;
-  const freeFrom = settings?.deliveryFee.freeFrom ?? null;
+  const { freeFrom, boxCapacity } = deliveryPromiseOf(settings);
   const free = freeFrom !== null || fee === 0;
   const deliveryTitle = free ? t("deliveryFree") : tHome("trustDelivery");
+  // Under the box rules: what one box holds, for "per box (up to 25 kg)".
+  const perBox =
+    boxCapacity === null ? null : formatWeight(boxCapacity, locale);
   const deliveryText =
     freeFrom !== null && freeFrom > 0
-      ? t("freeFrom", { amount: formatMoney(freeFrom, locale) })
+      ? perBox === null
+        ? t("freeFrom", { amount: formatMoney(freeFrom, locale) })
+        : t("freeFromBox", {
+            amount: formatMoney(freeFrom, locale),
+            weight: perBox,
+          })
       : fee !== null && fee > 0
-        ? t("fee", { fee: formatMoney(fee, locale) })
+        ? perBox === null
+          ? t("fee", { fee: formatMoney(fee, locale) })
+          : t("feeBox", { fee: formatMoney(fee, locale), weight: perBox })
         : null;
   const icon = "size-5";
 
