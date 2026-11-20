@@ -85,4 +85,7 @@ export const discounts: DiscountRecord[] = [
     maxUses: 5,
     usedCount: 5,
   }),
+  // Free delivery (doc/BOX_BASED_SHIPPING.md, 6): nothing off the goods,
+  // every box free, and no fee under the flat rules either.
+  code("66fd000000000000000000a8", "FREESHIP", "free_delivery", 0),
 ];

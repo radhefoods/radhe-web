@@ -63,6 +63,7 @@ export const API_ERROR_CODES = [
   "ORDER_ITEMS_NOT_ORDERABLE",
   "ORDER_TOTAL_CHANGED",
   "DISCOUNT_NOT_APPLICABLE",
+  "DELIVERY_COUNTRY_NOT_SERVED",
   "ORDER_NOT_PAYABLE",
   "PAYMENT_PROVIDER_ERROR",
   "ORDER_NOT_FOUND",
@@ -152,6 +153,8 @@ export interface ErrorDetails {
   ORDER_TOTAL_CHANGED: { expectedTotal: Cents; total: Cents; totals: Totals };
   /** `400` on applying a code, `409` at checkout when it stopped applying (9.6). */
   DISCOUNT_NOT_APPLICABLE: { code: string; reason: DiscountReason };
+  /** `409` at checkout: the address is in a country the shop does not deliver to. */
+  DELIVERY_COUNTRY_NOT_SERVED: { countryCode: string; countries: string[] };
   ORDER_NOT_PAYABLE: { status: OrderStatus; paymentStatus: PaymentStatus };
   ORDER_CANNOT_BE_CANCELLED: { status: OrderStatus };
   RETURN_NOT_POSSIBLE: { status: OrderStatus };

@@ -50,12 +50,19 @@ import {
   shareOut,
 } from "./discounts.ts";
 import {
+  boxCapacityOf,
+  packWeightOf,
+  shippingOf,
+  singleBoxTiers,
+} from "./shipping.ts";
+import {
   CONSENT_TYPES,
   LEGAL_SLUGS,
   TIMEZONE,
   db,
   legalDocuments,
   settings,
+  shippingMarks,
   type CustomerRecord,
   type LegalRecord,
   type Locale,
@@ -95,14 +102,31 @@ export function freeDeliveryFrom(): number | null {
 }
 
 export function settingsView(): ShopSettings {
+  const rules = settings.shipping;
+  const boxBased = rules.enabled;
   return {
     currency: "EUR",
     timezone: TIMEZONE,
-    deliveryFee: {
-      tiers: [...settings.deliveryFee.tiers].sort(
-        (a, b) => a.minOrderValue - b.minOrderValue,
-      ),
-      freeFrom: freeDeliveryFrom(),
+    // Under the box rules: what they mean for an order of one box.
+    deliveryFee: boxBased
+      ? {
+          tiers: singleBoxTiers(rules),
+          freeFrom: rules.freeThresholdPerBox,
+        }
+      : {
+          tiers: [...settings.deliveryFee.tiers].sort(
+            (a, b) => a.minOrderValue - b.minOrderValue,
+          ),
+          freeFrom: freeDeliveryFrom(),
+        },
+    // Delivery by the box; the rule fields are `null` while it is off.
+    shipping: {
+      boxBased,
+      countries: [...rules.countries],
+      freeThresholdPerBox: boxBased ? rules.freeThresholdPerBox : null,
+      maxBoxWeight: boxBased ? rules.maxBoxWeight : null,
+      boxCapacity: boxBased ? boxCapacityOf(rules) : null,
+      feeTiers: boxBased ? rules.feeTiers.map((tier) => ({ ...tier })) : null,
     },
     delivery: { estimate: { ...settings.delivery.estimate } },
     returns: {
@@ -1030,8 +1054,11 @@ function deliveryFeeFor(subtotal: number): number {
  * discount, `discount` what the code takes off, and VAT is computed on what
  * is paid (`lineTotal` already carries the line's share). Free delivery is
  * reached with what is paid for the goods.
+ *
+ * @param fee the delivery fee of the bill, where it is not the flat one: by
+ *   the box, or free with a code
  */
-export function totalsOf(lines: BillLine[]): Totals {
+export function totalsOf(lines: BillLine[], fee?: number): Totals {
   const orderable = lines.filter((line) => line.issue === null);
   const discount = orderable.reduce(
     (sum, line) => sum + line.discountAmount,
@@ -1044,7 +1071,7 @@ export function totalsOf(lines: BillLine[]): Totals {
   const paid = orderable.reduce((sum, line) => sum + line.lineTotal, 0);
   const subtotal = paid + discount + rewards;
   // Nothing to deliver, nothing to charge for delivery.
-  const deliveryFee = orderable.length ? deliveryFeeFor(paid) : 0;
+  const deliveryFee = fee ?? (orderable.length ? deliveryFeeFor(paid) : 0);
 
   // Goods per VAT rate; the delivery fee is shared across the rates by the
   // net value of the goods, the last rate takes the rounding rest.
@@ -1102,6 +1129,7 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
       vatAmount: 0,
       discountAmount: 0,
       rewardAmount: 0,
+      weight: null,
       issue: "product_not_found",
       ordering: null,
       product: null,
@@ -1109,12 +1137,33 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
   }
   const { product: p, variant: v } = found;
   const ordering = orderingOf(p, v);
+  // Weights matter only when delivery is priced by the box.
+  const rules = settings.shipping;
+  const weight = rules.enabled
+    ? packWeightOf(
+        {
+          shippingWeight: shippingMarks.get(v.id)?.shippingWeight,
+          packSize: {
+            unit: v.packUnit,
+            baseQuantity: baseQuantity(v.packValue, v.packUnit),
+          },
+        },
+        rules.estimate,
+      )
+    : null;
   let issue: CartLineIssue | null = null;
   if (!ordering.canOrder) issue = ordering.reason;
   else if (item.quantity < ordering.minQuantity)
     issue = "quantity_below_minimum";
   else if (item.quantity > ordering.maxQuantity) {
     issue = "quantity_above_maximum";
+  } else if (
+    weight &&
+    rules.overweight === "not_orderable" &&
+    weight.weight > rules.maxBoxWeight
+  ) {
+    // One pack is heavier than a box may be, and the shop sends no such packs.
+    issue = "too_heavy";
   }
   const unitPrice = effectivePrice(v);
   const lineTotal = unitPrice * item.quantity;
@@ -1128,6 +1177,11 @@ function lineOf(item: CartItemInput, locale: Locale): BillLine {
     vatAmount: vatOf(lineTotal, p.vatRate),
     discountAmount: 0,
     rewardAmount: 0,
+    weight: weight && {
+      unit: weight.weight,
+      total: weight.weight * item.quantity,
+      estimated: weight.estimated,
+    },
     issue,
     ordering,
     // Inside a line the product's own `ordering` fields are always null.
@@ -1196,25 +1250,60 @@ export function billOf(
       line.vatAmount = vatOf(line.lineTotal, line.vatRate);
     }
   }
-  const totals = totalsOf(lines);
-  const freeFrom = freeDeliveryFrom();
+  // Free delivery counts what is really paid for the goods: after the code
+  // and after the coins (doc/BOX_BASED_SHIPPING.md, 2).
+  const orderable = lines.filter((line) => line.issue === null);
+  const paidForGoods = orderable.reduce((sum, line) => sum + line.lineTotal, 0);
+  // A code that makes the delivery free, whatever the order weighs.
+  const freeByCode = Boolean(
+    discount?.applied && discount.type === "free_delivery",
+  );
+  // By the box when that is switched on, else the flat tiers.
+  const rules = settings.shipping;
+  const shipping = rules.enabled
+    ? shippingOf(
+        {
+          lines: orderable.map((line) => ({
+            quantity: line.quantity,
+            unitWeight: line.weight?.unit ?? 0,
+            estimated: line.weight?.estimated ?? false,
+            separate:
+              shippingMarks.get(line.variantId)?.shipsSeparately ?? false,
+          })),
+          orderValue: paidForGoods,
+          freeByCode,
+        },
+        rules,
+      )
+    : null;
+  const fee = shipping
+    ? shipping.fee
+    : orderable.length > 0 && !freeByCode
+      ? deliveryFeeFor(paidForGoods)
+      : 0;
+  const totals = totalsOf(lines, fee);
+  // The value of goods at which this cart is delivered free: under the box
+  // rules, the threshold once for every box it needs.
+  const freeFrom = shipping
+    ? shipping.freeThresholdPerBox === null
+      ? null
+      : shipping.freeThresholdPerBox * Math.max(1, shipping.requiredBoxes)
+    : freeDeliveryFrom();
   return {
     // The checkout button: a cart with products and no issue on any line.
     canOrder: lines.length > 0 && lines.every((line) => line.issue === null),
     lines,
     totals,
     delivery: {
-      fee: totals.deliveryFee,
+      fee,
       freeFrom,
-      missingForFree:
-        freeFrom === null
+      missingForFree: freeByCode
+        ? 0
+        : freeFrom === null
           ? null
-          : Math.max(
-              0,
-              freeFrom -
-                (totals.subtotal - totals.discount - (totals.rewards ?? 0)),
-            ),
+          : Math.max(0, freeFrom - paidForGoods),
     },
+    shipping,
     discount,
     rewards,
   };

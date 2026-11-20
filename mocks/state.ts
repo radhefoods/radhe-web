@@ -10,6 +10,7 @@ import type {
   OrderCancellation,
   OrderDiscount,
   OrderRewards,
+  OrderShipping,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
@@ -17,6 +18,7 @@ import type {
   Totals,
 } from "../src/lib/api/types.ts";
 import type { Translated } from "./data/catalogue.ts";
+import { SHIPPING_DEFAULTS } from "./shipping.ts";
 
 export type Locale = "en" | "de";
 
@@ -31,6 +33,12 @@ export const settings = {
       { minOrderValue: 5000, fee: 0 },
     ],
   },
+  /**
+   * Delivery by the box (doc/BOX_BASED_SHIPPING.md): off until a test or a
+   * developer switches it on with `POST /__mock/shipping`, like the API is
+   * off until the admin switches it on.
+   */
+  shipping: structuredClone(SHIPPING_DEFAULTS),
   delivery: {
     estimate: { en: "2 to 4 working days", de: "2 bis 4 Werktage" },
   },
@@ -38,6 +46,16 @@ export const settings = {
   /** How long a payment page stays open, in minutes (`payments.checkoutMinutes`). */
   checkoutMinutes: 60,
 };
+
+/**
+ * What the admin entered for a pack size, by its id: the shipping weight in
+ * grams, and whether every pack travels as a parcel of its own. A pack
+ * size without an entry is estimated from its stated quantity.
+ */
+export const shippingMarks = new Map<
+  string,
+  { shippingWeight?: number | null; shipsSeparately?: boolean }
+>();
 
 // --- Legal pages (doc 6, `doc/LEGAL_PAGES.md`) --------------------------------
 
@@ -391,12 +409,20 @@ export interface OrderRecord {
     rewardAmount: number;
     deliveredQuantity: number;
     returnedQuantity: number;
+    /** Grams of one pack when the order was placed under the box rules. */
+    unitWeight?: number;
+    weightEstimated?: boolean;
   }[];
   totals: Totals;
   /** The discount code of the order, or `null` (doc 9.6). */
   discount: OrderDiscount | null;
   /** The coins redeemed on the order, or `null` (REWARDS 4). */
   rewards: OrderRewards | null;
+  /**
+   * The boxes the order was placed with; absent or `null` on an order that
+   * paid the flat fee. A later change of the rules leaves it as it is.
+   */
+  shipping?: OrderShipping | null;
   deliveryAddress: OrderAddress;
   note: string | null;
   consent: {
@@ -625,4 +651,6 @@ export function resetState(): void {
   db.rewardAccounts.clear();
   db.rewardTransactions = [];
   customerSequence = 0;
+  settings.shipping = structuredClone(SHIPPING_DEFAULTS);
+  shippingMarks.clear();
 }

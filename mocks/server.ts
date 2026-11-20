@@ -121,6 +121,8 @@ import {
   makeReferralCode,
   newCustomer,
   resetState,
+  settings,
+  shippingMarks,
   type CustomerRecord,
   type Locale,
   type PendingSignupRecord,
@@ -2566,6 +2568,156 @@ route("POST", "/__mock/price", (ctx) => {
   return {
     body: { variantId: found.variant.id, price: found.variant.regularPrice },
   };
+});
+
+// Not part of the real API: the admin's shipping rules and the shipping
+// weights of pack sizes (doc/BOX_BASED_SHIPPING.md, 5 and 3). A field that
+// is left out stays as it is. `weights` sets what the admin entered for a
+// pack size: its weight in grams (`null` takes it off again, and the weight
+// is estimated) and whether every pack travels as a parcel of its own.
+const SHIPPING_FIELDS = [
+  "enabled",
+  "freeThresholdPerBox",
+  "maxBoxWeight",
+  "boxTareWeight",
+  "feeTiers",
+  "countries",
+  "overweight",
+  "estimate",
+  "weights",
+];
+const isCents = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0;
+route("POST", "/__mock/shipping", (ctx) => {
+  const body = objectBody(ctx.body, SHIPPING_FIELDS);
+  const rules = settings.shipping;
+  if (body.enabled !== undefined) {
+    if (typeof body.enabled !== "boolean") {
+      throw validationFailed("enabled", "enabled must be true or false");
+    }
+    rules.enabled = body.enabled;
+  }
+  if (body.freeThresholdPerBox !== undefined) {
+    if (
+      body.freeThresholdPerBox !== null &&
+      !(isCents(body.freeThresholdPerBox) && body.freeThresholdPerBox > 0)
+    ) {
+      throw validationFailed(
+        "freeThresholdPerBox",
+        "freeThresholdPerBox must be whole cents above 0, or null",
+      );
+    }
+    rules.freeThresholdPerBox = body.freeThresholdPerBox;
+  }
+  const maxBoxWeight = body.maxBoxWeight ?? rules.maxBoxWeight;
+  const boxTareWeight = body.boxTareWeight ?? rules.boxTareWeight;
+  if (!isCents(maxBoxWeight) || maxBoxWeight < 1) {
+    throw validationFailed("maxBoxWeight", "maxBoxWeight must be grams");
+  }
+  if (!isCents(boxTareWeight) || boxTareWeight >= maxBoxWeight) {
+    throw validationFailed(
+      "boxTareWeight",
+      "boxTareWeight must be grams, and the empty box lighter than a full one",
+    );
+  }
+  rules.maxBoxWeight = maxBoxWeight;
+  rules.boxTareWeight = boxTareWeight;
+  if (body.feeTiers !== undefined) {
+    const tiers = Array.isArray(body.feeTiers) ? body.feeTiers : [];
+    const valid =
+      tiers.length >= 1 &&
+      tiers.length <= 10 &&
+      tiers.every(
+        (tier) =>
+          tier &&
+          typeof tier === "object" &&
+          isCents(tier.fee) &&
+          (tier.upTo === null || isCents(tier.upTo)),
+      ) &&
+      // Exactly one tier without an upper limit, no two ending alike.
+      tiers.filter((tier) => tier.upTo === null).length === 1 &&
+      new Set(tiers.map((tier) => tier.upTo)).size === tiers.length;
+    if (!valid) {
+      throw validationFailed(
+        "feeTiers",
+        "feeTiers must be 1 to 10 tiers, exactly one of them with upTo: null",
+      );
+    }
+    rules.feeTiers = tiers.map((tier) => ({ upTo: tier.upTo, fee: tier.fee }));
+  }
+  if (body.countries !== undefined) {
+    if (
+      !Array.isArray(body.countries) ||
+      !body.countries.every((country) => typeof country === "string")
+    ) {
+      throw validationFailed("countries", "countries must be country codes");
+    }
+    rules.countries = [...body.countries];
+  }
+  if (body.overweight !== undefined) {
+    if (
+      body.overweight !== "own_parcel" &&
+      body.overweight !== "not_orderable"
+    ) {
+      throw validationFailed(
+        "overweight",
+        "overweight must be own_parcel or not_orderable",
+      );
+    }
+    rules.overweight = body.overweight;
+  }
+  if (body.estimate !== undefined) {
+    const estimate = objectBody(body.estimate, [
+      "packagingPercent",
+      "defaultWeight",
+    ]);
+    if (
+      typeof estimate.packagingPercent !== "number" ||
+      estimate.packagingPercent < 0 ||
+      !isCents(estimate.defaultWeight) ||
+      estimate.defaultWeight < 1
+    ) {
+      throw validationFailed("estimate", "estimate is not valid");
+    }
+    rules.estimate = {
+      packagingPercent: estimate.packagingPercent,
+      defaultWeight: estimate.defaultWeight,
+    };
+  }
+  if (body.weights !== undefined) {
+    if (!Array.isArray(body.weights)) {
+      throw validationFailed("weights", "weights must be a list");
+    }
+    for (const [index, entry] of body.weights.entries()) {
+      const item = objectBody(entry, [
+        "variantId",
+        "shippingWeight",
+        "shipsSeparately",
+      ]);
+      const found = findVariant(String(item.variantId));
+      const weight = item.shippingWeight;
+      if (
+        !found ||
+        (weight !== undefined &&
+          weight !== null &&
+          !(isCents(weight) && weight >= 1 && weight <= 1_000_000)) ||
+        (item.shipsSeparately !== undefined &&
+          typeof item.shipsSeparately !== "boolean")
+      ) {
+        throw validationFailed(
+          `weights.${index}`,
+          "unknown pack size, or a weight that cannot be one",
+        );
+      }
+      const marks = { ...shippingMarks.get(found.variant.id) };
+      if (weight !== undefined) marks.shippingWeight = weight;
+      if (typeof item.shipsSeparately === "boolean") {
+        marks.shipsSeparately = item.shipsSeparately;
+      }
+      shippingMarks.set(found.variant.id, marks);
+    }
+  }
+  return { body: { shipping: rules } };
 });
 
 // Not part of the real API: Radhe Foods blocks or unblocks a customer.

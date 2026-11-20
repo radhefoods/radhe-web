@@ -38,6 +38,7 @@ import {
   db,
   legalDocuments,
   newCustomer,
+  settings,
   type CustomerRecord,
   type Locale,
   type OrderRecord,
@@ -449,12 +450,17 @@ export function orderDetail(order: OrderRecord, locale: Locale): OrderDetail {
         deliveredQuantity: item.deliveredQuantity,
         returnedQuantity: item.returnedQuantity,
         finalLineTotal: Math.max(0, kept) * item.unitPrice,
+        // `null` on an order that paid the flat delivery fee.
+        unitWeight: item.unitWeight ?? null,
+        weightEstimated: item.weightEstimated ?? false,
       };
     }),
     totals: order.totals,
     finalTotals: finalTotalsOf(order),
     discount: order.discount,
     rewards: order.rewards,
+    // The boxes the order was placed with, or `null` (BOX_BASED_SHIPPING 8).
+    shipping: order.shipping ?? null,
     adjustments: order.adjustments,
     deliveryAddress: order.deliveryAddress,
     note: order.note,
@@ -884,6 +890,18 @@ function placeOrder(
       { expectedTotal, total: bill.totals.total, totals: bill.totals },
     );
   }
+  // The delivery country, checked when an order is placed
+  // (BOX_BASED_SHIPPING 5). Addresses are German only, so this is reached
+  // only when a test takes Germany off the list.
+  const countryCode = "DE";
+  if (!settings.shipping.countries.includes(countryCode)) {
+    throw new HttpError(
+      409,
+      "DELIVERY_COUNTRY_NOT_SERVED",
+      "Radhe Foods does not deliver to this country.",
+      { countryCode, countries: [...settings.shipping.countries] },
+    );
+  }
 
   db.orderSequence += 1;
   const deliveryAddress: OrderAddress = {
@@ -928,6 +946,11 @@ function placeOrder(
         rewardAmount: line.rewardAmount ?? 0,
         deliveredQuantity: 0,
         returnedQuantity: 0,
+        // Only on orders placed while delivery was priced by the box.
+        ...(line.weight && {
+          unitWeight: line.weight.unit,
+          weightEstimated: line.weight.estimated,
+        }),
       };
     }),
     // The agreed bill: order totals carry no `vatPercent`.
@@ -957,6 +980,31 @@ function placeOrder(
           amount: bill.rewards.amount,
           percentPerCoin: rewardsPercentPerCoin(),
           state: "reserved",
+        }
+      : null,
+    // What was agreed when the order was placed: the boxes, their weights
+    // and the fee. It does not change when the rules change afterwards.
+    shipping: bill.shipping
+      ? {
+          orderValue: bill.shipping.orderValue,
+          weight: { ...bill.shipping.weight },
+          requiredBoxes: bill.shipping.requiredBoxes,
+          freeBoxes: bill.shipping.freeBoxes,
+          paidBoxes: bill.shipping.paidBoxes,
+          feePerPaidBox: bill.shipping.feePerPaidBox,
+          regularFee: bill.shipping.regularFee,
+          fee: bill.shipping.fee,
+          freeByCode: bill.shipping.freeByCode,
+          boxes: bill.shipping.boxes.map(
+            ({ number, weight, separate, overweight, free, fee }) => ({
+              number,
+              weight,
+              separate,
+              overweight,
+              free,
+              fee,
+            }),
+          ),
         }
       : null,
     deliveryAddress,

@@ -11,6 +11,8 @@ import type { Locale } from "@/i18n/routing";
 export type Id = string;
 /** Integer cents in EUR, VAT included. Never a float. */
 export type Cents = number;
+/** Whole grams: every weight of the API. */
+export type Grams = number;
 /** ISO 8601 date-time in UTC. */
 export type IsoDateTime = string;
 /** Hundredths of a percent: 700 = 7 %. */
@@ -211,13 +213,46 @@ export interface DeliveryFeeTier {
   fee: Cents;
 }
 
+/**
+ * What one paid box costs, by the value of the goods
+ * (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md, 3.1).
+ */
+export interface BoxFeeTier {
+  /** The highest value of goods of the tier, included; `null` on the last tier. */
+  upTo: Cents | null;
+  fee: Cents;
+}
+
+/**
+ * Delivery by the box, as the settings state it. With `boxBased: false` the
+ * flat `deliveryFee` is charged and the four rule fields are `null`.
+ */
+export interface ShopShipping {
+  boxBased: boolean;
+  /** Where the shop delivers. */
+  countries: string[];
+  /** Goods per free box; `null`: no box is free by value. */
+  freeThresholdPerBox: Cents | null;
+  /** What one box may weigh. */
+  maxBoxWeight: Grams | null;
+  /** The goods one box holds (the box itself taken off). */
+  boxCapacity: Grams | null;
+  feeTiers: BoxFeeTier[] | null;
+}
+
 export interface ShopSettings {
   currency: "EUR";
   timezone: string;
+  /**
+   * The flat fee; under the box rules the same rules for an order of one
+   * box, so "free delivery from …" stays right.
+   */
   deliveryFee: {
     tiers: DeliveryFeeTier[];
     freeFrom: Cents | null;
   };
+  /** Delivery by the box. Absent from an API older than 2026-11-20. */
+  shipping?: ShopShipping;
   /** How long delivery takes, as Radhe Foods words it, in both languages. */
   delivery: { estimate: Record<Locale, string> };
   /** Days after delivery for a return; `0` switches returns off. */
@@ -580,13 +615,15 @@ export interface ProductFacets {
 
 /**
  * Why a line cannot be ordered as it is. `quantity_above_maximum` also
- * means "more than in stock".
+ * means "more than in stock". `too_heavy` (box-based shipping): one pack is
+ * heavier than a box may be, and the shop does not send such packs.
  */
 export type CartLineIssue =
   | OrderingReason
   | "product_not_found"
   | "quantity_below_minimum"
-  | "quantity_above_maximum";
+  | "quantity_above_maximum"
+  | "too_heavy";
 
 export interface VatGroup {
   vatRate: VatRate;
@@ -631,11 +668,88 @@ export interface BillLine {
   discountAmount: Cents;
   /** What the redeemed coins take off this line; `0` without any (24). */
   rewardAmount?: Cents;
+  /**
+   * What the line weighs as it is shipped. `null` while the flat fee is
+   * charged and for a line whose product is gone; absent from an API older
+   * than 2026-11-20.
+   */
+  weight?: LineWeight | null;
   issue: CartLineIssue | null;
   /** Of this pack size; `null` when the line is `product_not_found`. */
   ordering: Ordering | null;
   /** The list entry with this size selected; `null` when it is gone. */
   product: ProductSummary | null;
+}
+
+/** One pack, all packs of the line, and whether the weight is an estimate. */
+export interface LineWeight {
+  unit: Grams;
+  total: Grams;
+  estimated: boolean;
+}
+
+/** One box of an order (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md, 4.3). */
+export interface ShippingBox {
+  /** 1 for the first box. */
+  number: number;
+  /** The goods in it and the box itself. */
+  weight: Grams;
+  /** Goods that still fit; 0 for a parcel that travels alone. */
+  remaining: Grams;
+  /** How full it is, in whole percent of what a box may weigh, at most 100. */
+  utilization: number;
+  /** A pack that travels as a parcel of its own, not a box that is filled. */
+  separate: boolean;
+  /** Heavier than a box may be. */
+  overweight: boolean;
+  /** Delivered free. */
+  free: boolean;
+  /** What its delivery costs; 0 when free. */
+  fee: Cents;
+}
+
+/**
+ * The delivery of a cart under the box rules (4.1 to 4.3): the boxes it
+ * needs, which are free, what the others cost and what is missing for the
+ * next free one. Every figure is the API's; the shop only prints them.
+ */
+export interface BillShipping {
+  /** The goods the rules looked at: after the code and the coins, without the delivery. */
+  orderValue: Cents;
+  weight: {
+    goods: Grams;
+    /** The boxes themselves; 0 unless the admin set a box weight. */
+    packaging: Grams;
+    total: Grams;
+    /** At least one product has no exact weight on record. */
+    estimated: boolean;
+  };
+  box: { maxWeight: Grams; tareWeight: Grams; capacity: Grams };
+  /** The first 50 boxes; `requiredBoxes` counts them all. */
+  boxes: ShippingBox[];
+  requiredBoxes: number;
+  /** Boxes the value of the goods would make free; can be more than needed. */
+  unlockedFreeBoxes: number;
+  freeBoxes: number;
+  paidBoxes: number;
+  /** Goods per free box; `null`: no box is free by value. */
+  freeThresholdPerBox: Cents | null;
+  /** Goods missing for one more free box. */
+  missingForNextFreeBox: Cents | null;
+  /** Goods missing until every box is free; 0 when the delivery is free. */
+  missingForFreeDelivery: Cents | null;
+  feePerPaidBox: Cents;
+  /** The same as `totals.deliveryFee`. */
+  fee: Cents;
+  /** What the delivery would cost without a free-delivery code. */
+  regularFee: Cents;
+  /** A free-delivery code made every box free. */
+  freeByCode: boolean;
+  /** The box the next goods go into; `null` when every pack travels alone. */
+  currentBox: Pick<
+    ShippingBox,
+    "number" | "weight" | "remaining" | "utilization"
+  > | null;
 }
 
 /**
@@ -653,6 +767,12 @@ export interface Bill {
     /** Counts what is paid for the goods after the discount. */
     missingForFree: Cents | null;
   };
+  /**
+   * Delivery by the box. `null` while the shop charges the flat fee
+   * (`delivery` says everything then); absent from an API older than
+   * 2026-11-20, which is the same to the shop.
+   */
+  shipping?: BillShipping | null;
   /** The discount code of the checkout page; `null` while none is entered. */
   discount: BillDiscount | null;
   /**
@@ -675,7 +795,11 @@ export type DiscountReason =
   | "below_minimum"
   | "nothing_eligible";
 
-export type DiscountType = "percent" | "fixed";
+/**
+ * `free_delivery` (since 2026-11-20) takes nothing off the goods (`value`
+ * and `amount` are 0) and makes the delivery of the order free.
+ */
+export type DiscountType = "percent" | "fixed" | "free_delivery";
 
 /**
  * The code kept with the cart. A code that was applied and later stopped
@@ -795,6 +919,27 @@ export interface OrderItem {
   deliveredQuantity: number;
   returnedQuantity: number;
   finalLineTotal: Cents;
+  /** One pack as it was shipped; `null` on an order that paid the flat fee. */
+  unitWeight?: Grams | null;
+  weightEstimated?: boolean;
+}
+
+/**
+ * The delivery an order was placed with under the box rules
+ * (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md, 10). It does not change when
+ * the shop changes its rules.
+ */
+export interface OrderShipping {
+  orderValue: Cents;
+  weight: { goods: Grams; packaging: Grams; total: Grams; estimated: boolean };
+  requiredBoxes: number;
+  freeBoxes: number;
+  paidBoxes: number;
+  feePerPaidBox: Cents;
+  regularFee: Cents;
+  fee: Cents;
+  freeByCode: boolean;
+  boxes: Omit<ShippingBox, "remaining" | "utilization">[];
 }
 
 export type AdjustmentReason =
@@ -861,6 +1006,11 @@ export interface OrderDetail extends OrderSummary {
   discount: OrderDiscount | null;
   /** The coins redeemed on the order; `null` without any (24). */
   rewards?: OrderRewards | null;
+  /**
+   * The boxes the order was placed with; `null` for an order that paid the
+   * flat fee, absent from an API older than 2026-11-20.
+   */
+  shipping?: OrderShipping | null;
   adjustments: OrderAdjustment[];
   deliveryAddress: OrderAddress;
   note: string | null;

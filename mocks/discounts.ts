@@ -86,6 +86,8 @@ export function checkDiscount(
   if (record.minOrderValue !== null && goods < record.minOrderValue) {
     return "below_minimum";
   }
+  // Free delivery is for the order, whatever is in it.
+  if (record.type === "free_delivery") return null;
   if (eligibleLines(record, lines).length === 0) return "nothing_eligible";
   return null;
 }
@@ -95,11 +97,13 @@ export function checkDiscount(
  * `round(goods × percent / 100)` or `min(fixed, goods)`, each line's share
  * rounded down and the cents that rounding leaves over given to the lines
  * with the largest remainders, so the shares add up exactly. By `variantId`.
+ * A free-delivery code takes nothing off the goods: no line has a share.
  */
 export function shareOut(
   record: DiscountRecord,
   lines: BillLine[],
 ): Map<string, number> {
+  if (record.type === "free_delivery") return new Map();
   const eligible = eligibleLines(record, lines);
   const goods = eligible.reduce((sum, line) => sum + goodsOf(line), 0);
   const amount =
