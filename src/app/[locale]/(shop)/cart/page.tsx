@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { CartView } from "@/components/cart/cart-view";
+import { getSettings } from "@/features/catalogue/data";
 import { localeOf } from "@/i18n/locale";
 
 export async function generateMetadata({
@@ -16,13 +17,18 @@ export default async function CartPage({
   params,
 }: PageProps<"/[locale]/cart">) {
   await localeOf(params);
-  const t = await getTranslations("cart");
+  // The settings the layout reads anyway: whether delivery is priced by the
+  // box only sizes the placeholder of the summary; the bill itself says it.
+  const [t, settings] = await Promise.all([
+    getTranslations("cart"),
+    getSettings(),
+  ]);
   return (
     <div className="container-page space-y-5 py-6 sm:py-8">
       <h1 className="font-display text-ink text-3xl sm:text-4xl">
         {t("title")}
       </h1>
-      <CartView />
+      <CartView boxBased={settings?.shipping?.boxBased ?? false} />
     </div>
   );
 }

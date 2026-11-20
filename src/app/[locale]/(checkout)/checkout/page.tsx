@@ -25,6 +25,7 @@ export default async function CheckoutPage({ params }: Props) {
       </h1>
       <CheckoutView
         deliveryEstimate={settings?.delivery.estimate[locale] ?? null}
+        boxBased={settings?.shipping?.boxBased ?? false}
       />
     </div>
   );

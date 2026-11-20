@@ -10,6 +10,7 @@ import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/features/cart/cart";
 import { saleSavingsOf } from "@/features/cart/savings";
+import { freeDeliveryCodeOf } from "@/features/cart/shipping";
 import { useBill } from "@/features/cart/use-bill";
 import { Link } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
@@ -17,6 +18,8 @@ import type { BillLine } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { BillTotals, FreeDeliveryProgress } from "./bill-summary";
+import { BoxCapacity } from "./box-capacity";
+import { ShippingProgress } from "./shipping-progress";
 import {
   brandOf,
   formatPackSize,
@@ -203,7 +206,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   );
 }
 
-function CartSkeleton() {
+function CartSkeleton({ boxes }: { boxes: boolean }) {
   return (
     <div
       className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:gap-8"
@@ -221,7 +224,9 @@ function CartSkeleton() {
           </div>
         ))}
       </div>
-      <Skeleton className="h-80 rounded-2xl" />
+      {/* With the boxes of the order the summary is taller: the page
+          should not jump when the bill arrives. */}
+      <Skeleton className={cn("rounded-2xl", boxes ? "h-[27rem]" : "h-80")} />
     </div>
   );
 }
@@ -233,8 +238,18 @@ function CartSkeleton() {
  * evening: less air between the two), with the total as its one big
  * number, and the way to the checkout, which follows the bill's
  * `canOrder`.
+ *
+ * Where the API prices the delivery by the box (`bill.shipping`,
+ * doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md 7, 2026-11-20), the summary
+ * says how far the next free box is and how full the boxes are; under the
+ * flat fee (`shipping` is `null` or absent) it is the hint of before.
  */
-export function CartView() {
+export function CartView({
+  boxBased = false,
+}: {
+  /** `shipping.boxBased` of the settings: only sizes the placeholder. */
+  boxBased?: boolean;
+}) {
   const t = useTranslations("cart");
   const tProduct = useTranslations("product");
   const locale = useLocale() as Locale;
@@ -264,13 +279,16 @@ export function CartView() {
     );
   }
 
-  if (loading || !bill) return <CartSkeleton />;
+  if (loading || !bill) return <CartSkeleton boxes={boxBased} />;
 
   // Lines the customer just removed disappear at once.
   const lines = bill.lines.filter(
     (line) => cart.quantityOf(line.variantId) > 0,
   );
   const hasIssues = lines.some((line) => line.issue !== null);
+  // Delivery by the box; `null` (or absent, from an older API): the flat fee.
+  const shipping = bill.shipping ?? null;
+  const freeDeliveryCode = freeDeliveryCodeOf(bill);
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem] lg:gap-8">
@@ -303,10 +321,26 @@ export function CartView() {
       >
         <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
 
-        <FreeDeliveryProgress
-          delivery={bill.delivery}
-          subtotal={bill.totals.subtotal - bill.totals.discount}
-        />
+        {shipping ? (
+          // The boxes belong to the bill on the screen: while a change is
+          // on its way they dim with the totals and keep the last figures.
+          shipping.requiredBoxes > 0 && (
+            <div
+              className={cn(
+                "flex flex-col gap-3 transition-opacity",
+                updating && "opacity-50",
+              )}
+            >
+              <ShippingProgress shipping={shipping} code={freeDeliveryCode} />
+              <BoxCapacity shipping={shipping} />
+            </div>
+          )
+        ) : (
+          <FreeDeliveryProgress
+            delivery={bill.delivery}
+            subtotal={bill.totals.subtotal - bill.totals.discount}
+          />
+        )}
 
         <div
           className={cn("transition-opacity", updating && "opacity-50")}
@@ -317,6 +351,9 @@ export function CartView() {
             savings={saleSavingsOf(bill.lines)}
             discountCode={bill.discount?.applied ? bill.discount.code : null}
             coins={bill.rewards?.applied ? bill.rewards.coins : null}
+            boxes={shipping}
+            freeDeliveryCode={freeDeliveryCode}
+            regularDeliveryFee={shipping?.regularFee}
           />
         </div>
         <p className="sr-only" role="status">

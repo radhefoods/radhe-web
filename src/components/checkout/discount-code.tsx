@@ -30,9 +30,16 @@ export const compactInput =
  * One code per order. A code that was applied and stopped applying (the
  * cart shrank below its minimum, the code ran out) is shown with its reason
  * until it is removed; the checkout refuses it anyway.
+ *
+ * A free-delivery code (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md 9,
+ * 2026-11-20) takes nothing off the goods: it says "Free delivery" and,
+ * where the API says what the delivery would have cost, what that saves;
+ * never "You save €0.00". A type this shop does not know yet shows the
+ * code, and an amount only when there is one.
  */
 export function DiscountCode({
   discount,
+  deliverySaving = 0,
   onBill,
   apply: applyCode = (code) => api.applyDiscount(code),
   remove: removeCode = () => api.removeDiscount(),
@@ -40,6 +47,8 @@ export function DiscountCode({
 }: {
   /** `bill.discount`: the code kept with the cart, or `null`. */
   discount: BillDiscount | null;
+  /** What a free-delivery code saves (`shipping.regularFee`); `0`: not known. */
+  deliverySaving?: number;
   /** The bill the API answered; replaces the one on the page. */
   onBill: (bill: Bill) => void;
   /**
@@ -97,6 +106,19 @@ export function DiscountCode({
 
   if (discount) {
     const applied = discount.applied;
+    // What the applied code does, in a line. The types of a code are
+    // `percent`, `fixed` and `free_delivery`; a newer API may know more.
+    const type: string = discount.type;
+    const saving = (amount: number) =>
+      t("saving", { amount: formatMoney(amount, locale) });
+    const effect =
+      type === "free_delivery"
+        ? deliverySaving > 0
+          ? `${t("freeDelivery")} ${saving(deliverySaving)}`
+          : t("freeDelivery")
+        : type === "percent" || type === "fixed" || discount.amount > 0
+          ? saving(discount.amount)
+          : null;
     return (
       <div className={cn("flex flex-col gap-2", className)}>
         <div className="ring-ink/6 flex items-center gap-3 rounded-xl bg-white/80 px-3 py-2.5 ring-1">
@@ -111,16 +133,18 @@ export function DiscountCode({
             <span className="block text-sm font-bold">
               {t(applied ? "applied" : "notApplied", { code: discount.code })}
             </span>
-            <span
-              className={cn(
-                "block",
-                applied ? "text-leaf-700" : "text-wheat-800 font-semibold",
-              )}
-            >
-              {applied
-                ? t("saving", { amount: formatMoney(discount.amount, locale) })
-                : t(`reason.${discount.reason ?? "not_found"}`)}
-            </span>
+            {(!applied || effect) && (
+              <span
+                className={cn(
+                  "block",
+                  applied ? "text-leaf-700" : "text-wheat-800 font-semibold",
+                )}
+              >
+                {applied
+                  ? effect
+                  : t(`reason.${discount.reason ?? "not_found"}`)}
+              </span>
+            )}
           </p>
           <button
             type="button"

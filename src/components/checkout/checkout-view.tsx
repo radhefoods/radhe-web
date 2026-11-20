@@ -9,6 +9,7 @@ import { ChevronDown, Coins, Plus, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { BillTotals } from "@/components/cart/bill-summary";
+import { ShippingProgress } from "@/components/cart/shipping-progress";
 import { PaymentMarks } from "@/components/catalogue/payment-marks";
 import { ProductImage } from "@/components/catalogue/product-image";
 import { Alert } from "@/components/ui/alert";
@@ -20,6 +21,7 @@ import { OVERVIEW_QUERY_KEY } from "@/features/account/overview";
 import { checkEmail, normalizeEmail } from "@/features/auth/validation";
 import { cartQueryKey, useCart } from "@/features/cart/cart";
 import { saleSavingsOf } from "@/features/cart/savings";
+import { freeDeliveryCodeOf, lostFreeBoxes } from "@/features/cart/shipping";
 import {
   addressToFormValues,
   guestAddressOf,
@@ -38,6 +40,7 @@ import type {
   Address,
   Bill,
   CartItemInput,
+  CartLineIssue,
   DiscountReason,
   Id,
   RewardsReason,
@@ -279,9 +282,12 @@ function refusedDiscount(bill: Bill): ApiError | null {
  */
 export function CheckoutView({
   deliveryEstimate,
+  boxBased = false,
 }: {
   /** `delivery.estimate` of the settings in the page's language, or `null`. */
   deliveryEstimate: string | null;
+  /** `shipping.boxBased` of the settings: only sizes the placeholder. */
+  boxBased?: boolean;
 }) {
   const t = useTranslations("checkout");
   const tAddress = useTranslations("address");
@@ -352,8 +358,18 @@ export function CheckoutView({
   } | null>(null);
   const [legalChanged, setLegalChanged] = useState(false);
   const [unavailable, setUnavailable] = useState<Unavailable | null>(null);
-  /** Names of the lines the API refused (`ORDER_ITEMS_NOT_ORDERABLE`). */
-  const [refusedLines, setRefusedLines] = useState<string[]>([]);
+  /** The lines the API refused (`ORDER_ITEMS_NOT_ORDERABLE`), by name, with why. */
+  const [refusedLines, setRefusedLines] = useState<
+    { name: string; issue: CartLineIssue }[]
+  >([]);
+  /**
+   * Boxes that stopped being free when the code, or the coins, were
+   * applied: both are taken off the goods before the boxes are counted
+   * (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md, 9). `0`: none, or taken
+   * off the bill again.
+   */
+  const [boxesLostByCode, setBoxesLostByCode] = useState(0);
+  const [boxesLostByCoins, setBoxesLostByCoins] = useState(0);
   /** The key was used for an order that is paid or cancelled meanwhile. */
   const [keyUsed, setKeyUsed] = useState(false);
   /** The discount code stopped applying at checkout and was removed (9.6). */
@@ -378,7 +394,9 @@ export function CheckoutView({
     (isCustomer ? addressQuery.error : null) ??
     legalQuery.error;
 
-  if (session.status === "loading") return <CheckoutSkeleton />;
+  if (session.status === "loading") {
+    return <CheckoutSkeleton boxes={boxBased} />;
+  }
   // The API could not say who is here: not the moment to offer the guest
   // checkout to someone who may well be signed in.
   if (session.error && !session.customer) {
@@ -409,7 +427,9 @@ export function CheckoutView({
       />
     );
   }
-  if (!bill || !addresses || !legal) return <CheckoutSkeleton />;
+  if (!bill || !addresses || !legal) {
+    return <CheckoutSkeleton boxes={boxBased} />;
+  }
 
   if (bill.lines.length === 0) return <EmptyCheckout />;
 
@@ -546,7 +566,10 @@ export function CheckoutView({
         void legalQuery.refetch();
       } else if (hasErrorCode(error, "ORDER_ITEMS_NOT_ORDERABLE")) {
         setRefusedLines(
-          error.details.lines.map((line) => nameOf(line.variantId)),
+          error.details.lines.map((line) => ({
+            name: nameOf(line.variantId),
+            issue: line.issue,
+          })),
         );
         void billQuery.refetch();
       } else if (hasErrorCode(error, "DISCOUNT_NOT_APPLICABLE")) {
@@ -589,6 +612,18 @@ export function CheckoutView({
   const sectionTitle = "font-display text-xl text-ink";
   const link = "font-semibold text-leaf-700 underline underline-offset-4";
   const itemCount = bill.lines.reduce((sum, line) => sum + line.quantity, 0);
+  // Delivery by the box; `null` (or absent, from an older API): the flat
+  // fee, and the summary of before.
+  const shipping = bill.shipping ?? null;
+  const freeDeliveryCode = freeDeliveryCodeOf(bill);
+  // What a discount cost in free boxes is said while it is on the bill and
+  // a box is paid; the amount is the bill's own, never a remembered one.
+  const missingForBox =
+    shipping && shipping.paidBoxes > 0 ? shipping.missingForNextFreeBox : null;
+  const lostByCode =
+    bill.discount?.applied && missingForBox !== null ? boxesLostByCode : 0;
+  const lostByCoins =
+    bill.rewards?.applied && missingForBox !== null ? boxesLostByCoins : 0;
 
   // A guest prices a code with the preview (doc 20): a bill whose code
   // does not apply is refused the way the account's cart would refuse it.
@@ -764,8 +799,13 @@ export function CheckoutView({
             one on the page, so the row and the total change at once. */}
         <DiscountCode
           discount={bill.discount}
+          // What a free-delivery code saves; the API says it under the box rules.
+          deliverySaving={shipping?.freeByCode ? shipping.regularFee : 0}
           onBill={(next) => {
             setDiscountRemoved(null);
+            // A code is taken off the goods before the boxes are counted:
+            // it can cost a free box, and its removal gives it back.
+            setBoxesLostByCode(lostFreeBoxes(bill, next));
             // A guest's bill follows its code through the query's key.
             if (isCustomer) client.setQueryData(cartQueryKey(locale), next);
           }}
@@ -781,6 +821,8 @@ export function CheckoutView({
             rewards={bill.rewards}
             onBill={(next) => {
               setRewardsRemoved(null);
+              // Coins come off the goods too, and can cost a free box.
+              setBoxesLostByCoins(lostFreeBoxes(bill, next));
               client.setQueryData(cartQueryKey(locale), next);
             }}
             className="border-ink/8 mt-4 border-t pt-4"
@@ -794,11 +836,40 @@ export function CheckoutView({
           )}
           aria-busy={billQuery.isFetching}
         >
+          {/* Delivery by the box (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md
+              8 and 9): how far the next free box is, right above the
+              delivery it explains; how full the boxes are stays on the
+              cart page (owner's plan, 2026-11-20). Nothing under the flat
+              fee: the summary is the one of before. */}
+          {shipping && shipping.requiredBoxes > 0 && (
+            <div className="mb-4 flex flex-col gap-3">
+              <ShippingProgress shipping={shipping} code={freeDeliveryCode} />
+              {lostByCode > 0 && missingForBox !== null && (
+                <Alert tone="info">
+                  {tCart("shipping.lostByCode", {
+                    count: lostByCode,
+                    amount: formatMoney(missingForBox, locale),
+                  })}
+                </Alert>
+              )}
+              {lostByCoins > 0 && missingForBox !== null && (
+                <Alert tone="info">
+                  {tCart("shipping.lostByCoins", {
+                    count: lostByCoins,
+                    amount: formatMoney(missingForBox, locale),
+                  })}
+                </Alert>
+              )}
+            </div>
+          )}
           <BillTotals
             totals={bill.totals}
             savings={saleSavingsOf(bill.lines)}
             discountCode={bill.discount?.applied ? bill.discount.code : null}
             coins={bill.rewards?.applied ? bill.rewards.coins : null}
+            boxes={shipping}
+            freeDeliveryCode={freeDeliveryCode}
+            regularDeliveryFee={shipping?.regularFee}
           />
           {(bill.rewards?.earn ?? 0) > 0 && (
             <p className="text-leaf-700 mt-3 flex items-center gap-2 text-sm font-semibold">
@@ -840,8 +911,14 @@ export function CheckoutView({
             <Alert tone="warn" title={t("issuesTitle")}>
               {refusedLines.length > 0 && (
                 <ul className="list-disc pl-5">
-                  {refusedLines.map((name) => (
-                    <li key={name}>{name}</li>
+                  {refusedLines.map(({ name, issue }) => (
+                    <li key={name}>
+                      {name}
+                      {/* The one issue the cart cannot settle with a tap. */}
+                      {issue === "too_heavy" && (
+                        <> — {tCart("issue.too_heavy")}</>
+                      )}
+                    </li>
                   ))}
                 </ul>
               )}
@@ -989,7 +1066,7 @@ function EmptyCheckout() {
   );
 }
 
-function CheckoutSkeleton() {
+function CheckoutSkeleton({ boxes }: { boxes: boolean }) {
   return (
     <div
       className="grid gap-8 lg:grid-cols-[1fr_25rem] lg:gap-12"
@@ -1000,7 +1077,8 @@ function CheckoutSkeleton() {
         <Skeleton className="h-32 rounded-md" />
         <Skeleton className="h-24 rounded-md" />
       </div>
-      <Skeleton className="h-96 rounded-3xl" />
+      {/* With the free-delivery progress of the boxes the summary is taller. */}
+      <Skeleton className={cn("rounded-3xl", boxes ? "h-[30rem]" : "h-96")} />
     </div>
   );
 }

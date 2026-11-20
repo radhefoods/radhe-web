@@ -1,7 +1,7 @@
 import { PackageCheck, Truck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@/i18n/routing";
-import type { Bill, Totals } from "@/lib/api/types";
+import type { Bill, BillShipping, Cents, Totals } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format/money";
 
@@ -15,12 +15,22 @@ import { formatMoney } from "@/lib/format/money";
  * caller's sum of the regular prices over the paid ones (`savings.ts`),
  * added to the subtotal and taken off again, so nothing is counted twice.
  * The total is the one big number of the panel (owner, 2026-10-19).
+ *
+ * Delivery by the box (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md 7 and 9,
+ * 2026-11-20): an order of several boxes says under the delivery how many
+ * of them are free ("2 boxes: 1 free, 1 paid"), and a free-delivery code
+ * is named there, with what the delivery would have cost struck through;
+ * such a code takes nothing off the goods and has no row of its own.
+ * Without `boxes` and without such a code the row is the one of before.
  */
 export function BillTotals({
   totals,
   savings = 0,
   discountCode = null,
   coins = null,
+  boxes = null,
+  freeDeliveryCode = null,
+  regularDeliveryFee = 0,
   className,
 }: {
   totals: Totals;
@@ -30,12 +40,42 @@ export function BillTotals({
   discountCode?: string | null;
   /** Names the coins' row; the row shows while `totals.rewards` is above zero. */
   coins?: number | null;
+  /** The boxes of the bill (`bill.shipping`); `null` under the flat fee. */
+  boxes?: Pick<
+    BillShipping,
+    "requiredBoxes" | "freeBoxes" | "paidBoxes" | "feePerPaidBox"
+  > | null;
+  /** The applied code that makes the delivery free, to name it. */
+  freeDeliveryCode?: string | null;
+  /** With that code: what the delivery would have cost; `0` when not known. */
+  regularDeliveryFee?: Cents;
   className?: string;
 }) {
   const t = useTranslations("cart");
   const locale = useLocale() as Locale;
   const row = "flex items-baseline justify-between gap-4";
   const saving = "text-leaf-700 font-semibold";
+  // Free with a code: the code is named, and the fee it saves is shown.
+  const byCode = freeDeliveryCode !== null && totals.deliveryFee === 0;
+  const count = boxes?.requiredBoxes ?? 0;
+  const deliveryNote = byCode
+    ? count > 1
+      ? t("shipping.summaryWithCode", { count, code: freeDeliveryCode })
+      : t("shipping.withCode", { code: freeDeliveryCode })
+    : boxes === null || count < 2
+      ? null
+      : boxes.paidBoxes === 0
+        ? t("shipping.summaryAllFree", { count })
+        : boxes.freeBoxes === 0
+          ? t("shipping.summaryNoneFree", {
+              count,
+              perBox: formatMoney(boxes.feePerPaidBox, locale),
+            })
+          : t("shipping.summary", {
+              count,
+              free: boxes.freeBoxes,
+              paid: boxes.paidBoxes,
+            });
   return (
     <dl className={cn("flex flex-col gap-2.5 tabular-nums", className)}>
       <div className={row}>
@@ -68,7 +108,7 @@ export function BillTotals({
           </dd>
         </div>
       )}
-      <div className={row}>
+      <div className={cn(row, deliveryNote && "flex-wrap gap-y-0.5")}>
         <dt className="text-ink-muted">{t("delivery")}</dt>
         <dd
           className={cn(
@@ -76,10 +116,21 @@ export function BillTotals({
             totals.deliveryFee === 0 && "text-leaf-700 font-bold",
           )}
         >
+          {byCode && regularDeliveryFee > 0 && (
+            <>
+              <span className="sr-only">{t("shipping.regularFee")}: </span>
+              <s className="text-ink-subtle font-normal">
+                {formatMoney(regularDeliveryFee, locale)}
+              </s>{" "}
+            </>
+          )}
           {totals.deliveryFee === 0
             ? t("deliveryFree")
             : formatMoney(totals.deliveryFee, locale)}
         </dd>
+        {deliveryNote && (
+          <dd className="text-ink-muted basis-full text-sm">{deliveryNote}</dd>
+        )}
       </div>
       <div className={cn(row, "border-ink/8 mt-1 border-t pt-3.5")}>
         <dt className="flex flex-col">
@@ -116,8 +167,11 @@ export function FreeDeliveryProgress({
   if (freeFrom === null || missingForFree === null || freeFrom <= 0)
     return null;
   const reached = missingForFree === 0;
-  // Only how full the bar is; no amount is derived from this.
-  const percent = Math.min(100, Math.round((subtotal / freeFrom) * 100));
+  // Only how full the bar is; no amount is derived from this. Reached is
+  // full, also where a free-delivery code reached it and not the goods.
+  const percent = reached
+    ? 100
+    : Math.min(100, Math.round((subtotal / freeFrom) * 100));
   const Icon = reached ? PackageCheck : Truck;
   return (
     <div
