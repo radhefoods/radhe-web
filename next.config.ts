@@ -69,11 +69,52 @@ function contentSecurityPolicy(): string {
     .join("; ");
 }
 
+/**
+ * The shop answers at one address (`NEXT_PUBLIC_SITE_URL`). When that is a
+ * `www` address, a request for the bare domain is sent there for good,
+ * with its path and query. Vercel does this itself, before the shop is
+ * asked; on a Node.js host (Hostinger) nothing else does, and the shop
+ * would answer at two addresses. The rule mirrors `primarySiteUrl` in
+ * `src/config/env.ts`, and is written out here because this file is read
+ * by the build tools of the host, on its own.
+ */
+function bareDomainRedirect() {
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "")
+    .trim()
+    .replace(
+      /^https?:\/\/(?:www\.)?radhefoods\.de(?=$|[/?#])/i,
+      "https://www.radhefoods.de",
+    );
+  let url: URL;
+  try {
+    url = new URL(site);
+  } catch {
+    return [];
+  }
+  if (url.protocol !== "https:" || !url.hostname.startsWith("www.")) return [];
+  const bare = url.hostname.slice("www.".length);
+  return [
+    {
+      source: "/:path*",
+      has: [{ type: "host" as const, value: bare.replace(/\./g, "\\.") }],
+      destination: `${url.origin}/:path*`,
+      permanent: true,
+    },
+  ];
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // `NEXT_OUTPUT=standalone` builds the server that runs without
+  // `node_modules`, in `.next/standalone`. Hostinger sets this output for
+  // every Next.js app by itself; the variable is for building the same
+  // thing elsewhere (the build check, a trial on a computer). Vercel and
+  // `npm run start` use the ordinary output: leave the variable out.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // The legal pages read their Markdown files from `content/`: make sure
-  // the files are part of what a host like Vercel deploys.
+  // the files are part of what a host deploys (Vercel's functions, the
+  // standalone server on Hostinger).
   outputFileTracingIncludes: {
     "/[locale]/legal/*": ["./content/legal/**/*"],
   },
@@ -84,6 +125,7 @@ const nextConfig: NextConfig = {
   // in the sitemap: the old address leads to the terms, for good.
   async redirects() {
     return [
+      ...bareDomainRedirect(),
       {
         source: "/legal/preorder-terms",
         destination: "/en/legal/terms",
