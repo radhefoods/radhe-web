@@ -1,0 +1,87 @@
+# The build check of the two production branches (`doc/DEPLOYMENT.md`):
+#
+#   main               is what Hostinger deploys
+#   production/vercel  is what Vercel deploys
+#
+# Both hold the same code, so every push to either branch (and every pull
+# request into one) is built both ways, started, and asked for a handful of
+# pages. A red run means: this commit is not fit for production on at least
+# one host.
+#
+# Nothing here deploys anything, and nothing reaches the real API: the
+# shop is started against the mock API of the repository.
+
+name: CI
+
+on:
+  push:
+    branches: [main, production/vercel]
+  pull_request:
+    branches: [main, production/vercel]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The values of production that are built into the pages. The API named
+  # here is never called: the server is pointed at the mock when it starts.
+  NEXT_PUBLIC_SITE_URL: https://www.radhefoods.de
+  NEXT_PUBLIC_API_URL: https://api.radhefoods.de
+  NEXT_PUBLIC_SUPPORT_EMAIL: hello@radhefoods.de
+  NEXT_PUBLIC_FEATURE_WHATSAPP: "false"
+  # While the pages are built, the API is asked at an address where nothing
+  # answers: the build must not depend on the API, and must not load the
+  # real one.
+  API_INTERNAL_URL: http://127.0.0.1:3100
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  check:
+    name: Types, lint, format, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+  build:
+    name: Build and start (${{ matrix.host }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # What Vercel builds: the ordinary output.
+          - host: vercel
+            build: npm run build
+            smoke: npm run smoke
+            output: ""
+          # What Hostinger builds and starts: webpack, standalone server.
+          - host: hostinger
+            build: npm run build:webpack
+            smoke: npm run smoke -- --standalone
+            output: standalone
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: ${{ matrix.build }}
+        env:
+          NEXT_OUTPUT: ${{ matrix.output }}
+      - name: Start the shop and ask it for its pages
+        run: ${{ matrix.smoke }}
