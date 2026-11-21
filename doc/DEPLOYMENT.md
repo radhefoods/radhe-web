@@ -51,7 +51,7 @@ Because both hosts are built for `https://www.radhefoods.de`, the host that is n
 
 ## 3. The build check
 
-`.github/workflows/ci.yml` runs on every push to `main` and to `production/vercel`, and on every pull request into either:
+`.github/workflows/ci.yml` runs on every push to `main`, to `production/vercel` and to a branch named `feature/...`, and on every pull request into one of the two production branches:
 
 | Job                        | What it does                                                                                           |
 | -------------------------- | ------------------------------------------------------------------------------------------------------ |
@@ -63,7 +63,7 @@ Because both hosts are built for `https://www.radhefoods.de`, the host that is n
 
 The check does not deploy, and the hosts do not wait for it: a push to `main` is built by Hostinger whether the check is green or not. So:
 
-- **Before pushing to `main`**, run `npm run check`. For a change to `next.config.ts`, `package.json`, the proxy or anything about caching, also run the two builds with their smoke test (the commands of the table).
+- **Before pushing to `main`**, run `npm run check`. For a change to `next.config.ts`, `package.json`, the proxy or anything about caching, also run the two builds with their smoke test (the commands of the table), or push the work to a `feature/...` branch first and let the check prove it there.
 - **Before bringing `production/vercel` up to `main`**, the check of that `main` commit must be green (section 4).
 - A rule on GitHub that protects both branches and requires the three jobs (Settings → Rules → Rulesets) turns the habit into a guarantee for pull requests. It is not set up: the work so far is pushed to `main` directly, and such a rule would end that. The owner's choice.
 

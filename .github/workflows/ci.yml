@@ -6,7 +6,8 @@
 # Both hold the same code, so every push to either branch (and every pull
 # request into one) is built both ways, started, and asked for a handful of
 # pages. A red run means: this commit is not fit for production on at least
-# one host.
+# one host. A branch named `feature/...` is checked the same way at every
+# push, so work can be proven before it reaches `main`.
 #
 # Nothing here deploys anything, and nothing reaches the real API: the
 # shop is started against the mock API of the repository.
@@ -15,7 +16,7 @@ name: CI
 
 on:
   push:
-    branches: [main, production/vercel]
+    branches: [main, production/vercel, "feature/**"]
   pull_request:
     branches: [main, production/vercel]
   workflow_dispatch:
