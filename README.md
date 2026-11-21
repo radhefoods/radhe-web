@@ -78,7 +78,7 @@ All six phases of the original plan, the six phases of the redesign, the move to
 
 ## Requirements
 
-- Node.js 24 (the current LTS). `.nvmrc` names it, so `nvm use` or `fnm use` picks it, and `engines` in `package.json` tells npm and Vercel the same. Next.js itself accepts 20.9 or newer and the mock API needs 22.18 or newer (it runs TypeScript directly with Node), but 24 is the version everything is tested with.
+- Node.js 24 (the current LTS). `.nvmrc` names it, so `nvm use` or `fnm use` picks it, and `engines` in `package.json` tells npm, Vercel and Hostinger the same. Next.js itself accepts 20.9 or newer and the mock API needs 22.18 or newer (it runs TypeScript directly with Node), but 24 is the version everything is tested with.
 - npm (the one that comes with Node)
 
 ## Setup
@@ -132,25 +132,28 @@ All variables are public (`NEXT_PUBLIC_…` values are visible in the browser). 
 
 ## Scripts
 
-| Script                  | Does                                                                                                                                                     |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`           | Shop in development mode on port 3001                                                                                                                    |
-| `npm run dev:mock`      | Mock API on port 3000                                                                                                                                    |
-| `npm run build`         | Production build                                                                                                                                         |
-| `npm run start`         | Serves the production build on port 3001                                                                                                                 |
-| `npm run check`         | Types, lint, formatting and tests in one go                                                                                                              |
-| `npm run typecheck`     | Generates route types, then `tsc`                                                                                                                        |
-| `npm run lint`          | ESLint                                                                                                                                                   |
-| `npm run test`          | Unit and integration tests (Vitest)                                                                                                                      |
-| `npm run test:e2e`      | Browser tests (Playwright) against the built shop and the mock API; starts both when they are not running. First time: `npx playwright install chromium` |
-| `npm run check:content` | Lists the placeholders still open in `content/` (legal notice, withdrawal)                                                                               |
-| `npm run format`        | Prettier                                                                                                                                                 |
+| Script                  | Does                                                                                                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`           | Shop in development mode on port 3001                                                                                                                                                                               |
+| `npm run dev:mock`      | Mock API on port 3000                                                                                                                                                                                               |
+| `npm run build`         | Production build                                                                                                                                                                                                    |
+| `npm run build:webpack` | Production build with webpack: the build script Hostinger is given (`doc/DEPLOYMENT_HOSTINGER.md`)                                                                                                                  |
+| `npm run start`         | Serves the production build on port 3001                                                                                                                                                                            |
+| `npm run smoke`         | Starts the built shop and the mock API on ports of their own (3101, 3100) and asks the shop for a handful of pages; with `-- --standalone` it starts the standalone server instead (`doc/DEPLOYMENT.md`, section 3) |
+| `npm run check`         | Types, lint, formatting and tests in one go                                                                                                                                                                         |
+| `npm run typecheck`     | Generates route types, then `tsc`                                                                                                                                                                                   |
+| `npm run lint`          | ESLint                                                                                                                                                                                                              |
+| `npm run test`          | Unit and integration tests (Vitest)                                                                                                                                                                                 |
+| `npm run test:e2e`      | Browser tests (Playwright) against the built shop and the mock API; starts both when they are not running. First time: `npx playwright install chromium`                                                            |
+| `npm run check:content` | Lists the placeholders still open in `content/` (legal notice, withdrawal)                                                                                                                                          |
+| `npm run format`        | Prettier                                                                                                                                                                                                            |
 
 ## Quality checks
 
 | Check                           | How                                                                                                                                                                                                                                                                                            |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Types, lint, format, unit tests | `npm run check`                                                                                                                                                                                                                                                                                |
+| Fit for both hosts              | The build check on GitHub (`.github/workflows/ci.yml`) at every push to `main` and `production/vercel`: `npm run check`, then the build of each host, started and asked for its pages. By hand: `npm run build && npm run smoke`                                                               |
 | Browser tests                   | `npm run test:e2e`: ordering and paying, the account, public pages, on a wide screen and on a phone                                                                                                                                                                                            |
 | Accessibility                   | Part of the browser tests (`e2e/accessibility.spec.ts`): axe checks every kind of page against WCAG 2.2 A and AA, plus keyboard and reduced-motion tests. An automatic check does not replace trying the shop with a screen reader.                                                            |
 | Performance                     | Lighthouse against the production build: `npm run build && npm run start`, then `npx lighthouse http://localhost:3001/en --view`. The numbers measured at the end of phase 6 are in `DECISIONS.md`. Measure again on the real domain: a local run has no CDN, no HTTP/2 and no product photos. |
@@ -220,10 +223,21 @@ Add the key to `messages/en.json` **and** `messages/de.json`. A test fails when 
 
 ## Deployment
 
-The build is standard Next.js with no platform-specific service, so it runs on Vercel and on a Node.js host (Hostinger) alike.
+The shop runs on Hostinger and on Vercel from the same code, and both are kept ready for production. Which of them serves `www.radhefoods.de` is a matter of two DNS records.
 
-1. Set the environment variables of the table above. On Vercel: Project → Settings → Environment Variables, before the build, because the `NEXT_PUBLIC_` values are built into the scripts. Without `NEXT_PUBLIC_API_URL` the shop looks for the API on `localhost:3000`, which does not exist there.
-2. `npm ci && npm run build`, then `npm run start` (or let Vercel do both). Both run on Node.js 24; Vercel takes the version from `engines` in `package.json`, so there is nothing to set in the project settings. The build does not need the API: pages that cannot load their content while building are rendered at their first visit. The running shop does need it; without an API the catalogue is empty and pages with content show the error page.
-3. The shop and the API must share a parent domain (`radhefoods.de` and `api.radhefoods.de`): the session cookies are set for `.radhefoods.de`. The API's `CORS_ORIGINS` must contain the shop's address, and its `SHOP_URL` must be the shop's address: Stripe sends the customer back to `SHOP_URL/account/orders/<number>`.
+| Branch              | Deployed by | Guide                                                        |
+| ------------------- | ----------- | ------------------------------------------------------------ |
+| `main`              | Hostinger   | [`doc/DEPLOYMENT_HOSTINGER.md`](doc/DEPLOYMENT_HOSTINGER.md) |
+| `production/vercel` | Vercel      | [`doc/DEPLOYMENT_VERCEL.md`](doc/DEPLOYMENT_VERCEL.md)       |
 
-Sign-in does not work on addresses outside that domain (for example Vercel preview addresses), because the cookies do not travel there.
+[`doc/DEPLOYMENT.md`](doc/DEPLOYMENT.md) holds what both share: the build check, bringing `production/vercel` up to `main`, changing the host, going back.
+
+What holds on either host:
+
+1. Set the environment variables of the table above before the first build, because the `NEXT_PUBLIC_` values are built into the scripts. Without `NEXT_PUBLIC_API_URL` the shop looks for the API on `localhost:3000`, which does not exist there.
+2. Node.js 24. The build does not need the API: pages that cannot load their content while building are rendered at their first visit. The running shop does need it; without an API the catalogue is empty and pages with content show the error page.
+3. The shop and the API must share a parent domain (`www.radhefoods.de` and `api.radhefoods.de`): the session cookies are set for `.radhefoods.de`. The API's `CORS_ORIGINS` must contain the shop's address, and its `SHOP_URL` must be the shop's address: Stripe sends the customer back to `SHOP_URL/account/orders/<number>`. Neither changes when the host changes.
+
+Sign-in does not work on addresses outside that domain (Vercel's preview addresses, Hostinger's temporary address), because the cookies do not travel there.
+
+`GET /api/health` answers `{"status":"ok"}` as soon as the server runs: the address for an uptime monitor and for the check after a deployment.
