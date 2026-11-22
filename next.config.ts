@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
@@ -103,9 +104,28 @@ function bareDomainRedirect() {
   ];
 }
 
+/**
+ * How many processes `next build` starts to collect and write the pages.
+ * Next.js starts one per processor, less one, and each of them starts a
+ * thread per processor when it loads the native part of Next.js. On a
+ * computer or on Vercel's build machine that is a handful. Hostinger builds
+ * on a shared server with 56 processors and a limit of threads for the
+ * account: 55 processes asked for about 3,000 threads, and the build ended
+ * with "OS can't spawn worker thread: Resource temporarily unavailable"
+ * (2026-11-22). Four are plenty for the 72 pages written ahead.
+ * `NEXT_BUILD_WORKERS` in the environment of a host sets another number
+ * without a change of the code.
+ */
+function buildWorkers(): number {
+  const wanted = Number(process.env.NEXT_BUILD_WORKERS);
+  if (Number.isInteger(wanted) && wanted > 0) return wanted;
+  return Math.min(4, Math.max(1, availableParallelism() - 1));
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: { cpus: buildWorkers() },
   // `NEXT_OUTPUT=standalone` builds the server that runs without
   // `node_modules`, in `.next/standalone`. Hostinger sets this output for
   // every Next.js app by itself; the variable is for building the same

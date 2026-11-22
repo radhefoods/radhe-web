@@ -49,6 +49,8 @@ Because both hosts are built for `https://www.radhefoods.de`, the host that is n
 
 `NEXT_OUTPUT=standalone` is not a variable of production. Hostinger sets the standalone output by itself; the variable exists so that the build check and a developer can build the same thing.
 
+`NEXT_BUILD_WORKERS` is not a variable of production either. The build starts four processes for the pages at most, on every host (`buildWorkers` in `next.config.ts`); the variable sets another number, for a host whose build server allows fewer ([DEPLOYMENT_HOSTINGER.md](DEPLOYMENT_HOSTINGER.md), section 8).
+
 ## 3. The build check
 
 `.github/workflows/ci.yml` runs on every push to `main`, to `production/vercel` and to a branch named `feature/...`, and on every pull request into one of the two production branches:
