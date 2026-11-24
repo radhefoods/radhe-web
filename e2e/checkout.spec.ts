@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createAccount, MOCK, PASSWORD, signupCode } from "./helpers";
+import {
+  MOCK,
+  PASSWORD,
+  createAccount,
+  discountCode,
+  signupCode,
+} from "./helpers";
 
 test.beforeEach(async ({ request }) => {
   await request.post(`${MOCK}/__mock/reset`);
@@ -175,8 +181,7 @@ test.describe("from the cart to the paid order", () => {
       name: "Ihre Bestellung",
     });
     await expect(order).toContainText("30,97 €");
-    await expect(order).toContainText("inkl. MwSt. und Lieferung");
-    await expect(order).toContainText("Sie zahlen jetzt.");
+    await expect(order).toContainText("Inkl. MwSt.");
     await page.getByRole("checkbox", { name: /Geschäftsbedingungen/ }).check();
     await page
       .getByRole("button", { name: "Zahlungspflichtig bestellen" })
@@ -342,7 +347,7 @@ test.describe("discount codes on the checkout page", () => {
   }) => {
     await seedCustomer(page);
     await page.goto("/en/checkout");
-    const field = page.getByLabel("Discount code");
+    const field = await discountCode(page);
     const apply = order(page).getByRole("button", { name: "Apply" });
     await expect(apply).toBeDisabled();
 
@@ -357,7 +362,7 @@ test.describe("discount codes on the checkout page", () => {
     const summary = order(page);
     await expect(summary).toContainText("Code DIWALI10 applied");
     await expect(summary).toContainText("You save €2.60.");
-    await expect(summary).toContainText("Discount DIWALI10");
+    await expect(summary).toContainText("Discount code DIWALI10");
     await expect(summary).toContainText("−€2.60");
     await expect(summary).toContainText("€28.37");
     await expect(field).toBeHidden();
@@ -370,7 +375,7 @@ test.describe("discount codes on the checkout page", () => {
     await page.getByRole("link", { name: "Pay by card" }).click();
     await expect(page).toHaveURL(/\/en\/account\/orders\/RF-1085/);
     const bill = page.locator("section[aria-labelledby='order-bill']");
-    await expect(bill).toContainText("Discount DIWALI10");
+    await expect(bill).toContainText("Discount code DIWALI10");
     await expect(bill).toContainText("−€2.60");
     await expect(bill).toContainText("€28.37");
   });
@@ -378,7 +383,7 @@ test.describe("discount codes on the checkout page", () => {
   test("removing the code brings the plain bill back", async ({ page }) => {
     await seedCustomer(page);
     await page.goto("/en/checkout");
-    await page.getByLabel("Discount code").fill("DIWALI10");
+    await (await discountCode(page)).fill("DIWALI10");
     await order(page).getByRole("button", { name: "Apply" }).click();
     await expect(order(page)).toContainText("€28.37");
     await order(page)
@@ -394,7 +399,7 @@ test.describe("discount codes on the checkout page", () => {
   }) => {
     const { atta } = await seedCustomer(page);
     await page.goto("/en/checkout");
-    await page.getByLabel("Discount code").fill("welcome5");
+    await (await discountCode(page)).fill("welcome5");
     await order(page).getByRole("button", { name: "Apply" }).click();
     await expect(order(page)).toContainText("Code WELCOME5 applied");
 

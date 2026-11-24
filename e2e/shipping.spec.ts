@@ -6,7 +6,13 @@ import {
   type Locator,
   type Page,
 } from "@playwright/test";
-import { createAccount, MOCK } from "./helpers";
+import {
+  MOCK,
+  cartLines,
+  createAccount,
+  discountCode,
+  settled,
+} from "./helpers";
 
 // Delivery by the box in the cart, at the checkout and on the order page
 // (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md): the ten scenarios of its
@@ -117,6 +123,11 @@ async function seedCustomer(page: Page, ids: Ids, cart: Cart) {
   });
 }
 
+/** Unfolds the boxes of the card one by one ("Box by box", "Box für Box"). */
+async function openBoxes(boxes: Locator) {
+  await boxes.locator("summary").click();
+}
+
 const cartSummary = (page: Page) =>
   page.getByRole("complementary", { name: "Summary" });
 const orderSummary = (page: Page) =>
@@ -126,6 +137,7 @@ const barAt = (summary: Locator, percent: number) =>
   summary.locator(`[style*="width: ${percent}%"]`);
 /** axe against WCAG 2.2 A and AA and its best-practice rules, as in accessibility.spec.ts. */
 async function expectNoBarriers(page: Page) {
+  await settled(page);
   const { violations } = await new AxeBuilder({ page })
     .withTags([
       "wcag2a",
@@ -195,7 +207,7 @@ test.describe("switched off (scenario 10)", () => {
     await page.goto("/en/checkout");
     const order = orderSummary(page);
     await expect(order).toContainText("€14.99");
-    await page.getByLabel("Discount code").fill("freeship");
+    await (await discountCode(page)).fill("freeship");
     await order.getByRole("button", { name: "Apply" }).click();
     await expect(order).toContainText("Code FREESHIP applied");
     await expect(order).toContainText("Free delivery.");
@@ -217,16 +229,14 @@ test.describe("one box (scenarios 1 to 3)", () => {
     await seedGuestCart(page, ids, [["light", 1]]);
     await page.goto("/en/cart");
     const summary = cartSummary(page);
-    await expect(summary).toContainText(
-      "Add €29.00 more and this order ships free.",
-    );
+    await expect(summary).toContainText("Your box ships for €6.99");
+    await expect(summary).toContainText("€29.00 to go");
     await expect(barAt(summary, 26)).toHaveCount(1);
-    await expect(summary).toContainText("€39.00 per free box");
     await expect(summary).toContainText("€6.99");
     await expect(summary).toContainText("€16.99");
     const box = summary.getByRole("region", { name: "Your box" });
     await expect(box).toContainText("2.1 kg of 25 kg");
-    await expect(box).toContainText("22.9 kg of room left in your box.");
+    await expect(box).toContainText("22.9 kg available");
     await expect(barAt(box, 8)).toHaveCount(1);
     // One box: no line of boxes under the delivery, and the old hint is gone.
     await expect(summary).not.toContainText("boxes");
@@ -242,9 +252,8 @@ test.describe("one box (scenarios 1 to 3)", () => {
     await seedGuestCart(page, ids, [["medium", 1]]);
     await page.goto("/en/cart");
     const summary = cartSummary(page);
-    await expect(summary).toContainText(
-      "Add €14.00 more and this order ships free.",
-    );
+    await expect(summary).toContainText("Your box ships for €4.99");
+    await expect(summary).toContainText("€14.00 to go");
     await expect(summary).toContainText("€4.99");
     await expect(summary).toContainText("€29.99");
     await expect(
@@ -260,7 +269,7 @@ test.describe("one box (scenarios 1 to 3)", () => {
       },
       [{ variantId: ids.full, quantity: 1 }],
     );
-    await expect(summary).toContainText("Great, this order ships free!");
+    await expect(summary).toContainText("Your box ships free");
     await expect(barAt(summary, 100)).toHaveCount(1);
     await expect(
       summary.getByRole("region", { name: "Your box" }),
@@ -282,13 +291,13 @@ test.describe("two boxes (scenarios 4 to 6)", () => {
     ]);
     await page.goto("/en/cart");
     const summary = cartSummary(page);
+    await expect(summary).toContainText("Your 1st box ships free");
+    await expect(summary).toContainText("€38.50 to go");
     await expect(summary).toContainText(
-      "Add €38.50 more and box 2 ships free too.",
-    );
-    await expect(summary).toContainText(
-      "This order needs 2 boxes: 1 free, 1 at €4.99.",
+      "Your order uses 2 boxes: 1 free, 1 chargeable. The 2nd box costs €4.99.",
     );
     const boxes = summary.getByRole("region", { name: "Your boxes" });
+    await openBoxes(boxes);
     await expect(boxes).toContainText("25.1 kg");
     const rows = boxes.getByRole("listitem");
     await expect(rows).toHaveCount(2);
@@ -298,8 +307,9 @@ test.describe("two boxes (scenarios 4 to 6)", () => {
     await expect(rows.nth(1)).toContainText("Box 2");
     await expect(rows.nth(1)).toContainText("5.1 kg");
     await expect(rows.nth(1)).toContainText("€4.99");
-    await expect(boxes).toContainText("Box 2 has 19.9 kg of room left.");
-    await expect(summary).toContainText("2 boxes: 1 free, 1 paid");
+    await expect(boxes).toContainText("Space in the 2nd box");
+    await expect(boxes).toContainText("19.9 kg available");
+    await expect(summary).toContainText("2 boxes: 1 free, 1 chargeable");
     await expect(summary).toContainText("€44.49");
     await expectNoSidewaysScroll(page);
   });
@@ -316,10 +326,11 @@ test.describe("two boxes (scenarios 4 to 6)", () => {
     await page.goto("/en/cart");
     const summary = cartSummary(page);
     // Scenario 6: 78.00 €, 41 kg, still two boxes.
-    await expect(summary).toContainText("Great, all 2 boxes ship free!");
+    await expect(summary).toContainText("Both boxes ship free");
     await expect(summary).toContainText("2 boxes, all free");
     await expect(summary).toContainText("€78.00");
     const boxes = summary.getByRole("region", { name: "Your boxes" });
+    await openBoxes(boxes);
     await expect(boxes).toContainText("41 kg");
     await expect(boxes.getByRole("listitem").nth(0)).toContainText("21 kg");
 
@@ -327,11 +338,9 @@ test.describe("two boxes (scenarios 4 to 6)", () => {
     await page
       .getByRole("button", { name: "Remove Toor Dal (1kg) from the cart" })
       .click();
-    await expect(summary).toContainText(
-      "Add €19.00 more and box 2 ships free too.",
-    );
+    await expect(summary).toContainText("€19.00 to go");
     await expect(barAt(summary, 51)).toHaveCount(1);
-    await expect(summary).toContainText("2 boxes: 1 free, 1 paid");
+    await expect(summary).toContainText("2 boxes: 1 free, 1 chargeable");
     await expect(summary).toContainText("€63.99");
     await expect(boxes).toContainText("40 kg");
   });
@@ -344,24 +353,21 @@ test.describe("two boxes (scenarios 4 to 6)", () => {
     await seedCustomer(page, ids, [["sack", 2]]);
     await page.goto("/en/cart");
     const summary = cartSummary(page);
-    await expect(summary).toContainText(
-      "Add €19.00 more and box 2 ships free too.",
-    );
-    const more = page.getByRole("button", { name: "One more" });
+    await expect(summary).toContainText("€19.00 to go");
+    const more = cartLines(page).getByRole("button", { name: "One more" });
     await more.click();
     await more.click();
     await more.click();
     // Five sacks: 147.50 €, five boxes, three of them free.
+    await expect(summary).toContainText("Your first 3 boxes ship free");
+    await expect(summary).toContainText("€8.50 to go");
     await expect(summary).toContainText(
-      "Add €8.50 more and box 4 ships free too.",
+      "Your order uses 5 boxes: 3 free, 2 chargeable. 2 boxes cost €4.99 each.",
     );
-    await expect(summary).toContainText(
-      "This order needs 5 boxes: 3 free, 2 at €4.99 each.",
-    );
-    await expect(summary).toContainText("5 boxes: 3 free, 2 paid");
-    await expect(
-      summary.getByRole("region", { name: "Your boxes" }).getByRole("listitem"),
-    ).toHaveCount(5);
+    await expect(summary).toContainText("5 boxes: 3 free, 2 chargeable");
+    const boxes = summary.getByRole("region", { name: "Your boxes" });
+    await openBoxes(boxes);
+    await expect(boxes.getByRole("listitem")).toHaveCount(5);
     await expect(summary).toContainText("€157.48");
   });
 });
@@ -378,28 +384,28 @@ test.describe("codes and coins at the checkout (scenarios 7 to 9)", () => {
     ]);
     await page.goto("/en/checkout");
     const order = orderSummary(page);
-    await expect(order).toContainText("Great, all 2 boxes ship free!");
+    await expect(order).toContainText("Both boxes ship free");
     await expect(order).toContainText("2 boxes, all free");
-    // How full the boxes are stays on the cart page.
-    await expect(order.getByRole("region")).toHaveCount(0);
+    // The boxes of the order stand under the button here too.
+    await expect(
+      order.getByRole("region", { name: "Your boxes" }),
+    ).toBeVisible();
 
-    await page.getByLabel("Discount code").fill("DIWALI10");
+    await (await discountCode(page)).fill("DIWALI10");
     await order.getByRole("button", { name: "Apply" }).click();
-    await expect(order).toContainText(
-      "Add €7.80 more and box 2 ships free too.",
-    );
+    await expect(order).toContainText("€7.80 to go");
     await expect(order).toContainText(
       "With this discount one box is no longer free. Add €7.80 more to get it free again.",
     );
     await expect(order).toContainText("Discount code DIWALI10");
     await expect(order).toContainText("−€7.80");
-    await expect(order).toContainText("2 boxes: 1 free, 1 paid");
+    await expect(order).toContainText("2 boxes: 1 free, 1 chargeable");
     await expect(order).toContainText("€75.19");
 
     await order
       .getByRole("button", { name: "Remove the code DIWALI10" })
       .click();
-    await expect(order).toContainText("Great, all 2 boxes ship free!");
+    await expect(order).toContainText("Both boxes ship free");
     await expect(order).not.toContainText("no longer free");
     await expect(order).toContainText("€78.00");
   });
@@ -412,15 +418,13 @@ test.describe("codes and coins at the checkout (scenarios 7 to 9)", () => {
     await seedCustomer(page, ids, [["sack", 2]]);
     await page.goto("/en/checkout");
     const order = orderSummary(page);
-    await expect(order).toContainText(
-      "Add €19.00 more and box 2 ships free too.",
-    );
+    await expect(order).toContainText("€19.00 to go");
     await expect(order).toContainText("€63.99");
 
-    await page.getByLabel("Discount code").fill("FREESHIP");
+    await (await discountCode(page)).fill("FREESHIP");
     await order.getByRole("button", { name: "Apply" }).click();
     await expect(order).toContainText(
-      "Free delivery with code FREESHIP. You save €4.99.",
+      "Your order ships free with code FREESHIP",
     );
     await expect(order).toContainText("Code FREESHIP applied");
     await expect(order).toContainText("Free delivery. You save €4.99.");
@@ -445,11 +449,9 @@ test.describe("codes and coins at the checkout (scenarios 7 to 9)", () => {
     await seedCustomer(page, ids, [["full", 1]]);
     await page.goto("/en/checkout");
     const order = orderSummary(page);
-    await expect(order).toContainText("Great, this order ships free!");
+    await expect(order).toContainText("Your box ships free");
     await order.getByRole("button", { name: "Redeem all" }).click();
-    await expect(order).toContainText(
-      "Add €1.95 more and this order ships free.",
-    );
+    await expect(order).toContainText("€1.95 to go");
     await expect(order).toContainText(
       "With these coins one box is no longer free. Add €1.95 more to get it free again.",
     );
@@ -468,18 +470,17 @@ test.describe("in German", () => {
     await seedGuestCart(page, ids, [["sack", 2]]);
     await page.goto("/de/warenkorb");
     const summary = page.getByRole("complementary", { name: "Übersicht" });
+    await expect(summary).toContainText("Noch 19,00 €");
     await expect(summary).toContainText(
-      "Noch 19,00 €, dann ist auch Box 2 kostenlos.",
+      "Ihre Bestellung braucht 2 Boxen: 1 kostenlos, 1 kostenpflichtig. Die 2. Box kostet 4,99 €.",
     );
-    await expect(summary).toContainText(
-      "Diese Bestellung braucht 2 Boxen: 1 kostenlos, 1 für 4,99 €.",
-    );
-    await expect(summary).toContainText("39,00 € je kostenlose Box");
+    await expect(summary).toContainText("Ihre 1. Box wird kostenlos geliefert");
     const boxes = summary.getByRole("region", { name: "Ihre Boxen" });
+    await openBoxes(boxes);
     await expect(boxes).toContainText("40 kg");
     await expect(boxes.getByRole("listitem").nth(0)).toContainText("Kostenlos");
     await expect(boxes.getByRole("listitem").nth(1)).toContainText("4,99 €");
-    await expect(boxes).toContainText("In Box 2 ist noch Platz für 5 kg.");
+    await expect(boxes).toContainText("5 kg frei");
     await expect(summary).toContainText(
       "2 Boxen: 1 kostenlos, 1 kostenpflichtig",
     );
@@ -491,12 +492,10 @@ test.describe("in German", () => {
     await seedGuestCart(page, ids, [["light", 1]]);
     await page.goto("/de/warenkorb");
     const summary = page.getByRole("complementary", { name: "Übersicht" });
-    await expect(summary).toContainText(
-      "Noch 29,00 € bis zur kostenlosen Lieferung.",
-    );
+    await expect(summary).toContainText("Noch 29,00 €");
     const box = summary.getByRole("region", { name: "Ihre Box" });
     await expect(box).toContainText("2,1 kg von 25 kg");
-    await expect(box).toContainText("In der Box ist noch Platz für 22,9 kg.");
+    await expect(box).toContainText("22,9 kg frei");
   });
 });
 
@@ -510,9 +509,7 @@ test.describe("the order", () => {
     await page.goto("/en/checkout");
     await page.getByRole("button", { name: "Continue as guest" }).click();
     const order = orderSummary(page);
-    await expect(order).toContainText(
-      "Add €19.00 more and box 2 ships free too.",
-    );
+    await expect(order).toContainText("€19.00 to go");
     await expect(order).toContainText("€63.99");
     await page.getByLabel("First name").fill("Gita");
     await page.getByLabel("Last name").fill("Guest");
@@ -520,7 +517,6 @@ test.describe("the order", () => {
     await page.getByLabel("House number").fill("12a");
     await page.getByLabel("Postcode").fill("60311");
     await page.getByLabel("City").fill("Frankfurt am Main");
-    await page.getByRole("button", { name: "Save address" }).click();
     await page
       .getByRole("textbox", { name: "Email address" })
       .fill("gita@example.com");
@@ -615,9 +611,7 @@ test.describe("heavy packs and many boxes", () => {
       summary.getByRole("button", { name: "Go to checkout" }),
     ).toBeDisabled();
     // The bill and the box are those of the line that can be ordered.
-    await expect(summary).toContainText(
-      "Add €29.00 more and this order ships free.",
-    );
+    await expect(summary).toContainText("€29.00 to go");
     await expect(
       summary.getByRole("region", { name: "Your box" }),
     ).toContainText("2.1 kg of 25 kg");
@@ -643,13 +637,14 @@ test.describe("heavy packs and many boxes", () => {
     ]);
     await page.goto("/en/cart");
     const boxes = cartSummary(page).getByRole("region", { name: "Your boxes" });
+    await openBoxes(boxes);
     const rows = boxes.getByRole("listitem");
     await expect(rows).toHaveCount(2);
     await expect(rows.nth(0)).toContainText("Box 1");
     await expect(rows.nth(1)).toContainText("Separate parcel");
     await expect(rows.nth(1)).toContainText("20 kg");
     await expect(boxes).toContainText("Weight is approximate.");
-    await expect(boxes).toContainText("Box 1 has 23.9 kg of room left.");
+    await expect(boxes).toContainText("23.9 kg available");
   });
 
   test("four boxes fit the screen", async ({ page, request }) => {
@@ -661,16 +656,16 @@ test.describe("heavy packs and many boxes", () => {
     await page.goto("/en/cart");
     const summary = cartSummary(page);
     // 98.50 €: two boxes free, two paid.
+    await expect(summary).toContainText("Your first 2 boxes ship free");
+    await expect(summary).toContainText("€18.50 to go");
     await expect(summary).toContainText(
-      "Add €18.50 more and box 3 ships free too.",
-    );
-    await expect(summary).toContainText(
-      "This order needs 4 boxes: 2 free, 2 at €4.99 each.",
+      "Your order uses 4 boxes: 2 free, 2 chargeable. 2 boxes cost €4.99 each.",
     );
     const boxes = summary.getByRole("region", { name: "Your boxes" });
+    await openBoxes(boxes);
     await expect(boxes.getByRole("listitem")).toHaveCount(4);
     await expect(boxes).toContainText("65.1 kg");
-    await expect(summary).toContainText("4 boxes: 2 free, 2 paid");
+    await expect(summary).toContainText("4 boxes: 2 free, 2 chargeable");
     await expect(summary).toContainText("€108.48");
     await expectNoSidewaysScroll(page);
   });
@@ -685,9 +680,10 @@ test.describe("heavy packs and many boxes", () => {
     const summary = cartSummary(page);
     // 354.00 €: nine boxes free, three paid.
     await expect(summary).toContainText(
-      "This order needs 12 boxes: 9 free, 3 at €4.99 each.",
+      "Your order uses 12 boxes: 9 free, 3 chargeable. 3 boxes cost €4.99 each.",
     );
     const boxes = summary.getByRole("region", { name: "Your boxes" });
+    await openBoxes(boxes);
     const list = boxes.getByRole("list");
     await expect(list.getByRole("listitem")).toHaveCount(12);
     await expect(list).toHaveAttribute("tabindex", "0");
@@ -732,9 +728,9 @@ test.describe("barriers", () => {
     await page.goto("/en/checkout");
     const order = orderSummary(page);
     await expect(order).toContainText("ship");
-    await page.getByLabel("Discount code").fill("FREESHIP");
+    await (await discountCode(page)).fill("FREESHIP");
     await order.getByRole("button", { name: "Apply" }).click();
-    await expect(order).toContainText("Free delivery with code FREESHIP");
+    await expect(order).toContainText("ships free with code FREESHIP");
     await expectNoBarriers(page);
   });
 });

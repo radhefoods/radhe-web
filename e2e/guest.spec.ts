@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createAccount, MOCK } from "./helpers";
+import { MOCK, createAccount, discountCode } from "./helpers";
 
 // Ordering without an account (doc 20): the guest checkout and the guest
 // order page the emails and the way back from Stripe lead to.
@@ -32,7 +32,11 @@ async function fillAddress(page: Page) {
   await page.getByLabel("House number").fill("12a");
   await page.getByLabel("Postcode").fill("60311");
   await page.getByLabel("City").fill("Frankfurt am Main");
-  await page.getByRole("button", { name: "Save address" }).click();
+  // Nothing to save: a guest's address goes with the order.
+  await expect(page.getByRole("button", { name: "Save address" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("Label (optional)")).toHaveCount(0);
 }
 
 test.describe("a guest orders", () => {
@@ -48,9 +52,10 @@ test.describe("a guest orders", () => {
     await expect(order).toContainText("Chakki Atta (5kg)");
     await expect(order).toContainText("€30.97");
     await fillAddress(page);
-    await expect(page.getByRole("radio")).toBeChecked();
-    await expect(page.getByText("Gita Guest")).toBeVisible();
-    // A guest has the one address: nothing to add.
+    // A guest has the one address, typed into the page: nothing to choose
+    // and nothing to add.
+    await expect(page.getByRole("radio")).toHaveCount(0);
+    await expect(page.getByLabel("First name")).toHaveValue("Gita");
     await expect(
       page.getByRole("button", { name: "Add an address" }),
     ).toHaveCount(0);
@@ -66,7 +71,7 @@ test.describe("a guest orders", () => {
     await expect(page).toHaveURL(/\/en\/checkout$/);
 
     // A discount code is priced with the preview.
-    await page.getByLabel("Discount code").fill("diwali10");
+    await (await discountCode(page)).fill("diwali10");
     await order.getByRole("button", { name: "Apply" }).click();
     await expect(order).toContainText("Code DIWALI10 applied");
     await expect(order).toContainText("€28.37");

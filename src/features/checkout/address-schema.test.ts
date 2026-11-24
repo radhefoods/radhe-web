@@ -135,8 +135,7 @@ describe("addressToFormValues", () => {
 
 describe("the address of a guest order", () => {
   it("goes without label and standard flag, empty optional fields as null", async () => {
-    const { guestAddressOf, toGuestAddressInput } =
-      await import("./address-schema");
+    const { toGuestAddressInput } = await import("./address-schema");
     const input = toGuestAddressInput({ ...valid, isDefault: true });
     expect(input).toEqual({
       firstName: valid.firstName,
@@ -152,8 +151,5 @@ describe("the address of a guest order", () => {
     });
     expect(input).not.toHaveProperty("label");
     expect(input).not.toHaveProperty("isDefault");
-    const card = guestAddressOf(valid);
-    expect(card).toMatchObject({ id: "guest", label: null, isDefault: false });
-    expect(card.city).toBe(valid.city);
   });
 });

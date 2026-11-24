@@ -1,4 +1,9 @@
-import type { APIRequestContext } from "@playwright/test";
+import {
+  expect,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 // What the specs share: the mock API, the password of every test account,
 // and the way an account is made through the API since the sign-up asks
@@ -55,4 +60,42 @@ export async function signupCode(
   const tokens = (await response.json()) as { signupCode: string | null };
   if (!tokens.signupCode) throw new Error(`No sign-up waits for ${email}.`);
   return tokens.signupCode;
+}
+
+/**
+ * The field of the discount code at the checkout. It starts as the one
+ * line "Add a discount code" (2026-11-24); this opens it when it still is.
+ */
+export async function discountCode(page: Page): Promise<Locator> {
+  const field = page.getByLabel("Discount code");
+  const open = page.getByRole("button", { name: "Add a discount code" });
+  await expect(field.or(open)).toBeVisible({ timeout: 60_000 });
+  if (await open.isVisible()) await open.click();
+  return field;
+}
+
+/** The products of the cart page: the list itself, not the suggestions under it. */
+export const cartLines = (page: Page) =>
+  page.getByRole("list", { name: "Your cart" });
+
+/**
+ * Waits until what rises or fades in on the page has settled (the panels
+ * of the cart and the checkout arrive with a short animation): a check of
+ * colours in the middle of a fade measures the fade, not the page.
+ * Animations that never end (a placeholder that shimmers) are left alone.
+ */
+export async function settled(page: Page) {
+  await page.evaluate(async () => {
+    const ending = document
+      .getAnimations()
+      .filter(
+        (animation) =>
+          animation.effect?.getComputedTiming().iterations !== Infinity,
+      )
+      .map((animation) => animation.finished.catch(() => undefined));
+    await Promise.race([
+      Promise.all(ending),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+  });
 }

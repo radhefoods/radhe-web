@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { createAccount, MOCK } from "./helpers";
+import { MOCK, createAccount, settled } from "./helpers";
 
 const DEMO = "demo@radhefoods.de";
 
@@ -19,6 +19,7 @@ async function signIn(page: Page, email = DEMO) {
 }
 
 async function expectNoBarriers(page: Page) {
+  await settled(page);
   const { violations } = await new AxeBuilder({ page })
     .withTags([
       "wcag2a",

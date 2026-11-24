@@ -2,7 +2,7 @@
 
 import { TicketPercent } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { Locale } from "@/i18n/routing";
@@ -43,6 +43,7 @@ export function DiscountCode({
   onBill,
   apply: applyCode = (code) => api.applyDiscount(code),
   remove: removeCode = () => api.removeDiscount(),
+  collapsed = false,
   className,
 }: {
   /** `bill.discount`: the code kept with the cart, or `null`. */
@@ -58,10 +59,26 @@ export function DiscountCode({
    */
   apply?: (code: string) => Promise<Bill>;
   remove?: () => Promise<Bill>;
+  /**
+   * Starts as one quiet line, "Add a discount code", that opens the field
+   * (the checkout, after the design "Liquid Glass" of the lab): most
+   * customers have no code, and an empty field asks for one.
+   */
+  collapsed?: boolean;
   className?: string;
 }) {
   const t = useTranslations("checkout.discount");
   const locale = useLocale() as Locale;
+  const [open, setOpen] = useState(!collapsed);
+  const field = useRef<HTMLInputElement>(null);
+  // Opened with a tap: the field takes the focus it was opened for.
+  const asked = useRef(false);
+  useEffect(() => {
+    if (open && asked.current) {
+      asked.current = false;
+      field.current?.focus();
+    }
+  }, [open]);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   /** Why the typed code was refused (`400 DISCOUNT_NOT_APPLICABLE`). */
@@ -161,13 +178,36 @@ export function DiscountCode({
     );
   }
 
+  if (!open) {
+    return (
+      <div className={className}>
+        <button
+          type="button"
+          aria-expanded={false}
+          onClick={() => {
+            asked.current = true;
+            setOpen(true);
+          }}
+          className="text-leaf-700 hover:text-leaf-800 flex min-h-10 items-center gap-2 rounded-xs text-[0.9375rem] font-semibold"
+        >
+          <TicketPercent aria-hidden="true" className="size-[1.125rem]" />
+          <span className="underline underline-offset-4">{t("add")}</span>
+        </button>
+      </div>
+    );
+  }
+
   const errorId = "checkout-discount-error";
   return (
     <form
       method="post"
       onSubmit={(event) => void apply(event)}
       noValidate
-      className={cn("flex flex-col gap-1.5", className)}
+      className={cn(
+        "flex flex-col gap-1.5",
+        collapsed && "animate-rise",
+        className,
+      )}
     >
       <label
         htmlFor="checkout-discount"
@@ -178,6 +218,7 @@ export function DiscountCode({
       <div className="flex gap-2">
         <input
           id="checkout-discount"
+          ref={field}
           value={code}
           onChange={(event) => {
             setCode(event.target.value);

@@ -18,7 +18,7 @@ import { formatMoney } from "@/lib/format/money";
  *
  * Delivery by the box (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md 7 and 9,
  * 2026-11-20): an order of several boxes says under the delivery how many
- * of them are free ("2 boxes: 1 free, 1 paid"), and a free-delivery code
+ * of them are free ("2 boxes: 1 free, 1 chargeable"), and a free-delivery code
  * is named there, with what the delivery would have cost struck through;
  * such a code takes nothing off the goods and has no row of its own.
  * Without `boxes` and without such a code the row is the one of before.
@@ -139,7 +139,10 @@ export function BillTotals({
           <span className="text-ink-muted text-sm">{t("totalNote")}</span>
         </dt>
         <dd className="font-display text-ink text-[1.75rem] leading-none">
-          {formatMoney(totals.total, locale)}
+          {/* Mounted afresh when the total changes, so it drops into place. */}
+          <span key={totals.total} className="animate-tick inline-block">
+            {formatMoney(totals.total, locale)}
+          </span>
         </dd>
       </div>
     </dl>
@@ -148,10 +151,12 @@ export function BillTotals({
 
 /**
  * How much is missing for free delivery, with a bar; or that it is reached.
- * A wheat panel with the amount in bold and a dark leaf bar on a white
- * track, the order value and the free-delivery threshold under its ends
- * (owner, 2026-10-19: clearer and darker). Nothing when the shop has no
- * free tier.
+ * A tile of clear glass at the head of the summary with the amount in
+ * bold and a leaf bar that glows on a faint track, the order value and
+ * the free-delivery threshold under its ends (owner, 2026-11-24, after
+ * the cart design "Liquid Glass" of the lab; the wheat panel of
+ * 2026-10-19 before). Nothing when the shop has no free tier. This is the
+ * flat fee's hint; a bill priced by the box shows `BoxShipping` instead.
  */
 export function FreeDeliveryProgress({
   delivery,
@@ -177,10 +182,7 @@ export function FreeDeliveryProgress({
   return (
     <div
       className={cn(
-        "rounded-xl p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.7)] ring-1",
-        reached
-          ? "bg-leaf-50/90 ring-leaf-600/12"
-          : "bg-wheat-100/90 ring-wheat-800/12",
+        "rounded-lg bg-white/55 p-3.5 shadow-[inset_0_1px_0_#fff,0_0_0_1px_rgb(255_255_255/0.6)]",
         className,
       )}
     >
@@ -208,11 +210,11 @@ export function FreeDeliveryProgress({
         </span>
       </p>
       <div
-        className="ring-ink/8 mt-3 h-3 overflow-hidden rounded-full bg-white ring-1 ring-inset"
+        className="bg-leaf-700/10 mt-2.5 h-3 overflow-hidden rounded-full"
         aria-hidden="true"
       >
         <div
-          className="leaf-gradient ease-glass h-full rounded-full shadow-[0_0_8px_rgb(21_122_75/0.35)] transition-[width] duration-500"
+          className="from-leaf-300 to-leaf-600 ease-glass h-full rounded-full bg-linear-to-r shadow-[0_0_14px_rgb(21_122_75/0.55)] transition-[width] duration-700"
           style={{ width: `${percent}%` }}
         />
       </div>

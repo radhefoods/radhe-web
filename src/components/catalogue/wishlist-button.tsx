@@ -12,8 +12,9 @@ const ANNOUNCED_FOR_MS = 1500;
 
 /**
  * The heart that saves a product to the wishlist (doc 16): on the top
- * corner of a card's tile (`tile`), or beside "Add to cart" on the product
- * page (`box`), where it also remembers the pack size that is open. The
+ * corner of a card's tile (`tile`), beside "Add to cart" on the product
+ * page (`box`), where it also remembers the pack size that is open, or at
+ * the end of a line of the cart (`plain`). The
  * heart fills red when the product is saved; a tap toggles it at once, and
  * the store talks to the API (or to local storage) and turns it back when
  * the call fails. The change is spoken once.
@@ -39,7 +40,8 @@ interface WishlistButtonProps {
   variantId?: Id;
   /** The name with the size, for the spoken labels. */
   name: string;
-  look?: "tile" | "box";
+  /** `plain`: a quiet round button of a cart line, beside the bin. */
+  look?: "tile" | "box" | "plain";
   className?: string;
 }
 
@@ -89,7 +91,9 @@ const WishlistHeart = memo(function WishlistHeart({
           "text-ink ease-glass grid shrink-0 place-items-center rounded-full transition-[color,box-shadow,background-color,transform] duration-200 hover:text-red-600 active:scale-90",
           look === "tile"
             ? "glass-soft hover:shadow-lift size-9 hover:bg-white"
-            : "glass size-12 hover:bg-white/90 sm:size-13",
+            : look === "plain"
+              ? "text-ink-muted size-9 hover:bg-red-50"
+              : "glass size-12 hover:bg-white/90 sm:size-13",
           saved && "text-red-600",
           className,
         )}
@@ -99,7 +103,7 @@ const WishlistHeart = memo(function WishlistHeart({
           // Mounted afresh when it fills, so the heart pops once.
           key={saved ? "saved" : "plain"}
           className={cn(
-            look === "tile" ? "size-[18px]" : "size-5",
+            look === "box" ? "size-5" : "size-[18px]",
             saved && "animate-count-pop fill-current",
           )}
           strokeWidth={2.25}

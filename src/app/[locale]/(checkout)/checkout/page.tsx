@@ -19,10 +19,10 @@ export default async function CheckoutPage({ params }: Props) {
     getSettings(),
   ]);
   return (
-    <div className="container-page space-y-5 py-6 sm:py-8">
-      <h1 className="font-display text-ink text-3xl sm:text-4xl">
-        {t("title")}
-      </h1>
+    // As wide as the pill of the header above it. The page's title is for
+    // screen readers and the tab: the header says where the customer is.
+    <div className="mx-auto w-full max-w-[72.5rem] px-3 pt-5 sm:px-6 sm:pt-6">
+      <h1 className="sr-only">{t("title")}</h1>
       <CheckoutView
         deliveryEstimate={settings?.delivery.estimate[locale] ?? null}
         boxBased={settings?.shipping?.boxBased ?? false}

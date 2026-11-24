@@ -3,12 +3,13 @@ import type { Bill, BillShipping, Cents } from "@/lib/api/types";
 // Delivery by the box (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md). The API
 // weighs the packs, counts the boxes, says which are free and what the
 // others cost. Nothing of that is worked out here: this module only picks
-// the sentence a bill gets (section 5 of the document) and says how full
+// the case a bill is in (section 5 of the document) and says how full
 // its bar is drawn, by the formula the document gives for the bar.
 
 /**
- * The sentence of the free-delivery progress, in the order of the
- * document's table. Every number in it is one the API sent.
+ * The case the delivery of a bill is in, in the order of the document's
+ * table; the card under the checkout button (`BoxShipping`) words it.
+ * Every number in it is one the API sent.
  */
 export type ShippingMessage =
   /** Nothing to deliver: no block at all. */
@@ -20,7 +21,7 @@ export type ShippingMessage =
   /** No box is ever free by value: the fee, and how it comes about. */
   | { kind: "noThreshold"; fee: Cents; paidBoxes: number; feePerPaidBox: Cents }
   /** One box, and it is paid. */
-  | { kind: "oneBox"; missing: Cents }
+  | { kind: "oneBox"; missing: Cents; feePerPaidBox: Cents }
   /** Several boxes, none of them free yet. */
   | {
       kind: "noneFree";
@@ -65,7 +66,13 @@ export function shippingMessageOf(
       feePerPaidBox: shipping.feePerPaidBox,
     };
   }
-  if (shipping.requiredBoxes === 1) return { kind: "oneBox", missing };
+  if (shipping.requiredBoxes === 1) {
+    return {
+      kind: "oneBox",
+      missing,
+      feePerPaidBox: shipping.feePerPaidBox,
+    };
+  }
   if (shipping.freeBoxes === 0) {
     return {
       kind: "noneFree",

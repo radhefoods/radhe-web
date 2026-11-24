@@ -21,7 +21,18 @@ export interface TextFieldProps extends Omit<
   error?: ReactNode;
   /** The input itself, to focus it. */
   inputRef?: Ref<HTMLInputElement>;
+  /**
+   * `float`: the label rests inside the field and rises to its top edge
+   * as soon as the field has the focus or a value (the checkout, after
+   * the design "Liquid Glass" of the lab). The label stays a `label` of
+   * the input either way.
+   */
+  look?: "plain" | "float";
 }
+
+/** The label of a floating field: in the middle at rest, small at the top when in use. */
+const floatingLabel =
+  "text-ink-subtle ease-glass pointer-events-none absolute top-7 left-[0.96875rem] max-w-[calc(100%-1.75rem)] -translate-y-1/2 truncate text-[0.96875rem] font-medium transition-[top,font-size,color] duration-200 peer-focus:top-[0.9375rem] peer-focus:text-[0.71875rem] peer-focus:font-semibold peer-focus:text-leaf-700 peer-[:not(:placeholder-shown)]:top-[0.9375rem] peer-[:not(:placeholder-shown)]:text-[0.71875rem] peer-[:not(:placeholder-shown)]:font-semibold";
 
 /**
  * A text input with its label, hint and error. Text is 16 px so that iOS
@@ -33,23 +44,48 @@ export function TextField({
   hint,
   error,
   inputRef,
+  look = "plain",
   className,
   ...props
 }: TextFieldProps) {
   const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <label htmlFor={id} className="text-sm font-semibold">
-        {label}
-      </label>
-      <input
-        id={id}
-        ref={inputRef}
-        className={controlStyles}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...props}
-      />
+      {look === "float" ? (
+        <div className="relative">
+          <input
+            id={id}
+            ref={inputRef}
+            className={cn(
+              controlStyles,
+              "peer border-ink/14 min-h-14 bg-white/70 pt-[1.0625rem]",
+            )}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            {...props}
+            // A blank that is never seen: it tells the label whether the
+            // field is empty (`:placeholder-shown`).
+            placeholder=" "
+          />
+          <label htmlFor={id} className={floatingLabel}>
+            {label}
+          </label>
+        </div>
+      ) : (
+        <>
+          <label htmlFor={id} className="text-sm font-semibold">
+            {label}
+          </label>
+          <input
+            id={id}
+            ref={inputRef}
+            className={controlStyles}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            {...props}
+          />
+        </>
+      )}
       {error ? (
         // Spoken when it appears: a form that refuses a value on "submit"
         // leaves the focus on the button.

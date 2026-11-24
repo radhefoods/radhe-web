@@ -55,9 +55,6 @@ export const EMPTY_ADDRESS: AddressFormValues = {
   isDefault: false,
 };
 
-/** The one address of a guest order, as the checkout lists it with the cards. */
-export const GUEST_ADDRESS_ID = "guest";
-
 /** The address of a guest order (doc 20): a saved address without `label` and `isDefault`. */
 export function toGuestAddressInput(
   values: AddressFormValues,
@@ -74,26 +71,6 @@ export function toGuestAddressInput(
     city: input.city,
     countryCode: "DE",
     phone: input.phone,
-  };
-}
-
-/** The guest's address as the checkout shows it among the address cards. */
-export function guestAddressOf(values: AddressFormValues): Address {
-  const input = toGuestAddressInput(values);
-  return {
-    id: GUEST_ADDRESS_ID,
-    label: null,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    company: input.company ?? null,
-    street: input.street,
-    houseNumber: input.houseNumber,
-    additionalLine: input.additionalLine ?? null,
-    postalCode: input.postalCode,
-    city: input.city,
-    countryCode: "DE",
-    phone: input.phone ?? null,
-    isDefault: false,
   };
 }
 

@@ -217,10 +217,24 @@ export function ProductRow({
   );
 }
 
-/** One card of the row: two and a sliver on phones, then three, four, five. */
-export function ProductRowItem({ children }: { children: ReactNode }) {
+/**
+ * One card of the row: two and a sliver on phones, then three, four, five.
+ * A row in a narrower place (the cart page) sets its own widths.
+ */
+export function ProductRowItem({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <li className="w-[44%] shrink-0 snap-start sm:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-3rem)/4)] xl:w-[calc((100%-4rem)/5)]">
+    <li
+      className={cn(
+        "w-[44%] shrink-0 snap-start sm:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-3rem)/4)] xl:w-[calc((100%-4rem)/5)]",
+        className,
+      )}
+    >
       {children}
     </li>
   );

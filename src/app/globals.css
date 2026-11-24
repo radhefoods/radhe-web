@@ -148,6 +148,32 @@
   /* The dot of the shown slide of the hero carousel fills up while the next
      slide is on its way; the carousel sets the duration to its own pace. */
   --animate-dot-fill: dot-fill 6s linear both;
+  /* An amount that changed (a line total, the total of the bill) drops
+     into place; a panel of the cart or the checkout rises as it arrives. */
+  --animate-tick: tick 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-rise: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes tick {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
   @keyframes stepper-in {
     from {

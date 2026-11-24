@@ -5,152 +5,221 @@ import en from "../../messages/en.json";
 
 // The texts of delivery by the box
 // (doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md, 5, 6, 9 and 10), written out
-// in both languages with one and with several boxes: a plural that reads
-// wrong, or a message that does not parse, shows here and not in a cart
-// that happens to need five boxes.
+// in both languages with one and with several boxes: a plural or an
+// ordinal that reads wrong, or a message that does not parse, shows here
+// and not in a cart that happens to need five boxes.
+//
+// The wording of the card under the button is the owner's (2026-11-20):
+// "Your 1st box ships free", "… space available", "… to go", "2 boxes:
+// 1 free, 1 chargeable"; never "1 box free" or "1 box available".
 
 const english = createTranslator({ locale: "en", messages: en });
 const german = createTranslator({ locale: "de", messages: de });
+const b = (chunks: string) => `<b>${chunks}</b>`;
 
-describe("the free-delivery progress", () => {
-  it("names a free-delivery code, with and without a saving", () => {
-    const values = { code: "FREESHIP", amount: "€4.99" };
-    expect(english("shipping.freeByCode", values)).toBe(
-      "Free delivery with code FREESHIP. You save €4.99.",
+describe("what the boxes cost, in a line", () => {
+  it("names a free-delivery code", () => {
+    expect(english("shipping.statusByCode", { code: "FREESHIP" })).toBe(
+      "Your order ships free with code FREESHIP",
     );
-    expect(english("shipping.freeByCodeOnly", values)).toBe(
-      "Free delivery with code FREESHIP.",
-    );
-    expect(
-      german("shipping.freeByCode", {
-        code: "FREESHIP",
-        amount: "4,99 €",
-      }),
-    ).toBe("Kostenlose Lieferung mit dem Code FREESHIP. Sie sparen 4,99 €.");
-    expect(german("shipping.freeByCodeOnly", values)).toBe(
-      "Kostenlose Lieferung mit dem Code FREESHIP.",
+    expect(german("shipping.statusByCode", { code: "FREESHIP" })).toBe(
+      "Ihre Bestellung wird mit dem Code FREESHIP kostenlos geliefert",
     );
   });
 
-  it("says that the order ships free", () => {
-    expect(english("shipping.freeOne")).toBe("Great, this order ships free!");
-    expect(english("shipping.freeAll", { count: 2 })).toBe(
-      "Great, all 2 boxes ship free!",
+  it("speaks of one box", () => {
+    expect(english("shipping.statusOneFree")).toBe("Your box ships free");
+    expect(english("shipping.statusOnePaid", { fee: "€4.99" })).toBe(
+      "Your box ships for €4.99",
     );
-    expect(german("shipping.freeOne")).toBe(
-      "Super, diese Bestellung wird kostenlos geliefert!",
+    expect(german("shipping.statusOneFree")).toBe(
+      "Ihre Box wird kostenlos geliefert",
     );
-    expect(german("shipping.freeAll", { count: 3 })).toBe(
-      "Super, alle 3 Boxen werden kostenlos geliefert!",
+    expect(german("shipping.statusOnePaid", { fee: "4,99 €" })).toBe(
+      "Ihre Box wird für 4,99 € geliefert",
     );
   });
 
-  it("states the fee where no box is free by value, without a sum for one box", () => {
+  it("speaks of several boxes: all free, none free, the first free", () => {
+    expect(english("shipping.statusAllFree", { count: 2 })).toBe(
+      "Both boxes ship free",
+    );
+    expect(english("shipping.statusAllFree", { count: 3 })).toBe(
+      "All 3 boxes ship free",
+    );
     expect(
-      english("shipping.noThreshold", {
-        count: 1,
-        fee: "€4.99",
-        perBox: "€4.99",
-      }),
-    ).toBe("Delivery: €4.99");
+      english("shipping.statusNoneFree", { count: 2, perBox: "€4.99" }),
+    ).toBe("Your 2 boxes ship for €4.99 each");
+    expect(english("shipping.statusSomeFree", { free: 1 })).toBe(
+      "Your 1st box ships free",
+    );
+    expect(english("shipping.statusSomeFree", { free: 3 })).toBe(
+      "Your first 3 boxes ship free",
+    );
+    expect(german("shipping.statusAllFree", { count: 2 })).toBe(
+      "Beide Boxen werden kostenlos geliefert",
+    );
+    expect(german("shipping.statusAllFree", { count: 3 })).toBe(
+      "Alle 3 Boxen werden kostenlos geliefert",
+    );
     expect(
-      english("shipping.noThreshold", {
-        count: 2,
-        fee: "€9.98",
-        perBox: "€4.99",
-      }),
-    ).toBe("Delivery: €9.98 (2 × €4.99)");
-    expect(
-      german("shipping.noThreshold", {
-        count: 1,
-        fee: "4,99 €",
-        perBox: "4,99 €",
-      }),
-    ).toBe("Lieferung: 4,99 €");
-    expect(
-      german("shipping.noThreshold", {
-        count: 2,
-        fee: "9,98 €",
-        perBox: "4,99 €",
-      }),
-    ).toBe("Lieferung: 9,98 € (2 × 4,99 €)");
+      german("shipping.statusNoneFree", { count: 2, perBox: "4,99 €" }),
+    ).toBe("Ihre 2 Boxen werden für je 4,99 € geliefert");
+    expect(german("shipping.statusSomeFree", { free: 1 })).toBe(
+      "Ihre 1. Box wird kostenlos geliefert",
+    );
+    expect(german("shipping.statusSomeFree", { free: 3 })).toBe(
+      "Ihre ersten 3 Boxen werden kostenlos geliefert",
+    );
+  });
+});
+
+describe("the two meters", () => {
+  it("names the box the next goods go into, by its place", () => {
+    expect(english("shipping.spaceLabel", { count: 1, number: 1 })).toBe(
+      "Space in your box",
+    );
+    expect(english("shipping.spaceLabel", { count: 2, number: 1 })).toBe(
+      "Space in the 1st box",
+    );
+    expect(english("shipping.spaceLabel", { count: 2, number: 2 })).toBe(
+      "Space in the 2nd box",
+    );
+    expect(english("shipping.spaceLabel", { count: 4, number: 3 })).toBe(
+      "Space in the 3rd box",
+    );
+    expect(english("shipping.spaceLabel", { count: 12, number: 11 })).toBe(
+      "Space in the 11th box",
+    );
+    expect(english("shipping.spaceLabel", { count: 30, number: 22 })).toBe(
+      "Space in the 22nd box",
+    );
+    expect(german("shipping.spaceLabel", { count: 1, number: 1 })).toBe(
+      "Platz in Ihrer Box",
+    );
+    expect(german("shipping.spaceLabel", { count: 2, number: 2 })).toBe(
+      "Platz in der 2. Box",
+    );
   });
 
-  it("asks for what is missing, with the amount set apart", () => {
-    const strong = (chunks: string) => `<b>${chunks}</b>`;
-    expect(
-      english.markup("shipping.oneBox", { amount: "€29.00", strong }),
-    ).toBe("Add <b>€29.00</b> more and this order ships free.");
-    expect(
-      english.markup("shipping.noneFree", { amount: "€9.00", strong }),
-    ).toBe("Add <b>€9.00</b> more and the first box ships free.");
-    expect(
-      english.markup("shipping.someFree", {
-        amount: "€19.00",
-        number: 2,
-        strong,
-      }),
-    ).toBe("Add <b>€19.00</b> more and box 2 ships free too.");
-    expect(
-      german.markup("shipping.oneBox", { amount: "29,00 €", strong }),
-    ).toBe("Noch <b>29,00 €</b> bis zur kostenlosen Lieferung.");
-    expect(
-      german.markup("shipping.noneFree", { amount: "9,00 €", strong }),
-    ).toBe("Noch <b>9,00 €</b>, dann ist die erste Box kostenlos.");
-    expect(
-      german.markup("shipping.someFree", {
-        amount: "19,00 €",
-        number: 2,
-        strong,
-      }),
-    ).toBe("Noch <b>19,00 €</b>, dann ist auch Box 2 kostenlos.");
+  it("says how much room is left, or that the box is full", () => {
+    expect(english.markup("shipping.spaceValue", { room: "19.9 kg", b })).toBe(
+      "<b>19.9 kg</b> available",
+    );
+    expect(english.markup("shipping.spaceFull", { b })).toBe(
+      "<b>Full.</b> The next item starts a new box.",
+    );
+    expect(german.markup("shipping.spaceValue", { room: "19,9 kg", b })).toBe(
+      "<b>19,9 kg</b> frei",
+    );
+    expect(german.markup("shipping.spaceFull", { b })).toBe(
+      "<b>Voll.</b> Der nächste Artikel kommt in eine neue Box.",
+    );
   });
 
-  it("says how the boxes of the order come about", () => {
-    expect(
-      english("shipping.noneFreeNote", { count: 2, perBox: "€4.99" }),
-    ).toBe("This order needs 2 boxes at €4.99 each.");
-    expect(
-      english("shipping.someFreeNote", {
-        count: 2,
-        free: 1,
-        paid: 1,
-        perBox: "€4.99",
-      }),
-    ).toBe("This order needs 2 boxes: 1 free, 1 at €4.99.");
-    expect(
-      english("shipping.someFreeNote", {
-        count: 5,
-        free: 3,
-        paid: 2,
-        perBox: "€4.99",
-      }),
-    ).toBe("This order needs 5 boxes: 3 free, 2 at €4.99 each.");
-    expect(
-      german("shipping.noneFreeNote", { count: 2, perBox: "4,99 €" }),
-    ).toBe("Diese Bestellung braucht 2 Boxen für je 4,99 €.");
-    expect(
-      german("shipping.someFreeNote", {
-        count: 2,
-        free: 1,
-        paid: 1,
-        perBox: "4,99 €",
-      }),
-    ).toBe("Diese Bestellung braucht 2 Boxen: 1 kostenlos, 1 für 4,99 €.");
-    expect(
-      german("shipping.someFreeNote", {
-        count: 5,
-        free: 3,
-        paid: 2,
-        perBox: "4,99 €",
-      }),
-    ).toBe("Diese Bestellung braucht 5 Boxen: 3 kostenlos, 2 für je 4,99 €.");
-    expect(english("shipping.perFreeBox", { amount: "€39.00" })).toBe(
-      "€39.00 per free box",
+  it("says how far the next free box is", () => {
+    expect(english("shipping.nextLabel", { count: 1 })).toBe("Free shipping");
+    expect(english("shipping.nextLabel", { count: 2 })).toBe("Next free box");
+    expect(english.markup("shipping.nextValue", { amount: "€5.87", b })).toBe(
+      "<b>€5.87</b> to go",
     );
-    expect(german("shipping.perFreeBox", { amount: "39,00 €" })).toBe(
-      "39,00 € je kostenlose Box",
+    expect(english("shipping.nextReached")).toBe("Reached");
+    expect(english("shipping.nextByCode", { code: "FREESHIP" })).toBe(
+      "With code FREESHIP",
     );
+    expect(german("shipping.nextLabel", { count: 1 })).toBe(
+      "Kostenlose Lieferung",
+    );
+    expect(german("shipping.nextLabel", { count: 2 })).toBe(
+      "Nächste kostenlose Box",
+    );
+    expect(german.markup("shipping.nextValue", { amount: "5,87 €", b })).toBe(
+      "Noch <b>5,87 €</b>",
+    );
+    expect(german("shipping.nextReached")).toBe("Erreicht");
+    expect(german("shipping.nextByCode", { code: "FREESHIP" })).toBe(
+      "Mit Code FREESHIP",
+    );
+  });
+});
+
+describe("the closing line of the card", () => {
+  it("counts the boxes the order uses", () => {
+    expect(
+      english("shipping.usesOne", { weight: "2.1 kg", max: "25 kg" }),
+    ).toBe("Your order fits in one box: 2.1 kg of 25 kg.");
+    expect(english("shipping.usesParcel")).toBe(
+      "Your order ships as a parcel of its own.",
+    );
+    expect(english("shipping.usesAllFree", { count: 2 })).toBe(
+      "Your order uses 2 boxes, both free.",
+    );
+    expect(english("shipping.usesAllFree", { count: 4 })).toBe(
+      "Your order uses 4 boxes, all free.",
+    );
+    expect(
+      english("shipping.usesNoneFree", { count: 2, perBox: "€4.99" }),
+    ).toBe("Your order uses 2 boxes, €4.99 each.");
+    expect(
+      english("shipping.usesSomeFree", { count: 2, free: 1, paid: 1 }),
+    ).toBe("Your order uses 2 boxes: 1 free, 1 chargeable.");
+    expect(english("shipping.usesByCode", { count: 2 })).toBe(
+      "Your order uses 2 boxes.",
+    );
+    expect(german("shipping.usesOne", { weight: "2,1 kg", max: "25 kg" })).toBe(
+      "Ihre Bestellung passt in eine Box: 2,1 kg von 25 kg.",
+    );
+    expect(german("shipping.usesParcel")).toBe(
+      "Ihre Bestellung wird als eigenes Paket geliefert.",
+    );
+    expect(german("shipping.usesAllFree", { count: 2 })).toBe(
+      "Ihre Bestellung braucht 2 Boxen, beide kostenlos.",
+    );
+    expect(german("shipping.usesAllFree", { count: 4 })).toBe(
+      "Ihre Bestellung braucht 4 Boxen, alle kostenlos.",
+    );
+    expect(
+      german("shipping.usesNoneFree", { count: 2, perBox: "4,99 €" }),
+    ).toBe("Ihre Bestellung braucht 2 Boxen für je 4,99 €.");
+    expect(
+      german("shipping.usesSomeFree", { count: 2, free: 1, paid: 1 }),
+    ).toBe("Ihre Bestellung braucht 2 Boxen: 1 kostenlos, 1 kostenpflichtig.");
+    expect(german("shipping.usesByCode", { count: 2 })).toBe(
+      "Ihre Bestellung braucht 2 Boxen.",
+    );
+  });
+
+  it("says what the boxes that are not free cost", () => {
+    expect(english("shipping.extraOne", { number: 2, fee: "€4.99" })).toBe(
+      "The 2nd box costs €4.99.",
+    );
+    expect(english("shipping.extraOne", { number: 3, fee: "€4.99" })).toBe(
+      "The 3rd box costs €4.99.",
+    );
+    expect(english("shipping.extraSeveral", { paid: 1, perBox: "€4.99" })).toBe(
+      "1 box costs €4.99.",
+    );
+    expect(english("shipping.extraSeveral", { paid: 2, perBox: "€4.99" })).toBe(
+      "2 boxes cost €4.99 each.",
+    );
+    expect(german("shipping.extraOne", { number: 2, fee: "4,99 €" })).toBe(
+      "Die 2. Box kostet 4,99 €.",
+    );
+    expect(german("shipping.extraSeveral", { paid: 1, perBox: "4,99 €" })).toBe(
+      "1 Box kostet 4,99 €.",
+    );
+    expect(german("shipping.extraSeveral", { paid: 2, perBox: "4,99 €" })).toBe(
+      "2 Boxen kosten je 4,99 €.",
+    );
+  });
+
+  it("never says '1 box free' or '1 box available'", () => {
+    for (const messages of [en.shipping, de.shipping]) {
+      for (const text of Object.values(messages)) {
+        expect(text).not.toMatch(/\b1 box (free|available)\b/i);
+        expect(text).not.toMatch(/\b1 Box (kostenlos|frei)\b/i);
+      }
+    }
   });
 
   it("says what a code or coins cost in free boxes", () => {
@@ -181,7 +250,7 @@ describe("the free-delivery progress", () => {
   });
 });
 
-describe("the boxes", () => {
+describe("the boxes, one by one", () => {
   it("names one box and several", () => {
     expect(english("shipping.boxesTitle", { count: 1 })).toBe("Your box");
     expect(english("shipping.boxesTitle", { count: 4 })).toBe("Your boxes");
@@ -193,36 +262,14 @@ describe("the boxes", () => {
     expect(german("shipping.separate")).toBe("Eigenes Paket");
   });
 
-  it("says how full they are and what still fits", () => {
-    expect(english("shipping.load", { weight: "2.1 kg", max: "25 kg" })).toBe(
-      "2.1 kg of 25 kg",
+  it("opens the list, with the weight of the order", () => {
+    expect(english("shipping.details")).toBe("Box by box");
+    expect(english("shipping.totalWeight", { weight: "25.1 kg" })).toBe(
+      "25.1 kg in total",
     );
-    expect(german("shipping.load", { weight: "2,1 kg", max: "25 kg" })).toBe(
-      "2,1 kg von 25 kg",
-    );
-    expect(english("shipping.roomOne", { room: "7.5 kg" })).toBe(
-      "7.5 kg of room left in your box.",
-    );
-    expect(german("shipping.roomOne", { room: "7,5 kg" })).toBe(
-      "In der Box ist noch Platz für 7,5 kg.",
-    );
-    expect(
-      english("shipping.roomSeveral", { number: 2, room: "19.9 kg" }),
-    ).toBe("Box 2 has 19.9 kg of room left.");
-    expect(german("shipping.roomSeveral", { number: 2, room: "19,9 kg" })).toBe(
-      "In Box 2 ist noch Platz für 19,9 kg.",
-    );
-    expect(english("shipping.full", { count: 1 })).toBe(
-      "Your box is full. The next item starts a new box.",
-    );
-    expect(english("shipping.full", { count: 3 })).toBe(
-      "Your boxes are full. The next item starts a new box.",
-    );
-    expect(german("shipping.full", { count: 1 })).toBe(
-      "Die Box ist voll. Der nächste Artikel kommt in eine neue Box.",
-    );
-    expect(german("shipping.full", { count: 3 })).toBe(
-      "Die Boxen sind voll. Der nächste Artikel kommt in eine neue Box.",
+    expect(german("shipping.details")).toBe("Box für Box");
+    expect(german("shipping.totalWeight", { weight: "25,1 kg" })).toBe(
+      "25,1 kg insgesamt",
     );
     expect(english("shipping.more", { count: 10 })).toBe("… and 10 more");
     expect(german("shipping.more", { count: 10 })).toBe("… und 10 weitere");
@@ -234,7 +281,7 @@ describe("the boxes", () => {
 describe("the delivery of the bill", () => {
   it("counts the boxes under the delivery", () => {
     expect(english("shipping.summary", { count: 2, free: 1, paid: 1 })).toBe(
-      "2 boxes: 1 free, 1 paid",
+      "2 boxes: 1 free, 1 chargeable",
     );
     expect(english("shipping.summaryAllFree", { count: 2 })).toBe(
       "2 boxes, all free",

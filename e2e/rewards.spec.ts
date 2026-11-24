@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createAccount, MOCK, PASSWORD, signupCode } from "./helpers";
+import {
+  MOCK,
+  PASSWORD,
+  createAccount,
+  discountCode,
+  signupCode,
+} from "./helpers";
 
 // The loyalty coins (doc/REWARDS.md 8): redeemed on the checkout page,
 // shown on the bill and the order, collected on the account's coins page,
@@ -98,7 +104,7 @@ test.describe("coins on the checkout page", () => {
       },
     });
     await page.goto("/en/checkout");
-    await page.getByLabel("Discount code").fill("DIWALI10");
+    await (await discountCode(page)).fill("DIWALI10");
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(summary(page)).toContainText("Code DIWALI10 applied");
     await expect(summary(page)).toContainText(

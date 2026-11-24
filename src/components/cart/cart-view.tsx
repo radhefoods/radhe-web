@@ -1,8 +1,10 @@
 "use client";
 
-import { ShoppingBag, Trash2 } from "lucide-react";
+import { ArrowRight, ShoppingBag, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { ProductImage } from "@/components/catalogue/product-image";
+import { WishlistButton } from "@/components/catalogue/wishlist-button";
 import { Alert } from "@/components/ui/alert";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -18,8 +20,7 @@ import type { BillLine } from "@/lib/api/types";
 import { cn } from "@/lib/cn";
 import { formatDiscount, formatMoney } from "@/lib/format/money";
 import { BillTotals, FreeDeliveryProgress } from "./bill-summary";
-import { BoxCapacity } from "./box-capacity";
-import { ShippingProgress } from "./shipping-progress";
+import { BoxShipping } from "./box-shipping";
 import {
   brandOf,
   formatPackSize,
@@ -28,28 +29,21 @@ import {
 } from "@/lib/format/product-name";
 
 /**
- * One pack size in the cart, a row of the one list (owner, 2026-10-28: no
- * card per product, a hairline between the rows): the picture on white,
- * 80 px; the brand, the name with the size in a quieter tone, and the
- * price per pack set like a price of the catalogue: in the display cut,
- * red when reduced with the regular price struck through and the saving
- * as a small red badge beside it, and no word around it (owner,
- * 2026-10-22: "each" confused); no price per kilogram, and no line total:
- * the summary adds up. Then the stepper, centred on the height of the
- * row and on the room that is left after the texts, up to the row's edge
- * (from `md`; on small tablets on its own track, a little further left),
- * and at the end of the row the way to take the line out, 10 px from the
- * edge (owner,
- * 2026-10-28, evening: the rows were tall and empty in the middle, the row
- * is now as high as its picture; 2026-10-29, three times: against the
- * bin, in a column at the right, and in the middle of the row, the
- * stepper was never where the owner marked it: the middle of the empty
- * area after the texts). The texts' column is one width for all rows
- * (the longest name), so that the steppers line up: from `sm` the list is
- * the grid and every row a subgrid of it (`grid-cols-subgrid`); the
- * row's side padding eats into the first and last track, which the list
- * makes wider by that padding. A line the API objects to carries its
- * message and a one-tap fix.
+ * One pack size in the cart, a row of the one glass panel (owner,
+ * 2026-11-24, after the cart design "Liquid Glass" of the lab): the
+ * picture on white with a soft green fall; the brand, the name with the
+ * size in a quieter tone, and the price per pack set like a price of the
+ * catalogue (red when reduced, with the regular price struck through and
+ * the saving as a small red badge, no word around it); then the stepper,
+ * the total of the line, and at the end the heart that keeps the product
+ * on the wishlist and the way to take the line out.
+ *
+ * From `sm` the list is the grid and every row a subgrid of it
+ * (`grid-cols-subgrid`), so the steppers and the totals of all rows stand
+ * under each other whatever the names take. On phones the texts have the
+ * first row beside the picture, and the stepper, the total and the two
+ * buttons share the second. A line the API objects to carries its message
+ * and a one-tap fix.
  */
 function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   const t = useTranslations("cart");
@@ -76,8 +70,13 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   };
 
   return (
-    <li className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2.5 px-3.5 py-3 sm:col-span-4 sm:grid-cols-subgrid sm:gap-x-4 sm:px-4 sm:py-3.5">
-      <div className="ring-ink/5 aspect-square self-center overflow-hidden rounded-lg bg-white p-0.5 ring-1">
+    <li className="grid grid-cols-[4rem_auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5 py-3.5 sm:col-span-full sm:grid-cols-subgrid sm:gap-x-4">
+      <div
+        className={cn(
+          "row-span-2 aspect-square self-start overflow-hidden rounded-md bg-white p-1 shadow-[0_0_0_1px_rgb(23_33_27/0.06),0_10px_20px_-14px_rgb(15_92_56/0.5)] sm:row-span-1 sm:self-center",
+          issue && "opacity-60",
+        )}
+      >
         <ProductImage
           image={product?.image ?? null}
           alt=""
@@ -86,13 +85,13 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
         />
       </div>
 
-      <div className="flex min-w-0 flex-col gap-0.5 self-center">
+      <div className="col-span-3 flex min-w-0 flex-col gap-0.5 self-center sm:col-span-1">
         {brand && (
           <p className="text-ink-subtle truncate text-[0.6875rem] leading-4 font-bold tracking-[0.1em] uppercase">
             {brand}
           </p>
         )}
-        <p className="text-base leading-snug font-bold">
+        <p className="text-[0.96875rem] leading-snug font-bold">
           {href && product ? (
             <>
               <Link
@@ -116,7 +115,7 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
             )}
             <span
               className={cn(
-                "font-display text-base leading-none",
+                "font-display text-[0.96875rem] leading-none",
                 reduced && "text-red-600",
               )}
             >
@@ -139,46 +138,68 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
         )}
       </div>
 
-      {/* The controls, centred on the height of the row whatever the
-          texts take: the stepper, slim and white with a hairline, and
-          the way to take the line out. On phones they share a row under
-          the texts, the stepper first; from `sm` the wrapper dissolves
-          and both become cells of the grid, the stepper in the middle of
-          the room after the texts, the bin at the end of the row. */}
-      <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
-        {product && issue !== "product_not_found" && (
-          <QuantityStepper
-            value={quantity}
-            min={1}
-            max={max}
-            removeAtMin={false}
-            size="xs"
-            look="outline"
-            className={cn(
-              "w-27 self-center sm:col-start-3 sm:justify-self-center md:ml-13",
-              updating && "opacity-70",
-            )}
-            onChange={(next) => cart.setQuantity(line.variantId, next)}
-            labels={{
-              quantity: tProduct("quantityNamed", { name }),
-              increase: tProduct("increase"),
-              decrease: tProduct("decrease"),
-              remove: tProduct("remove"),
-            }}
+      {/* The stepper: a pill of clear glass. A line whose product is gone
+          has none; its place in the grid stays empty. */}
+      {product && issue !== "product_not_found" ? (
+        <QuantityStepper
+          value={quantity}
+          min={1}
+          max={max}
+          removeAtMin={false}
+          size="sm"
+          look="outline"
+          className={cn(
+            "w-28 transition-opacity duration-200",
+            updating && "opacity-70",
+          )}
+          onChange={(next) => cart.setQuantity(line.variantId, next)}
+          labels={{
+            quantity: tProduct("quantityNamed", { name }),
+            increase: tProduct("increase"),
+            decrease: tProduct("decrease"),
+            remove: tProduct("remove"),
+          }}
+        />
+      ) : (
+        <span aria-hidden="true" />
+      )}
+
+      {/* What the line comes to: the API's sum, dropped into place when it
+          changes. */}
+      <p className="min-w-[4.5rem] justify-self-end text-right tabular-nums">
+        <span className="sr-only">{t("lineTotal")}: </span>
+        <span
+          key={line.lineTotal}
+          className={cn(
+            "font-display animate-tick inline-block text-base whitespace-nowrap",
+            updating && "opacity-60",
+          )}
+        >
+          {formatMoney(line.lineTotal, locale)}
+        </span>
+      </p>
+
+      <div className="-mr-1.5 flex items-center">
+        {product && line.productId && (
+          <WishlistButton
+            productId={line.productId}
+            variantId={line.variantId}
+            name={name}
+            look="plain"
           />
         )}
         <button
           type="button"
           aria-label={t("removeNamed", { name })}
           onClick={() => cart.setQuantity(line.variantId, 0)}
-          className="text-ink-muted hover:text-ink hover:bg-ink/6 grid size-9 shrink-0 place-items-center self-center rounded-full transition-[background-color,color,transform] duration-200 active:scale-90 sm:col-start-4 sm:-mr-1.5 sm:justify-self-end"
+          className="text-ink-muted ease-glass grid size-9 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-200 hover:bg-red-50 hover:text-red-600 active:scale-90"
         >
           <Trash2 aria-hidden="true" className="size-[18px]" />
         </button>
       </div>
 
       {issue && (
-        <div className="col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-red-50/90 px-3.5 py-2.5 text-sm font-semibold text-red-800 ring-1 ring-red-600/15 sm:col-span-4">
+        <div className="col-span-full flex flex-wrap items-center gap-x-4 gap-y-2 rounded-sm bg-red-50/90 px-3.5 py-2.5 text-sm font-semibold text-red-800 ring-1 ring-red-600/15">
           <p className="min-w-0 flex-1">
             {t(`issue.${issue}`, { min, max: max ?? 0 })}
           </p>
@@ -206,16 +227,23 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
   );
 }
 
+/**
+ * The two columns of the page, shared with the placeholder. From `lg` the
+ * list and what the page hands in share the first column and the summary
+ * stands beside both; below, the summary comes right after the list, so
+ * the bill is not pushed under the suggestions. The second row takes
+ * whatever the summary is taller by.
+ */
+const columns =
+  "grid items-start gap-x-7 gap-y-[1.125rem] lg:grid-cols-[minmax(0,1fr)_23.75rem] lg:grid-rows-[auto_1fr]";
+
 function CartSkeleton({ boxes }: { boxes: boolean }) {
   return (
-    <div
-      className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:gap-8"
-      aria-hidden="true"
-    >
-      <div className="space-y-3">
+    <div className={columns} aria-hidden="true">
+      <div className="glass space-y-4 rounded-2xl p-5">
         {[0, 1].map((row) => (
           <div key={row} className="flex gap-4">
-            <Skeleton className="size-20 rounded-lg" />
+            <Skeleton className="size-[4.75rem] rounded-md" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-2/3" />
               <Skeleton className="h-4 w-1/3" />
@@ -224,31 +252,83 @@ function CartSkeleton({ boxes }: { boxes: boolean }) {
           </div>
         ))}
       </div>
-      {/* With the boxes of the order the summary is taller: the page
-          should not jump when the bill arrives. */}
-      <Skeleton className={cn("rounded-2xl", boxes ? "h-[27rem]" : "h-80")} />
+      {/* With the boxes of the order a second card stands under the
+          summary: the page should not jump when the bill arrives. */}
+      <div className="flex flex-col gap-3.5">
+        <Skeleton className="h-80 rounded-2xl" />
+        {boxes && <Skeleton className="h-36 rounded-xl" />}
+      </div>
     </div>
   );
 }
 
 /**
- * The cart page: the products with their quantities as the rows of one
- * white container with a hairline (owner, 2026-10-28), the bill from the
- * API in a white summary card beside it, close by (owner, 2026-10-28,
- * evening: less air between the two), with the total as its one big
- * number, and the way to the checkout, which follows the bill's
- * `canOrder`.
+ * How much is in the cart, beside the title of the page: the products and
+ * the packs. Nothing for an empty cart, and nothing until the cart of
+ * this browser is known.
+ */
+export function CartCount({ className }: { className?: string }) {
+  const t = useTranslations("cart");
+  const cart = useCart();
+  if (!cart.ready || cart.items.length === 0) return null;
+  return (
+    <p
+      key={cart.units}
+      className={cn(
+        "text-ink-muted animate-tick text-[0.9375rem] tabular-nums",
+        className,
+      )}
+    >
+      {t("products", { count: cart.items.length })} ·{" "}
+      {t("barItems", { count: cart.units })}
+    </p>
+  );
+}
+
+/**
+ * A suggestion under the cart that is in the cart already says nothing
+ * new: it leaves the row, also the moment it is added from there. Shown
+ * until the cart of this browser is known, so the server's page has it.
+ */
+export function UnlessInCart({
+  variantId,
+  children,
+}: {
+  variantId: string;
+  children: ReactNode;
+}) {
+  const cart = useCart();
+  if (cart.ready && cart.quantityOf(variantId) > 0) return null;
+  return children;
+}
+
+/**
+ * The cart page (owner, 2026-11-24, after the cart design "Liquid Glass"
+ * of the lab): the products with their quantities as the rows of one
+ * frosted panel, under it whatever the page hands in (`children`: the row
+ * of popular products), and beside both the bill from the API in a
+ * frosted summary that stays in view, with the total as its one big
+ * number and the way to the checkout, which follows the bill's
+ * `canOrder`. On phones the total and that button float as a glass pill
+ * above the tab bar.
  *
+ * Under the flat fee the summary opens with the hint on free delivery.
  * Where the API prices the delivery by the box (`bill.shipping`,
- * doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md 7, 2026-11-20), the summary
- * says how far the next free box is and how full the boxes are; under the
- * flat fee (`shipping` is `null` or absent) it is the hint of before.
+ * doc/BOX_BASED_SHIPPING_WEB_INTEGRATION.md 7, 2026-11-20), the boxes of
+ * the order are a quiet card of their own under the button
+ * (`BoxShipping`).
+ *
+ * The discount code and the coins are entered at the checkout, as before:
+ * a visitor's code lives with the checkout page, not with the cart.
  */
 export function CartView({
   boxBased = false,
+  children,
 }: {
   /** `shipping.boxBased` of the settings: only sizes the placeholder. */
   boxBased?: boolean;
+  /** Shown under the list, and under the notice of an empty cart. */
+  children?: ReactNode;
 }) {
   const t = useTranslations("cart");
   const tProduct = useTranslations("product");
@@ -266,15 +346,18 @@ export function CartView({
 
   if (cart.ready && cart.items.length === 0) {
     return (
-      <div className="glass flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
-        <span className="bg-leaf-50 text-leaf-700 grid size-16 place-items-center rounded-full">
-          <ShoppingBag aria-hidden="true" className="size-7" />
-        </span>
-        <h2 className="font-display text-ink text-xl">{t("emptyTitle")}</h2>
-        <p className="text-ink-muted max-w-md">{t("emptyText")}</p>
-        <Link href="/products" className={buttonStyles()}>
-          {t("emptyCta")}
-        </Link>
+      <div className="grid gap-5">
+        <div className="glass animate-rise flex flex-col items-center gap-4 rounded-2xl px-6 py-16 text-center">
+          <span className="bg-leaf-50 text-leaf-700 grid size-[4.75rem] place-items-center rounded-full">
+            <ShoppingBag aria-hidden="true" className="size-8" />
+          </span>
+          <h2 className="font-display text-ink text-2xl">{t("emptyTitle")}</h2>
+          <p className="text-ink-muted max-w-md">{t("emptyText")}</p>
+          <Link href="/products" className={buttonStyles()}>
+            {t("emptyCta")}
+          </Link>
+        </div>
+        {children}
       </div>
     );
   }
@@ -289,26 +372,26 @@ export function CartView({
   // Delivery by the box; `null` (or absent, from an older API): the flat fee.
   const shipping = bill.shipping ?? null;
   const freeDeliveryCode = freeDeliveryCodeOf(bill);
+  const canGo = bill.canOrder && !updating;
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem] lg:gap-8">
-      <div className="space-y-3">
+    <div className={columns}>
+      <div className="grid min-w-0 gap-[1.125rem] lg:col-start-1">
         {cart.problem &&
           (cart.problem === "cart_full" ? (
             <Alert tone="warn">{tProduct("cartFull")}</Alert>
           ) : (
             <ErrorAlert error={cart.problem} />
           ))}
-        {/* From `sm` the list is the grid of the rows: the picture (5 rem),
-            the texts as wide as the longest of them, the stepper in the
-            rest, the bin (2.25 rem); the first and the last track carry
-            the row's 1 rem of side padding on top, and the row sets the
-            same gap, or the browser would widen the tracks by the
-            difference. From `md` the stepper's track is at least 10 rem,
-            room for the margin that sets the stepper off by the bin's
-            track, so that it stands in the middle of everything after
-            the texts, the bin's corner included. */}
-        <ul className="glass-strong divide-ink/8 divide-y rounded-2xl sm:grid sm:grid-cols-[6rem_auto_minmax(7rem,1fr)_3.25rem] sm:gap-x-4 md:grid-cols-[6rem_auto_minmax(10rem,1fr)_3.25rem]">
+        {/* From `sm` the list is the grid of the rows: the picture, the
+            texts in the room that is left, then the stepper, the total of
+            the line and the two buttons, each as wide as the widest of
+            its kind. The row sets the same gap as the list, or the
+            browser would widen the tracks by the difference. */}
+        <ul
+          aria-label={t("title")}
+          className="glass animate-rise divide-y divide-white/70 rounded-2xl px-3.5 py-1 sm:grid sm:grid-cols-[4.75rem_minmax(0,1fr)_auto_auto_auto] sm:gap-x-4 sm:px-[1.375rem] sm:py-2"
+        >
           {lines.map((line) => (
             <CartLine key={line.variantId} line={line} updating={updating} />
           ))}
@@ -317,90 +400,111 @@ export function CartView({
 
       <aside
         aria-label={t("summary")}
-        className="glass-strong flex flex-col gap-4 rounded-2xl p-5 lg:sticky lg:top-28"
+        className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-28 lg:col-start-2 lg:row-span-2 lg:row-start-1"
       >
-        <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
+        <div className="glass-strong animate-rise flex flex-col gap-4 rounded-2xl p-[1.125rem] [animation-delay:60ms] sm:p-6">
+          <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
 
-        {shipping ? (
-          // The boxes belong to the bill on the screen: while a change is
-          // on its way they dim with the totals and keep the last figures.
-          shipping.requiredBoxes > 0 && (
-            <div
-              className={cn(
-                "flex flex-col gap-3 transition-opacity",
-                updating && "opacity-50",
-              )}
-            >
-              <ShippingProgress shipping={shipping} code={freeDeliveryCode} />
-              <BoxCapacity shipping={shipping} />
-            </div>
-          )
-        ) : (
-          <FreeDeliveryProgress
-            delivery={bill.delivery}
-            subtotal={bill.totals.subtotal - bill.totals.discount}
-          />
-        )}
+          {!shipping && (
+            <FreeDeliveryProgress
+              delivery={bill.delivery}
+              subtotal={bill.totals.subtotal - bill.totals.discount}
+            />
+          )}
 
-        <div
-          className={cn("transition-opacity", updating && "opacity-50")}
-          aria-busy={updating}
-        >
-          <BillTotals
-            totals={bill.totals}
-            savings={saleSavingsOf(bill.lines)}
-            discountCode={bill.discount?.applied ? bill.discount.code : null}
-            coins={bill.rewards?.applied ? bill.rewards.coins : null}
-            boxes={shipping}
-            freeDeliveryCode={freeDeliveryCode}
-            regularDeliveryFee={shipping?.regularFee}
-          />
-        </div>
-        <p className="sr-only" role="status">
-          {updating ? t("updating") : ""}
-        </p>
-
-        {hasIssues && <Alert tone="warn">{t("fixIssues")}</Alert>}
-
-        {bill.canOrder && !updating ? (
-          <Link
-            href="/checkout"
-            className={buttonStyles({ size: "lg", block: true })}
+          <div
+            className={cn(
+              "transition-opacity duration-200",
+              updating && "opacity-50",
+            )}
+            aria-busy={updating}
           >
-            {t("checkout")}
+            <BillTotals
+              totals={bill.totals}
+              savings={saleSavingsOf(bill.lines)}
+              discountCode={bill.discount?.applied ? bill.discount.code : null}
+              coins={bill.rewards?.applied ? bill.rewards.coins : null}
+              boxes={shipping}
+              freeDeliveryCode={freeDeliveryCode}
+              regularDeliveryFee={shipping?.regularFee}
+            />
+          </div>
+          <p className="sr-only" role="status">
+            {updating ? t("updating") : ""}
+          </p>
+
+          {hasIssues && <Alert tone="warn">{t("fixIssues")}</Alert>}
+
+          {canGo ? (
+            <Link
+              href="/checkout"
+              className={buttonStyles({
+                size: "lg",
+                block: true,
+                className: "group min-h-14 text-[1.03125rem] font-bold",
+              })}
+            >
+              {t("checkout")}
+              <ArrowRight
+                aria-hidden="true"
+                className="ease-glass size-[1.125rem] transition-transform duration-200 group-hover:translate-x-1"
+                strokeWidth={2.25}
+              />
+            </Link>
+          ) : (
+            <Button
+              size="lg"
+              block
+              disabled
+              className="min-h-14 text-[1.03125rem] font-bold"
+            >
+              {t("checkout")}
+            </Button>
+          )}
+          <div className="text-ink-muted flex flex-col gap-1.5 text-center text-[0.8125rem] leading-snug">
+            {cart.mode === "guest" && bill.canOrder && <p>{t("signInHint")}</p>}
+            <p>{t("payNote")}</p>
+          </div>
+
+          <Link
+            href="/products"
+            className="text-leaf-700 hover:text-leaf-800 self-center rounded-xs font-semibold underline underline-offset-4"
+          >
+            {t("continue")}
           </Link>
-        ) : (
-          <Button size="lg" block disabled>
-            {t("checkout")}
-          </Button>
-        )}
-        <div className="text-ink-muted flex flex-col gap-1.5 text-center text-sm">
-          {cart.mode === "guest" && bill.canOrder && <p>{t("signInHint")}</p>}
-          <p>{t("payNote")}</p>
         </div>
 
-        <Link
-          href="/products"
-          className="text-leaf-700 rounded-xs text-center font-semibold underline underline-offset-4"
-        >
-          {t("continue")}
-        </Link>
+        {/* The boxes belong to the bill on the screen: while a change is
+            on its way they dim with the totals and keep the last figures. */}
+        {shipping && shipping.requiredBoxes > 0 && (
+          <BoxShipping
+            shipping={shipping}
+            code={freeDeliveryCode}
+            className={cn(
+              "animate-rise transition-opacity duration-200 [animation-delay:120ms]",
+              updating && "opacity-50",
+            )}
+          />
+        )}
       </aside>
 
-      {/* On phones the total and the way to the checkout stay in reach. */}
-      <div className="glass-strong shadow-float fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-4 rounded-t-2xl px-4 py-2.5 md:hidden">
+      {children && <div className="min-w-0 lg:col-start-1">{children}</div>}
+
+      {/* On phones the total and the way to the checkout stay in reach:
+          a pill of glass that floats above the tab bar. */}
+      <div className="glass-strong shadow-float fixed inset-x-2.5 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-3.5 rounded-full py-2 pr-2 pl-5 md:hidden">
         <p className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="text-ink-muted text-sm">{t("total")}</span>
+          <span className="text-ink-muted text-[0.8125rem]">{t("total")}</span>
           <span
             className={cn(
-              "font-display text-lg tabular-nums",
+              "font-display text-lg tabular-nums transition-opacity duration-200",
               updating && "opacity-50",
             )}
           >
             {formatMoney(bill.totals.total, locale)}
           </span>
         </p>
-        {bill.canOrder && !updating ? (
+        {canGo ? (
           <Link href="/checkout" className={buttonStyles({ size: "sm" })}>
             {t("checkout")}
           </Link>

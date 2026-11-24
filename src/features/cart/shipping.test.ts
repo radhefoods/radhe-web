@@ -50,6 +50,7 @@ describe("shippingMessageOf", () => {
     expect(shippingMessageOf(shipping(), null)).toEqual({
       kind: "oneBox",
       missing: 2900,
+      feePerPaidBox: 699,
     });
     expect(
       shippingMessageOf(
@@ -63,7 +64,7 @@ describe("shippingMessageOf", () => {
         }),
         null,
       ),
-    ).toEqual({ kind: "oneBox", missing: 1400 });
+    ).toEqual({ kind: "oneBox", missing: 1400, feePerPaidBox: 499 });
     // 39.00 € with coins worth 1.95 €: the goods are 37.05 €.
     expect(
       shippingMessageOf(
@@ -77,7 +78,7 @@ describe("shippingMessageOf", () => {
         }),
         null,
       ),
-    ).toEqual({ kind: "oneBox", missing: 195 });
+    ).toEqual({ kind: "oneBox", missing: 195, feePerPaidBox: 499 });
   });
 
   it("says that the order ships free (scenarios 3 and 6)", () => {
