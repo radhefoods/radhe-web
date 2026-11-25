@@ -1,6 +1,6 @@
 # The shop on Vercel
 
-How the shop is set up and run on Vercel. The branches, the build check and the change of host are in [DEPLOYMENT.md](DEPLOYMENT.md).
+How the shop is set up and run on Vercel. The branches, the build check and the change of host are in [README.md](README.md).
 
 > **State on 2026-11-21.** Vercel built every commit of `main` as production until this day, and its last build (the commit both branches started from) succeeded. On the same day every address of the shop answered `402 Payment required` with `x-vercel-error: DEPLOYMENT_DISABLED`: Vercel has switched the deployments of the account off. That is a matter of the account (Vercel → Settings → Billing and Usage), not of the code, and it has to be settled before Vercel can serve the shop again, as the host in use or as the one kept ready. Vercel's free plan (Hobby) is for non-commercial use only; a shop needs the Pro plan.
 
@@ -45,7 +45,7 @@ Project → Settings → Domains:
 | `www.radhefoods.de` | Production. The address the shop answers at           |
 | `radhefoods.de`     | Redirect to `www.radhefoods.de` (308)                 |
 
-Both stay in the project while Hostinger serves the shop. Vercel then shows "Invalid Configuration" for them, because the DNS points elsewhere; that is expected. It is what lets a change of host be two DNS records and nothing more (`DEPLOYMENT.md`, section 5). The records Vercel asks for are shown on this page.
+Both stay in the project while Hostinger serves the shop. Vercel then shows "Invalid Configuration" for them, because the DNS points elsewhere; that is expected. It is what lets a change of host be two DNS records and nothing more ([README.md](README.md), section 5). The records Vercel asks for are shown on this page.
 
 The shop carries the same redirect of the bare domain in its own configuration (`next.config.ts`), for the host that has none. On Vercel the redirect of this page answers first, and the one of the shop is never reached.
 
@@ -53,7 +53,7 @@ The shop carries the same redirect of the bare domain in its own configuration (
 
 | Push to               | Vercel builds                                                                                                   |
 | --------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `production/vercel`   | Production. The branch is moved by `git push origin origin/main:production/vercel` (`DEPLOYMENT.md`, section 4) |
+| `production/vercel`   | Production. The branch is moved by `git push origin origin/main:production/vercel` ([README.md](README.md), section 4) |
 | `main`, other branches | A preview, at an address of its own under `vercel.app`                                                          |
 
 The previews of `main` are worth keeping: each is a proof, at no cost of work, that this commit builds on Vercel, days before it is released there. Their limits: sign-in does not work on them (the session cookies belong to `.radhefoods.de`), and Vercel marks them `noindex`. To switch them off all the same: Settings → Git → Ignored Build Step, with a command that lets only the production branch build:
@@ -62,7 +62,7 @@ The previews of `main` are worth keeping: each is a proof, at no cost of work, t
 if [ "$VERCEL_GIT_COMMIT_REF" = "production/vercel" ]; then exit 1; else exit 0; fi
 ```
 
-Vercel does not wait for the build check on GitHub. The order that keeps a broken build out of production is the one of `DEPLOYMENT.md`, section 4: the check of the commit is green first, the branch is moved after.
+Vercel does not wait for the build check on GitHub. The order that keeps a broken build out of production is the one of [README.md](README.md), section 4: the check of the commit is green first, the branch is moved after.
 
 ## 5. After a deployment
 
@@ -71,7 +71,7 @@ curl -s  https://<the project>.vercel.app/api/health    # {"status":"ok"}
 curl -sI https://<the project>.vercel.app/en | grep -iE "^(HTTP|x-vercel-cache|content-security-policy)"
 ```
 
-and, when Vercel serves the real address, the checks of `DEPLOYMENT.md`, section 5.4. `x-vercel-cache` says whether a page came from Vercel's cache (`HIT`, `STALE`, `PRERENDER`) or was rendered (`MISS`).
+and, when Vercel serves the real address, the checks of [README.md](README.md), section 5.4. `x-vercel-cache` says whether a page came from Vercel's cache (`HIT`, `STALE`, `PRERENDER`) or was rendered (`MISS`).
 
 Going back to an earlier deployment: Deployments → the last good one → **Instant Rollback**. Then undo the commit on `main` (`git revert`) and move the branch again, so the branch says what is live.
 

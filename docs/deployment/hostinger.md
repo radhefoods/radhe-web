@@ -1,10 +1,12 @@
 # The shop on Hostinger
 
-How the shop is set up and run as a Node.js web app on Hostinger's web hosting. The branches, the build check and the change of host are in [DEPLOYMENT.md](DEPLOYMENT.md).
+How the shop is set up and run as a Node.js web app on Hostinger's web hosting. The branches, the build check and the change of host are in [README.md](README.md).
 
 > **What is proven and what is not (2026-11-21).** The server that Hostinger builds and starts (webpack, standalone output) was built on a computer and in the build check, started, and asked for its pages (`npm run smoke -- --standalone`). **No deployment on Hostinger itself has succeeded yet.** What Hostinger does is taken from its documentation, linked below; section 6 lists what the first deployment has to confirm.
 >
 > **2026-11-22: the first build on Hostinger failed, and why.** Installing, compiling with webpack and the type check passed there. Writing the pages ahead did not: Hostinger's build server has 56 processors, Next.js started 55 processes for it, each of them starts a thread per processor, and the account's limit of threads was reached ("OS can't spawn worker thread: Resource temporarily unavailable", then `SIGABRT`). The shop now starts four such processes at most (`buildWorkers` in `next.config.ts`). Whether the build passes with that is for the next deployment to show.
+>
+> **2026-11-24 and 2026-11-25: Hostinger serves the shop.** `https://www.radhefoods.de` answered with the header `platform: hostinger`, and two pushes to `main` were served there about two and about four minutes after the push. So the build passes on Hostinger's servers with the four processes, and the domain reaches the shop. The other questions of section 6 were not checked on those days.
 
 Sources: [Next.js on Hostinger](https://docs.hostinger.com/node.js/overview-1/next), [build settings](https://docs.hostinger.com/node.js/build-settings), [creating an app](https://docs.hostinger.com/node.js/creating-an-app), [environment variables](https://docs.hostinger.com/node.js/environment-variables), [deploying from Git](https://docs.hostinger.com/node.js/git-deployments), [deployments](https://docs.hostinger.com/node.js/deployments), [file structure](https://docs.hostinger.com/node.js/file-structure), [limits of the plans](https://www.hostinger.com/support/hostinger-node-js-limits-for-web-and-cloud-plans/), [Next.js 16 build errors](https://www.hostinger.com/support/?p=21144), [503 and the process limit](https://www.hostinger.com/support/?p=21123).
 
@@ -15,14 +17,14 @@ Sources: [Next.js on Hostinger](https://docs.hostinger.com/node.js/overview-1/ne
 | Builds every Next.js app with the standalone output and starts that server itself. The `start` script and the "entry file" are not used | Nothing to set. `npm run start` (port 3001) stays what it is, for a developer's computer. The standalone server is what the build check starts   |
 | States that Next.js 16.3.3 and newer must be built with webpack on its servers                                         | `npm run build:webpack` (`next build --webpack`) is the build script to choose. The shop has no setting that only one of the two bundlers knows   |
 | Keeps `next.config.ts` and adds its output setting; a configuration exported as a function fails the build             | `next.config.ts` exports an object                                                                                                               |
-| Gives the environment variables to the build and to the running app; saving a variable builds again                    | The five variables of `DEPLOYMENT.md`, section 2, set before the first build                                                                     |
+| Gives the environment variables to the build and to the running app; saving a variable builds again                    | The five variables of [README.md](README.md), section 2, set before the first build                                                                     |
 | Builds on a shared server with 56 processors, under the account's limit of processes and threads (seen 2026-11-22)      | The build starts four processes for the pages at most, not one per processor (`buildWorkers` in `next.config.ts`; `NEXT_BUILD_WORKERS` sets another number)   |
 | Stops the process of an app without visitors, and starts it at the next request                                        | The server answers about a second after its start (measured on a computer). A timer keeps it awake (section 3.4)                                  |
 | Starts a process each for `radhefoods.de` and `www.radhefoods.de`; rewrites its `.htaccess` at every deployment        | The redirect of the bare domain to `www` is the shop's own (`next.config.ts`), not a rule in a file of the host. The process of the bare domain only answers redirects |
 | Counts processes and threads of the whole plan against one limit (120 on Business)                                     | One process, no cluster, no PM2. The server ran with 16 threads on a computer. The API on the same plan counts too                               |
 | Replaces the folder of the app at every deployment                                                                     | The pages the server has kept (section 7) are gone after a deployment and are rendered again at their first visit. Nothing else is stored in files |
 | Ends a request after 120 seconds; no WebSockets; no ports of the app's own                                             | The shop waits ten seconds for the API at most, and uses neither                                                                                 |
-| Has no button for an earlier version                                                                                   | `git revert` and push, or change the host (`DEPLOYMENT.md`, section 6)                                                                           |
+| Has no button for an earlier version                                                                                   | `git revert` and push, or change the host ([README.md](README.md), section 6)                                                                           |
 
 ## 2. What is needed
 
@@ -88,11 +90,11 @@ Without visitors Hostinger stops the process; the next visitor waits for its sta
 | Command  | `curl -s https://www.radhefoods.de/api/health > /dev/null`      |
 | Schedule | `*/5 * * * *`                                                   |
 
-`/api/health` asks the API for nothing and renders no page. Set the timer up once Hostinger serves `www.radhefoods.de`; while another host does, the call would keep that one awake instead. An uptime monitor on the same address (`DEPLOYMENT.md`, section 7) does the same job and tells somebody when it fails.
+`/api/health` asks the API for nothing and renders no page. Set the timer up once Hostinger serves `www.radhefoods.de`; while another host does, the call would keep that one awake instead. An uptime monitor on the same address ([README.md](README.md), section 7) does the same job and tells somebody when it fails.
 
 ### 3.5 The domain and the certificate
 
-`DEPLOYMENT.md`, section 5: the two records, the certificate, the checks.
+[README.md](README.md), section 5: the two records, the certificate, the checks.
 
 ## 4. Updates
 
@@ -125,7 +127,7 @@ curl -s  https://www.radhefoods.de/sitemap.xml | head -c 600
 curl -sI https://www.radhefoods.de/en/products/<a slug> | grep -iE "^(HTTP|x-nextjs-cache|cache-control)"
 ```
 
-Then the pages by hand: `DEPLOYMENT.md`, section 5.4.
+Then the pages by hand: [README.md](README.md), section 5.4.
 
 ## 6. What the first deployment has to confirm
 
@@ -139,7 +141,7 @@ None of these could be tried without a deployment. Each has a check and a way ou
 | Is the home page passed on as it is, not kept by a cache of the host?    | `curl -sI https://www.radhefoods.de/en` shows `cache-control: private, no-cache, no-store…` and no `x-litespeed-cache: hit` / `x-hcdn-cache-status: HIT` | Switch the cache off for the website (hPanel → Advanced → Cache Manager), or a price change shows late                              |
 | Is the answer compressed?                                                | `curl -sI -H "Accept-Encoding: br, gzip" https://www.radhefoods.de/en` shows `content-encoding` | Nothing breaks; pages load slower. Ask Hostinger's support                                                                          |
 | Do memory and processes stay under the limits of the plan, with the API on it? | The dashboard of the web app and Resource usage, after a day with visitors                 | Section 7; a Cloud plan has higher limits                                                                                           |
-| Does the certificate cover both names?                                   | `DEPLOYMENT.md`, section 5.3                                                               | Install it in hPanel → Security → SSL                                                                                               |
+| Does the certificate cover both names?                                   | [README.md](README.md), section 5.3                                                               | Install it in hPanel → Security → SSL                                                                                               |
 
 ## 7. What costs the server work, and what does not
 

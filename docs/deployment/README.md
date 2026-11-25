@@ -5,8 +5,8 @@ The shop can run on Hostinger and on Vercel. Both are kept ready for production 
 | Guide                                                | What it holds                                                    |
 | ---------------------------------------------------- | ---------------------------------------------------------------- |
 | This file                                            | The branches, the build check, keeping the branches in step, changing the host, going back |
-| [DEPLOYMENT_HOSTINGER.md](DEPLOYMENT_HOSTINGER.md)   | Setting up and running the shop on Hostinger                     |
-| [DEPLOYMENT_VERCEL.md](DEPLOYMENT_VERCEL.md)         | Setting up and running the shop on Vercel                        |
+| [hostinger.md](hostinger.md)   | Setting up and running the shop on Hostinger                     |
+| [vercel.md](vercel.md)         | Setting up and running the shop on Vercel                        |
 
 ## 1. The branches
 
@@ -33,7 +33,7 @@ The shop uses nothing a host has to provide beyond Node.js: no image optimizer (
 
 ## 2. The environment variables
 
-The same five on both hosts, with the same values. All are public (`README.md`, "Environment").
+The same five on both hosts, with the same values. All are public ([configuration](../architecture/configuration.md)).
 
 | Variable                       | Production value            | Read             |
 | ------------------------------ | --------------------------- | ---------------- |
@@ -49,7 +49,7 @@ Because both hosts are built for `https://www.radhefoods.de`, the host that is n
 
 `NEXT_OUTPUT=standalone` is not a variable of production. Hostinger sets the standalone output by itself; the variable exists so that the build check and a developer can build the same thing.
 
-`NEXT_BUILD_WORKERS` is not a variable of production either. The build starts four processes for the pages at most, on every host (`buildWorkers` in `next.config.ts`); the variable sets another number, for a host whose build server allows fewer ([DEPLOYMENT_HOSTINGER.md](DEPLOYMENT_HOSTINGER.md), section 8).
+`NEXT_BUILD_WORKERS` is not a variable of production either. The build starts four processes for the pages at most, on every host (`buildWorkers` in `next.config.ts`); the variable sets another number, for a host whose build server allows fewer ([hostinger.md](hostinger.md), section 8).
 
 ## 3. The build check
 
@@ -118,7 +118,7 @@ The DNS of `radhefoods.de` is kept at Hostinger (name servers `*.dns-parking.com
 2. **Lower the TTL** of the `@` and `www` records to 300 seconds, at least one old TTL before the change. A change, and a change back, then reach visitors within five minutes.
 3. **Bring the host that takes over up to date** and prove it:
    - To Vercel: section 4, then `https://<the project>.vercel.app/api/health` answers `{"status":"ok"}` and a product page opens there.
-   - To Hostinger: the last deployment of `main` is green in hPanel, and the checks of `DEPLOYMENT_HOSTINGER.md`, section 5, pass.
+   - To Hostinger: the last deployment of `main` is green in hPanel, and the checks of [hostinger.md](hostinger.md), section 5, pass.
 4. **Environment variables** of the host that takes over are the five of section 2. They were built in at its last build; if one was changed since, redeploy first.
 5. **The domain is added on the host that takes over** (`www.radhefoods.de` and `radhefoods.de`), even while DNS points elsewhere. Vercel shows "Invalid Configuration" for a domain whose DNS points away; that is expected and harmless.
 6. **The API needs nothing**: its `CORS_ORIGINS`, `SHOP_URL` and `COOKIE_DOMAIN` name the shop's address, and the address stays the same. Sign-in, the cart and the way back from Stripe work on either host for that reason.
