@@ -68,7 +68,7 @@ Three things decide: a `revalidate` of 0 or reading `searchParams` makes a page 
 | `/categories`, `/faq`, `/delivery-and-payment` | `revalidate = 300` | Built per language, renewed after 300 s | Categories and first products; the FAQ; the settings |
 | `/legal/terms`, `/legal/privacy`, `/legal/imprint`, `/legal/withdrawal`, `/legal/shipping`, `/legal/refund-policy` | `revalidate = 300` | Built per language, renewed after 300 s | The published text, or the shop's file for the imprint and the withdrawal |
 | `/how-it-works`, `/legal/cookies` | – | Built per language, renewed after 300 s | The rules of the coins; a file |
-| `/cart` | – | Built per language, renewed after 300 s | Settings and the popular row; the cart itself is the browser's |
+| `/cart` | – | Built per language, renewed after 300 s | The settings; the cart itself is the browser's |
 | `/checkout` | – | Built per language, renewed after 300 s | Settings (the delivery estimate, whether delivery is by the box) |
 | `/wishlist`, `/forgot-password`, `/account`, `/account/orders`, `/account/invoices`, `/account/addresses`, `/account/profile`, `/account/referrals`, `/account/reviews`, `/account/coins`, `/account/reports` | – | Built per language: the frame and an empty shell | Nothing of their own |
 | `/sign-in`, `/sign-up`, `/reset-password` | Reads `searchParams` | At every request | Nothing of their own |

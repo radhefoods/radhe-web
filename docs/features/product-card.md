@@ -6,7 +6,7 @@ The card that stands for one pack size of a product in every list and row of the
 | --- | --- |
 | **Status** | Implemented |
 | **Since** | 2026-10-16 (one card per pack size); the basket that opens since 2026-11-25 |
-| **Pages** | The product lists, the rows of the home page and of the product page, the wishlist, "Popular right now" on the cart page |
+| **Pages** | The product lists, the rows of the home page and of the product page, the wishlist |
 | **Code** | `src/components/catalogue/product-card.tsx`, `src/components/catalogue/add-to-cart.tsx`, `src/components/catalogue/price.tsx`, `src/components/catalogue/product-image.tsx`, `src/features/cart/fly-to-cart.ts` |
 | **API** | [Catalogue](../api/endpoints.md#catalogue) for the data; [Cart](../api/endpoints.md#cart) and [Wishlist](../api/endpoints.md#wishlist) for its two controls |
 | **State** | None of its own: the quantity comes from the cart store, the heart from the wishlist store |

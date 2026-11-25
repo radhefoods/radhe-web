@@ -2,6 +2,15 @@
 
 Design and technical decisions of the Radhe Foods customer shop, with their reasons. Newest decisions of the owner first, then by topic. Keep this file current.
 
+## The cart page suggests no products (2026-11-25)
+
+The owner, a day after the cart page was built in the chosen design: "Completely remove the 'Popular right now' product recommendation section from the Cart Page. Remove any unnecessary spacing left behind. Keep the remaining cart design and functionality unchanged. Do not remove this section from other pages."
+
+| Decision | Reason |
+| --- | --- |
+| **The row "Popular right now" is gone from the cart page**, with the empty cart's copy of it. The page reads no products any more (`src/app/[locale]/(shop)/cart/page.tsx`); `CartView` takes no children, `UnlessInCart` is removed, and the grid of the page has one row again, so the summary stands beside the list and nothing is left under it | The owner's word. The row was added on 2026-11-24 from the cart design of the lab |
+| **The home page and the product page keep their rows**, and `ProductRowItem` is as it was before the cart used it | The owner's word: only the cart page |
+
 ## The basket of a product card opens and says "Add" (2026-11-25)
 
 The owner chose design A09, "Expanding Orb", of the Product Card Lab for the add button of every retail product card: "Only replace the Add to Cart button's UI and interaction. Keep the existing product card layout, cart functionality, stock validation, API integrations, and business logic unchanged"; the expansion must "not cause layout shifts or overlap other elements", a touch screen keeps the circle, and both languages are served.

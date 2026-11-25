@@ -10,7 +10,7 @@ The cart collects the pack sizes a customer wants to order, lets them change the
 | **Code** | `src/app/[locale]/(shop)/cart/page.tsx`, `src/components/cart`, `src/features/cart`, `src/lib/cart` |
 | **API** | [Cart](../api/endpoints.md#cart) |
 | **State** | `localStorage` `rf.cart.v2` for visitors; the API for customers, cached under the query key `["cart", locale]`; the context of `CartProvider` |
-| **Texts** | `cart`, `product` (the stepper, "Your cart is full …"), `shipping` (the box card), `home` (the row of suggestions) |
+| **Texts** | `cart`, `product` (the stepper, "Your cart is full …"), `shipping` (the box card) |
 | **Tests** | `e2e/checkout.spec.ts` ("the cart"), `e2e/shipping.spec.ts`, `src/lib/cart/guest-cart.test.ts`, `src/features/cart/savings.test.ts`, `src/features/cart/shipping.test.ts` |
 | **Backend reference** | [reference/backend/store-api.md](../reference/backend/store-api.md), section 8 |
 
@@ -29,10 +29,9 @@ The page is not for search engines (`robots: noindex, nofollow`). Its regions, i
 | The list | One frosted panel, named "Your cart" for assistive technology, one row per pack size |
 | The summary | A frosted card beside the list from `lg`, under it below |
 | The box card | Under the summary, only for a bill priced by the box |
-| "Popular right now" | A frosted panel under the list with a row of product cards |
 | The pill | Below `md`: the total and "Go to checkout", fixed above the tab bar |
 
-Below `lg` the order is list, summary, box card, suggestions: the bill comes before products the customer did not choose.
+Below `lg` the order is list, summary, box card. The page suggests no other products.
 
 ### A line
 
@@ -67,16 +66,12 @@ The discount code and the coins are entered at the checkout, not here. A code or
 
 Under the summary stands the card of the boxes (`BoxShipping`) while the bill has `shipping` with at least one box. It replaces the free-delivery hint; the two never show together. See [shipping](shipping.md).
 
-### "Popular right now"
-
-The row of the home page (`ProductRow`, `ProductCard`), from the same cached answers: the products the admin marked as featured, or the first products of the catalogue while none is marked. Three cards across beside the summary, four on wide screens. A product that is in the cart is left out (`UnlessInCart`), also the moment it is added from the row. The panel is hidden when no card is left or the catalogue could not be read; the cart does not depend on it.
-
 ### States
 
 | State | What shows |
 | --- | --- |
 | Loading | Two grey rows in a frosted panel and a grey summary; a second grey card when the shop's settings say delivery is by the box, so the page does not jump |
-| Empty | A frosted panel: a bag icon, "Your cart is empty", "Put something in it: everything you add stays here until you order.", the button "Browse the range"; under it the row of suggestions |
+| Empty | A frosted panel: a bag icon, "Your cart is empty", "Put something in it: everything you add stays here until you order.", the button "Browse the range" |
 | The bill could not be read | "We could not load the prices of your cart." with the error's text and a retry. This comes before "empty": a stored cart that could not be read is not an empty one |
 | A change is on its way | The totals, the pill's total and the box card dim, the line totals fade, the checkout is switched off, a screen reader hears "Updating prices …" |
 | A change failed | The message above the list; the numbers fall back to what the API holds |
@@ -110,7 +105,7 @@ The browser computes three things on this page: the saving of the sale prices fo
 
 | Step | Visitor | Customer |
 | --- | --- | --- |
-| The page opens | The server renders the title and the row of suggestions (`listProducts` with the home page's queries, and `getSettings` for the size of the placeholder). The cart itself is read in the browser | The same |
+| The page opens | The server renders the title and reads the settings (`getSettings`) for the size of the placeholder. The cart itself is read in the browser | The same |
 | The cart | `localStorage` | `GET /v1/store/cart`, asked together with the session |
 | The bill | `POST /v1/store/cart/preview`, 350 ms after the last change | The answer of `GET /v1/store/cart` and of every change |
 | A change | Written to `localStorage`, then a preview | `PUT /v1/store/cart/items/{variantId}` 300 ms after the last tap on that pack size; quantity `0` removes |
@@ -120,7 +115,7 @@ Answers are kept for 30 seconds (TanStack Query). An error of the first read sho
 
 ## Behaviour
 
-- **Layout.** From `lg` two columns: the list with the suggestions under it, and the summary 380 px wide beside both, which stays in view while the page scrolls. From `sm` the list is one grid and every row a subgrid of it, so the steppers and the line totals of all rows stand under each other. On phones the texts take the first row beside the picture; the stepper, the line total, the heart and the bin share the second.
+- **Layout.** From `lg` two columns: the list, and the summary 380 px wide beside it, which stays in view while the page scrolls. From `sm` the list is one grid and every row a subgrid of it, so the steppers and the line totals of all rows stand under each other. On phones the texts take the first row beside the picture; the stepper, the line total, the heart and the bin share the second.
 - **The pill on phones.** Below `md` the total and "Go to checkout" float above the tab bar. The pill follows the same rule as the button of the summary.
 - **Keyboard and screen reader.** The stepper is a group named "Quantity of {name}" with the buttons "One less" and "One more"; the number is announced when it changes. The line total is read as "Total: …", a reduced price as "Price: …" and "Regular price: …". The summary is a landmark named "Summary".
 - **Motion.** The panels rise as they arrive, one after the other. An amount that changed drops into place (the line totals, the total, the count beside the title); the bar runs to its length. The reduced-motion preference stills all of it ([motion](../design-system/motion.md)).
@@ -129,6 +124,7 @@ Answers are kept for 30 seconds (TanStack Query). An error of the first read sho
 
 | Not in the shop | Note |
 | --- | --- |
+| Suggested products on the cart page | The row "Popular right now" stood under the list from 2026-11-24 and was removed on 2026-11-25 at the owner's word; the home page and the product page keep theirs |
 | A discount code or coins on the cart page | Both are entered at the checkout ([discount codes](discount-codes.md), [rewards](rewards.md)) |
 | "Save for later" | The heart of a line saves to the wishlist and leaves the line in the cart |
 | Undo after removing a line | – |
@@ -142,8 +138,8 @@ Answers are kept for 30 seconds (TanStack Query). An error of the first read sho
 
 | File | What it is |
 | --- | --- |
-| `src/app/[locale]/(shop)/cart/page.tsx` | The page: title, count, the texts of the `shipping` namespace, the row of suggestions handed to the view |
-| `src/components/cart/cart-view.tsx` | `CartView` (list, summary, pill, the states), `CartLine`, `CartCount`, `UnlessInCart` |
+| `src/app/[locale]/(shop)/cart/page.tsx` | The page: title, count, the texts of the `shipping` namespace |
+| `src/components/cart/cart-view.tsx` | `CartView` (list, summary, pill, the states), `CartLine`, `CartCount` |
 | `src/components/cart/bill-summary.tsx` | `BillTotals` (the rows of a bill) and `FreeDeliveryProgress` (the flat fee's hint) |
 | `src/components/cart/box-shipping.tsx` | `BoxShipping`, the card of the boxes |
 | `src/components/cart/cart-summary-bar.tsx` | The slim bar on phones |

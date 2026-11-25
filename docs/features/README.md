@@ -92,6 +92,7 @@ What the shop had and has no more. The reasons are in the [decision log](../deci
 | Product reviews and order feedback (built 2026-11-01, never in production) | 2026-11-02 | [Order reviews](reviews.md) |
 | The sentence with a bar and the per-box bars of the first build of delivery by the box (`ShippingProgress`, `BoxCapacity`) | 2026-11-24 | The card of the boxes under the button ([shipping](shipping.md)) |
 | A guest's address card with "Save address" at the checkout | 2026-11-24 | The address typed into the page ([checkout](checkout.md)) |
+| "Popular right now" under the list of the cart page (built 2026-11-24) | 2026-11-25 | Nothing: the [cart page](cart.md) suggests no products |
 
 ## Not built
 

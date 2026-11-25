@@ -2,7 +2,6 @@
 
 import { ArrowRight, ShoppingBag, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 import { ProductImage } from "@/components/catalogue/product-image";
 import { WishlistButton } from "@/components/catalogue/wishlist-button";
 import { Alert } from "@/components/ui/alert";
@@ -228,14 +227,11 @@ function CartLine({ line, updating }: { line: BillLine; updating: boolean }) {
 }
 
 /**
- * The two columns of the page, shared with the placeholder. From `lg` the
- * list and what the page hands in share the first column and the summary
- * stands beside both; below, the summary comes right after the list, so
- * the bill is not pushed under the suggestions. The second row takes
- * whatever the summary is taller by.
+ * The two columns of the page, shared with the placeholder: from `lg` the
+ * list and, beside it, the summary; below, the summary follows the list.
  */
 const columns =
-  "grid items-start gap-x-7 gap-y-[1.125rem] lg:grid-cols-[minmax(0,1fr)_23.75rem] lg:grid-rows-[auto_1fr]";
+  "grid items-start gap-x-7 gap-y-[1.125rem] lg:grid-cols-[minmax(0,1fr)_23.75rem]";
 
 function CartSkeleton({ boxes }: { boxes: boolean }) {
   return (
@@ -286,31 +282,14 @@ export function CartCount({ className }: { className?: string }) {
 }
 
 /**
- * A suggestion under the cart that is in the cart already says nothing
- * new: it leaves the row, also the moment it is added from there. Shown
- * until the cart of this browser is known, so the server's page has it.
- */
-export function UnlessInCart({
-  variantId,
-  children,
-}: {
-  variantId: string;
-  children: ReactNode;
-}) {
-  const cart = useCart();
-  if (cart.ready && cart.quantityOf(variantId) > 0) return null;
-  return children;
-}
-
-/**
  * The cart page (owner, 2026-11-24, after the cart design "Liquid Glass"
  * of the lab): the products with their quantities as the rows of one
- * frosted panel, under it whatever the page hands in (`children`: the row
- * of popular products), and beside both the bill from the API in a
- * frosted summary that stays in view, with the total as its one big
- * number and the way to the checkout, which follows the bill's
- * `canOrder`. On phones the total and that button float as a glass pill
- * above the tab bar.
+ * frosted panel, and beside it the bill from the API in a frosted summary
+ * that stays in view, with the total as its one big number and the way to
+ * the checkout, which follows the bill's `canOrder`. On phones the total
+ * and that button float as a glass pill above the tab bar. Nothing is
+ * suggested on this page (owner, 2026-11-25: the row of popular products
+ * that stood under the list is gone).
  *
  * Under the flat fee the summary opens with the hint on free delivery.
  * Where the API prices the delivery by the box (`bill.shipping`,
@@ -323,12 +302,9 @@ export function UnlessInCart({
  */
 export function CartView({
   boxBased = false,
-  children,
 }: {
   /** `shipping.boxBased` of the settings: only sizes the placeholder. */
   boxBased?: boolean;
-  /** Shown under the list, and under the notice of an empty cart. */
-  children?: ReactNode;
 }) {
   const t = useTranslations("cart");
   const tProduct = useTranslations("product");
@@ -357,7 +333,6 @@ export function CartView({
             {t("emptyCta")}
           </Link>
         </div>
-        {children}
       </div>
     );
   }
@@ -400,7 +375,7 @@ export function CartView({
 
       <aside
         aria-label={t("summary")}
-        className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-28 lg:col-start-2 lg:row-span-2 lg:row-start-1"
+        className="flex min-w-0 flex-col gap-3.5 lg:sticky lg:top-28 lg:col-start-2"
       >
         <div className="glass-strong animate-rise flex flex-col gap-4 rounded-2xl p-[1.125rem] [animation-delay:60ms] sm:p-6">
           <h2 className="font-display text-ink text-xl">{t("summary")}</h2>
@@ -487,8 +462,6 @@ export function CartView({
           />
         )}
       </aside>
-
-      {children && <div className="min-w-0 lg:col-start-1">{children}</div>}
 
       {/* On phones the total and the way to the checkout stay in reach:
           a pill of glass that floats above the tab bar. */}
