@@ -486,6 +486,42 @@
   );
 }
 
+/* The basket of a product card (owner, 2026-11-25: "Expanding Orb",
+   design A09 of the Product Card Lab): a circle at rest; under the pointer
+   or the keyboard's focus it opens to the left and says "Add". Its label
+   is the `span` at its end, folded to nothing until then. It opens only
+   where the control found room for the whole label beside the price
+   (`data-roomy`, see `add-to-cart.tsx`), and a touch screen, which has no
+   pointer to rest on it, keeps the circle. */
+@utility basket-orb {
+  & > span {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    transition:
+      max-width 300ms var(--ease-glass),
+      opacity 200ms,
+      margin 300ms var(--ease-glass);
+  }
+
+  &[data-roomy="true"]:focus-visible > span {
+    max-width: 6rem;
+    margin-right: 3px;
+    margin-left: 7px;
+    opacity: 1;
+  }
+
+  @media (hover: hover) {
+    &[data-roomy="true"]:hover > span {
+      max-width: 6rem;
+      margin-right: 3px;
+      margin-left: 7px;
+      opacity: 1;
+    }
+  }
+}
+
 @utility leaf-gradient-deep {
   background-image: linear-gradient(
     180deg,

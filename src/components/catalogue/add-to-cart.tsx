@@ -2,7 +2,14 @@
 
 import { Ban, PackageX, ShoppingBasket } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { memo, useEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type SyntheticEvent,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 import { orderingReason } from "@/features/catalogue/availability";
@@ -16,6 +23,29 @@ import { cn } from "@/lib/cn";
 const ANNOUNCED_FOR_MS = 1500;
 
 /**
+ * What the open basket of a card measures beside its label, in px: the
+ * circle (40) and the label's two margins (7 and 3, `basket-orb`).
+ */
+const BASKET_AROUND_LABEL = 50;
+
+/**
+ * Whether the basket of a card may open: only where its whole label has
+ * room in the slot the card keeps free beside the price, so that the label
+ * is neither cut short nor laid over the price (the German label is three
+ * times as long as the English one). Asked when the pointer or the focus
+ * arrives, as the room changes with the card's width and the price.
+ */
+function measureRoom(event: SyntheticEvent<HTMLButtonElement>) {
+  const button = event.currentTarget;
+  const label = button.lastElementChild;
+  const slot = button.parentElement;
+  if (!label || !slot) return;
+  button.dataset.roomy = String(
+    BASKET_AROUND_LABEL + label.scrollWidth <= slot.clientWidth,
+  );
+}
+
+/**
  * The one control that puts a pack size into the cart: a button first (a
  * full pill, or on a card the round basket at the end of the price row),
  * then minus, number, plus. On the tap the picture flies into the cart
@@ -27,9 +57,13 @@ const ANNOUNCED_FOR_MS = 1500;
  * shadow and no white ring (owner, 2026-10-19); it stands in the card's
  * bottom right corner, level with the price, whatever the length of the
  * name (owner, 2026-10-28, evening: off the picture, a basket instead of
- * the "+"). The stepper that unfolds in its place is the leaf pill, 32 px
- * high (36 from `sm`), filling the slot the card keeps for the two of
- * them, so the price beside it stays where it was (owner, 2026-10-29).
+ * the "+"). Under the pointer or the keyboard's focus it opens to the
+ * left and says "Add" (owner, 2026-11-25: "Expanding Orb", design A09 of
+ * the Product Card Lab; `basket-orb` in `globals.css`); a touch screen
+ * keeps the circle. The stepper that unfolds in its place is the leaf
+ * pill, 32 px high (36 from `sm`) and as wide as before, at the end of
+ * the slot the card keeps for the two of them, so the price beside it
+ * stays where it was (owner, 2026-10-29).
  */
 export function AddToCart(props: AddToCartProps) {
   // The cart tells every control on the page about every change; this
@@ -127,18 +161,23 @@ const AddToCartControl = memo(function AddToCartControl({
       <>
         <button
           type="button"
-          aria-label={t("addNamed", { name })}
+          aria-label={t("addShortNamed", { name })}
           onClick={add}
+          onPointerEnter={measureRoom}
+          onFocus={measureRoom}
           className={cn(
-            "leaf-gradient shadow-leaf hover:shadow-leaf-lg ease-glass grid size-10 shrink-0 place-items-center rounded-full text-white transition-[filter,box-shadow,transform] duration-200 hover:scale-105 hover:brightness-[1.06] active:scale-95",
+            "basket-orb leaf-gradient shadow-leaf hover:shadow-leaf-lg ease-glass inline-flex h-10 max-w-full min-w-10 shrink-0 items-center rounded-full px-2.5 text-white transition-[box-shadow,transform] duration-200 active:scale-[0.96]",
             className,
           )}
         >
           <ShoppingBasket
             aria-hidden="true"
-            className="size-5"
-            strokeWidth={2.25}
+            className="size-5 shrink-0"
+            strokeWidth={2.1}
           />
+          <span className="text-sm leading-none font-semibold">
+            {t("addShort")}
+          </span>
         </button>
         {status}
       </>
@@ -171,7 +210,7 @@ const AddToCartControl = memo(function AddToCartControl({
         size={look === "card" ? "card" : size === "sm" ? "sm" : "md"}
         className={cn(
           look === "card"
-            ? "h-8 w-full origin-right sm:h-9"
+            ? "h-8 w-20 origin-right sm:h-9 sm:w-21"
             : cn(height, "origin-left"),
           unfolds && "animate-stepper-in",
           className,

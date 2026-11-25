@@ -31,9 +31,11 @@ const badge =
  * a quieter tone), then the last row: the price with the regular price
  * crossed out when reduced and the price per unit, and at its end the
  * round basket that adds the size, where the stepper unfolds in its place
- * (owner, 2026-10-28, evening), both in a slot of one size, so that the
+ * (owner, 2026-10-28, evening), both at the end of one slot, so that the
  * price keeps its width and its place whichever is shown (owner,
- * 2026-10-29). A card narrower than 14 rem (phones, the home page's rows
+ * 2026-10-29). The slot is the room the price leaves in the row: the
+ * basket opens into it and says "Add" (owner, 2026-11-25), and moves
+ * nothing as it does. A card narrower than 14 rem (phones, the home page's rows
  * on small tablets) has no room for both side by side: there the price
  * has a line of its own and the slot stands under it, at the right; the
  * card decides by its own width (a container query), as it stands in
@@ -158,21 +160,21 @@ export function ProductCard({
         {left !== null && (
           <span className="sr-only">{t("badge.fewLeft", { count: left })}</span>
         )}
-        {/* The last row: the price, and in the corner a slot of one size
-            for the basket and for the stepper that unfolds in its place:
-            as wide as the stepper, as high as the basket. The price has
-            the rest of the row in both states, so it neither moves nor
+        {/* The last row: the price, and after it a slot for the basket and
+            for the stepper that unfolds in its place, both at its right
+            end. The price is as wide as its figures and gives way only
+            when the row is too narrow for it and the stepper (the slot is
+            never narrower than the stepper); the slot has the rest of the
+            row whatever stands in it, so the price neither moves nor
             wraps differently when the stepper opens (owner, 2026-10-29:
-            the card must look the same before and after). On a card
-            narrower than 14 rem the slot moves under the price, at the
-            right: there nothing but the price fits beside it. */}
+            the card must look the same before and after), and the basket
+            that opens to the left (owner, 2026-11-25) has all the room
+            there is and none of the price's. On a card narrower than
+            14 rem the slot moves under the price as a row of its own. */}
         <div className="mt-auto flex flex-col gap-2 pt-1 @min-[14rem]:flex-row @min-[14rem]:items-end @min-[14rem]:justify-between @min-[14rem]:gap-1.5">
-          <Price
-            pricing={product.pricing}
-            className="min-w-0 @min-[14rem]:flex-1"
-          />
+          <Price pricing={product.pricing} className="min-w-0" />
           {!unorderable && (
-            <div className="flex h-10 w-20 shrink-0 items-center justify-end self-end sm:w-21">
+            <div className="flex h-10 w-full min-w-20 items-center justify-end sm:min-w-21 @min-[14rem]:w-auto @min-[14rem]:flex-1">
               <AddToCart
                 variantId={product.variantId}
                 name={title}

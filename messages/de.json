@@ -63,6 +63,8 @@
   "product": {
     "addToCart": "In den Warenkorb",
     "addNamed": "In den Warenkorb: {name}",
+    "addShort": "In den Korb",
+    "addShortNamed": "In den Korb: {name}",
     "added": "Hinzugefügt",
     "quantityNamed": "Menge von {name}",
     "increase": "Eins mehr",

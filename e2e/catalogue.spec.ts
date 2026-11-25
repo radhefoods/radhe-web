@@ -361,6 +361,139 @@ test.describe("the shop at a glance", () => {
   });
 });
 
+/** The basket's transitions have run out: sizes can be measured. */
+async function basketSettled(basket: Locator) {
+  await basket.evaluate((button) =>
+    Promise.all(
+      button.getAnimations({ subtree: true }).map((motion) => motion.finished),
+    ),
+  );
+}
+
+/**
+ * Where the basket and the figures of the price beside it stand, from the
+ * card's corner (the card itself lifts under the pointer).
+ */
+function basketAndPrice(basket: Locator) {
+  return basket.evaluate((button) => {
+    const origin = button.closest("article")!.getBoundingClientRect();
+    const price = button.parentElement!.previousElementSibling!;
+    const range = document.createRange();
+    let right = 0;
+    let top = Infinity;
+    let bottom = 0;
+    for (const line of price.children) {
+      range.selectNodeContents(line);
+      for (const box of range.getClientRects()) {
+        if (box.width < 2) continue; // words for screen readers only
+        right = Math.max(right, box.right - origin.left);
+        top = Math.min(top, box.top - origin.top);
+        bottom = Math.max(bottom, box.bottom - origin.top);
+      }
+    }
+    const own = button.getBoundingClientRect();
+    const label = button.lastElementChild!;
+    return {
+      card: [origin.width, origin.height].map(Math.round),
+      price: [right, top, bottom].map(Math.round),
+      left: own.left - origin.left,
+      right: Math.round(own.right - origin.left),
+      top: own.top - origin.top,
+      bottom: own.bottom - origin.top,
+      width: own.width,
+      label: label.getBoundingClientRect().width,
+      labelWhole: label.scrollWidth,
+    };
+  });
+}
+
+test.describe("the basket of a product card", () => {
+  test("a circle that opens to the left and says Add, under the pointer and under the keyboard", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "A touch screen has no pointer to rest on it.");
+    await page.goto("/en/products");
+    const khakhra = card(page, "Methi Khakhra");
+    const basket = khakhra.getByRole("button", {
+      name: /Add to cart: Methi Khakhra/,
+    });
+    await basket.scrollIntoViewIfNeeded();
+    const rest = await basketAndPrice(basket);
+    expect(rest.width).toBe(40);
+    await expect(basket.getByText("Add", { exact: true })).toBeHidden();
+
+    await basket.hover();
+    await expect(basket.getByText("Add", { exact: true })).toBeVisible();
+    await basketSettled(basket);
+    const open = await basketAndPrice(basket);
+    expect(open.width).toBeGreaterThan(70);
+    expect(open.label).toBeGreaterThanOrEqual(open.labelWhole);
+    // It grew to the left, and nothing else of the card moved.
+    expect(open.right).toBe(rest.right);
+    expect(open.card).toEqual(rest.card);
+    expect(open.price).toEqual(rest.price);
+    expect(open.left).toBeGreaterThan(open.price[0]);
+
+    await page.mouse.move(0, 0);
+    await expect(basket.getByText("Add", { exact: true })).toBeHidden();
+    await khakhra.getByRole("link", { name: /Methi Khakhra/ }).focus();
+    await page.keyboard.press("Tab");
+    await expect(basket).toBeFocused();
+    await expect(basket.getByText("Add", { exact: true })).toBeVisible();
+
+    // The tap is the one of before: the stepper takes the basket's place.
+    await page.keyboard.press("Enter");
+    await expect(
+      khakhra.getByRole("group", { name: /Quantity of Methi Khakhra/ }),
+    ).toBeVisible();
+  });
+
+  test("in German the longer label opens whole or not at all, and never lies on the price", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "A touch screen has no pointer to rest on it.");
+    await page.goto("/de/produkte");
+    const baskets = page
+      .getByRole("article")
+      .getByRole("button", { name: /^In den Korb: / });
+    await expect(baskets.first()).toBeVisible();
+    const count = Math.min(await baskets.count(), 8);
+    let opened = 0;
+    for (let index = 0; index < count; index++) {
+      const basket = baskets.nth(index);
+      await basket.scrollIntoViewIfNeeded();
+      await basket.hover();
+      await basketSettled(basket);
+      const open = await basketAndPrice(basket);
+      if (open.label > 0) {
+        opened++;
+        expect(open.label).toBeGreaterThanOrEqual(open.labelWhole);
+      } else {
+        expect(open.width).toBe(40);
+      }
+      const [priceRight, priceTop, priceBottom] = open.price;
+      const besideThePrice = open.top < priceBottom && open.bottom > priceTop;
+      if (besideThePrice) expect(open.left).toBeGreaterThan(priceRight);
+    }
+    expect(opened).toBeGreaterThan(0);
+  });
+
+  test("a touch screen keeps the circle", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "phones only");
+    await page.goto("/en/products");
+    const basket = card(page, "Methi Khakhra").getByRole("button", {
+      name: /Add to cart: Methi Khakhra/,
+    });
+    await basket.scrollIntoViewIfNeeded();
+    await basket.hover();
+    await basketSettled(basket);
+    expect((await basketAndPrice(basket)).width).toBe(40);
+    await expect(basket.getByText("Add", { exact: true })).toBeHidden();
+  });
+});
+
 test.describe("languages and addresses", () => {
   test("a pack size has one address per language, whatever slug was used", async ({
     page,
