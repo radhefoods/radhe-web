@@ -140,6 +140,12 @@ test.describe("while the shop does not offer the emails", () => {
     await expect(nav.getByRole("link", { name: "Notifications" })).toHaveCount(
       0,
     );
+    // Its address is the shop's "not found" page.
+    await page.goto("/en/account/notifications");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Page not found" }),
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(page).toHaveTitle(/^Page not found/);
   });
 });
 

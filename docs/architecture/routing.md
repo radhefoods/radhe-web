@@ -67,7 +67,7 @@ Every page here needs a signed-in customer. `AccountShell` in `src/components/ac
 | `src/app/[locale]/(shop)/account/referrals/page.tsx` | `/en/account/referrals` | `/de/konto/empfehlungen` | Referral code and invitations | [Referrals](../features/referrals.md) |
 | `src/app/[locale]/(shop)/account/reviews/page.tsx` | `/en/account/reviews` | `/de/konto/bewertungen` | The customer's reviews | [Reviews](../features/reviews.md) |
 | `src/app/[locale]/(shop)/account/coins/page.tsx` | `/en/account/coins` | `/de/konto/coins` | Coins | [Rewards](../features/rewards.md) |
-| `src/app/[locale]/(shop)/account/notifications/page.tsx` | `/en/account/notifications` | `/de/konto/benachrichtigungen` | The pack sizes the customer waits for; "not found" while the shop does not offer "Notify me" | [Back-in-stock emails](../features/back-in-stock.md) |
+| `src/app/[locale]/(shop)/account/notifications/page.tsx` | `/en/account/notifications` | `/de/konto/benachrichtigungen` | The pack sizes the customer waits for; the shop's "not found" page, shown in the browser, while the shop does not offer "Notify me" | [Back-in-stock emails](../features/back-in-stock.md) |
 
 ### Checkout frame, plain frame, no frame
 

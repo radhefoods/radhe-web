@@ -15,7 +15,7 @@ The backend offers two things since 2026-11-25, both off until the admin switche
 | **Nothing about a visitor's request is kept in the browser** | The API answers the same whether or not an address waits already, so that nobody learns what another person waits for; a memory in the browser would say it. No new entry for the cookie page |
 | **The two link pages lead to all products, not to the product** | The answers of the API name the pack size by its id; the shop reaches a product by its slug. Told to the owner for the backend |
 | **A blocked account reads the shop's sentence**, not the message of the API the prompt names | The shop never shows the API's English `message` ([error handling](../api/error-handling.md)) |
-| **The account page is "not found" while the feature is off** | The prompt: while the switch is off, render nothing of it |
+| **The account page is the shop's "not found" page while the feature is off** | The prompt: while the switch is off, render nothing of it. As a page of the account it is drawn in the browser, so its address answers `200` with `noindex` like its neighbours, and a visitor is sent to the sign-in first |
 | **Trustpilot is not built** | The owner: later. Twenty placements wait in a lab for the choice |
 
 ## The cart page suggests no products (2026-11-25)

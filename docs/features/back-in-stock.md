@@ -14,7 +14,7 @@ For a pack size that cannot be ordered, a customer asks to be told when it can, 
 | **Tests** | `e2e/stock-alerts.spec.ts`, `mocks/stock-alerts.test.ts`, `src/features/stock-alerts/outcome.test.ts`, `src/features/stock-alerts/list-cache.test.ts` |
 | **Backend reference** | [reference/backend/stock-alerts.md](../reference/backend/stock-alerts.md); section 26 of the backend's `api/store-api.md` |
 
-**Switched off until the admin switches it on.** `GET /v1/store/settings` carries `stockAlerts { enabled }`. While it is `false`, or the settings have no such field (an API from before 2026-11-25), or the settings could not be read, the shop shows nothing of this feature: no control, no entry in the account, and the account page answers "not found". The live API had no such field on 2026-11-26.
+**Switched off until the admin switches it on.** `GET /v1/store/settings` carries `stockAlerts { enabled }`. While it is `false`, or the settings have no such field (an API from before 2026-11-25), or the settings could not be read, the shop shows nothing of this feature: no control, no entry in the account, and the address of the account page shows the shop's "not found" page. The live API had no such field on 2026-11-26.
 
 ## What the customer sees
 
@@ -90,6 +90,8 @@ An entry "Notifications" at the end of the account's navigation, and the page `/
 | Requests | The product card of each pack size, newest first, as listings show it (its bell is filled); under each "Waiting since 26 November 2026" and "Cancel" |
 | A pack size left the shop | A quiet tile "No longer in the shop": "This product has left our range.", with the same line and "Cancel" |
 | The list could not be read | "We could not load your notifications." with the error's sentence and a retry |
+
+While the shop does not offer the emails, the page is the shop's "not found" page, with that title. Like every page of the account it is put on the screen by the browser once the account's frame knows who is here: the address answers `200` with `noindex`, a visitor is sent to the sign-in first, and a signed-in customer reads "Page not found".
 
 A request ends by itself when its email went out, so the list holds what is still open. Cancelling removes the card at once, by "Cancel" or by the bell of the card.
 
@@ -187,7 +189,7 @@ Confirmed against the code and the backend's document:
 | `src/components/catalogue/product-purchase.tsx`, `src/components/catalogue/product-card.tsx` | Where the control is placed |
 | `src/components/public/stock-alert-links.tsx` | `StockAlertConfirmView` and `StockAlertUnsubscribeView` |
 | `src/app/[locale]/(plain)/stock-alerts/confirm/page.tsx`, `src/app/[locale]/(plain)/stock-alerts/unsubscribe/page.tsx` | The two link pages: the heading, the token of the address, the metadata |
-| `src/components/account/notifications-view.tsx`, `src/app/[locale]/(shop)/account/notifications/page.tsx` | The list in the account; the page answers "not found" while the feature is off |
+| `src/components/account/notifications-view.tsx`, `src/app/[locale]/(shop)/account/notifications/page.tsx` | The list in the account; the page is the shop's "not found" while the feature is off |
 | `src/components/account/account-shell.tsx` | The entry "Notifications", while the feature is on |
 | `src/app/[locale]/(shop)/layout.tsx` | Reads the switch and mounts the provider and the notice |
 | `src/lib/api/store-api.ts`, `src/lib/api/types.ts`, `src/lib/api/errors.ts`, `src/lib/api/error-text.ts` | The six calls, their types, the five error codes and the two sentences of the limit |
