@@ -73,6 +73,8 @@ Named by the owner or prepared in the backend, and not in the shop's code.
 | --- | --- |
 | Back-in-stock notifications ("notify me") | Not built. A size that cannot be ordered shows "Sold out" and nothing more ([product page](product-page.md)). The backend's repository had a stock-alerts module in work, uncommitted, on 2026-11-25 |
 | Trustpilot | Not built. The code and the texts do not name it; what customers say comes from the shop's own [order reviews](reviews.md) |
+| A new header for the checkout | Asked for by the owner on 2026-11-25: twenty designs are in a lab for the owner to choose from; the header of today stays until then ([checkout](checkout.md)) |
+| A country field, address suggestions while typing, and a phone field with a dialling-code chooser at the checkout and in the address book | Asked for by the owner on 2026-11-25; a recommendation was given first, nothing is built. Today the country is always Germany, the address is typed by hand, and the phone number is one field in international form ([forms and validation](../business-logic/forms-and-validation.md)). Address suggestions need an outside service and an endpoint of the backend; other delivery countries need the backend's list of countries and its postcode rule to grow |
 | Discount code and coins on the cart page, "save for later", undo after removing | Shown in the cart design the owner chose and left out when it was built on 2026-11-24, because the shop has no such functions there ([decision log](../decisions/decision-log.md)). Waiting for the owner's word |
 
 ## Deprecated
