@@ -2,6 +2,22 @@
 
 Design and technical decisions of the Radhe Foods customer shop, with their reasons. Newest decisions of the owner first, then by topic. Keep this file current.
 
+## "Notify me" for a pack size that cannot be ordered (2026-11-26)
+
+The backend offers two things since 2026-11-25, both off until the admin switches them on: back-in-stock emails and the figures of Trustpilot. The owner handed over the backend's prompt with "Nothing changes at checkout. Do not change the theme, colours, fonts or unrelated functionality. Write your plan first and wait for my go before coding." and, after the plan: "You can start Notify me", Trustpilot later. What the shop shows is in [features/back-in-stock.md](../features/back-in-stock.md); the rules are the backend's ([reference/backend/stock-alerts.md](../reference/backend/stock-alerts.md)).
+
+| Decision | Reason |
+| --- | --- |
+| **The pill of a size that cannot be ordered stays, and "Notify me" is added to it**: a button under the pill on the product page, a bell in the basket's slot on a card | The look of a sold-out size is the owner's (2026-10-16, below). Nothing that exists is redrawn; with the feature off, a card and a page show what they showed before |
+| **The bell is a soft leaf circle, not the leaf of the basket**, and fills when the customer waits, as the heart of the wishlist fills | The basket is the one action that buys. The bell uses the colours and the pop the shop has |
+| **A visitor's form opens in place on the product page and in the sliding panel from a card** | The plan asked "the panel, or a link to the product page?" and recommended the panel; no other word came, so the recommendation is built. A card has no room for a field |
+| **On phones the bar above the tab bar offers the button only while there is something to ask** | "Wir benachrichtigen Sie" does not fit beside the name and the price; once the customer waits, the block in the page says so and holds "Cancel" |
+| **Nothing about a visitor's request is kept in the browser** | The API answers the same whether or not an address waits already, so that nobody learns what another person waits for; a memory in the browser would say it. No new entry for the cookie page |
+| **The two link pages lead to all products, not to the product** | The answers of the API name the pack size by its id; the shop reaches a product by its slug. Told to the owner for the backend |
+| **A blocked account reads the shop's sentence**, not the message of the API the prompt names | The shop never shows the API's English `message` ([error handling](../api/error-handling.md)) |
+| **The account page is "not found" while the feature is off** | The prompt: while the switch is off, render nothing of it |
+| **Trustpilot is not built** | The owner: later. Twenty placements wait in a lab for the choice |
+
 ## The cart page suggests no products (2026-11-25)
 
 The owner, a day after the cart page was built in the chosen design: "Completely remove the 'Popular right now' product recommendation section from the Cart Page. Remove any unnecessary spacing left behind. Keep the remaining cart design and functionality unchanged. Do not remove this section from other pages."

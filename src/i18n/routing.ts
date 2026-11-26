@@ -11,7 +11,9 @@ export const defaultLocale: Locale = "en";
  *
  * Links in the emails of the API carry no language (`/unsubscribe/<token>`,
  * `/reset-password?token=<token>`, `/account/orders/<number>`,
- * `/guest/orders/<number>?token=<token>`, `/products/<slug>`): the proxy
+ * `/guest/orders/<number>?token=<token>`, `/products/<slug>`,
+ * `/stock-alerts/confirm?token=<token>`,
+ * `/stock-alerts/unsubscribe?token=<token>`): the proxy
  * sends them to the customer's language and keeps path and query. The
  * pages that exist only for such a link have one address in both
  * languages, so the link in the email is the address.
@@ -80,8 +82,15 @@ export const routing = defineRouting({
       en: "/account/reports/[issueNumber]",
       de: "/konto/meldungen/[issueNumber]",
     },
+    "/account/notifications": {
+      en: "/account/notifications",
+      de: "/konto/benachrichtigungen",
+    },
     "/wishlist": { en: "/wishlist", de: "/merkliste" },
     "/unsubscribe/[token]": "/unsubscribe/[token]",
+    // The two links of the back-in-stock emails (doc 26), token in the query.
+    "/stock-alerts/confirm": "/stock-alerts/confirm",
+    "/stock-alerts/unsubscribe": "/stock-alerts/unsubscribe",
     // The way back from Stripe and the links of the emails about a guest
     // order (doc 20) carry no language: one address in both.
     "/guest/orders/[orderNumber]": "/guest/orders/[orderNumber]",

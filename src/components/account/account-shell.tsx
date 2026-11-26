@@ -8,6 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOverview } from "@/features/account/overview";
 import { SESSION_QUERY_KEY, useSession } from "@/features/session/session";
+import { useStockAlerts } from "@/features/stock-alerts/stock-alerts";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/cn";
 import { parseReturnTo } from "@/lib/navigation/return-to";
@@ -24,6 +25,7 @@ const SECTIONS = [
   { href: "/account/coins", key: "coins", count: null },
   { href: "/account/profile", key: "profile", count: null },
   { href: "/wishlist", key: "wishlist", count: "wishlistItems" },
+  { href: "/account/notifications", key: "notifications", count: null },
 ] as const;
 
 /**
@@ -44,10 +46,12 @@ export function AccountShell({ children }: { children: ReactNode }) {
   // The coins page while the program is on or there is a balance to see
   // (REWARDS 8); an API without coins never shows it.
   const rewards = overview?.rewards;
-  const sections = SECTIONS.filter(
-    (section) =>
-      section.key !== "coins" ||
-      (rewards && (rewards.enabled || rewards.available > 0)),
+  // "Notifications" while the shop offers "Notify me" (doc 26).
+  const notifies = useStockAlerts().offered;
+  const sections = SECTIONS.filter((section) =>
+    section.key === "coins"
+      ? rewards && (rewards.enabled || rewards.available > 0)
+      : section.key !== "notifications" || notifies,
   );
 
   // The page to come back to: the address pattern, with the order number

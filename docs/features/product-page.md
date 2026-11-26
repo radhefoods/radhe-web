@@ -27,7 +27,7 @@ From `md` two columns: the pictures at the left, kept in view while the right co
 | 5 | Subtitle | The product's `subtitle`, else its `shortDescription` | When there is one |
 | 6 | Price | The price of the chosen size, the regular price struck through when reduced, then "€4.00 / kg · Tax included." (the note links to "Delivery and payment") | Always |
 | 7 | Pack sizes | "Pack size" with the chosen size, and one segment per size showing the size and its price per unit | The product has 2 or more sizes |
-| 8 | Add to cart | The button "Add to cart", full width; the stepper once the size is in the cart | The size can be ordered; else a pill "Sold out" or "Currently not available" |
+| 8 | Add to cart | The button "Add to cart", full width; the stepper once the size is in the cart | The size can be ordered; else a pill "Sold out" or "Currently not available", and under it "Notify me" while the shop offers it ([back-in-stock emails](back-in-stock.md)) |
 | 9 | Stock and delivery | "In stock" behind a green dot, or "Only N left" in wheat; the delivery estimate of the settings behind a truck | The size can be ordered |
 | 10 | Limits | "At most {count} per order", "Minimum order: {count}" | See the rules |
 | 11 | Delivery and payment | One frosted container: free delivery or the fee, the secure payment with the marks of Visa, Mastercard, American Express and PayPal, and "All about delivery and payment" | Always |
@@ -43,7 +43,7 @@ On phones a bar fixed above the tab bar repeats the name with the size, the pric
 
 | State | What shows |
 | --- | --- |
-| The chosen size is sold out or switched off | The pill in the button's place (also in the phone bar); no stock line and no limits. The price, the pictures and the other sizes stay |
+| The chosen size is sold out or switched off | The pill in the button's place (also in the phone bar); no stock line and no limits. The price, the pictures and the other sizes stay. While "Notify me" is offered: its block under the pill, and its button in the pill's place in the phone bar ([back-in-stock emails](back-in-stock.md#on-the-product-page)) |
 | Another size cannot be ordered | Its segment says "Sold out" or "Currently not available" in the place of its price per unit; it can still be chosen |
 | A picture's file is gone | The Radhe mark in its place, never the browser's sign for a broken picture (`ProductImage`) |
 | The product, or the size of the address, does not exist | The 404 page ([Error pages](error-pages.md)). A size Radhe Foods switched off is not listed and its address answers 404 |
@@ -139,7 +139,6 @@ The page is not built ahead of time: it is rendered at the first visit and kept 
 ## Not built
 
 - Reviews or stars of a product: customers review orders ([Reviews](reviews.md)).
-- A "notify me when back in stock" control.
 - A nutrition table: nutrition is the admin's plain text.
 - Zoom or a full-screen view of the pictures; videos.
 - A quantity field before adding: the button adds the minimum, the stepper changes it.

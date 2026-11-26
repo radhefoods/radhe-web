@@ -42,6 +42,7 @@ Tests stand beside what they test (`shipping.ts`, `shipping.test.ts`). Three kin
 | `e2e/account.spec.ts` | Sign-up, sign-in, the account, orders, returns, invoices |
 | `e2e/issues.spec.ts` · `e2e/reviews.spec.ts` | Problem reports; order reviews |
 | `e2e/wishlists.spec.ts` | Wishlists |
+| `e2e/stock-alerts.spec.ts` | "Notify me": switched off, a visitor and a customer on the product page and on a card, the account's list, the two link pages, what the API refuses. Run it against `next dev`, which reads the settings afresh for a page asked for with `Cache-Control: no-cache` (the spec opens its pages that way); the built shop keeps the settings, and with them the switch, for five minutes |
 | `e2e/accessibility.spec.ts` | axe on every kind of page against WCAG 2.2 A and AA, the keyboard, reduced motion ([accessibility](../design-system/accessibility.md)) |
 | `e2e/polish.spec.ts` | Details of the interface: a change of the cart that fails, the loading line, the cookie notice, the menu and the tab bar on a phone, the steps of the delivery fee |
 | `e2e/helpers.ts` | `createAccount`, `signupCode`, `discountCode` (opens the folded code field), `cartLines`, `settled` (waits for finite animations before axe measures colours) |

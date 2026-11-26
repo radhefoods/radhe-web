@@ -26,7 +26,7 @@ A solid white card with soft corners. Its parts from top to bottom:
 | 4 | Pill, bottom right of the tile | "Sold out" or "Currently not available" with an icon | The size cannot be ordered |
 | 5 | Brand | A small tracked line in capitals | The product has a brand |
 | 6 | Name | The product's name and, in a quieter tone, the pack size in brackets: "Guava / Jamfal (500g)". A link to the product page. Two lines, kept even when one would do | Always |
-| 7 | Price row | The price, the regular price struck through when reduced, the price per unit under it; at the right end the basket, or the stepper in its place | The basket and stepper only when the size can be ordered |
+| 7 | Price row | The price, the regular price struck through when reduced, the price per unit under it; at the right end the basket, or the stepper in its place | The basket and stepper only when the size can be ordered. For a size that cannot, the bell of "Notify me" stands in the same slot while the shop offers it ([back-in-stock emails](back-in-stock.md)); otherwise the slot is not there |
 
 Nothing else is on a card: other pack sizes, the description and the delivery promise are on the [product page](product-page.md).
 
@@ -49,7 +49,8 @@ A page that opens with the size already in the cart shows the stepper at once, w
 | --- | --- |
 | Can be ordered | Parts 1 to 3 and 5 to 7 |
 | Few left | The wheat badge, and the same words for screen readers |
-| Sold out, or switched off | The picture at 40 % and grey, the pill on the tile, no discount badge, no basket; price and name stay |
+| Sold out, or switched off | The picture at 40 % and grey, the pill on the tile, no discount badge, no basket; price and name stay. While "Notify me" is offered, its bell in the basket's slot |
+| "Notify me" learnt that the size can be ordered again | The basket in the slot, the picture in colour, no pill ([back-in-stock emails](back-in-stock.md#what-the-api-refuses)) |
 | No picture, or its file cannot be loaded | The Radhe mark ghosted on the tile with "coming soon" |
 | Adding fails (cart full, the API refuses) | A red message at the top of the window; see [Cart](cart.md) |
 
@@ -130,7 +131,6 @@ Both links of a card (the tile and the name) are `IntentLink`: the product page 
 
 - A choice of pack size on the card: each size is a card of its own, or is chosen on the product page.
 - Stars or a rating: reviews are about orders ([Reviews](reviews.md)).
-- A "notify me" control on a sold-out card.
 - A quick view, a comparison, or a second picture on hover.
 - Storage badges ("Chilled", "Frozen") or tag badges ("New", "Bestseller") on the card; storage and tags are filters of the lists.
 - A quantity field to type into: the stepper moves one by one.
@@ -141,6 +141,8 @@ Both links of a card (the tile and the name) are `IntentLink`: the product page 
 | --- | --- |
 | `src/components/catalogue/product-card.tsx` | `ProductCard`: the layout, the badges, the name, the price row with its slot |
 | `src/components/catalogue/add-to-cart.tsx` | `AddToCart`: the basket (`look="card"`), the full button of the product page, the stepper, the pill; `measureRoom` |
+| `src/components/catalogue/card-slot.ts` | `cardSlot`: the classes of the slot at the end of the price row |
+| `src/components/catalogue/notify-me.tsx` | `NotifyMeBell`: the bell of "Notify me" in the slot ([back-in-stock emails](back-in-stock.md)) |
 | `src/components/catalogue/price.tsx` | `Price`: price, regular price, price per unit |
 | `src/components/catalogue/product-image.tsx` | `ProductImage`: the picture in three widths, and the mark for none or a broken one |
 | `src/components/catalogue/wishlist-button.tsx` | `WishlistButton`: the heart |

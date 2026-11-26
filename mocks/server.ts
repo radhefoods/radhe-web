@@ -9,8 +9,8 @@
 // and password, the password reset by link, addresses, checkout with a
 // stand-in payment page, orders and payments, invoices and credit notes
 // with PDF, returns, the wishlist (preview, stored list, merge), the
-// banners of the home page, the FAQ and the blog. `demo@radhefoods.de`
-// gets a filled demo account.
+// banners of the home page, the FAQ, the blog and the back-in-stock
+// requests ("Notify me"). `demo@radhefoods.de` gets a filled demo account.
 //
 // Runs on the project's Node (24, see .nvmrc) and needs at least 22.18, which
 // reads TypeScript directly; no build step.
@@ -25,6 +25,7 @@ import {
 import { pathToFileURL } from "node:url";
 import type { ProductQuery } from "../src/lib/api/types.ts";
 import {
+  EMAIL,
   HttpError,
   OBJECT_ID,
   PHONE,
@@ -107,6 +108,19 @@ import {
   resetRewards,
   revokeReview,
 } from "./rewards.ts";
+import {
+  alertsOf,
+  askAsCustomer,
+  askAsGuest,
+  cancelOwn,
+  confirmAlert,
+  forgetAlertsOf,
+  guestAlertView,
+  ownAlertView,
+  runStockAlerts,
+  stockAlertToken,
+  unsubscribeAlert,
+} from "./stock-alerts.ts";
 import {
   ACCESS_TTL_SECONDS,
   BLOCKED_EMAIL,
@@ -899,6 +913,7 @@ route("POST", "/v1/store/me/delete", (ctx) => {
   }
   // Everything personal goes; the record keeps its id for the books.
   console.log(`[mock] goodbye email (${customer.locale}) to ${customer.email}`);
+  forgetAlertsOf(customer);
   customer.email = `deleted:${customer.id}`;
   customer.firstName = null;
   customer.lastName = null;
@@ -2385,6 +2400,176 @@ route("POST", "/v1/unsubscribe/:token", (ctx) => {
   }
   return { body: { email: customer.email, marketingOptIn: false } };
 });
+
+// --- 26 Back-in-stock emails ("Notify me", doc 26) ---------------------------
+
+/** The token of a link: 20 to 200 characters, as the API validates it. */
+function linkTokenOf(value: unknown): string {
+  if (typeof value !== "string" || value.length < 20 || value.length > 200) {
+    throw validationFailed("token", "token must be 20 to 200 characters");
+  }
+  return value;
+}
+
+function packSizeIdOf(value: unknown): string {
+  if (typeof value !== "string" || !OBJECT_ID.test(value)) {
+    throw validationFailed("variantId", "variantId must be a mongodb id");
+  }
+  return value;
+}
+
+route("POST", "/v1/store/stock-alerts", (ctx) => {
+  const body = objectBody(ctx.body, [
+    "variantId",
+    "email",
+    "consent",
+    "locale",
+  ]);
+  // Every refused field is named at once, as the API does.
+  const problems: { field: string; problems: string[] }[] = [];
+  if (typeof body.variantId !== "string" || !OBJECT_ID.test(body.variantId)) {
+    problems.push({
+      field: "variantId",
+      problems: ["variantId must be a mongodb id"],
+    });
+  }
+  const email =
+    typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  if (!EMAIL.test(email) || email.length > 254) {
+    problems.push({ field: "email", problems: ["email must be an email"] });
+  }
+  if (body.consent !== true) {
+    problems.push({
+      field: "consent",
+      problems: ["consent must be true: the customer agrees to get the email"],
+    });
+  }
+  if (problems.length > 0) {
+    throw new HttpError(
+      400,
+      "VALIDATION_FAILED",
+      "The request contains invalid data.",
+      problems,
+    );
+  }
+  return {
+    status: 202,
+    body: askAsGuest({
+      variantId: String(body.variantId),
+      email,
+      locale: optionalLocale(body.locale, ctx.locale),
+    }),
+  };
+});
+
+route("POST", "/v1/store/stock-alerts/confirm", (ctx) => {
+  const body = objectBody(ctx.body, ["token"]);
+  const alert = confirmAlert(linkTokenOf(body.token));
+  return {
+    body: {
+      alert: guestAlertView(alert),
+      // Whoever holds the link of the email holds the address.
+      unsubscribeToken: stockAlertToken("unsubscribe", alert),
+    },
+  };
+});
+
+route("POST", "/v1/store/stock-alerts/unsubscribe", (ctx) => {
+  const body = objectBody(ctx.body, ["token", "all"]);
+  if (body.all !== undefined && typeof body.all !== "boolean") {
+    throw validationFailed("all", "all must be a boolean value");
+  }
+  const result = unsubscribeAlert(linkTokenOf(body.token), body.all === true);
+  return {
+    body: {
+      alert: guestAlertView(result.alert),
+      cancelled: result.cancelled,
+      waiting: result.waiting,
+    },
+  };
+});
+
+route("GET", "/v1/store/me/stock-alerts", (ctx) => {
+  const customer = requireCustomer(ctx);
+  return {
+    body: {
+      items: alertsOf(customer).map((alert) => ownAlertView(alert, ctx.locale)),
+    },
+  };
+});
+
+route("POST", "/v1/store/me/stock-alerts", (ctx) => {
+  const customer = requireCustomer(ctx);
+  const body = objectBody(ctx.body, ["variantId", "locale"]);
+  const variantId = packSizeIdOf(body.variantId);
+  // The emails come in the language of the request, else of the account.
+  const result = askAsCustomer(
+    customer,
+    variantId,
+    optionalLocale(body.locale, customer.locale),
+  );
+  return {
+    status: result.created ? 201 : 200,
+    body: {
+      alert: ownAlertView(
+        result.alert,
+        optionalLocale(body.locale, ctx.locale),
+      ),
+      created: result.created,
+    },
+  };
+});
+
+route("DELETE", "/v1/store/me/stock-alerts/:id", (ctx) => {
+  const customer = requireCustomer(ctx);
+  if (!OBJECT_ID.test(ctx.params.id)) {
+    throw validationFailed("id", "The id in the URL is not valid.");
+  }
+  return {
+    body: {
+      alert: ownAlertView(cancelOwn(customer, ctx.params.id), ctx.locale),
+    },
+  };
+});
+
+// Not part of the real API: the admin's switches for "Notify me".
+route("POST", "/__mock/stock-alerts", (ctx) => {
+  const body = objectBody(ctx.body, ["enabled", "guestConfirmation"]);
+  for (const key of ["enabled", "guestConfirmation"] as const) {
+    if (body[key] === undefined) continue;
+    if (typeof body[key] !== "boolean") {
+      throw validationFailed(key, `${key} must be true or false`);
+    }
+    settings.stockAlerts[key] = body[key];
+  }
+  return { body: { ...settings.stockAlerts } };
+});
+
+// Not part of the real API: the requests of an address, each with the
+// tokens its emails would carry, for tests.
+route("GET", "/__mock/stock-alerts", (ctx) => {
+  const email = (ctx.url.searchParams.get("email") ?? "").toLowerCase();
+  return {
+    body: {
+      items: [...db.stockAlerts.values()]
+        .filter((alert) => alert.email === email)
+        .map((alert) => ({
+          variantId: alert.variantId,
+          status: alert.status,
+          locale: alert.locale,
+          cycle: alert.cycle,
+          confirmToken: stockAlertToken("confirm", alert),
+          unsubscribeToken: stockAlertToken("unsubscribe", alert),
+        })),
+    },
+  };
+});
+
+// Not part of the real API: the run that tells the customers who wait for
+// a pack size that can be ordered again (every five minutes in the API).
+route("POST", "/__mock/stock-alerts/run", () => ({
+  body: { run: runStockAlerts() },
+}));
 
 // Not part of the real API: the tokens the emails would carry, for tests.
 // `passwordReset` is the open link of the password reset email, or null;

@@ -56,8 +56,9 @@ Pages, layouts and most components are server components: their code and their t
 | What | How | Source |
 | --- | --- | --- |
 | The panel of the phone menu, with the dialog code behind it | A dynamic `import()` when the menu button is first touched, focused or pointed at; the tap that follows usually finds it ready. A failed download is tried again with the next tap | `src/components/shell/mobile-menu.tsx`, `src/components/shell/mobile-menu-panel.tsx` |
+| The panel a product card opens for a visitor who taps "Notify me", with its form and the dialog code | The same way, when a bell is first touched, focused or pointed at. A card carries the bell alone; a signed-in customer asks with the tap and never fetches the panel | `src/components/catalogue/notify-me.tsx`, `src/components/catalogue/notify-me-sheet.tsx` |
 
-That is the only split made by hand. `next/dynamic` and `React.lazy` are not used; beyond this, Next.js splits the code by route.
+These are the only splits made by hand. `next/dynamic` and `React.lazy` are not used; beyond this, Next.js splits the code by route.
 
 ## Prefetching
 

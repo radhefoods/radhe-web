@@ -382,6 +382,25 @@
     "removeFromList": "Von dieser Liste entfernen",
     "removeNamed": "{name} von dieser Liste entfernen"
   },
+  "stockAlerts": {
+    "notify": "Benachrichtigen Sie mich",
+    "notifyNamed": "Benachrichtigen Sie mich, sobald {name} wieder da ist",
+    "hint": "Schreiben Sie mir, sobald dieser Artikel wieder da ist.",
+    "waiting": "Wir benachrichtigen Sie",
+    "cancel": "Abbestellen",
+    "cancelNamed": "Benachrichtigung für {name} abbestellen",
+    "cancelled": "Sie werden zu diesem Artikel nicht benachrichtigt.",
+    "customerDone": "Wir schreiben Ihnen an {email}, sobald der Artikel wieder da ist.",
+    "guestDone": "Wir schreiben Ihnen, sobald der Artikel wieder da ist.",
+    "confirmTitle": "Fast geschafft",
+    "confirmText": "Bitte bestätigen Sie Ihre Adresse über den Link in unserer E-Mail.",
+    "email": "E-Mail-Adresse",
+    "emailInvalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "consent": "Ich bin einverstanden, eine E-Mail zu erhalten, sobald dieser Artikel wieder verfügbar ist.",
+    "consentRequired": "Bitte setzen Sie das Häkchen, damit wir Ihnen schreiben dürfen.",
+    "back": "Jetzt nicht",
+    "done": "Fertig"
+  },
   "auth": {
     "metaTitle": "Anmelden",
     "title": "Anmelden",
@@ -633,6 +652,7 @@
       "coins": "Coins",
       "reviews": "Bewertungen",
       "reports": "Meldungen",
+      "notifications": "Benachrichtigungen",
       "wishlist": "Merkliste"
     },
     "overview": {
@@ -673,7 +693,19 @@
     "noOrdersText": "Ihre Bestellungen erscheinen hier, sobald Sie eine aufgeben.",
     "noOrdersCta": "Sortiment ansehen",
     "signOut": "Abmelden",
-    "loadError": "Wir konnten diese Seite nicht laden."
+    "loadError": "Wir konnten diese Seite nicht laden.",
+    "notifications": {
+      "metaTitle": "Benachrichtigungen",
+      "title": "Benachrichtigungen",
+      "intro": "Sie erhalten eine E-Mail, sobald ein Artikel, auf den Sie warten, wieder bestellbar ist.",
+      "empty": "Sie warten auf keinen Artikel.",
+      "emptyCta": "Sortiment ansehen",
+      "loadError": "Wir konnten Ihre Benachrichtigungen nicht laden.",
+      "since": "Sie warten seit {date}",
+      "cancelNamed": "Benachrichtigung für {name} abbestellen",
+      "gone": "Nicht mehr im Sortiment",
+      "goneText": "Dieser Artikel ist nicht mehr in unserem Sortiment."
+    }
   },
   "orders": {
     "metaTitle": "Ihre Bestellungen",
@@ -1257,6 +1289,30 @@
     "invalidTitle": "Dieser Link ist nicht gültig",
     "invalidText": "Bitte verwenden Sie den Link aus unserer letzten E-Mail oder schalten Sie die Neuigkeiten in Ihrem Profil ab."
   },
+  "stockAlertLinks": {
+    "confirmMetaTitle": "Benachrichtigung bestätigen",
+    "confirmTitle": "Benachrichtigung bestätigen",
+    "confirming": "Wir bestätigen Ihre Adresse …",
+    "confirmedTitle": "Bestätigt",
+    "confirmedText": "Wir schreiben Ihnen an {email}, sobald der Artikel wieder da ist.",
+    "notifiedTitle": "Bereits verschickt",
+    "notifiedText": "Wir haben Ihnen zu diesem Artikel bereits geschrieben. Bitte sehen Sie in Ihr Postfach.",
+    "closedTitle": "Diese Benachrichtigung ist beendet",
+    "closedText": "Sie wurde abbestellt oder ist abgelaufen. Auf der Seite des Artikels können Sie sie erneut anfordern.",
+    "cancelThis": "Diese Benachrichtigung abbestellen",
+    "unsubscribeMetaTitle": "Benachrichtigung abbestellen",
+    "unsubscribeTitle": "Benachrichtigung abbestellen",
+    "unsubscribeText": "Danach schreiben wir Ihnen nicht, wenn dieser Artikel wieder da ist.",
+    "unsubscribe": "Benachrichtigung abbestellen",
+    "cancelledTitle": "Abbestellt",
+    "cancelledText": "Sie werden zu diesem Artikel nicht benachrichtigt.",
+    "othersWaiting": "{count, plural, one {Sie warten noch auf # weiteren Artikel.} other {Sie warten noch auf # weitere Artikel.}}",
+    "cancelAll": "Alle meine Benachrichtigungen abbestellen ({count})",
+    "allCancelled": "Alle Ihre Benachrichtigungen sind abbestellt.",
+    "invalidTitle": "Dieser Link ist nicht mehr gültig.",
+    "invalidText": "Er ist möglicherweise abgelaufen oder wurde nicht vollständig kopiert. Auf der Seite des Artikels können Sie die Benachrichtigung erneut anfordern.",
+    "toShop": "Weiter einkaufen"
+  },
   "staticLegal": {
     "imprint": "Impressum",
     "withdrawal": "Widerrufsbelehrung",
@@ -1352,6 +1408,12 @@
     "ISSUE_QUANTITY_INVALID": "Sie können höchstens so viele Einheiten melden, wie Ihnen geliefert wurden.",
     "ISSUE_TRANSITION_NOT_ALLOWED": "Radhe Foods prüft diese Meldung bereits; sie lässt sich nicht mehr zurückziehen.",
     "IMAGE_LIMIT_REACHED": "Eine Meldung kann bis zu fünf Fotos haben.",
-    "IMAGE_INVALID": "Bitte verwenden Sie Bilder im Format JPEG, PNG oder WebP."
+    "IMAGE_INVALID": "Bitte verwenden Sie Bilder im Format JPEG, PNG oder WebP.",
+    "STOCK_ALERTS_DISABLED": "Benachrichtigungen zu wieder verfügbaren Artikeln werden zurzeit nicht angeboten.",
+    "STOCK_ALERT_NOT_NEEDED": "Gute Nachricht: Dieser Artikel ist wieder bestellbar.",
+    "STOCK_ALERT_LIMIT_REACHED": "Sie warten bereits auf die höchstmögliche Zahl von Artikeln.",
+    "STOCK_ALERT_LIMIT_UNCONFIRMED": "Bitte bestätigen Sie zuerst die Anfragen, zu denen wir Ihnen bereits geschrieben haben.",
+    "STOCK_ALERT_TOKEN_INVALID": "Dieser Link ist nicht mehr gültig.",
+    "STOCK_ALERT_NOT_FOUND": "Wir konnten diese Benachrichtigung nicht finden."
   }
 }

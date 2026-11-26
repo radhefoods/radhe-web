@@ -110,6 +110,23 @@ export function useSession({ force = false } = {}): Session {
 }
 
 /**
+ * Who is here, for an action that cannot wait until the page knows (a tap
+ * while "who is here" is still being asked): the answer in memory, or the
+ * one that is on its way. `null`: a visitor, also when the API could not
+ * be asked. A browser without the hint is a visitor without a call.
+ */
+export function customerNow(client: QueryClient): Promise<Customer | null> {
+  if (!readHint()) return Promise.resolve(null);
+  return client
+    .fetchQuery({
+      queryKey: SESSION_QUERY_KEY,
+      queryFn: fetchCustomer,
+      staleTime: 5 * 60_000,
+    })
+    .catch(() => null);
+}
+
+/**
  * For the sign-in flows. Signing out needs none: it loads the page anew
  * (`sign-out.tsx`), which empties the memory.
  */

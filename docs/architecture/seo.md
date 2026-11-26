@@ -106,7 +106,7 @@ A product, a category and a post that are opened under the slug of the other lan
 | Pages | Value | Why |
 | --- | --- | --- |
 | Account (the layout, so every page under it), cart, checkout, wishlist, sign-in, sign-up, forgot password | `noindex, nofollow` | They belong to one visitor |
-| Reset password, unsubscribe, guest order | `noindex, nofollow`, `referrer: "no-referrer"`, and closed in `robots.txt` | Their address carries a personal token |
+| Reset password, unsubscribe, guest order, the two link pages of "Notify me" | `noindex, nofollow`, `referrer: "no-referrer"`, and closed in `robots.txt` | Their address carries a personal token |
 | Filtered, sorted and searched lists | `noindex, follow` | Views of a list that is indexed |
 | A category without products, the FAQ without a published question, the blog without a post, the reviews without a review | `noindex, follow`, and left out of the sitemap | A page with nothing on it counts against the site. Each comes back by itself: it reads the list it shows |
 | A legal template with open `[[placeholders]]` | `noindex, follow` | It says of itself that it is not complete |
@@ -120,7 +120,7 @@ A product, a category and a post that are opened under the slug of the other lan
 | Rule | Value |
 | --- | --- |
 | `Allow` | `/` |
-| `Disallow` | `/unsubscribe/`, `/*/unsubscribe/`, `/reset-password`, `/*/reset-password`, `/*/guest/` |
+| `Disallow` | `/unsubscribe/`, `/*/unsubscribe/`, `/reset-password`, `/*/reset-password`, `/stock-alerts/`, `/*/stock-alerts/`, `/*/guest/` |
 | `Sitemap` | `env.siteUrl` and `/sitemap.xml` |
 
 Nothing else is closed. Cart, checkout, account and filtered lists say `noindex` themselves, which a search engine can only read on a page it may open.

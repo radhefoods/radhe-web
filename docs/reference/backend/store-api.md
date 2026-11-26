@@ -1,6 +1,6 @@
 # Radhe Foods – Customer Web API Documentation
 
-For the customer-facing Next.js shop. Generated from the implemented NestJS backend (`radhe-api`) on 2026-10-16; every route, field, status and error below exists in the code as of this date. Admin-only APIs are documented separately in `ADMIN_API_DOCUMENTATION.md`.
+For the customer-facing Next.js shop. Generated from the implemented NestJS backend (`radhe-api`) on 2026-10-16; every route, field, status and error below exists in the code as of this date. Admin-only APIs are documented separately in [admin-api.md](admin-api.md).
 
 **What the shop is:** an online shop for Indian groceries in Germany, sold from stock. Customers browse without an account, sign in to order, and **pay at checkout** (card or PayPal through Stripe Checkout). The payment confirms the order; Radhe Foods then prepares, dispatches and delivers it. The invoice is issued the moment the payment is captured and comes with the confirmation email.
 
@@ -33,8 +33,11 @@ A product comes in one or more **pack sizes** (`variants`): the product holds th
 22. Order reviews
 23. Problem reports
 24. Points and rewards (loyalty coins)
+25. Box-based shipping
+26. Back-in-stock emails ("Notify me")
+27. Trustpilot
 
-Added on 2026-11-01 (`doc/CUSTOMER_ACCOUNTS.md` has the long version): the sign-up needs an emailed code (section 1), guest checkout (20), closing an account and the account overview (2), address labels (3), orders given up unpaid are hidden and deleted (9), several wishlists (16), referrals (21), order reviews (22, changed on 2026-11-02), problem reports (23).
+Added on 2026-11-01 ([customer-accounts.md](../features/customer-accounts.md) has the long version): the sign-up needs an emailed code (section 1), guest checkout (20), closing an account and the account overview (2), address labels (3), orders given up unpaid are hidden and deleted (9), several wishlists (16), referrals (21), order reviews (22, changed on 2026-11-02), problem reports (23).
 
 ---
 
@@ -132,7 +135,7 @@ Two styles exist:
 
 ## 1. Customer authentication
 
-Sign-up and sign-in with **email and password**. The sign-up proves the address with a six-digit code sent by email; signing in afterwards needs no code. There is no Google sign-in. Visitors can browse, price a cart, and order as guests (section 20). `doc/CUSTOMER_AUTH.md` is the long version of the sign-in and password flows; section 1 of `doc/CUSTOMER_ACCOUNTS.md` describes the code step.
+Sign-up and sign-in with **email and password**. The sign-up proves the address with a six-digit code sent by email; signing in afterwards needs no code. There is no Google sign-in. Visitors can browse, price a cart, and order as guests (section 20). [customer-accounts.md](../features/customer-accounts.md) is the long version of the sign-in and password flows; section 1 of [customer-accounts.md](../features/customer-accounts.md) describes the code step.
 
 ### `POST /v1/store/auth/signup`
 
@@ -376,13 +379,13 @@ Show the wording of the two consents clearly (they are dated for the record). Wh
 
 ### `GET /v1/store/me/overview`
 
-**Purpose:** The account at a glance, in one call: the profile, "member since", counts (orders, open orders, invoices, wishlists and their products, addresses, open problem reports), the default address, the referral code and link. Section 4 of `doc/CUSTOMER_ACCOUNTS.md` shows the answer.
+**Purpose:** The account at a glance, in one call: the profile, "member since", counts (orders, open orders, invoices, wishlists and their products, addresses, open problem reports), the default address, the referral code and link. Section 4 of [customer-accounts.md](../features/customer-accounts.md) shows the answer.
 
 **Authentication:** customer session. **Success Response (200):** `{ "customer", "memberSince", "counts": { "orders", "openOrders", "invoices", "wishlists", "wishlistItems", "addresses", "openIssues" }, "defaultAddress", "referral": { "code", "link", "counts": { "registered", "qualified" } }, "locale" }`.
 
 ### `POST /v1/store/me/delete`
 
-**Purpose:** Close the account for good: everything personal is removed, every session ends, the email address is free for a new account; orders and invoices stay for the books with no person attached. No way back. Section 3 of `doc/CUSTOMER_ACCOUNTS.md`.
+**Purpose:** Close the account for good: everything personal is removed, every session ends, the email address is free for a new account; orders and invoices stay for the books with no person attached. No way back. Section 3 of [customer-accounts.md](../features/customer-accounts.md).
 
 **Authentication:** customer session. Rate limit 5 per minute. **Request Body:** `{ "password": "…", "confirm": true }`. **Success Response (204)**, cookies cleared.
 
@@ -521,10 +524,19 @@ Public. Used by the layout (currency, delivery-fee hint, delivery estimate, retu
     ],
     "freeFrom": 5000
   },
+  "shipping": {
+    "boxBased": false,
+    "countries": ["DE"],
+    "freeThresholdPerBox": null,
+    "maxBoxWeight": null,
+    "boxCapacity": null,
+    "feeTiers": null
+  },
   "delivery": {
     "estimate": { "en": "2 to 4 working days", "de": "2 bis 4 Werktage" }
   },
-  "returns": { "windowDays": 14 }
+  "returns": { "windowDays": 14 },
+  "stockAlerts": { "enabled": false }
 }
 ```
 
@@ -533,9 +545,11 @@ Public. Used by the layout (currency, delivery-fee hint, delivery estimate, retu
 | `currency` | string | Always `EUR`. |
 | `timezone` | string | The business time zone (`Europe/Berlin`); the dates on invoices are meant in it. |
 | `deliveryFee.tiers[]` | `{ minOrderValue: int cents, fee: int cents }` | The highest tier whose `minOrderValue` the value of the goods reaches applies. One tier always starts at 0. Sorted ascending. |
-| `deliveryFee.freeFrom` | int cents or `null` | Lowest goods value from which delivery is free, or `null` when no tier is free. |
+| `deliveryFee.freeFrom` | int cents or `null` | Lowest goods value from which delivery is free, or `null` when no tier is free. While delivery is priced by the box (`shipping.boxBased`), `deliveryFee` states those rules for an order of one box. |
+| `shipping` | object | Delivery by the box (section 25): `boxBased` (boolean), `countries` (where the shop delivers), and, `null` while `boxBased` is `false`: `freeThresholdPerBox` (cents of goods per free box), `maxBoxWeight` and `boxCapacity` (grams), `feeTiers[] { upTo, fee }` (what one paid box costs for goods up to `upTo` cents; the last tier has `upTo: null`). |
 | `delivery.estimate` | `{ en: string, de: string }` | How long delivery takes, as Radhe Foods words it. Both languages are always given (this endpoint takes no `locale`); show it at checkout and on the order page. |
 | `returns.windowDays` | int | Days after delivery in which a return can be requested; `0` = returns switched off. |
+| `stockAlerts.enabled` | boolean | Whether the shop offers "Notify me" for a pack size that cannot be ordered (section 26). |
 
 The cancellation rule (until when a customer may cancel) is not part of this answer: use `canCancel` of each order (section 9).
 
@@ -614,7 +628,7 @@ Public. Products, categories and, for every pack size, the answer "can the custo
 
 A product has one or more pack sizes, smallest first in `variants`. One of them is the **default size** and stands for the product in lists: the smallest enabled size whose stock covers the smallest order, else the smallest enabled size. Each size has its own `id` (the `variantId` of the cart and the orders), `sku`, URL (`slug`), `packSize`, `pricing` and `ordering`. The **display name** is the product name followed by the pack label in parentheses: `Basmati Rice (1 kg)`, in German `Basmati Reis (1 kg)`.
 
-The **order** of every list is the admin's: within a category the positions set in the admin panel, and category by category (in the order of the navigation) when a list spans several categories. The **view** of a list (`view` parameter, or the category's `listingView`) decides what one entry is: a product, or one pack size as a card of its own, grouped by product or in rounds of ascending size. `doc/PRODUCT_DISPLAY_ORDER.md` explains both with examples.
+The **order** of every list is the admin's: within a category the positions set in the admin panel, and category by category (in the order of the navigation) when a list spans several categories. The **view** of a list (`view` parameter, or the category's `listingView`) decides what one entry is: a product, or one pack size as a card of its own, grouped by product or in rounds of ascending size. [product-display-order.md](../features/product-display-order.md) explains both with examples.
 
 ### 7.1 Shared objects
 
@@ -690,9 +704,9 @@ The **order** of every list is the admin's: within a category the positions set 
 }
 ```
 
-All image URLs are absolute, WebP, immutable (cache them for a year). `url` is the largest variant. `small` is 320 px on the longest side, `medium` 800 px, `large` 1600 px (never enlarged: a 600 px source gives `medium`/`large` of 600 px). `alt` is localized and falls back to the name with the pack size, "Basmati Rice (5 kg)".
+All image URLs are absolute, WebP, immutable (cache them for a year). A picture that is replaced gets a new URL; the old URL keeps working for 24 hours after a picture was replaced or removed, so a page that was cached before the change does not show a broken picture, and stops working after that. `url` is the largest variant. `small` is 320 px on the longest side, `medium` 800 px, `large` 1600 px (never enlarged: a 600 px source gives `medium`/`large` of 600 px). `alt` is localized and falls back to the name with the pack size, "Basmati Rice (5 kg)".
 
-**Pictures belong to the pack size.** Every `image` and `images` of a product entry is that of the pack size the entry shows; each entry of `variants` carries its own. A pack size without pictures answers `image: null` and `images: []`: show the placeholder, never the picture of another pack size. The details for the website are in `doc/VARIANT_IMAGES.md`.
+**Pictures belong to the pack size.** Every `image` and `images` of a product entry is that of the pack size the entry shows; each entry of `variants` carries its own. A pack size without pictures answers `image: null` and `images: []`: show the placeholder, never the picture of another pack size. The details for the website are in [product-images.md](../features/product-images.md).
 
 **Ordering block** (`ordering` on a product entry, for the size it shows, and on each entry of `variants`; the same object is `line.ordering` in the cart):
 
@@ -853,7 +867,8 @@ Products carry no other stock field: `remaining` is the number to use for "only 
           "image": null
         }
       ],
-      "variantCount": 2
+      "variantCount": 2,
+      "updatedAt": "2026-09-20T09:30:00.000Z"
     }
   ],
   "page": 1,
@@ -871,6 +886,7 @@ Products carry no other stock field: `remaining` is the number to use for "only 
 - `quantity` is the product's own limit per order, the same for every size (`max` may be `null`); `ordering.maxQuantity` is that limit capped by the size's stock.
 - `variants` holds every enabled size, smallest first, the shown one included, each with its own `ordering` (section 7.1). Use it for the size chooser: each entry has its own `slug` for the product page and its own `id` for the cart. `variantCount` is its length. Each entry has `image`, the main picture of that pack size, or `null`. Texts, `quantity` and `storageType` are the product's and apply to every size.
 - `storageType` ∈ `ambient`, `chilled`, `frozen`. `category` can be `null`. `image` is `null` when the pack size the entry shows has no picture: show the placeholder.
+- `updatedAt` is when the product last changed in any of its pack sizes (texts, a price, a picture, the stock), the same value as on the product page: the `lastmod` of its pages in the sitemap. In the pack-size views every entry of one product carries the same date. (In the list since 2026-11-16.)
 - Drafts, archived products and products in hidden categories are never returned.
 
 **Possible Errors:**
@@ -1046,12 +1062,14 @@ A line whose pack size left the shop, and the bill of goods at two VAT rates:
 | `canOrder` | boolean | `true` only when the cart is not empty and **every** line is free of issues. This is the checkout button state. |
 | `lines[].variantId` | ObjectId string | The pack size of the line, as sent. |
 | `lines[].productId` | ObjectId string or `null` | Its product; `null` when the pack size is not in the shop. |
-| `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `product_unavailable`, `sold_out` | Why this line cannot be ordered as it is. Show it on the line. `product_not_found`: the pack size or its product is gone, or the product is no longer active. `product_unavailable`: the product or this size was switched off. `quantity_above_maximum` also means "more than in stock" (`ordering.maxQuantity` is capped by the stock). |
+| `lines[].issue` | `null` or one of `product_not_found`, `quantity_below_minimum`, `quantity_above_maximum`, `product_unavailable`, `sold_out`, `too_heavy` | Why this line cannot be ordered as it is. Show it on the line. `too_heavy`: one pack is heavier than a box may be and the shop does not send such packs (section 25). `product_not_found`: the pack size or its product is gone, or the product is no longer active. `product_unavailable`: the product or this size was switched off. `quantity_above_maximum` also means "more than in stock" (`ordering.maxQuantity` is capped by the stock). |
 | `lines[].ordering` | Ordering block or `null` | Of this pack size. `null` when the line is `product_not_found`. Inside `lines[].product` the `ordering` fields (on the entry and in its `variants`) are always `null`; use the line-level one. |
 | `lines[].discountAmount` | int cents | What the discount code of the checkout page takes off this line; `0` without one (section 9.6). |
 | `lines[].product` | product entry or `null` | The product list entry (section 7) with this pack size selected: its `displayName`, `packSize`, `pricing` and `image` are the line's (`image` is the picture of this pack size, or `null`). `null` when the line is `product_not_found` (then `unitPrice`, `lineTotal`, `vatRate`, `vatAmount` are `0`). |
 | `totals` | object | Computed over issue-free lines only. `vat[]` is grouped by rate; the delivery fee is shared across the rates in proportion to the net value of the goods. An empty bill has `deliveryFee: 0` and `vat: []`. |
-| `delivery.freeFrom` | int cents or `null` | Goods value from which delivery is free. `missingForFree` = what is still missing (`0` when reached; `null` when there is no free tier). Counts what is paid for the goods after the discount. |
+| `delivery.freeFrom` | int cents or `null` | Goods value from which delivery is free. `missingForFree` = what is still missing (`0` when reached; `null` when there is no free tier). Counts what is paid for the goods after the discount. While delivery is priced by the box: the value at which **this cart** is delivered free, the threshold once for every box it needs. |
+| `shipping` | object or `null` | Delivery by the box: the boxes the order needs, which are free, what the others cost, what is missing for the next free one (section 25). `null` while the shop charges the flat delivery fee. |
+| `lines[].weight` | `{ unit, total, estimated }` or `null` | Grams of one pack and of the line as shipped; `estimated` when the weight is not on record. `null` while the shop charges the flat delivery fee. |
 | `totals.discount` | int cents | What the discount code takes off the goods; `0` without one. `subtotal` is the goods before it; `total = subtotal − discount + deliveryFee`. |
 | `discount` | object or `null` | The discount code of the checkout page: `{ code, type, value, amount, applied, reason }` (section 9.6). |
 
@@ -1338,6 +1356,8 @@ An order is made from the **server-stored cart** at `POST /v1/store/checkout` an
 - `409 CART_EMPTY`.
 - `409 ORDER_ITEMS_NOT_ORDERABLE` – `details.lines[]`: `{ productId, variantId, sku, quantity, issue, minQuantity, maxQuantity, remaining }`, one per cart line with an issue (`productId`, `sku`, `minQuantity`, `maxQuantity`, `remaining` are `null` for `product_not_found`). Show the lines and send the customer back to the cart.
 - `409 ORDER_TOTAL_CHANGED` – `details: { expectedTotal, total, totals }` (`totals` is the new bill's totals). Show the new total and let the customer confirm again.
+- `409 DELIVERY_COUNTRY_NOT_SERVED` – `details: { countryCode, countries }`. The delivery address is in a country the shop does not deliver to (`countries` lists where it does). No order was created.
+- `409 ORDER_TOTAL_TOO_LOW` – `details: { total, minimum }`, both in cents. The total is under the smallest amount that can be paid online (`minimum`, 50 = 0.50 euros, the payment provider's limit). No order was created. Tell the customer the minimum and send them back to the cart; trying again does not help.
 - `409 DISCOUNT_NOT_APPLICABLE` – `details: { code, reason }`: the discount code stopped applying and was removed from the cart (section 9.6). Load the bill again.
 - `409 ORDER_NOT_PAYABLE` – the key was sent again for an order that was paid or cancelled meanwhile (`details: { status, paymentStatus }`).
 - `502 PAYMENT_PROVIDER_ERROR` – Stripe could not be reached or returned no page; ask to try again.
@@ -1421,7 +1441,7 @@ The setting is not exposed to the shop: use `order.canCancel` rather than comput
 
 ### 9.6 Discount codes on the checkout page
 
-A customer may enter one promotional code on the checkout page (not on the cart page). The code is checked against the cart and kept with it; from then on **every cart endpoint** answers the bill with the discount, until the order is paid or the code is removed. `doc/DISCOUNT_CODES.md` has the rules and the arithmetic; in short: the discount comes off the goods in proportion to each line, never off delivery, VAT is computed on what is paid, and free delivery counts what is paid for the goods.
+A customer may enter one promotional code on the checkout page (not on the cart page). The code is checked against the cart and kept with it; from then on **every cart endpoint** answers the bill with the discount, until the order is paid or the code is removed. [discount-codes.md](../features/discount-codes.md) has the rules and the arithmetic; in short: the discount comes off the goods in proportion to each line, never off delivery, VAT is computed on what is paid, and free delivery counts what is paid for the goods.
 
 The bill (section 8.1) carries `lines[].discountAmount` (cents taken off the line), `totals.discount` (the amount; `totals.subtotal` stays the goods before it, `totals.total = subtotal − discount + deliveryFee`) and:
 
@@ -1453,6 +1473,8 @@ The order carries `discount { code, type, value, amount, state }` (`state`: `res
 ## 10. Payments
 
 The customer pays on Stripe's hosted page (card or PayPal) right after checkout. The bank approves the amount on the page; Stripe tells the API through a webhook; the API takes the stock of every item and only then captures the money, issues the invoice, confirms the order and empties the cart. If a product sold out in the meantime, the approval is let go of, nothing is charged, and the order is cancelled with reason `sold_out` (the customer gets an email). The order page can also ask Stripe itself (`GET …/payment`), so the answer is right the moment the customer comes back.
+
+Stripe's page shows the order as it was placed: every product with its picture, name, pack size, brand, price and quantity, the discount of a code and of coins, the delivery (or "Free delivery") and the total, which is the total of the order to the cent. The API sends that to Stripe when it creates the page; the shop sends nothing for it and redirects to `checkout.url` as before. Logo and colours of the page are set in the Stripe account.
 
 ### 10.1 The payment block
 
@@ -1793,7 +1815,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ### Cart line issue / ordering reason
 
-`product_unavailable` (the product or the pack size is switched off), `sold_out` (the stock of the pack size does not cover the smallest order), both from the ordering rule and per pack size; plus cart-only `product_not_found` (the pack size or its product is gone, or the product is not active), `quantity_below_minimum`, `quantity_above_maximum`.
+`product_unavailable` (the product or the pack size is switched off), `sold_out` (the stock of the pack size does not cover the smallest order), both from the ordering rule and per pack size; plus cart-only `product_not_found` (the pack size or its product is gone, or the product is not active), `quantity_below_minimum`, `quantity_above_maximum`, `too_heavy` (one pack is heavier than a box may be; only while delivery is priced by the box and the admin chose not to send such packs).
 
 ### Delivery methods
 
@@ -1832,10 +1854,10 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ## 15. Integration checklist
 
-1. `fetch` with `credentials: 'include'`; shop origin in `CORS_ORIGINS`; handle `401` → refresh once → sign-in. Sign-up and sign-in with email and password, forgot and reset password pages (section 1 and `doc/CUSTOMER_AUTH.md`).
+1. `fetch` with `credentials: 'include'`; shop origin in `CORS_ORIGINS`; handle `401` → refresh once → sign-in. Sign-up and sign-in with email and password, forgot and reset password pages (section 1 and [customer-accounts.md](../features/customer-accounts.md)).
 2. Pass `?locale=` on every store call (or rely on `Accept-Language`).
 3. Layout: `GET /v1/store/settings` for the delivery-fee hint, the delivery estimate and the return window; `GET /v1/store/categories` for navigation.
-4. Catalogue: `view` per list (`doc/PRODUCT_DISPLAY_ORDER.md`): home rows `variants_by_size`, search and "All products" `variants_by_product`, category pages no `view` (the category decides); cards keyed by `variantId`; in the pack-size views `total` counts cards and the facets' `total` counts products. Each entry is shown as one pack size (`displayName` as the title, `pricing.basePrice` next to every price); product pages by the URL of a pack size or the base slug (either language); `variants` for the size chooser (switch from the same answer and set the URL to the chosen `slug` with the history API); `ordering` per size for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
+4. Catalogue: `view` per list ([product-display-order.md](../features/product-display-order.md)): home rows `variants_by_size`, search and "All products" `variants_by_product`, category pages no `view` (the category decides); cards keyed by `variantId`; in the pack-size views `total` counts cards and the facets' `total` counts products. Each entry is shown as one pack size (`displayName` as the title, `pricing.basePrice` next to every price); product pages by the URL of a pack size or the base slug (either language); `variants` for the size chooser (switch from the same answer and set the URL to the chosen `slug` with the history API); `ordering` per size for the "add to cart" state (`canOrder`, `reason`, `minQuantity`, `maxQuantity`, `remaining`); `orderable=true` and the facets for an "in stock" filter.
 5. Cart by pack size: `variants[].id` is the `variantId` of `PUT /v1/store/cart/items/{variantId}` and of the `items` of `preview` and `merge`. Guest cart in local storage (`variantId`, `quantity`) → `POST /v1/store/cart/preview` for prices; after sign-in `POST /v1/store/cart/merge`, then the server cart. Show `lines[].issue` per line; the checkout button is `canOrder`.
 6. Checkout page: `GET /v1/store/me/addresses` (address chooser), `GET /v1/store/legal` (consent versions and links), `GET /v1/store/cart` (`canOrder`, `totals.total` → `expectedTotal`), then `POST /v1/store/checkout` with an `Idempotency-Key` and redirect to `checkout.url`; handle `ORDER_TOTAL_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `LEGAL_VERSION_CHANGED`, `CART_EMPTY`, `PAYMENTS_NOT_CONFIGURED`.
 7. The way back from Stripe: `/account/orders/<orderNumber>?payment=success|cancelled` (sign-in required) → `GET …/payment`; poll while a page is still open after `?payment=success`; "Pay now" → `POST …/pay` → redirect.
@@ -1844,10 +1866,10 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 10. Pages without sign-in: `/unsubscribe/<token>` (link in marketing emails) and `/reset-password?token=<token>` (link in the password reset email); announcement emails also link to `/products/<slug>` (English slug) and the shop root.
 11. Emails the API sends, all linking to `/account/orders/<orderNumber>`: order confirmed (with the invoice PDF), cancelled, dispatched (tracking), delivered (return window), payment failed (`?pay=1`), refund completed, return requested / approved / rejected / completed. Announcements go to customers with `marketingOptIn`.
 12. Show `x-request-id` (or include it in support emails) when an unexpected error occurs.
-13. Wishlist (section 16, `doc/WISHLIST.md`): heart on cards and product pages; visitors keep `{ productId, variantId? }` in local storage and use `POST /v1/store/wishlist/preview`; signed-in customers use `GET`/`PUT`/`DELETE /v1/store/wishlist…`; `POST …/merge` once after sign-in and sign-up.
-14. Homepage carousel (section 17, `doc/BANNERS.md`): `GET /v1/store/banners`; nothing rendered when empty; the picture's ratio kept on every screen; `srcset` from `sizes`; external links in a new tab.
-15. FAQ page (section 18, `doc/FAQ.md`): `GET /v1/store/faqs?locale=…`, groups as headings with their questions in the order given, Markdown answers, `FAQPage` structured data, nothing shown when `groups` is empty.
-16. Blog (section 19, `doc/BLOG.md`): list, article, category and tag pages from `GET /v1/store/blog/…`; Markdown content with the existing renderer; `seo`, `featuredImage` and `alternates` for the meta tags, Open Graph, `hreflang` and `Article` structured data; drafts and scheduled posts answer 404.
+13. Wishlist (section 16, [wishlist.md](../features/wishlist.md)): heart on cards and product pages; visitors keep `{ productId, variantId? }` in local storage and use `POST /v1/store/wishlist/preview`; signed-in customers use `GET`/`PUT`/`DELETE /v1/store/wishlist…`; `POST …/merge` once after sign-in and sign-up.
+14. Homepage carousel (section 17, [banners.md](../features/banners.md)): `GET /v1/store/banners`; nothing rendered when empty; the picture's ratio kept on every screen; `srcset` from `sizes`; external links in a new tab.
+15. FAQ page (section 18, [faq.md](../features/faq.md)): `GET /v1/store/faqs?locale=…`, groups as headings with their questions in the order given, Markdown answers, `FAQPage` structured data, nothing shown when `groups` is empty.
+16. Blog (section 19, [blog.md](../features/blog.md)): list, article, category and tag pages from the four `/v1/store/blog` routes of section 19; Markdown content with the existing renderer; `seo`, `featuredImage` and `alternates` for the meta tags, Open Graph, `hreflang` and `Article` structured data; drafts and scheduled posts answer 404.
 17. Sign-up with the emailed code (section 1): the code step after the form, "Resend code", `SIGNUP_CODE_INVALID` / `SIGNUP_NOT_FOUND`; `ref` from the URL sent as `referralCode`.
 18. Guest checkout (section 20): "Continue as guest" on the checkout page, `POST /v1/store/guest/checkout`, the page `/guest/orders/<orderNumber>?token=…` for the way back from Stripe and the links in the emails.
 19. Several wishlists (section 16.2): the list chooser, new, rename, make default, delete, move and copy; the heart keeps using the default list.
@@ -1859,7 +1881,7 @@ Reasons: `damaged`, `wrong_item`, `quality`, `not_as_described`, `changed_mind`,
 
 ## 16. Wishlist
 
-Products a customer wants to find again: one entry per **product** (not per pack size), with the pack size the customer had open remembered as a preference. Visitors keep the list in the browser and ask for a preview; signed-in customers have it on the server; after sign-in or sign-up the shop merges the visitor's list once. At most 200 products. `doc/WISHLIST.md` has the flows in full.
+Products a customer wants to find again: one entry per **product** (not per pack size), with the pack size the customer had open remembered as a preference. Visitors keep the list in the browser and ask for a preview; signed-in customers have it on the server; after sign-in or sign-up the shop merges the visitor's list once. At most 200 products. [wishlist.md](../features/wishlist.md) has the flows in full.
 
 Every answer is the whole list, newest first:
 
@@ -1887,13 +1909,13 @@ Every answer is the whole list, newest first:
 
 ### 16.2 Several named lists
 
-Since 2026-11-01 a customer has one **default** list, which the routes above address and the heart adds to, and up to 20 lists under names of their own. The answers above start with `"wishlist": { "id", "name", "isDefault", "count", "createdAt", "updatedAt" }` before `items`. The named lists live under `/v1/store/wishlists`: `GET` (all, the default first), `POST { name, isDefault? }`, `GET`/`PATCH { name?, isDefault? }`/`DELETE …/{id}`, `PUT`/`DELETE …/{id}/items/{productId}`, `POST …/{id}/items/{productId}/transfer { to, copy? }` (move or copy to another list), `DELETE …/{id}/items`. Errors `404 WISHLIST_NOT_FOUND`, `409 WISHLIST_NAME_TAKEN`, `400 WISHLIST_LIMIT_REACHED`. Section 6 of `doc/CUSTOMER_ACCOUNTS.md` has the table in full.
+Since 2026-11-01 a customer has one **default** list, which the routes above address and the heart adds to, and up to 20 lists under names of their own. The answers above start with `"wishlist": { "id", "name", "isDefault", "count", "createdAt", "updatedAt" }` before `items`. The named lists live under `/v1/store/wishlists`: `GET` (all, the default first), `POST { name, isDefault? }`, `GET`/`PATCH { name?, isDefault? }`/`DELETE …/{id}`, `PUT`/`DELETE …/{id}/items/{productId}`, `POST …/{id}/items/{productId}/transfer { to, copy? }` (move or copy to another list), `DELETE …/{id}/items`. Errors `404 WISHLIST_NOT_FOUND`, `409 WISHLIST_NAME_TAKEN`, `400 WISHLIST_LIMIT_REACHED`. Section 6 of [customer-accounts.md](../features/customer-accounts.md) has the table in full.
 
 ---
 
 ## 17. Homepage banners
 
-The hero carousel of the homepage: pictures the admin uploads, each with everything already on it (no titles or buttons from the API), optionally linked, switched on and scheduled. `doc/BANNERS.md` has the rendering rules in full.
+The hero carousel of the homepage: pictures the admin uploads, each with everything already on it (no titles or buttons from the API), optionally linked, switched on and scheduled. [banners.md](../features/banners.md) has the rendering rules in full.
 
 ### `GET /v1/store/banners`
 
@@ -1929,7 +1951,7 @@ The hero carousel of the homepage: pictures the admin uploads, each with everyth
 
 ## 18. FAQ
 
-The questions and answers the admin keeps, under headings. `doc/FAQ.md` has the rules and the shop workflow.
+The questions and answers the admin keeps, under headings. [faq.md](../features/faq.md) has the rules and the shop workflow.
 
 ### `GET /v1/store/faqs`
 
@@ -1950,7 +1972,7 @@ Only visible groups with at least one published question, in the admin's order, 
 
 ## 19. Blog
 
-Articles in both languages with a featured picture, a category, tags and SEO fields. `doc/BLOG.md` has the objects in full and the shop workflow. **Authentication:** none; `?locale=en|de` on every call; `Cache-Control: public, max-age=300`.
+Articles in both languages with a featured picture, a category, tags and SEO fields. [blog.md](../features/blog.md) has the objects in full and the shop workflow. **Authentication:** none; `?locale=en|de` on every call; `Cache-Control: public, max-age=300`.
 
 | Endpoint | Query | Answer |
 | --- | --- | --- |
@@ -1970,38 +1992,75 @@ A list entry:
   "featuredImage": { "id": "…", "alt": "A bowl of dal", "isPrimary": false, "url": "…/large.webp", "sizes": { "small": { "url": "…", "width": 480, "height": 270 }, "medium": { "…": "" }, "large": { "…": "" } } },
   "author": "Vrushabh",
   "publishedAt": "2026-10-20T08:00:00.000Z",
+  "updatedAt": "2026-10-21T10:00:00.000Z",
   "readingMinutes": 4,
   "category": { "id": "66e1…", "slug": "recipes", "name": "Recipes" },
   "tags": ["recipes", "lentils"]
 }
 ```
 
-`featuredImage` is `null` without a picture; `summary` and `category` may be `null`. Routes of the shop: `/blog`, `/blog/[slug]`, `/blog/category/[slug]`, `/blog/tag/[tag]`; the language switch of an article goes to `alternates[otherLocale]`.
+`featuredImage` is `null` without a picture; `summary` and `category` may be `null`. `updatedAt` is when the post last changed, the same value as on the post itself: the `lastmod` of its page in the sitemap (in the list since 2026-11-16). Routes of the shop: `/blog`, `/blog/[slug]`, `/blog/category/[slug]`, `/blog/tag/[tag]`; the language switch of an article goes to `alternates[otherLocale]`.
 
 ---
 
 ## 20. Guest checkout
 
-Ordering without an account. The visitor sends the cart from the browser, the address and the email to `POST /v1/store/guest/checkout` (header `Idempotency-Key`; body `{ email, items: [{ variantId, quantity }], address: { …as a saved address, without label and isDefault… }, discountCode?, expectedTotal, consent, note?, language? }`), gets `201 { created, token, order, checkout: { url, expiresAt } }` and is sent to Stripe. The order belongs to a guest record of that email; the **token** opens it afterwards (`?token=` or header `X-Order-Token`): `GET /v1/store/guest/orders/{orderNumber}` (`{ order, payment, documents }`), `POST …/pay`, `POST …/cancel`, `GET …/invoices/{number}/pdf`. The way back from Stripe and every email about the order lead to `/guest/orders/<orderNumber>?token=<token>`. `POST /v1/store/cart/preview` takes `discountCode` so a guest can price a code first. `409 CUSTOMER_EMAIL_TAKEN` with `details.action: "sign_in"` when the address has an account; `403 ORDER_TOKEN_INVALID` for a wrong token. A guest who signs up with the same email gets the orders, invoices and the address of the paid orders in the account. Section 2 of `doc/CUSTOMER_ACCOUNTS.md` has the detail.
+Ordering without an account. The visitor sends the cart from the browser, the address and the email to `POST /v1/store/guest/checkout` (header `Idempotency-Key`; body `{ email, items: [{ variantId, quantity }], address: { …as a saved address, without label and isDefault… }, discountCode?, expectedTotal, consent, note?, language? }`), gets `201 { created, token, order, checkout: { url, expiresAt } }` and is sent to Stripe. The order belongs to a guest record of that email; the **token** opens it afterwards (`?token=` or header `X-Order-Token`): `GET /v1/store/guest/orders/{orderNumber}` (`{ order, payment, documents }`), `POST …/pay`, `POST …/cancel`, `GET …/invoices/{number}/pdf`. The way back from Stripe and every email about the order lead to `/guest/orders/<orderNumber>?token=<token>`. `POST /v1/store/cart/preview` takes `discountCode` so a guest can price a code first. `409 CUSTOMER_EMAIL_TAKEN` with `details.action: "sign_in"` when the address has an account; `403 ORDER_TOKEN_INVALID` for a wrong token. A guest who signs up with the same email gets the orders, invoices and the address of the paid orders in the account. Section 2 of [customer-accounts.md](../features/customer-accounts.md) has the detail.
 
 ## 21. Referrals
 
-`GET /v1/store/me/referral` → `{ referral: { code, link, counts: { registered, qualified }, invitees: [{ name, email (masked), status, registeredAt, qualifiedAt }] } }`. The shop reads `ref` from the URL and sends it as `referralCode` with the sign-up; the verify answer says whether it counted. Before that, the sign-up form may check the code: `GET /v1/store/referral-codes/{code}` (no session, 10 calls per minute per IP) → `200 { valid: true, inviter: { firstName } }` for the code of an active account, `404 REFERRAL_CODE_UNKNOWN` otherwise (case does not matter; added 2026-11-02). A referral is `registered` at the sign-up and `qualified` when the invited person's first delivered order stands with nothing to refund; `void` when the goods of that order are all credited later. No rewards yet. Section 7 of `doc/CUSTOMER_ACCOUNTS.md`.
+`GET /v1/store/me/referral` → `{ referral: { code, link, counts: { registered, qualified }, invitees: [{ name, email (masked), status, registeredAt, qualifiedAt }] } }`. The shop reads `ref` from the URL and sends it as `referralCode` with the sign-up; the verify answer says whether it counted. Before that, the sign-up form may check the code: `GET /v1/store/referral-codes/{code}` (no session, 10 calls per minute per IP) → `200 { valid: true, inviter: { firstName } }` for the code of an active account, `404 REFERRAL_CODE_UNKNOWN` otherwise (case does not matter; added 2026-11-02). A referral is `registered` at the sign-up and `qualified` when the invited person's first delivered order stands with nothing to refund; `void` when the goods of that order are all credited later. No rewards yet. Section 7 of [customer-accounts.md](../features/customer-accounts.md).
 
 ## 22. Order reviews
 
-Changed on 2026-11-02. A customer reviews a **delivered order as a whole**, once: `GET /v1/store/orders/{orderNumber}/review` → `{ review | null, canReview }`; `POST /v1/store/orders/{orderNumber}/review` `{ rating: 1–5, text (10–2000), locale? }` → `201 { review }`, status `pending` until the admin publishes it (`409 REVIEW_NOT_POSSIBLE` before the delivery, `409 REVIEW_ALREADY_WRITTEN` the second time; no edit, no delete). `GET /v1/store/me/reviews` lists the own reviews with `status` and `rejectionNote`; `GET /v1/store/me/reviews/reviewable` the delivered orders without a review, as order summaries. Public: `GET /v1/store/reviews?page=&limit=&rating=` → the published reviews, newest first (`id`, `rating`, `text`, `locale`, `authorName`, `verifiedPurchase`, `writtenAt`, `publishedAt`, `reply`), with `summary { average, count, distribution }`, for a "What our customers say" section. Reviews are not about products: products carry no `rating`, and the order feedback of 2026-11-01 is gone. `doc/ORDER_REVIEWS.md` has the detail.
+Changed on 2026-11-02. A customer reviews a **delivered order as a whole**, once: `GET /v1/store/orders/{orderNumber}/review` → `{ review | null, canReview }`; `POST /v1/store/orders/{orderNumber}/review` `{ rating: 1–5, text (10–2000), locale? }` → `201 { review }`, status `pending` until the admin publishes it (`409 REVIEW_NOT_POSSIBLE` before the delivery, `409 REVIEW_ALREADY_WRITTEN` the second time; no edit, no delete). `GET /v1/store/me/reviews` lists the own reviews with `status` and `rejectionNote`; `GET /v1/store/me/reviews/reviewable` the delivered orders without a review, as order summaries. Public: `GET /v1/store/reviews?page=&limit=&rating=` → the published reviews, newest first (`id`, `rating`, `text`, `locale`, `authorName`, `verifiedPurchase`, `writtenAt`, `publishedAt`, `reply`), with `summary { average, count, distribution }`, for a "What our customers say" section. Reviews are not about products: products carry no `rating`, and the order feedback of 2026-11-01 is gone. [order-reviews.md](../features/order-reviews.md) has the detail.
 
 ## 23. Problem reports
 
-After a delivery, within `returns.issueWindowDays` of `GET /v1/store/settings`: `GET /v1/store/orders/{orderNumber}/issues` (`items`, `window { possible, until }`, `reportable[]`), `POST /v1/store/orders/{orderNumber}/issues` `{ items?: [{ variantId, quantity }], problems: [damaged | missing | wrong_item | not_fresh | late | other], description, preferredResolution: refund | replacement | none }` → `201 { issue }` ("RF-1084-P1"), `POST /v1/store/issues/{issueNumber}/images` (multipart `files`, up to five), `DELETE …/images/{imageId}`, `GET /v1/store/issues`, `GET /v1/store/issues/{issueNumber}`, `POST …/cancel` while `open`. Statuses `open`, `in_review`, `resolved` (with `resolution { type, amount, note, at }`), `rejected`, `cancelled`; the customer is emailed when the report is received, resolved or rejected. Errors `ISSUE_NOT_POSSIBLE`, `ISSUE_WINDOW_CLOSED`, `ISSUE_QUANTITY_INVALID`, `ISSUE_TRANSITION_NOT_ALLOWED`, `IMAGE_LIMIT_REACHED`. Section 9 of `doc/CUSTOMER_ACCOUNTS.md`.
+After a delivery, within `returns.issueWindowDays` of `GET /v1/store/settings`: `GET /v1/store/orders/{orderNumber}/issues` (`items`, `window { possible, until }`, `reportable[]`), `POST /v1/store/orders/{orderNumber}/issues` `{ items?: [{ variantId, quantity }], problems: [damaged | missing | wrong_item | not_fresh | late | other], description, preferredResolution: refund | replacement | none }` → `201 { issue }` ("RF-1084-P1"), `POST /v1/store/issues/{issueNumber}/images` (multipart `files`, up to five), `DELETE …/images/{imageId}`, `GET /v1/store/issues`, `GET /v1/store/issues/{issueNumber}`, `POST …/cancel` while `open`. Statuses `open`, `in_review`, `resolved` (with `resolution { type, amount, note, at }`), `rejected`, `cancelled`; the customer is emailed when the report is received, resolved or rejected. Errors `ISSUE_NOT_POSSIBLE`, `ISSUE_WINDOW_CLOSED`, `ISSUE_QUANTITY_INVALID`, `ISSUE_TRANSITION_NOT_ALLOWED`, `IMAGE_LIMIT_REACHED`. Section 9 of [customer-accounts.md](../features/customer-accounts.md).
 
 ## 24. Points and rewards (loyalty coins)
 
-Added on 2026-11-02 (`doc/REWARDS.md` has the long version, with the texts). Customers collect **coins**: for a delivered order (coins per euro of the goods paid, after the code and the coins, delivery excluded, rounded), for the verified sign-up (`rewards.welcomeCoins` in the answer of `POST /v1/store/auth/signup/verify`), when a referral qualifies, and when the admin publishes a review. They redeem coins on the checkout page: each coin takes a percentage of the goods off, spread over the lines like a discount code. Guests have no coins.
+Added on 2026-11-02 ([rewards.md](../features/rewards.md) has the long version, with the texts). Customers collect **coins**: for a delivered order (coins per euro of the goods paid, after the code and the coins, delivery excluded, rounded), for the verified sign-up (`rewards.welcomeCoins` in the answer of `POST /v1/store/auth/signup/verify`), when a referral qualifies, and when the admin publishes a review. They redeem coins on the checkout page: each coin takes a percentage of the goods off, spread over the lines like a discount code. Guests have no coins.
 
 - `GET /v1/store/rewards/program` (no session) → `{ program: { enabled, earning { order { coinsPerEuro } | null, welcome, referral { inviter, invitee }, review, campaign }, redemption { percentPerCoin, minCoins, minRedeemValue, minOrderValue, maxCoinsPerOrder, maxDiscount, combinableWithDiscountCodes } | null, expiry } }`: the rules, `null` where switched off.
 - `GET /v1/store/me/rewards` → `{ account: { available, balance, reserved, earnedTotal, redeemedTotal, lastActivityAt, expiresAt }, canRedeem, reason, program }`. `GET /v1/store/me/rewards/transactions?page=&limit=` → the history, newest first (`type`, signed `coins`, `state`, `orderNumber`, `reference`, `reason`, `at`). `GET /v1/store/me/overview` now also answers `rewards { enabled, available }`.
 - Every cart answer (section 8) carries `lines[].rewardAmount`, `totals.rewards` and `rewards { requested, coins, amount, applied, reason, maxCoins, maxAmount, earn }` (`null` for visitors): `maxCoins`/`maxAmount` the most this cart allows, `earn` the coins the order will bring at delivery, `reason` why coins cannot be redeemed (`disabled`, `no_coins`, `below_min_coins`, `below_min_order`, `below_min_value`, `code_applied`, `too_small`, `insufficient`; `null` when nothing was chosen yet).
 - `PUT /v1/store/checkout/rewards` `{ coins? }` (without `coins`: as many as allowed) → the bill with the coins applied, or `400 REWARDS_NOT_APPLICABLE` with `details.reason`; the choice stays with the cart until the order is paid. `DELETE /v1/store/checkout/rewards` → the bill without them. `POST /v1/store/checkout` prices the coins in and holds them; `409 REWARDS_NOT_APPLICABLE` when they stopped applying (the choice is dropped). The payment spends them; an order given up unpaid frees them.
 - The order (section 9) carries `rewards { coins, amount, percentPerCoin, state } | null`, `items[].rewardAmount`, `totals.rewards`, `finalTotals.rewards`; invoices and credit notes (section 11) a negative line "Coins redeemed (59)" per VAT rate and `totals.rewards`. Goods credited later give the coins of those goods back.
+
+---
+
+## 25. Box-based shipping
+
+Added on 2026-11-20 ([shipping/retail-website.md](../features/shipping/retail-website.md) has the long version, with full answers, the texts in English and German and the scenarios to test). The admin can price delivery by the boxes an order needs: every time the goods reach a threshold again, the delivery of one more box is free, and every other box costs a fee. It can be off; the shop then charges the flat delivery fee as before, `shipping` of a bill is `null` and nothing below applies. Amounts are cents with VAT included, weights whole grams.
+
+- `GET /v1/store/settings` carries `shipping { boxBased, countries, freeThresholdPerBox, maxBoxWeight, boxCapacity, feeTiers }`. With `boxBased: false` the four rule fields are `null`. With `boxBased: true`: `freeThresholdPerBox` cents of goods per free box (`null`: never free by value), `maxBoxWeight` grams a box may weigh, `boxCapacity` grams of goods it holds, `feeTiers[] { upTo, fee }` what one paid box costs for goods up to `upTo` cents (included; the last tier has `upTo: null`); and `deliveryFee { tiers, freeFrom }` then states the same rules for an order of one box.
+- Every bill (section 8: the cart, the preview, the answers of the checkout discount and rewards calls) carries `shipping`: `orderValue` (the goods after the discount code and the coins: the figure every threshold looks at), `requiredBoxes`, `unlockedFreeBoxes` (`floor(orderValue / freeThresholdPerBox)`), `freeBoxes` (`min(requiredBoxes, unlockedFreeBoxes)`), `paidBoxes`, `freeThresholdPerBox`, `missingForNextFreeBox` (cents of goods to one more free box), `missingForFreeDelivery` (cents until every box of this order is free; `0` when it is), `feePerPaidBox`, `fee` (`paidBoxes × feePerPaidBox`, the same as `totals.deliveryFee`), `regularFee` (the fee without a free-delivery code), `freeByCode`, `weight { goods, packaging, total, estimated }`, `box { maxWeight, tareWeight, capacity }`, `boxes[] { number, weight, remaining, utilization, separate, overweight, free, fee }` (the first 50; `utilization` in whole percent of `box.maxWeight`; `separate`: a pack that travels as a parcel of its own) and `currentBox { number, weight, remaining, utilization } | null` (the box the next goods go into). Lines carry `weight { unit, total, estimated }`.
+- The shop displays these figures and never works them out: packs are not divided, so the number of boxes is not the weight divided by the capacity.
+- A discount code and coins are taken off the goods before the boxes are counted, so either can cost a free box; the bill after applying them says so.
+- Discount codes have a third type, `free_delivery`: `discount { type: "free_delivery", value: 0, amount: 0, applied: true }`. It takes nothing off the goods (`totals.discount` is `0`: show no discount row) and makes the delivery free: `totals.deliveryFee` is `0`, and under the box rules `shipping.freeByCode` is `true` and `shipping.regularFee` says what it saved. It works under the flat fee too.
+- `POST /v1/store/checkout` and `POST /v1/store/guest/checkout` are called as before, with `expectedTotal` of the bill shown. `409 ORDER_TOTAL_CHANGED` also when the rules or a weight changed since; `409 ORDER_ITEMS_NOT_ORDERABLE` with the line issue `too_heavy`; `409 DELIVERY_COUNTRY_NOT_SERVED`.
+- The order (section 9) carries `shipping { orderValue, weight { goods, packaging, total, estimated }, requiredBoxes, freeBoxes, paidBoxes, feePerPaidBox, regularFee, fee, freeByCode, boxes[] { number, weight, separate, overweight, free, fee } } | null` and `items[].unitWeight` (grams, or `null`), `items[].weightEstimated`: what was agreed when the order was placed. It does not change when the shop changes its rules. The delivery fee stays after a correction or a partial return and goes back with a cancelled or fully returned order, as before.
+
+---
+
+## 26. Back-in-stock emails ("Notify me")
+
+Added on 2026-11-25 ([stock-alerts.md](../features/stock-alerts.md) has the long version, with the screens and every error). For a pack size that cannot be ordered (`ordering.canOrder: false`), a customer asks to be told when it can and gets one email then. `GET /v1/store/settings` carries `stockAlerts { enabled }`: show nothing of this while it is `false`.
+
+- **A visitor:** `POST /v1/store/stock-alerts` `{ variantId, email, consent: true, locale? }` → `202 { variantId, productId, confirmationRequired }`. With `confirmationRequired: true` the address gets an email with a link, and the request counts once the link is used. The answer is the same whether or not the address was waiting already. 10 calls per minute per IP.
+- **The page of the confirmation link** (`/stock-alerts/confirm?token=…`): `POST /v1/store/stock-alerts/confirm` `{ token }` → `{ alert { variantId, productId, status, email (masked), requestedAt }, unsubscribeToken }`. Using the link twice changes nothing.
+- **The page of the unsubscribe link** (`/stock-alerts/unsubscribe?token=…`): `POST /v1/store/stock-alerts/unsubscribe` `{ token, all? }` → `{ alert, cancelled, waiting }`; `all: true` takes back every request of the address that still waits. `unsubscribeToken` of the confirmation works here too.
+- **A signed-in customer:** `POST /v1/store/me/stock-alerts` `{ variantId, locale? }` → `201 { alert, created: true }`, or `200 { alert, created: false }` when already waiting; `GET /v1/store/me/stock-alerts?locale=` → `{ items }` (what the customer waits for; each with `id`, `variantId`, `productId`, `status`, `requestedAt` and `product`, the pack size as listings show it or `null`); `DELETE /v1/store/me/stock-alerts/{id}` → `{ alert }`.
+- **Errors:** `409 STOCK_ALERT_NOT_NEEDED` (it can be ordered now: reload the product), `409 STOCK_ALERTS_DISABLED`, `404 PRODUCT_VARIANT_NOT_FOUND`, `409 STOCK_ALERT_LIMIT_REACHED` (`details.maximum`; with `details.unconfirmed: true` the address has five requests that wait for their confirmation), `404 STOCK_ALERT_TOKEN_INVALID`, `404 STOCK_ALERT_NOT_FOUND`, `403 CUSTOMER_BLOCKED`, `400 VALIDATION_FAILED` (no `consent: true`, no valid address).
+
+## 27. Trustpilot
+
+Added on 2026-11-25 ([trustpilot.md](../features/trustpilot.md) has the long version). `GET /v1/store/trustpilot?locale=` (no session, `Cache-Control: public, max-age=300`) → `{ enabled, available, trustScore, stars, reviewCount, distribution { "1" … "5" }, profileUrl, reviewUrl, reviews[] { id, stars, title, text, language, createdAt, consumerName, isVerified, reply { text, createdAt } | null }, fetchedAt }`.
+
+- Render the Trustpilot parts only while `available` is `true`; otherwise every figure is `null` and `reviews` is empty.
+- `trustScore` is 1.0 to 5.0 as Trustpilot calculates it, `stars` what Trustpilot shows, in halves. `profileUrl` is the profile and `reviewUrl` the page where a review is written, in the language of `locale`.
+- `reviews` are the newest reviews whatever their stars, as many as the admin set (none when the admin switched them off). Show them as they come: none left out, none reordered.
+- The answer comes from a copy the API keeps; the shop never calls Trustpilot. Invitations to review are sent by Trustpilot after a delivery; the shop has nothing to do for them.
+- These are not the order reviews of section 22: two sources, two sections of the shop.

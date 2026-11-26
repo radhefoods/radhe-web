@@ -71,6 +71,7 @@ Versions are those of `package.json`.
 | `src/features/session` | Who is signed in: `useSession`, the hint, the session's query key |
 | `src/features/cart` | `CartProvider`, `useCart`, `useBill`, the savings and the boxes of a bill, the fly-to-cart animation |
 | `src/features/wishlist` | `WishlistProvider`, `useWishlist`, the named lists of a customer |
+| `src/features/stock-alerts` | "Notify me": `StockAlertsProvider`, `useNotifyMe`, what a refusal of the API means |
 | `src/features/catalogue` | Server readers of the catalogue, the state of a list in the address, facets, availability, the home page's queries, the groups of the navigation, the delivery promise |
 | `src/features/content` | Server readers of the FAQ and the blog, the state of a blog list |
 | `src/features/legal` | Server readers of the legal pages |
@@ -156,7 +157,7 @@ The server never sees a session: the refresh cookie travels to the API's own aut
 | `Providers` | `src/features/providers.tsx` | `QueryClientProvider`, then `CartProvider`, then `WishlistProvider`; ends the session in memory when the refresh is refused |
 | `LocaleAlternatesProvider` | `src/components/shell/locale-switcher.tsx` | Lets a page tell the language switch its address in the other language |
 | `CookieNotice` | `src/components/shell/cookie-notice.tsx` | The notice, drawn with the page until it was read |
-| Shop frame | `src/app/[locale]/(shop)/layout.tsx` | `Header`, `InvitationNotice`, `<main id="main">`, `Footer`, `CartProblem`, `WishlistProblem`, `CartSummaryBar`, `TabBar` |
+| Shop frame | `src/app/[locale]/(shop)/layout.tsx` | `StockAlertsProvider` (whether "Notify me" is offered, from the settings) around `Header`, `InvitationNotice`, `<main id="main">`, `Footer`, `CartProblem`, `WishlistProblem`, `StockAlertNotice`, `CartSummaryBar`, `TabBar` |
 | Account frame | `src/app/[locale]/(shop)/account/layout.tsx` | Inside the shop frame: the texts of the account, `AccountShell` (navigation, and the way to sign-in for a visitor), `noindex` |
 | Checkout frame | `src/app/[locale]/(checkout)/layout.tsx` | A header pill with the logo, "secure checkout", back to the cart and the language switch; the texts of the checkout |
 | Plain frame | `src/app/[locale]/(plain)/layout.tsx` | The logo and the page; the texts of the email links |

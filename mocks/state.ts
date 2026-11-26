@@ -24,6 +24,8 @@ export type Locale = "en" | "de";
 
 export const TIMEZONE = "Europe/Berlin";
 
+const STOCK_ALERT_DEFAULTS = { enabled: false, guestConfirmation: true };
+
 // --- Settings (doc 6) -------------------------------------------------------
 
 export const settings = {
@@ -43,6 +45,13 @@ export const settings = {
     estimate: { en: "2 to 4 working days", de: "2 bis 4 Werktage" },
   },
   returns: { windowDays: 14, issueWindowDays: 14 },
+  /**
+   * "Notify me" (doc 26): off until a test or a developer switches it on
+   * with `POST /__mock/stock-alerts`, like the API is off until the admin
+   * switches it on. `guestConfirmation`: a visitor confirms the address by
+   * a link first.
+   */
+  stockAlerts: { ...STOCK_ALERT_DEFAULTS },
   /** How long a payment page stays open, in minutes (`payments.checkoutMinutes`). */
   checkoutMinutes: 60,
 };
@@ -345,6 +354,23 @@ export interface CustomerRecord {
   wishlists: WishlistListRecord[];
 }
 
+/** A request to be told when a pack size can be ordered again (doc 26). */
+export interface StockAlertRecord {
+  id: string;
+  productId: string;
+  variantId: string;
+  /** Lower case; one request per address and pack size. */
+  email: string;
+  /** The account that asked, or took the request of its address over. */
+  customerId: string | null;
+  /** The language of the emails. */
+  locale: Locale;
+  status: "unconfirmed" | "active" | "notified" | "cancelled" | "expired";
+  requestedAt: string;
+  /** The round: asking again after the email went out is a new one. */
+  cycle: number;
+}
+
 export interface SessionRecord {
   customerId: string;
   accessToken: string;
@@ -522,6 +548,9 @@ export const db = {
   /** The coins (REWARDS 4): one account per customer, and the ledger. */
   rewardAccounts: new Map<string, RewardAccountRecord>(),
   rewardTransactions: [] as RewardTransactionRecord[],
+  /** Back-in-stock requests by id (doc 26). */
+  stockAlerts: new Map<string, StockAlertRecord>(),
+  stockAlertSequence: 0,
 };
 
 /** Signing in with this address answers `CUSTOMER_BLOCKED`. */
@@ -650,6 +679,9 @@ export function resetState(): void {
   db.bannersEnabled = true;
   db.rewardAccounts.clear();
   db.rewardTransactions = [];
+  db.stockAlerts.clear();
+  db.stockAlertSequence = 0;
+  settings.stockAlerts = { ...STOCK_ALERT_DEFAULTS };
   customerSequence = 0;
   settings.shipping = structuredClone(SHIPPING_DEFAULTS);
   shippingMarks.clear();

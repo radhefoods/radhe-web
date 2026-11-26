@@ -14,6 +14,7 @@ The mock is not the authority: where it and the real API differ, the API is righ
 | `mocks/data/` | The fixtures: catalogue, banners, FAQ, blog, discount codes |
 | `mocks/orders.ts`, `mocks/payments.ts` | Orders, the bill, and the page that stands in for Stripe Checkout |
 | `mocks/shipping.ts` | A copy of the backend's rules of delivery by the box, switched off at the start |
+| `mocks/stock-alerts.ts` | The backend's rules of "Notify me" in memory: one request per address and pack size, the confirmation of a visitor, the limits. Switched off at the start |
 | `mocks/discounts.ts`, `mocks/rewards.ts`, `mocks/issues.ts`, `mocks/content.ts`, `mocks/multipart.ts`, `mocks/errors.ts` | Discount codes, coins, problem reports, FAQ and blog, uploads, the error answers |
 | `mocks/demo.ts` | The demo account with its orders |
 | `mocks/testing.ts` | Helpers for tests that run the shop's API client against the mock |
@@ -64,6 +65,9 @@ Routes under `/__mock/` are not part of the real API. They do what an admin, Str
 | `POST /__mock/price` | Changes the price of a pack size (`variantId`, `price`) |
 | `POST /__mock/shipping` | Delivery by the box: `{ enabled: true }` switches it on; the same call sets `freeThresholdPerBox`, `maxBoxWeight`, `boxTareWeight`, `feeTiers`, `countries`, `overweight` and the weights of pack sizes (`weights: [{ variantId, shippingWeight, shipsSeparately }]`) |
 | `POST /__mock/rewards` | Changes the rules of the coins or adjusts a balance |
+| `POST /__mock/stock-alerts` | "Notify me": `{ enabled: true }` switches it on; `guestConfirmation: false` lets a visitor's request count without the confirmation link |
+| `GET /__mock/stock-alerts?email=…` | The requests of an address, each with its `status`, `locale`, `cycle` and the tokens its emails would carry (`confirmToken`, `unsubscribeToken`) |
+| `POST /__mock/stock-alerts/run` | What the API does every five minutes: the customers who wait for a pack size that can be ordered again are marked as told |
 | `POST /__mock/order` | Moves an order along: process, dispatch, deliver, refund |
 | `POST /__mock/payment` | What Stripe would report about a payment page: settle, fail, expire |
 | `POST /__mock/stripe` | Online payment configured or not |

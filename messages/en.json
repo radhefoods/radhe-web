@@ -382,6 +382,25 @@
     "removeFromList": "Remove from this list",
     "removeNamed": "Remove {name} from this list"
   },
+  "stockAlerts": {
+    "notify": "Notify me",
+    "notifyNamed": "Notify me when {name} is back",
+    "hint": "Email me when this product is back in stock.",
+    "waiting": "We will notify you",
+    "cancel": "Cancel",
+    "cancelNamed": "Cancel the notification for {name}",
+    "cancelled": "You will not be notified about this product.",
+    "customerDone": "We will email you at {email} when it is back.",
+    "guestDone": "We will email you when it is back.",
+    "confirmTitle": "Almost done",
+    "confirmText": "Please confirm your address with the link we emailed you.",
+    "email": "Email address",
+    "emailInvalid": "Please enter a valid email address.",
+    "consent": "I agree to receive one email when this product is available again.",
+    "consentRequired": "Please tick the box, so that we may email you.",
+    "back": "Not now",
+    "done": "Done"
+  },
   "auth": {
     "metaTitle": "Sign in",
     "title": "Sign in",
@@ -633,6 +652,7 @@
       "coins": "Coins",
       "reviews": "Reviews",
       "reports": "Reports",
+      "notifications": "Notifications",
       "wishlist": "Wishlist"
     },
     "overview": {
@@ -673,7 +693,19 @@
     "noOrdersText": "Your orders appear here as soon as you place one.",
     "noOrdersCta": "Browse the range",
     "signOut": "Sign out",
-    "loadError": "We could not load this page."
+    "loadError": "We could not load this page.",
+    "notifications": {
+      "metaTitle": "Notifications",
+      "title": "Notifications",
+      "intro": "You get one email as soon as a product you are waiting for can be ordered again.",
+      "empty": "You are not waiting for any product.",
+      "emptyCta": "Browse the range",
+      "loadError": "We could not load your notifications.",
+      "since": "Waiting since {date}",
+      "cancelNamed": "Cancel the notification for {name}",
+      "gone": "No longer in the shop",
+      "goneText": "This product has left our range."
+    }
   },
   "orders": {
     "metaTitle": "Your orders",
@@ -1257,6 +1289,30 @@
     "invalidTitle": "This link is not valid",
     "invalidText": "Please use the link from our latest email, or switch news off in your profile."
   },
+  "stockAlertLinks": {
+    "confirmMetaTitle": "Confirm your notification",
+    "confirmTitle": "Confirm your notification",
+    "confirming": "We are confirming your address …",
+    "confirmedTitle": "Confirmed",
+    "confirmedText": "We will email you at {email} when it is back.",
+    "notifiedTitle": "Already sent",
+    "notifiedText": "We have already emailed you about this product. Please look in your inbox.",
+    "closedTitle": "This notification has ended",
+    "closedText": "It was cancelled or has lapsed. You can ask again on the page of the product.",
+    "cancelThis": "Cancel this notification",
+    "unsubscribeMetaTitle": "Cancel notification",
+    "unsubscribeTitle": "Cancel notification",
+    "unsubscribeText": "After this we will not email you when this product is back in stock.",
+    "unsubscribe": "Cancel notification",
+    "cancelledTitle": "Cancelled",
+    "cancelledText": "You will not be notified about this product.",
+    "othersWaiting": "{count, plural, one {You are still waiting for # other product.} other {You are still waiting for # other products.}}",
+    "cancelAll": "Cancel all my notifications ({count})",
+    "allCancelled": "All your notifications are cancelled.",
+    "invalidTitle": "This link is no longer valid.",
+    "invalidText": "It may have expired, or it was not copied in full. You can ask again on the page of the product.",
+    "toShop": "Continue shopping"
+  },
   "staticLegal": {
     "imprint": "Legal notice",
     "withdrawal": "Right of withdrawal",
@@ -1352,6 +1408,12 @@
     "ISSUE_QUANTITY_INVALID": "You can report at most as many units as were delivered to you.",
     "ISSUE_TRANSITION_NOT_ALLOWED": "Radhe Foods is already looking at this report; it can no longer be taken back.",
     "IMAGE_LIMIT_REACHED": "A report can have up to five photos.",
-    "IMAGE_INVALID": "Please use JPEG, PNG or WebP pictures."
+    "IMAGE_INVALID": "Please use JPEG, PNG or WebP pictures.",
+    "STOCK_ALERTS_DISABLED": "Notifications about products that come back are not offered at the moment.",
+    "STOCK_ALERT_NOT_NEEDED": "Good news: this product can be ordered again.",
+    "STOCK_ALERT_LIMIT_REACHED": "You are waiting for the maximum number of products.",
+    "STOCK_ALERT_LIMIT_UNCONFIRMED": "Please confirm the requests we already emailed you about first.",
+    "STOCK_ALERT_TOKEN_INVALID": "This link is no longer valid.",
+    "STOCK_ALERT_NOT_FOUND": "We could not find this notification."
   }
 }

@@ -34,8 +34,9 @@ Who may open these pages and what a visitor without a session sees is in [authen
 | Coins | `/account/coins` ([rewards.md](rewards.md)) | – |
 | Profile | `/account/profile` | – |
 | Wishlist | `/wishlist`, outside the frame ([wishlist.md](wishlist.md)) | `counts.wishlistItems` |
+| Notifications | `/account/notifications` ([back-in-stock.md](back-in-stock.md)) | – |
 
-The numbers come from `GET /v1/store/me/overview` and show as a small pill only above zero. "Coins" is listed while the overview says the program is on or the customer still has coins (`rewards.enabled` or `rewards.available > 0`); an API that sends no `rewards` never lists it. An entry is current when the address starts with its own; "Overview" only on `/account` itself.
+The numbers come from `GET /v1/store/me/overview` and show as a small pill only above zero. "Coins" is listed while the overview says the program is on or the customer still has coins (`rewards.enabled` or `rewards.available > 0`); an API that sends no `rewards` never lists it. "Notifications" is listed while the shop offers "Notify me" (`stockAlerts.enabled` of the settings). An entry is current when the address starts with its own; "Overview" only on `/account` itself.
 
 ### Overview
 

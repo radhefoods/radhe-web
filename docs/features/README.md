@@ -9,7 +9,7 @@ Every feature of the shop, with the state it is in. One document per feature say
 | **Planned** | Wanted by the owner or offered by the API, and not built in the shop |
 | **Deprecated** | Still in the code, replaced or switched off |
 
-Two features are built and wait for a switch in the admin panel: **delivery by the box** and **loyalty coins**. The shop shows them the moment the API says they are on, without a release; while they are off, customers see the flat delivery fee and no coins.
+Three features are built and wait for a switch in the admin panel: **delivery by the box**, **loyalty coins** and **back-in-stock emails** ("Notify me"). The shop shows them the moment the API says they are on, without a release; while they are off, customers see the flat delivery fee, no coins and no "Notify me".
 
 ## Implemented
 
@@ -29,6 +29,7 @@ Two features are built and wait for a switch in the admin panel: **delivery by t
 | Feature | Status | Since | Note |
 | --- | --- | --- | --- |
 | [Wishlist](wishlist.md) | Implemented | 2026-10-19 | Several named lists for customers since 2026-11-01 |
+| [Back-in-stock emails](back-in-stock.md) ("Notify me") | Implemented, not offered by the live API yet | 2026-11-26 | For a pack size that cannot be ordered: one tap for a customer, an address and a confirmation link for a visitor. `GET /v1/store/settings` had no `stockAlerts` field on 2026-11-26: the backend's release brings the switch, and the admin panel switches it on |
 | [Cart](cart.md) | Implemented | 2026-10 | The page in the owner's chosen design since 2026-11-24 |
 | [Checkout](checkout.md) | Implemented | 2026-10 | Guest checkout since 2026-11-01; the page in the chosen design since 2026-11-24 |
 | [Shipping](shipping.md): the flat fee | Implemented | 2026-10 | What the live shop charges while delivery by the box is off |
@@ -71,8 +72,7 @@ Named by the owner or prepared in the backend, and not in the shop's code.
 
 | Feature | State |
 | --- | --- |
-| Back-in-stock notifications ("notify me") | Not built. A size that cannot be ordered shows "Sold out" and nothing more ([product page](product-page.md)). The backend's repository had a stock-alerts module in work, uncommitted, on 2026-11-25 |
-| Trustpilot | Not built. The code and the texts do not name it; what customers say comes from the shop's own [order reviews](reviews.md) |
+| Trustpilot | Not built. The backend offers the figures and the reviews of Radhe Foods on Trustpilot since 2026-11-25 (`GET /v1/store/trustpilot`, off until the admin switches it on). Twenty placements are in a lab for the owner to choose from; on 2026-11-26 the owner put it off until later. The code and the texts do not name it; what customers say comes from the shop's own [order reviews](reviews.md) |
 | A new header for the checkout | Asked for by the owner on 2026-11-25: twenty designs are in a lab for the owner to choose from; the header of today stays until then ([checkout](checkout.md)) |
 | A country field, address suggestions while typing, and a phone field with a dialling-code chooser at the checkout and in the address book | Asked for by the owner on 2026-11-25; a recommendation was given first, nothing is built. Today the country is always Germany, the address is typed by hand, and the phone number is one field in international form ([forms and validation](../business-logic/forms-and-validation.md)). Address suggestions need an outside service and an endpoint of the backend; other delivery countries need the backend's list of countries and its postcode rule to grow |
 | Discount code and coins on the cart page, "save for later", undo after removing | Shown in the cart design the owner chose and left out when it was built on 2026-11-24, because the shop has no such functions there ([decision log](../decisions/decision-log.md)). Waiting for the owner's word |

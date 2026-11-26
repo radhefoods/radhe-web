@@ -133,6 +133,8 @@ export function settingsView(): ShopSettings {
       windowDays: settings.returns.windowDays,
       issueWindowDays: settings.returns.issueWindowDays,
     },
+    // Whether a customer can ask to be told when a pack size is back (26).
+    stockAlerts: { enabled: settings.stockAlerts.enabled },
   };
 }
 

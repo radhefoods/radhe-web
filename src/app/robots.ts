@@ -16,6 +16,8 @@ export default function robots(): MetadataRoute.Robots {
           "/*/unsubscribe/",
           "/reset-password",
           "/*/reset-password",
+          "/stock-alerts/",
+          "/*/stock-alerts/",
           "/*/guest/",
         ],
       },

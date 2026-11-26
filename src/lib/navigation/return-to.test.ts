@@ -8,6 +8,10 @@ describe("parseReturnTo", () => {
     expect(parseReturnTo(["/account/profile", "/cart"])).toBe(
       "/account/profile",
     );
+    // The account page of "Notify me" (doc 26).
+    expect(parseReturnTo("/account/notifications")).toBe(
+      "/account/notifications",
+    );
   });
 
   it("accepts the page of one order", () => {

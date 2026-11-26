@@ -261,6 +261,12 @@ export interface ShopSettings {
     /** Days after delivery for a problem report (23). Absent from an API older than 2026-11-01. */
     issueWindowDays?: number;
   };
+  /**
+   * "Notify me" for pack sizes that cannot be ordered (26): offered only
+   * while `enabled` is `true`. Absent from an API older than 2026-11-25,
+   * which is the same as switched off.
+   */
+  stockAlerts?: { enabled: boolean };
 }
 
 /**
@@ -1716,4 +1722,74 @@ export interface RewardTransaction {
   /** Of an adjustment by Radhe Foods. */
   reason: string | null;
   at: IsoDateTime;
+}
+
+// --- 26 Back-in-stock emails ("Notify me", doc 26) --------------------------
+
+/**
+ * How a request to be told about a pack size stands. `unconfirmed`: a
+ * visitor asked and has not used the link of the confirmation email yet;
+ * `active`: waiting; `notified`: the email is on its way; `cancelled` and
+ * `expired`: closed.
+ */
+export type StockAlertStatus =
+  "unconfirmed" | "active" | "notified" | "cancelled" | "expired";
+
+/** `POST /v1/store/stock-alerts`: a visitor asks, and agrees to the one email. */
+export interface StockAlertInput {
+  /** The pack size: a request is never for a product as a whole. */
+  variantId: Id;
+  email: string;
+  /** Must be `true`: the form says what is sent. */
+  consent: true;
+  /** The language of the emails. */
+  locale?: Locale;
+}
+
+/**
+ * The answer to a visitor's request (202), the same whether or not the
+ * address was waiting already: nobody learns what another person waits for.
+ */
+export interface StockAlertAsked {
+  variantId: Id;
+  productId: Id;
+  /** True: the address gets an email with a link, and the request counts once the link is used. */
+  confirmationRequired: boolean;
+}
+
+/** A visitor's request as the link pages are told about it: never its id. */
+export interface GuestStockAlert {
+  variantId: Id;
+  productId: Id;
+  status: StockAlertStatus;
+  /** Most of it hidden: `gi***@example.com`. */
+  email: string;
+  requestedAt: IsoDateTime;
+}
+
+/** `POST /v1/store/stock-alerts/confirm`. */
+export interface StockAlertConfirmed {
+  alert: GuestStockAlert;
+  /** Takes the request back again (`unsubscribeStockAlert`). */
+  unsubscribeToken: string;
+}
+
+/** `POST /v1/store/stock-alerts/unsubscribe`. */
+export interface StockAlertUnsubscribed {
+  alert: GuestStockAlert;
+  /** How many requests this call took back. */
+  cancelled: number;
+  /** How many requests of the same address still wait. */
+  waiting: number;
+}
+
+/** A request of the signed-in customer (`/v1/store/me/stock-alerts`). */
+export interface OwnStockAlert {
+  id: Id;
+  variantId: Id;
+  productId: Id;
+  status: StockAlertStatus;
+  requestedAt: IsoDateTime;
+  /** The pack size as listings show it; `null` when it left the shop. */
+  product: ProductSummary | null;
 }

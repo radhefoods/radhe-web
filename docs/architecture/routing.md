@@ -67,6 +67,7 @@ Every page here needs a signed-in customer. `AccountShell` in `src/components/ac
 | `src/app/[locale]/(shop)/account/referrals/page.tsx` | `/en/account/referrals` | `/de/konto/empfehlungen` | Referral code and invitations | [Referrals](../features/referrals.md) |
 | `src/app/[locale]/(shop)/account/reviews/page.tsx` | `/en/account/reviews` | `/de/konto/bewertungen` | The customer's reviews | [Reviews](../features/reviews.md) |
 | `src/app/[locale]/(shop)/account/coins/page.tsx` | `/en/account/coins` | `/de/konto/coins` | Coins | [Rewards](../features/rewards.md) |
+| `src/app/[locale]/(shop)/account/notifications/page.tsx` | `/en/account/notifications` | `/de/konto/benachrichtigungen` | The pack sizes the customer waits for; "not found" while the shop does not offer "Notify me" | [Back-in-stock emails](../features/back-in-stock.md) |
 
 ### Checkout frame, plain frame, no frame
 
@@ -74,6 +75,8 @@ Every page here needs a signed-in customer. `AccountShell` in `src/components/ac
 | --- | --- | --- | --- | --- | --- |
 | `src/app/[locale]/(checkout)/checkout/page.tsx` | `/en/checkout` | `/de/kasse` | The checkout | Customers; a visitor chooses sign-in, sign-up or the guest checkout on the page | [Checkout](../features/checkout.md) |
 | `src/app/[locale]/(plain)/unsubscribe/[token]/page.tsx` | `/en/unsubscribe/[token]` | `/de/unsubscribe/[token]` | Behind the unsubscribe link of an email | Whoever holds the token | [Email unsubscribe](../features/email-unsubscribe.md) |
+| `src/app/[locale]/(plain)/stock-alerts/confirm/page.tsx` | `/en/stock-alerts/confirm` | `/de/stock-alerts/confirm` | Behind the confirmation link of a "Notify me" email (`?token=`) | Whoever holds the token | [Back-in-stock emails](../features/back-in-stock.md) |
+| `src/app/[locale]/(plain)/stock-alerts/unsubscribe/page.tsx` | `/en/stock-alerts/unsubscribe` | `/de/stock-alerts/unsubscribe` | Behind the unsubscribe link of a "Notify me" email (`?token=`) | Whoever holds the token | [Back-in-stock emails](../features/back-in-stock.md) |
 | `src/app/[locale]/styleguide/page.tsx` | `/en/styleguide` | `/de/styleguide` | The design system on one page, in English, `noindex`, linked nowhere | Developers | [Design system](../design-system/README.md) |
 
 ### Files that are not pages
@@ -99,7 +102,7 @@ A folder in round brackets groups pages under one layout and is not part of the 
 | `(shop)` | `src/app/[locale]/(shop)/layout.tsx` | Header, footer, tab bar, the cart bar of phones; reads categories, settings and the published legal pages |
 | `(shop)/account` | `src/app/[locale]/(shop)/account/layout.tsx` | The account's navigation and its guard, inside the shop frame |
 | `(checkout)` | `src/app/[locale]/(checkout)/layout.tsx` | A header pill with the logo, the way back to the cart and the language switch; nothing leads away from the order |
-| `(plain)` | `src/app/[locale]/(plain)/layout.tsx` | The logo only: no navigation, no cart, no language switch |
+| `(plain)` | `src/app/[locale]/(plain)/layout.tsx` | The logo only: no navigation, no cart, no language switch. The pages behind the links of emails that need no sign-in |
 | `styleguide` | none of its own | Under the root layout alone; the page writes its own `<main>` |
 
 Every layout and page calls `localeOf(params)` of `src/i18n/locale.ts` first: it answers "not found" for anything that is not a language of the shop (a request like `/favicon.ico` also lands in `[locale]`) and sets the language for static rendering. The providers and frames are listed in the [overview](overview.md#around-every-page).

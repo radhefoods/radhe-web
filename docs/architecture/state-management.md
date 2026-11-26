@@ -27,6 +27,7 @@ The shop keeps no global store. What the API knows is held in TanStack Query's c
 | --- | --- | --- | --- |
 | Cart | `CartProvider` in `src/features/cart/cart.tsx` | `useCart` | `ready`, `mode` (`guest` or `customer`), `items`, `units`, `quantityOf`, `setQuantity`, `problem`, `clearProblem` |
 | Wishlist | `WishlistProvider` in `src/features/wishlist/wishlist.tsx` | `useWishlist` | `ready`, `mode`, `entries`, `count`, `has`, `save`, `remove`, `clear`, `problem`, `clearProblem` |
+| "Notify me" | `StockAlertsProvider` in `src/features/stock-alerts/stock-alerts.tsx`, mounted by the layout of the shop frame with `stockAlerts.enabled` of the settings | `useStockAlerts` | `offered`, `switchOff`, `notice`, `announce`, `clearNotice`. Outside the shop frame it reads as not offered |
 | Addresses in the other language | `LocaleAlternatesProvider` in `src/components/shell/locale-switcher.tsx` | `LocaleSwitcher`; set by a page through `LocaleAlternates` | The address of the current page per language, where the slug differs ([routing](routing.md)) |
 | The chosen pack size | `PackSizes` in `src/components/catalogue/product-purchase.tsx` (product page only) | The `PackSize…` parts and `ProductPurchase` | The product, the chosen size, its `ordering` and pictures as the API has them at this moment, `select` |
 | Texts | `NextIntlClientProvider` in `src/app/[locale]/layout.tsx`, extended by `AreaMessages` | `useTranslations` | The namespaces a client component may use ([internationalisation](internationalization.md)) |
@@ -75,6 +76,7 @@ A key carries the language where the answer holds translated text.
 | `["wishlist", locale]` | A customer's default list | 30 s | `src/features/wishlist/wishlist.tsx` |
 | `["wishlist", "preview", locale, entries]` | A visitor's list with its products (`POST /v1/store/wishlist/preview`) | 30 s | `src/features/wishlist/wishlist.tsx` |
 | `["wishlists"]`, `["wishlist", "named", id, locale]` | A customer's lists; one named list | 30 s | `src/features/wishlist/wishlists.ts` |
+| `["stock-alerts", locale]` | The pack sizes a customer waits for (`GET /v1/store/me/stock-alerts`), asked while "Notify me" is offered and a control or the account page needs it | 30 s | `src/features/stock-alerts/list-cache.ts` (the key), `src/features/stock-alerts/stock-alerts.tsx` |
 | `["account", "overview"]` | The counts and tiles of the account | 30 s | `src/features/account/overview.ts` |
 | `["account", "rewards"]`, `["account", "rewards", "history"]` | The coins; their history, page by page | 30 s; at once | `src/features/account/rewards.ts`, `src/components/account/rewards-view.tsx` |
 | `["account", "referral"]` | The referral code and the invitations | 30 s | `src/components/account/referral-view.tsx` |

@@ -46,6 +46,7 @@ import type {
   OrderPayment,
   OrderReturns,
   OrderSummary,
+  OwnStockAlert,
   Page,
   ProductDetail,
   ProductFacets,
@@ -64,6 +65,10 @@ import type {
   SignUpStarted,
   SignUpVerified,
   SignUpVerifyInput,
+  StockAlertAsked,
+  StockAlertConfirmed,
+  StockAlertInput,
+  StockAlertUnsubscribed,
   UnsubscribeResult,
   UpdateCommunicationInput,
   UpdateProfileInput,
@@ -693,6 +698,57 @@ export function createStoreApi(request: Requester) {
     /** The tags of the published posts, most used first. */
     listBlogTags: (o?: CallOptions) =>
       request<{ items: BlogTag[] }>("/v1/store/blog/tags", o),
+
+    // --- 26 Back-in-stock emails ("Notify me") ------------------------------
+    // The language of the emails goes in the body where the route takes it,
+    // and as `Accept-Language` with every call: the three routes of the
+    // links list no `locale` at all.
+    /**
+     * A visitor asks to be told when a pack size is back (202). The answer
+     * is the same whether or not the address was waiting already (26).
+     */
+    askStockAlert: (input: StockAlertInput, o?: CallOptions) =>
+      localized<StockAlertAsked>("/v1/store/stock-alerts", {
+        ...o,
+        method: "POST",
+        body: input,
+      }),
+    /** The link of the confirmation email; using it twice changes nothing. */
+    confirmStockAlert: (token: string, o?: CallOptions) =>
+      localized<StockAlertConfirmed>("/v1/store/stock-alerts/confirm", {
+        ...o,
+        method: "POST",
+        body: { token },
+      }),
+    /**
+     * The unsubscribe link, or `unsubscribeToken` of the confirmation: the
+     * request is taken back; with `all`, every request of the address
+     * that still waits.
+     */
+    unsubscribeStockAlert: (token: string, all = false, o?: CallOptions) =>
+      localized<StockAlertUnsubscribed>("/v1/store/stock-alerts/unsubscribe", {
+        ...o,
+        method: "POST",
+        body: all ? { token, all: true } : { token },
+      }),
+    /** What the customer waits for, newest first. */
+    listMyStockAlerts: (o?: CallOptions) =>
+      localized<{ items: OwnStockAlert[] }>("/v1/store/me/stock-alerts", o),
+    /** Counts at once (201); 200 with `created: false` when already waiting. */
+    askMyStockAlert: (variantId: Id, locale?: Locale, o?: CallOptions) =>
+      localized<{ alert: OwnStockAlert; created: boolean }>(
+        "/v1/store/me/stock-alerts",
+        {
+          ...o,
+          method: "POST",
+          body: locale ? { variantId, locale } : { variantId },
+        },
+      ),
+    cancelMyStockAlert: (id: Id, o?: CallOptions) =>
+      localized<{ alert: OwnStockAlert }>(
+        `/v1/store/me/stock-alerts/${seg(id)}`,
+        { ...o, method: "DELETE" },
+      ),
   };
 }
 

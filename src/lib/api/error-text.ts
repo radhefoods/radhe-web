@@ -26,6 +26,12 @@ export function useErrorText(): (error: unknown) => string {
         return t("RETURN_QUANTITY_INVALID", {
           available: numberOf(details.available),
         });
+      case "STOCK_ALERT_LIMIT_REACHED":
+        // Two limits behind one code (26): requests that wait for their
+        // confirmation, or pack sizes waited for.
+        return details.unconfirmed === true
+          ? t("STOCK_ALERT_LIMIT_UNCONFIRMED")
+          : t("STOCK_ALERT_LIMIT_REACHED");
       default:
         return t(error.code);
     }

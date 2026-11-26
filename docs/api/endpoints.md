@@ -63,7 +63,7 @@ Section 3. Every call answers the whole list, which is written into the cache un
 | `GET /v1/store/legal` | `serverApi.listLegal`, `api.listLegal` | – | `{ items: LegalSummary[] }` | none | `src/features/legal/data.ts`, `src/app/sitemap.ts`, `src/components/checkout/checkout-view.tsx` |
 | `GET /v1/store/legal/{type}` | `serverApi.getLegal` | – | `{ document: LegalDocument }` | none | `src/features/legal/data.ts` |
 
-Section 6, and [legal-pages.md](../reference/backend/legal-pages.md). The settings are asked without a language; the server keeps all three for 300 seconds. The checkout asks `GET /v1/store/legal` afresh in the browser, because the versions it sends as consent must be the current ones. `{type}` is a `LegalType`; an unpublished text answers `LEGAL_DOCUMENT_NOT_FOUND`, and an older API answers `BAD_REQUEST` for the four types it does not know.
+Section 6, and [legal-pages.md](../reference/backend/legal-pages.md). The settings are asked without a language; the server keeps all three for 300 seconds. Besides fees and times they carry two switches the shop follows: `shipping.boxBased` ([shipping](../features/shipping.md)) and `stockAlerts.enabled` ([back-in-stock emails](../features/back-in-stock.md)). The checkout asks `GET /v1/store/legal` afresh in the browser, because the versions it sends as consent must be the current ones. `{type}` is a `LegalType`; an unpublished text answers `LEGAL_DOCUMENT_NOT_FOUND`, and an older API answers `BAD_REQUEST` for the four types it does not know.
 
 ## Catalogue
 
@@ -233,6 +233,19 @@ Section 23, and [customer-accounts.md](../reference/backend/customer-accounts.md
 | `DELETE /v1/store/checkout/rewards` | `api.removeCoins` | – | `Bill` | customer | `src/components/checkout/redeem-coins.tsx` |
 
 Section 24, and [rewards.md](../reference/backend/rewards.md). All five take the language as `Accept-Language`. The rules are kept for 300 seconds on the server and asked without a language; an API without coins, or one that does not answer, leaves the section of the page out. `redeemCoins` answers `400 REWARDS_NOT_APPLICABLE` with `details.reason`. See [features/rewards.md](../features/rewards.md).
+
+## Back-in-stock emails
+
+| Method and path | Client function | Sends | Answers | Session | Called from |
+| --- | --- | --- | --- | --- | --- |
+| `POST /v1/store/stock-alerts` | `api.askStockAlert` | `StockAlertInput`: `{ variantId, email, consent: true, locale }` | `202` `StockAlertAsked` | none | `src/features/stock-alerts/stock-alerts.tsx` |
+| `POST /v1/store/stock-alerts/confirm` | `api.confirmStockAlert` | `{ token }` | `StockAlertConfirmed` | none | `src/components/public/stock-alert-links.tsx` |
+| `POST /v1/store/stock-alerts/unsubscribe` | `api.unsubscribeStockAlert` | `{ token }`, with `all: true` for every request of the address | `StockAlertUnsubscribed` | none | `src/components/public/stock-alert-links.tsx` |
+| `GET /v1/store/me/stock-alerts` | `api.listMyStockAlerts` | – | `{ items: OwnStockAlert[] }` | customer | `src/features/stock-alerts/stock-alerts.tsx` |
+| `POST /v1/store/me/stock-alerts` | `api.askMyStockAlert` | `{ variantId, locale }` | `201`, or `200` when already waiting: `{ alert: OwnStockAlert, created }` | customer | `src/features/stock-alerts/stock-alerts.tsx` |
+| `DELETE /v1/store/me/stock-alerts/{id}` | `api.cancelMyStockAlert` | – | `{ alert: OwnStockAlert }` | customer | `src/features/stock-alerts/stock-alerts.tsx`, `src/components/account/notifications-view.tsx` |
+
+Section 26 of the backend's reference, and [stock-alerts.md](../reference/backend/stock-alerts.md). All six take the language as `Accept-Language`; the two requests also carry it as `locale` in the body, the language of the emails. Called only while `GET /v1/store/settings` says `stockAlerts.enabled`. The customer's list is fresh for 30 seconds under `["stock-alerts", locale]`; nothing else is kept. The tokens of the two links are passed through exactly as they came; the confirmation is called once after the page has loaded, the unsubscribe only on its button. Errors: `STOCK_ALERT_NOT_NEEDED` (with `details.ordering`), `STOCK_ALERTS_DISABLED`, `PRODUCT_VARIANT_NOT_FOUND`, `STOCK_ALERT_LIMIT_REACHED` (with `details.unconfirmed`), `STOCK_ALERT_TOKEN_INVALID`, `STOCK_ALERT_NOT_FOUND`, `CUSTOMER_BLOCKED`. See [features/back-in-stock.md](../features/back-in-stock.md).
 
 ## Newsletter and unsubscribe
 

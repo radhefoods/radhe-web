@@ -87,7 +87,7 @@ Confirmed by a search of `src` for "newsletter", "marketing", "unsubscribe" and 
 
 | File | What it is |
 | --- | --- |
-| `src/app/[locale]/(plain)/layout.tsx` | The frame with the logo only; sends the `unsubscribe` texts to the browser |
+| `src/app/[locale]/(plain)/layout.tsx` | The frame with the logo only; sends the texts of the email links to the browser. The two link pages of ["Notify me"](back-in-stock.md) stand in the same frame |
 | `src/app/[locale]/(plain)/unsubscribe/[token]/page.tsx` | The heading and the metadata that keep the page out of search engines |
 | `src/app/[locale]/(plain)/error.tsx` | The error page of this frame |
 | `src/components/public/unsubscribe-view.tsx` | The button, the call and the three results |

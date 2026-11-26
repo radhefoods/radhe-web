@@ -18,6 +18,8 @@ const BASE = [
   "cart",
   "cookieNotice",
   "invitation",
+  // "Notify me" stands on every product card that cannot be ordered.
+  "stockAlerts",
 ] as const satisfies readonly Namespace[];
 
 const AREAS = {
@@ -42,7 +44,7 @@ const AREAS = {
     "rewards",
     "shipping",
   ],
-  emailLinks: ["unsubscribe"],
+  emailLinks: ["unsubscribe", "stockAlertLinks"],
   wishlist: ["wishlist"],
 } as const satisfies Record<string, readonly Namespace[]>;
 

@@ -40,6 +40,8 @@ import {
   formatMoney,
 } from "@/lib/format/money";
 import { AddToCart } from "./add-to-cart";
+import { useNotifyControl } from "./notify-me";
+import { NotifyMeBarButton, NotifyMePanel } from "./notify-me-panel";
 import { Price } from "./price";
 import { ProductGallery, usePicturesAhead } from "./product-gallery";
 import { WishlistButton } from "./wishlist-button";
@@ -77,6 +79,9 @@ function useSelection(): Selection {
   }
   return value;
 }
+
+/** The block of "Notify me" on the page: the bar of the phone leads to it. */
+const NOTIFY_PANEL_ID = "notify-me";
 
 const productHref = (slug: string) => ({
   pathname: "/products/[slug]" as const,
@@ -384,7 +389,9 @@ export function PackSizeWishlist({ className }: { className?: string }) {
  * the settings behind a truck (owner, 2026-10-22); then the limits of the
  * chosen size, and on phones the add-to-cart control fixed above the tab
  * bar. Nothing of the stock or the delivery when the size cannot be
- * ordered: the pill in the button's place says so.
+ * ordered: the pill in the button's place says so, and while the shop
+ * offers it, "Notify me" stands under the pill (doc 26) and, on phones,
+ * in the pill's place in the bar.
  */
 export function ProductPurchase({
   deliveryEstimate,
@@ -400,6 +407,9 @@ export function ProductPurchase({
   const name = productTitle(product.name, variant.packSize);
   const canOrder = orderingReason(ordering) === null;
   const left = fewLeft(ordering);
+  // "Notify me" for the chosen size; each size keeps what was said about it.
+  const notify = useNotifyControl(variant.id, "page");
+  const notifies = !canOrder && notify.offered;
 
   // The limits of the chosen size, under the stock.
   const hints: string[] = [];
@@ -415,6 +425,10 @@ export function ProductPurchase({
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <AddToCart variantId={variant.id} name={name} ordering={ordering} />
+
+      {notifies && (
+        <NotifyMePanel control={notify} name={name} id={NOTIFY_PANEL_ID} />
+      )}
 
       {canOrder && (
         <ul className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
@@ -470,13 +484,28 @@ export function ProductPurchase({
             {formatMoney(variant.pricing.price, locale)}
           </p>
         </div>
-        <AddToCart
-          variantId={variant.id}
-          name={name}
-          ordering={ordering}
-          size="sm"
-          className="w-40 shrink-0"
-        />
+        {/* "Notify me" while there is something to ask. Once the customer
+            waits, or the visitor's form or its answer is in the page, the
+            bar says why the size cannot be ordered, as it does without. */}
+        {notifies &&
+        !notify.waiting &&
+        !notify.local.form &&
+        !notify.local.asked ? (
+          <NotifyMeBarButton
+            control={notify}
+            name={name}
+            panelId={NOTIFY_PANEL_ID}
+            className="w-44 shrink-0"
+          />
+        ) : (
+          <AddToCart
+            variantId={variant.id}
+            name={name}
+            ordering={ordering}
+            size="sm"
+            className="w-40 shrink-0"
+          />
+        )}
       </div>
     </div>
   );

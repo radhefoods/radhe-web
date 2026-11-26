@@ -32,7 +32,7 @@ Every failed call rejects with an `ApiError` (`src/lib/api/errors.ts`), made in 
 | `isUnexpectedError(error)` | Nothing the customer did wrong: not an `ApiError`, status 500 or above, status `0`, `INTERNAL_ERROR`, `UNEXPECTED_RESPONSE` |
 | `isRetryable(error)` | Asking again can help and is safe for a read: `NETWORK_ERROR`, `RATE_LIMITED`, status 502, 503, 504 |
 
-`ErrorDetails` types the `details` of `VALIDATION_FAILED`, `SIGNUP_CODE_INVALID`, `CUSTOMER_EMAIL_TAKEN`, `CUSTOMER_HAS_OPEN_ORDERS`, `ADDRESS_LIMIT_REACHED`, `CART_FULL`, `COMPANY_DETAILS_MISSING`, `LEGAL_DOCUMENTS_MISSING`, `LEGAL_VERSION_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `ORDER_TOTAL_CHANGED`, `DISCOUNT_NOT_APPLICABLE`, `DELIVERY_COUNTRY_NOT_SERVED`, `ORDER_NOT_PAYABLE`, `ORDER_CANNOT_BE_CANCELLED`, `RETURN_NOT_POSSIBLE`, `RETURN_WINDOW_CLOSED`, `ORDER_ITEM_NOT_FOUND`, `RETURN_QUANTITY_INVALID`, `RETURN_TRANSITION_NOT_ALLOWED`, `WISHLIST_FULL` and `REWARDS_NOT_APPLICABLE`.
+`ErrorDetails` types the `details` of `VALIDATION_FAILED`, `SIGNUP_CODE_INVALID`, `CUSTOMER_EMAIL_TAKEN`, `CUSTOMER_HAS_OPEN_ORDERS`, `ADDRESS_LIMIT_REACHED`, `CART_FULL`, `COMPANY_DETAILS_MISSING`, `LEGAL_DOCUMENTS_MISSING`, `LEGAL_VERSION_CHANGED`, `ORDER_ITEMS_NOT_ORDERABLE`, `ORDER_TOTAL_CHANGED`, `DISCOUNT_NOT_APPLICABLE`, `DELIVERY_COUNTRY_NOT_SERVED`, `ORDER_NOT_PAYABLE`, `ORDER_CANNOT_BE_CANCELLED`, `RETURN_NOT_POSSIBLE`, `RETURN_WINDOW_CLOSED`, `ORDER_ITEM_NOT_FOUND`, `RETURN_QUANTITY_INVALID`, `RETURN_TRANSITION_NOT_ALLOWED`, `WISHLIST_FULL`, `REWARDS_NOT_APPLICABLE`, `STOCK_ALERT_NOT_NEEDED` and `STOCK_ALERT_LIMIT_REACHED`.
 
 ## 2. Network failures, time limits and retries
 
@@ -46,7 +46,7 @@ Every failed call rejects with an `ApiError` (`src/lib/api/errors.ts`), made in 
 
 ## 3. From a code to a sentence
 
-The API's `message` is never shown. `useErrorText` in `src/lib/api/error-text.ts` returns a function that turns any caught value into a sentence from the `errors` namespace of `messages/en.json` and `messages/de.json`: the text under the error's `code`. Three codes fill a number from `details` into their text (`ADDRESS_LIMIT_REACHED` and `CART_FULL` with `maximum`, `RETURN_QUANTITY_INVALID` with `available`). A value that is not an `ApiError` gets the text of `INTERNAL_ERROR`.
+The API's `message` is never shown. `useErrorText` in `src/lib/api/error-text.ts` returns a function that turns any caught value into a sentence from the `errors` namespace of `messages/en.json` and `messages/de.json`: the text under the error's `code`. Three codes fill a number from `details` into their text (`ADDRESS_LIMIT_REACHED` and `CART_FULL` with `maximum`, `RETURN_QUANTITY_INVALID` with `available`), and one has two sentences: `STOCK_ALERT_LIMIT_REACHED` reads `STOCK_ALERT_LIMIT_UNCONFIRMED` when `details.unconfirmed` is set. A value that is not an `ApiError` gets the text of `INTERNAL_ERROR`.
 
 `ErrorAlert` (`src/components/ui/error-alert.tsx`) is how nearly every component shows an error: the sentence, the line `errors.reference` ("Reference for our support: {requestId}") when the error is an unexpected one and has a request id, and a "Try again" button when the caller offers a retry. The cart and the wishlist show the sentence in a toast instead (`src/components/cart/cart-problem.tsx`, `src/components/catalogue/wishlist-problem.tsx`).
 
@@ -124,6 +124,11 @@ Every code has a text of its own:
 | `ISSUE_TRANSITION_NOT_ALLOWED` | Radhe Foods is already looking at this report; it can no longer be taken back. |
 | `IMAGE_LIMIT_REACHED` | A report can have up to five photos. |
 | `IMAGE_INVALID` | Please use JPEG, PNG or WebP pictures. |
+| `STOCK_ALERTS_DISABLED` | Notifications about products that come back are not offered at the moment. |
+| `STOCK_ALERT_NOT_NEEDED` | Good news: this product can be ordered again. |
+| `STOCK_ALERT_LIMIT_REACHED` | You are waiting for the maximum number of products. With `details.unconfirmed`: Please confirm the requests we already emailed you about first. |
+| `STOCK_ALERT_TOKEN_INVALID` | This link is no longer valid. |
+| `STOCK_ALERT_NOT_FOUND` | We could not find this notification. |
 
 ## 4. Server pages when the API is away
 
@@ -212,6 +217,12 @@ Every other code is shown as its sentence.
 | `ADDRESS_NOT_FOUND` | same | The sentence, and the addresses are read again (the bill is read again after any other refusal too) |
 | `PAYMENT_PROVIDER_ERROR` | same | The sentence with "Try again", which places the order again. The shop raises this code itself when the address of the payment page is not an accepted one |
 | `ORDER_NOT_PAYABLE` | `src/components/account/order-payment.tsx` | The payment is read again, so the page shows the real state |
+| `STOCK_ALERT_NOT_NEEDED` | `src/features/stock-alerts/stock-alerts.tsx` | "Add to cart" takes the place of "Notify me": the product page asks for its pack sizes again, a card uses `details.ordering` |
+| `STOCK_ALERTS_DISABLED` | same | Every "Notify me" control of the page goes |
+| `PRODUCT_VARIANT_NOT_FOUND` (on a request) | same | The control of that pack size goes |
+| `AUTH_TOKEN_INVALID`, `AUTH_REFRESH_INVALID`, `UNAUTHENTICATED`, `CUSTOMER_NOT_FOUND` (on a customer's request) | same | The visitor's form opens |
+| `STOCK_ALERT_TOKEN_INVALID`, and `VALIDATION_FAILED` on the two link pages (a token cut short) | `src/components/public/stock-alert-links.tsx` | "This link is no longer valid." in the place of the page's content |
+| `STOCK_ALERT_NOT_FOUND` (on cancelling) | `src/features/stock-alerts/stock-alerts.tsx`, `src/components/account/notifications-view.tsx` | Treated as cancelled |
 | `ORDER_NOT_FOUND` | `src/components/account/order-detail.tsx`, `src/components/account/guest-order.tsx` | An information that the order is gone, not an error |
 | `ORDER_TOKEN_INVALID`, `VALIDATION_FAILED` (guest order) | `src/components/account/guest-order.tsx` | "This link is not valid"; the token kept in the tab is forgotten |
 | `REVIEW_ALREADY_WRITTEN` | `src/components/account/order-review.tsx` | The review is read afresh and shown |

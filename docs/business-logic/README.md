@@ -39,6 +39,7 @@ Every form is checked in the browser first, for the customer's convenience, and 
 | Quantity limits, and the first quantity a tap adds | [prices-and-availability.md](prices-and-availability.md#quantity-limits) |
 | How current a shown price or stock is on a cached page | [prices-and-availability.md](prices-and-availability.md#how-current-a-shown-price-or-stock-is), [rendering and caching](../architecture/rendering-and-caching.md) |
 | Badges, the basket and the stepper of a card | [features/product-card.md](../features/product-card.md) |
+| "Notify me" for a pack size that cannot be ordered: who is asked for an address, what each refusal of the API leads to | [features/back-in-stock.md](../features/back-in-stock.md) |
 | Switching the pack size on the product page | [features/product-page.md](../features/product-page.md) |
 | Filters, sorting and pages, kept in the address | [features/catalogue.md](../features/catalogue.md) |
 

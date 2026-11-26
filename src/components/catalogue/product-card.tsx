@@ -12,6 +12,8 @@ import {
   productTitle,
 } from "@/lib/format/product-name";
 import { AddToCart } from "./add-to-cart";
+import { cardSlot } from "./card-slot";
+import { NotifyMeBell } from "./notify-me";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
 import { WishlistButton } from "./wishlist-button";
@@ -43,9 +45,10 @@ const badge =
  * other sizes are chosen on the product page. The name keeps two lines
  * whether it needs them or not, so the prices and the baskets of a row
  * line up (owner, 2026-10-18). A size that cannot be ordered shows its
- * picture greyed and a quiet pill on the tile, and no basket. The tile is
- * the `data-fly-source` of the add button: its picture flies into the
- * cart.
+ * picture greyed and a quiet pill on the tile, and no basket; while the
+ * shop offers "Notify me" (doc 26), the bell of that stands in the
+ * basket's slot. The tile is the `data-fly-source` of the add button: its
+ * picture flies into the cart.
  */
 export function ProductCard({
   product,
@@ -98,7 +101,8 @@ export function ProductCard({
             fallbackLabel={t("noPicture")}
             className={cn(
               "ease-glass transition-transform duration-500 motion-safe:group-hover:scale-[1.05]",
-              unorderable && "opacity-40 grayscale",
+              unorderable &&
+                "opacity-40 grayscale group-has-[[data-back-again]]:opacity-100 group-has-[[data-back-again]]:grayscale-0",
             )}
           />
           {(onSale || left !== null) && (
@@ -122,9 +126,10 @@ export function ProductCard({
           className="absolute top-2 right-2"
         />
         {/* The pill of a size that cannot be ordered, on the greyed
-            picture. */}
+            picture. Both go when "Notify me" learns that the size can be
+            ordered again (`data-back-again`, see `notify-me.tsx`). */}
         {unorderable && (
-          <div className="absolute right-2 bottom-2 max-w-[calc(100%-1rem)]">
+          <div className="absolute right-2 bottom-2 max-w-[calc(100%-1rem)] group-has-[[data-back-again]]:hidden">
             <AddToCart
               variantId={product.variantId}
               name={title}
@@ -173,8 +178,12 @@ export function ProductCard({
             14 rem the slot moves under the price as a row of its own. */}
         <div className="mt-auto flex flex-col gap-2 pt-1 @min-[14rem]:flex-row @min-[14rem]:items-end @min-[14rem]:justify-between @min-[14rem]:gap-1.5">
           <Price pricing={product.pricing} className="min-w-0" />
-          {!unorderable && (
-            <div className="flex h-10 w-full min-w-20 items-center justify-end sm:min-w-21 @min-[14rem]:w-auto @min-[14rem]:flex-1">
+          {unorderable ? (
+            // The bell of "Notify me" (doc 26) in the basket's slot; no
+            // slot at all while the shop does not offer the emails.
+            <NotifyMeBell variantId={product.variantId} name={title} />
+          ) : (
+            <div className={cardSlot}>
               <AddToCart
                 variantId={product.variantId}
                 name={title}

@@ -51,6 +51,7 @@ The state of each one (implemented, partially implemented, planned, deprecated) 
 | | |
 | --- | --- |
 | [Wishlist](features/wishlist.md) | The heart, the wishlist of a visitor and the lists of a customer |
+| [Back-in-stock emails](features/back-in-stock.md) | "Notify me" for a pack size that cannot be ordered, the two pages its emails link to, the list in the account |
 | [Cart](features/cart.md) | The cart page, the summary, the cart in the header |
 | [Checkout](features/checkout.md) | Ordering as a customer or as a guest, the address, the consent, "Buy now" |
 | [Shipping](features/shipping.md) | The flat delivery fee with its free-delivery hint, and delivery by the box |

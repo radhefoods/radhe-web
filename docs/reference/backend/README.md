@@ -8,7 +8,8 @@ Copies of documents of the backend (`radhe-api`), as they were when the shop's s
 
 | Document | Holds | State of the copy | In the backend today (`radhe-api/docs/`) |
 | --- | --- | --- | --- |
-| [store-api.md](store-api.md) | The reference of every call of the store API, in numbered sections | 2026-11-11 | `api/store-api.md`, which has one more section: 25, box-based shipping |
+| [store-api.md](store-api.md) | The reference of every call of the store API, in numbered sections | 2026-11-26 | `api/store-api.md` |
+| [stock-alerts.md](stock-alerts.md) | Back-in-stock emails ("Notify me"): the rules, the statuses, the calls, the errors, what the website and the admin panel do | 2026-11-26 | `features/stock-alerts.md` |
 | [customer-auth.md](customer-auth.md) | Sign-up, sign-in and password recovery with email and password | 2026-10-18 | `features/customer-accounts.md` |
 | [customer-accounts.md](customer-accounts.md) | The sign-up code, guest checkout, closing an account, address labels, the account overview, several wishlists, referrals, problem reports | 2026-11-16 | `features/customer-accounts.md`, `features/referrals.md`, `features/problem-reports.md` |
 | [wishlist.md](wishlist.md) | The first wishlist: one list per customer, the preview for visitors, the merge | 2026-10-19 | `features/wishlist.md` |
@@ -70,7 +71,8 @@ Comments in `src/`, `mocks/` and `e2e/` name these documents in two older ways. 
 | 9 | Orders and checkout | 22 | Order reviews |
 | 10 | Payments | 23 | Problem reports |
 | 11 | Invoices and credit notes | 24 | Points and rewards (loyalty coins) |
-| 12 | Returns | | |
+| 12 | Returns | 25 | Box-based shipping |
+| 26 | Back-in-stock emails ("Notify me") | 27 | Trustpilot (not built in the shop) |
 
 ## 4. Taking a new copy
 

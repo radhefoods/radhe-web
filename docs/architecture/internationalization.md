@@ -50,7 +50,7 @@ Code names a page by its internal key, the English pattern; customers see the ad
 | `/account/orders/[orderNumber]/return` | `/en/account/orders/<number>/return` | `/de/konto/bestellungen/<number>/ruecksendung` |
 | `/legal/terms` | `/en/legal/terms` | `/de/rechtliches/agb` |
 | `/faq`, `/blog`, `/blog/[slug]`, `/blog/tag/[tag]` | The same path in both languages |  |
-| `/reset-password`, `/unsubscribe/[token]`, `/guest/orders/[orderNumber]` | The same path in both: the link of an email is the address |  |
+| `/reset-password`, `/unsubscribe/[token]`, `/guest/orders/[orderNumber]`, `/stock-alerts/confirm`, `/stock-alerts/unsubscribe` | The same path in both: the link of an email is the address |  |
 
 Every page with both addresses is listed in [routing.md](routing.md).
 
@@ -81,8 +81,8 @@ Every endpoint answers in one language ([reference/backend/store-api.md](../refe
 | Way | When |
 | --- | --- |
 | `?locale=en` or `?locale=de` | The default (`localeAs: "query"`) |
-| The header `Accept-Language` | The calls made through `localized` in `src/lib/api/store-api.ts`: the routes whose validation refuses a query field they do not list (sign-up code, account overview and deletion, coins, guest checkout and guest order, the wishlists, referrals, reviews, problem reports) |
-| A field of the body | `language` of the two checkout calls, `locale` of the forgot-password call: the language of the emails that follow |
+| The header `Accept-Language` | The calls made through `localized` in `src/lib/api/store-api.ts`: the routes whose validation refuses a query field they do not list (sign-up code, account overview and deletion, coins, guest checkout and guest order, the wishlists, referrals, reviews, problem reports), and the six calls of the back-in-stock emails |
+| A field of the body | `language` of the two checkout calls, `locale` of the forgot-password call and of the two "Notify me" requests: the language of the emails that follow |
 
 | Caller | Which language |
 | --- | --- |
@@ -127,6 +127,7 @@ The API does not translate its error messages. The shop translates the `code` wi
 | `help` | "How it works" (`howItWorks`) and "Delivery and payment" (`delivery`) |
 | `faq`, `blog` | The fixed texts of the FAQ and the blog; their content comes from the API |
 | `unsubscribe` | The page behind the unsubscribe link |
+| `stockAlerts`, `stockAlertLinks` | "Notify me": the control with its form and messages; the two pages behind the links of its emails |
 | `staticLegal` | The titles of the legal pages read from `content/legal` and the note on an unfinished template |
 | `cookieNotice`, `invitation` | The cookie notice; the note about a referral code |
 | `notFound` | The 404 page |
@@ -140,13 +141,13 @@ A server component reads its texts with `getTranslations` and sends only the fin
 
 | Part | Namespaces | Provided by |
 | --- | --- | --- |
-| Base, with every page | `errors`, `language`, `common`, `nav`, `product`, `cart`, `cookieNotice`, `invitation` | `NextIntlClientProvider` of `src/app/[locale]/layout.tsx` with `clientMessages(messages)` |
+| Base, with every page | `errors`, `language`, `common`, `nav`, `product`, `cart`, `cookieNotice`, `invitation`, `stockAlerts` | `NextIntlClientProvider` of `src/app/[locale]/layout.tsx` with `clientMessages(messages)` |
 | `catalogue` | `filters` | `AreaMessages` in `src/components/catalogue/product-listing.tsx` |
 | `signIn` | `auth` | The sign-in, sign-up, forgot-password and reset-password pages |
 | `cart` | `shipping` | The cart page |
 | `checkout` | `address`, `checkout`, `shipping` | The layout of the checkout |
 | `account` | `account`, `address`, `addressBook`, `documents`, `issues`, `orders`, `payment`, `profile`, `referral`, `returns`, `reviews`, `rewards`, `shipping` | The layout of the account; the guest order page |
-| `emailLinks` | `unsubscribe` | The layout of the plain pages |
+| `emailLinks` | `unsubscribe`, `stockAlertLinks` | The layout of the plain pages |
 | `wishlist` | `wishlist` | The wishlist page |
 
 `clientMessages(messages, area)` answers the base namespaces plus those of the area. `AreaMessages` is a server component that wraps its children in a second `NextIntlClientProvider` with that selection, so inside it the base and the area are available, and outside it only the base. The other namespaces (`home`, `catalogue`, `footer`, `help`, `faq`, `blog`, `legal`, `staticLegal`, `notFound`, `site`) never reach the browser. A client component that uses a namespace its area does not carry shows a missing text; the test below catches that before a customer does.

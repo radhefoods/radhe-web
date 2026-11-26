@@ -7,6 +7,7 @@ import type {
   Id,
   IsoDateTime,
   LegalType,
+  Ordering,
   OrderStatus,
   PaymentStatus,
   Totals,
@@ -100,6 +101,12 @@ export const API_ERROR_CODES = [
   "ISSUE_TRANSITION_NOT_ALLOWED",
   "IMAGE_LIMIT_REACHED",
   "IMAGE_INVALID",
+  // back-in-stock emails (26)
+  "STOCK_ALERTS_DISABLED",
+  "STOCK_ALERT_NOT_NEEDED",
+  "STOCK_ALERT_LIMIT_REACHED",
+  "STOCK_ALERT_TOKEN_INVALID",
+  "STOCK_ALERT_NOT_FOUND",
 ] as const;
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
@@ -165,6 +172,14 @@ export interface ErrorDetails {
   WISHLIST_FULL: { maximum: number };
   /** `400` on redeeming, `409` at checkout when the coins stopped applying (24). */
   REWARDS_NOT_APPLICABLE: { reason: RewardsReason };
+  /** `409`: the pack size can be ordered now, as `ordering` says (26). */
+  STOCK_ALERT_NOT_NEEDED: { variantId: Id; ordering: Ordering };
+  /**
+   * `409`: the address waits for `maximum` pack sizes already; with
+   * `unconfirmed` it has that many requests that wait for their
+   * confirmation (26).
+   */
+  STOCK_ALERT_LIMIT_REACHED: { maximum: number; unconfirmed?: boolean };
 }
 
 export class ApiError extends Error {
